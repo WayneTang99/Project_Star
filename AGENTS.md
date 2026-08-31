@@ -9,6 +9,7 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 - 物理引擎：**Jolt Physics**
 - 渲染：**Forward Plus**，Windows 下使用 **D3D12** 驱动
 - 视口拉伸模式：`canvas_items` + `expand` 自适应
+- 玩法框架：**Forge for Godot**（GAS 类游戏玩法框架，Godot 插件，仅支持 C#）
 
 ## 目录结构
 
@@ -20,6 +21,8 @@ Project_Star/
 │   ├── sounds/        # 音效 (.wav, .ogg)
 │   ├── models/        # 3D模型 (.glb, .fbx)
 │   └── fonts/         # 字体 (.ttf)
+├── addons/            # Godot 插件
+│   └── forge/         # Forge for Godot 插件（含 Forge.props）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
 │   ├── Menu.tscn      # 菜单场景
@@ -46,6 +49,22 @@ dotnet build                    # 编译 C# 脚本
 # 运行：用 Godot 4.7 (mono 版) 打开项目目录，或：
 godot --path .                  # 编辑器可执行文件已配置好 mono 模块
 ```
+
+## Forge for Godot 插件
+
+本项目使用 **Forge for Godot**（Unreal GAS 风格的游戏玩法框架，仅支持 C#）作为玩法层基础。
+
+### 集成要点
+
+- 插件位于 `addons/forge/`，已在 `Project_Star.csproj` 中导入 `<Import Project="addons/forge/Forge.props" />`（当前通过 NuGet 包 `Gamesmiths.Forge 0.4.0` 引用）。
+- `ForgeBootstrap` 是自动加载的单例（Autoload），负责初始化核心系统管理器，勿重复实例化。
+- 实体接入方式二选一：`ForgeEntity` 节点（作为子节点添加到任意 Godot 节点）或 `IForgeEntity` 接口（直接在自定义节点类上实现）。
+
+### 注意事项
+
+- ⚠️ 插件目前处于 **Work in Progress**，官方标注**不建议用于生产环境**，改动其行为前先确认影响范围。
+- ⚠️ 仅支持 **Godot C#** 项目。
+- 修改 `addons/forge/` 内插件源码需谨慎，可能与 NuGet 包版本（当前 `Gamesmiths.Forge 0.4.0`）不一致导致编译/运行异常。
 
 ## 编码规范
 
@@ -86,6 +105,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - **dev**：开发分支（日常开发）
 - **feature/功能名称**：功能分支
 - **hotfix/问题描述**：修复分支
+- **默认推送 dev**：日常提交/推送仅操作 `dev` 分支，**禁止推送 main**（除非用户明确要求）。
 
 ### 提交规范
 
