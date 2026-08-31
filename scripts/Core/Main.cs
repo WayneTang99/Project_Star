@@ -9,11 +9,16 @@ public partial class Main : Node
 
 	public RoundTurnManager RoundTurnManager { get; private set; } = null!;
 
+	public HeroManager HeroManager { get; private set; } = null!;
+
 	public override void _Ready()
 	{
 		base._Ready();
 		GameManager = new GameManager();
 		AddChild(GameManager);
+
+		HeroManager = new HeroManager();
+		AddChild(HeroManager);
 
 		RoundTurnManager = new RoundTurnManager();
 		AddChild(RoundTurnManager);

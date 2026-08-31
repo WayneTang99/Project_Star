@@ -37,7 +37,7 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引用)
 ├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
 ├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
-├── HeroManager              # 英雄：选角、持有 HeroBase、属性存取
+├── HeroManager              # 英雄：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
 ├── CardManager              # 卡牌：数据库、实例化、构筑（Bench/Battlefield 放置）
 ├── BoardManager             # 棋盘：战场/备战区排列、放置/移除/交换、容量与合法性校验
 └── EventManager             # 事件：类型注册、生成（单/多选）、结果结算
@@ -75,8 +75,9 @@ Project_Star/
 │   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
 │   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集）
 │   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
+│   ├── Entities/      # 实体子类（Heroes/TemplateHero 等）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
-│   ├── UI/            # UI控制器
+│   ├── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
@@ -124,10 +125,25 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 ### 项目侧对 Aria 的扩展（已建）
 
 - `scripts/Core/Bases/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
-- `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`）。
+- `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`HeroName` 与 `ApplyInitialAttributes` 供子类覆写）。
+- `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
+- `scripts/Core/Managers/HeroManager`：英雄管理器（持有模板池每种各一个、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
 - `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
-- `scripts/Core/Types/MatchEndReason` + `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定留白待补）。
+- `scripts/Core/Types/MatchEndReason` + `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
+
+### 英雄系统
+
+- **继承定义**：每个英雄是 `HeroBase` 子类（放 `scripts/Entities/Heroes/`），覆写 `HeroName` 与 `ApplyInitialAttributes()` 实现初始属性差异；**不建英雄场景**（逻辑层纯代码）。
+- **模板池**：`HeroManager._Ready` 创建每种英雄各一个作模板（`AvailableHeroes`）；玩家选择时从模板 `Duplicate()` 复制独立实例（含独立 `AttributeSet`）成为 `CurrentHero`。
+- **商店与卡牌**：英雄不管理商店。卡牌定义携带**英雄 key**；商店由 `ShopEventManager` 与 `CardManager` 交互，按英雄 key 过滤卡池。
+
+### MVC 分离约定（英雄 UI）
+
+- 英雄 UI 为**独立类**，与底层逻辑分离，分两类：`HeroSelectionUI`（选角界面）与 `InMatchHeroUI`（局内界面），放 `scripts/UI/`。
+- UI 只读 Manager 状态（如 `HeroManager.AvailableHeroes` / `CurrentHero`）、订阅事件刷新，**不直接改模型**。
+- 英雄视觉（立绘/模型）由 UI 层按英雄标识映射加载，英雄实体不感知自身表现。
+- 英雄 UI 尚未实现，仅约定；实现时机以 UI 开发阶段为准。
 
 ### 能力系统（规划中，未实现）
 

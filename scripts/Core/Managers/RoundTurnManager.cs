@@ -11,6 +11,8 @@ public partial class RoundTurnManager : Node
 
 	private GameManager _gameManager = null!;
 
+	private HeroManager _heroManager = null!;
+
 	public int CurrentRound { get; private set; }
 
 	public int CurrentTurn { get; private set; }
@@ -28,6 +30,7 @@ public partial class RoundTurnManager : Node
 		base._Ready();
 		_gameManager = GetNode<GameManager>("../GameManager");
 		_gameManager.StateChangedEvent += OnStateChanged;
+		_heroManager = GetNode<HeroManager>("../HeroManager");
 	}
 
 	public override void _ExitTree()
@@ -84,5 +87,9 @@ public partial class RoundTurnManager : Node
 
 	private void CheckDefeat()
 	{
+		if (_heroManager.CurrentHero?.AttributeSet.Reputation.CurrentValue <= 0f)
+		{
+			_gameManager.EndMatch(MatchEndReason.Defeat);
+		}
 	}
 }
