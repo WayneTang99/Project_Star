@@ -38,7 +38,7 @@ Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引�
 ├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
 ├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
 ├── HeroManager              # 英雄：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
-├── CardManager              # 卡牌：数据库、实例化、构筑（Bench/Battlefield 放置）
+├── CardManager              # 卡牌：反射收集模板池、实例化、玩家拥有卡牌、按英雄key过滤供商店
 ├── BoardManager             # 棋盘：战场/备战区排列、放置/移除/交换、容量与合法性校验
 └── EventManager             # 事件：类型注册、生成（单/多选）、结果结算
     ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
@@ -73,9 +73,9 @@ Project_Star/
 │   ├── Core/          # 核心系统
 │   │   ├── Types/     # 类型定义（枚举等：GameState）
 │   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
-│   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集）
+│   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集：HeroAttributeSet / CardAttributeSet）
 │   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
-│   ├── Entities/      # 实体子类（Heroes/TemplateHero 等）
+│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard 等）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
 │   ├── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
@@ -127,7 +127,11 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Bases/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`HeroName` 与 `ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
-- `scripts/Core/Managers/HeroManager`：英雄管理器（持有模板池每种各一个、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
+- `scripts/Core/Managers/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
+- `scripts/Core/Bases/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`HeroKey`/`Size` 与可变 `Level`）。
+- `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`）。
+- `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
+- `scripts/Core/Managers/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByHero` 供商店过滤）。
 - `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
 - `scripts/Core/Types/MatchEndReason` + `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
@@ -135,8 +139,14 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 ### 英雄系统
 
 - **继承定义**：每个英雄是 `HeroBase` 子类（放 `scripts/Entities/Heroes/`），覆写 `HeroName` 与 `ApplyInitialAttributes()` 实现初始属性差异；**不建英雄场景**（逻辑层纯代码）。
-- **模板池**：`HeroManager._Ready` 创建每种英雄各一个作模板（`AvailableHeroes`）；玩家选择时从模板 `Duplicate()` 复制独立实例（含独立 `AttributeSet`）成为 `CurrentHero`。
+- **模板池**：`HeroManager` 用**反射扫描程序集**，`_Ready` 自动收集所有非抽象 `HeroBase` 子类各建一个作模板（`AvailableHeroes`）；玩家选择时从模板 `Duplicate()` 复制独立实例（含独立 `AttributeSet`）成为 `CurrentHero`。
 - **商店与卡牌**：英雄不管理商店。卡牌定义携带**英雄 key**；商店由 `ShopEventManager` 与 `CardManager` 交互，按英雄 key 过滤卡池。
+
+### 卡牌系统
+
+- **继承定义**：卡牌是 `CardBase` 抽象基类的子类（放 `scripts/Entities/Cards/`），构造函数内创建 `CardAttributeSet`（注入 `CardKey`/`DisplayName`/`HeroKey`/`Size`）。功能相似的卡牌后期可继承自同一中间抽象类。
+- **身份字段不可变**：`CardKey` / `DisplayName` / `HeroKey` / `Size` 为 get-only，创建后不可修改；`Level` 走 `AriaAttributeData`（可变，数值流转）。
+- **模板池**：`CardManager` 同样用**反射**收集所有非抽象 `CardBase` 子类作模板（`CardTemplates`）；`CreateCard` 复制实例、`AddCardToPlayer` 记录玩家拥有卡牌、`GetCardsByHero(heroKey)` 供商店过滤。
 
 ### MVC 分离约定（英雄 UI）
 

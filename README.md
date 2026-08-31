@@ -25,8 +25,8 @@
 
 - **GameManager**：主状态机（选英雄 → 局内 → 结算），EndMatch/Surrender 强制结束总线
 - **RoundTurnManager**：局内轮次（8 回合/轮、事件派发、末回合固定 PvP、轮末声望失败判定）
-- **HeroManager**：英雄模板池（每种各一个）、选择后复制实例、属性存取
-- **CardManager**：卡牌数据库、实例化、构筑
+- **HeroManager**：反射收集英雄模板池（每种各一个）、选择后复制实例、属性存取
+- **CardManager**：反射收集卡牌模板池、实例化、玩家拥有卡牌、按英雄 key 过滤供商店
 - **BoardManager**：棋盘（战场/备战区排列、放置校验）
 - **EventManager**：事件生成、分发、结算，持有两个子管理器（MonsterEventManager / ShopEventManager）
 
@@ -35,9 +35,14 @@
 ## 英雄系统
 
 - **继承定义**：每个英雄是 `HeroBase` 子类，覆写 `HeroName` 与 `ApplyInitialAttributes()` 实现初始属性差异，逻辑层不建场景。
-- **模板池**：`HeroManager` 持有每种英雄各一个模板，选择时 `Duplicate()` 复制独立实例。
+- **模板池**：`HeroManager` 用反射自动收集所有非抽象 `HeroBase` 子类各建一个模板，选择时 `Duplicate()` 复制独立实例。
 - **商店**：卡牌定义带英雄 key，商店由 `ShopEventManager` 与 `CardManager` 按英雄 key 交互。
 - **MVC**：英雄 UI（`HeroSelectionUI` / `InMatchHeroUI`）为独立类，只读 Manager、订阅事件，视觉由 UI 层加载。
+
+## 卡牌系统
+
+- **继承定义**：卡牌是 `CardBase` 抽象基类的子类，构造函数注入 `CardAttributeSet`（`CardKey`/`DisplayName`/`HeroKey`/`Size` 不可变，`Level` 可变）。
+- **模板池**：`CardManager` 用反射自动收集所有非抽象 `CardBase` 子类作模板，`CreateCard` 复制实例、`GetCardsByHero` 按英雄 key 过滤。
 
 ## 目录结构
 
@@ -58,7 +63,7 @@ Project_Star/
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
 │   ├── Core/          # 核心系统（管理器：Game/RoundTurn/Hero/Card/Board/Event 及子管理器；实体基类：HeroBase/CardBase/EnemyBase 等）
-│   ├── Entities/      # 实体子类（Heroes/TemplateHero 等）
+│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard 等）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
 │   ├── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 │   └── Utils/         # 工具类（扩展方法、辅助函数）

@@ -11,6 +11,8 @@ public partial class Main : Node
 
 	public HeroManager HeroManager { get; private set; } = null!;
 
+	public CardManager CardManager { get; private set; } = null!;
+
 	public override void _Ready()
 	{
 		base._Ready();
@@ -19,6 +21,9 @@ public partial class Main : Node
 
 		HeroManager = new HeroManager();
 		AddChild(HeroManager);
+
+		CardManager = new CardManager();
+		AddChild(CardManager);
 
 		RoundTurnManager = new RoundTurnManager();
 		AddChild(RoundTurnManager);

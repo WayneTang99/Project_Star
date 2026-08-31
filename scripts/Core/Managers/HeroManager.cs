@@ -1,8 +1,8 @@
 using System;
+using System.Reflection;
 using Godot;
 using Project_Star.Core.Bases;
 using Project_Star.Core.Types;
-using Project_Star.Entities.Heroes;
 
 namespace Project_Star.Core.Managers;
 
@@ -24,10 +24,7 @@ public partial class HeroManager : Node
 		base._Ready();
 		_gameManager = GetNode<GameManager>("../GameManager");
 		_gameManager.StateChangedEvent += OnStateChanged;
-
-		var templateHero = new TemplateHero();
-		AddChild(templateHero);
-		AvailableHeroes.Add(templateHero);
+		RegisterHeroTemplates();
 	}
 
 	public override void _ExitTree()
@@ -59,6 +56,23 @@ public partial class HeroManager : Node
 
 		CurrentHero = null;
 		HeroResetEvent?.Invoke();
+	}
+
+	private void RegisterHeroTemplates()
+	{
+		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
+		{
+			if (type.IsAbstract || !typeof(HeroBase).IsAssignableFrom(type))
+			{
+				continue;
+			}
+
+			if (Activator.CreateInstance(type) is HeroBase hero)
+			{
+				AddChild(hero);
+				AvailableHeroes.Add(hero);
+			}
+		}
 	}
 
 	private void OnStateChanged(GameState newState)
