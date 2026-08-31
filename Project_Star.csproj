@@ -4,6 +4,9 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>Project_Star</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="scenes\" />
+  </ItemGroup>
 
   <Import Project="addons/forge/Forge.props" />
 </Project>

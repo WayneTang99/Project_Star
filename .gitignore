@@ -8,3 +8,8 @@ obj/
 
 # Godot export
 export_presets.cfg
+
+# IDE
+.idea/
+*.DotSettings.user
+.vs/

@@ -9,7 +9,48 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 - 物理引擎：**Jolt Physics**
 - 渲染：**Forward Plus**，Windows 下使用 **D3D12** 驱动
 - 视口拉伸模式：`canvas_items` + `expand` 自适应
-- 玩法框架：**Forge for Godot**（GAS 类游戏玩法框架，Godot 插件，仅支持 C#）
+- 类型：类《The Bazaar》（大巴扎）的**卡牌异步对战自走棋**
+- 玩法框架：自研 **Aria** 插件（基于 Forge for Godot 思路参考，**不得引用 Forge 运行时**）
+
+## 游戏设计（立项）
+
+### 核心要素
+
+- **英雄（Hero）**：玩家选择的角色，携带属性集，是构筑与战斗的主体。
+- **卡牌（Card）**：构成角色构筑与战斗手段的核心资源，可通过商店交易获得。
+- **事件（Event）**：回合中出现的各种状况，可能为单事件或多选一。
+
+### 游戏流程
+
+- 玩家**选择英雄**进入游戏。
+- 游戏以 **轮（Round）** + **回合（Turn）** 逐步递进，每回合可能出现各种事件。
+- **商店事件**中，玩家可以**交易卡牌**。
+- 玩家拥有**备战区（Bench）** 与 **战场区（Battlefield）**，可随意放置卡牌。
+- **8 回合为 1 轮**，每轮**最后一回合固定为异步玩家对战事件**。
+- 玩家对战事件与怪物对战事件点击后**进入战斗**，战斗使用**战场区卡牌**自动进行。
+
+### 管理器架构
+
+所有管理器与实体基类均位于 `scripts/Core/`。管理器**不注册为 Autoload**，由主场景 `scenes/Main.tscn` 作为子节点挂载、统一注册；`EventManager` 持有两个子管理器（普通类实例，生命周期随 `EventManager`）。
+
+```
+Main (主场景根节点，挂 Main.cs，缓存各管理器引用)
+├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换）
+├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP
+├── HeroManager              # 英雄：选角、持有 HeroBase、属性存取
+├── CardManager              # 卡牌：数据库、实例化、构筑（Bench/Battlefield 放置）
+├── BoardManager             # 棋盘：战场/备战区排列、放置/移除/交换、容量与合法性校验
+└── EventManager             # 事件：类型注册、生成（单/多选）、结果结算
+    ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
+    └── ShopEventManager      # 子管理器：商店事件（交易卡牌、扣 Wealth 属性）
+```
+
+**通信与数据约定**
+
+- 管理器间通过 **Godot 信号（C# event）** 通信，避免互相直调。
+- 数值流转一律走 `AriaAttributeSet`（扣财富、扣血等），不直接改字段。
+- `CardManager` 管卡牌实例与数据，`BoardManager` 管卡牌在棋盘上的位置与布局。
+- 实体基类（`HeroBase` / `CardBase` / `EnemyBase` 等）与管理器同放 `scripts/Core/`，供各系统与 UI 复用。
 
 ## 目录结构
 
@@ -22,14 +63,14 @@ Project_Star/
 │   ├── models/        # 3D模型 (.glb, .fbx)
 │   └── fonts/         # 字体 (.ttf)
 ├── addons/            # Godot 插件
-│   └── forge/         # Forge for Godot 插件（含 Forge.props）
+│   ├── aria/          # Aria 自研玩法插件（属性、能力等）
+│   └── forge/         # Forge for Godot 插件（仅作参考，不引用）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
 │   ├── Menu.tscn      # 菜单场景
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
-│   ├── Core/          # 核心系统（单例、管理器）
-│   ├── Entities/      # 实体类（Player, Enemy, Item）
+│   ├── Core/          # 核心系统（管理器：Game/RoundTurn/Hero/Card/Board/Event 及子管理器；实体基类：HeroBase/CardBase/EnemyBase 等）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
 │   ├── UI/            # UI控制器
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
@@ -50,21 +91,46 @@ dotnet build                    # 编译 C# 脚本
 godot --path .                  # 编辑器可执行文件已配置好 mono 模块
 ```
 
-## Forge for Godot 插件
+## Forge for Godot 插件（仅参考）
 
-本项目使用 **Forge for Godot**（Unreal GAS 风格的游戏玩法框架，仅支持 C#）作为玩法层基础。
-
-### 集成要点
-
-- 插件位于 `addons/forge/`，已在 `Project_Star.csproj` 中导入 `<Import Project="addons/forge/Forge.props" />`（当前通过 NuGet 包 `Gamesmiths.Forge 0.4.0` 引用）。
-- `ForgeBootstrap` 是自动加载的单例（Autoload），负责初始化核心系统管理器，勿重复实例化。
-- 实体接入方式二选一：`ForgeEntity` 节点（作为子节点添加到任意 Godot 节点）或 `IForgeEntity` 接口（直接在自定义节点类上实现）。
+**Forge for Godot**（Unreal GAS 风格的游戏玩法框架，仅支持 C#）只作为 Aria 插件的**设计参考**。
 
 ### 注意事项
 
-- ⚠️ 插件目前处于 **Work in Progress**，官方标注**不建议用于生产环境**，改动其行为前先确认影响范围。
-- ⚠️ 仅支持 **Godot C#** 项目。
-- 修改 `addons/forge/` 内插件源码需谨慎，可能与 NuGet 包版本（当前 `Gamesmiths.Forge 0.4.0`）不一致导致编译/运行异常。
+- ⚠️ **本项目不得引用 Forge 运行时**：不 `using Gamesmiths.Forge.*`，不依赖 `Forge.props` / NuGet 包，不为 Forge 写业务代码。
+- ⚠️ 插件位于 `addons/forge/`，仅保留用于阅读参考，其源码问题不修复、不依赖。
+- 改动前先参考 `addons/forge/` 与 NuGet 包 `Gamesmiths.Forge 0.4.0` 的设计思路（如 Ability、Attribute 结构）。
+
+## Aria 插件（自研）
+
+`addons/aria/` 是自研玩法插件，承接 Forge 思路但**独立实现，不依赖 Forge**。
+
+### 插件定位（重要）
+
+- ⚠️ Aria 是**跨游戏复用的通用玩法插件**，与具体游戏项目无关，后期可应用于其他游戏。
+- ⚠️ **插件内不得包含游戏专属逻辑**：不引用 `scripts/`、不依赖具体管理器（`GameManager` 等）、不感知英雄/卡牌/事件等游戏概念。
+- 游戏专属逻辑（管理器、实体基类）放 `scripts/Core/`，由主场景注册；插件只提供通用框架（属性、能力等）。
+- 插件可导出为独立模块（如 Godot Asset Library 打包）供多项目复用。
+
+### 属性系统（已建）
+
+- `attributes/AriaAttributeData`：单个属性（BaseValue / CurrentValue / MinValue / MaxValue，值变更事件，Min/Max 联动校正）。
+- `attributes/AriaAttributeSet`：属性集合（字典管理，按 key 增查改）。
+
+### 项目侧对 Aria 的扩展（已建）
+
+- `scripts/Core/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含生命 / 护甲 / 财富 / 经验 / 等级）。
+- `scripts/Core/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`）。
+- `scripts/Core/GameState` + `GameManager`：主状态机（`StateChangedEvent` 信号广播）。
+- `scenes/Main.tscn` + `scenes/Main.cs`：主场景根节点，挂载并缓存各管理器引用。
+
+### 能力系统（规划中，未实现）
+
+- **通用能力**：能力可被**英雄与卡牌**共同使用，通过**继承**定义各种能力（如攻击、施法、被动）。
+- **释放判断条件**：由每个能力子类**自定义**是否可释放（如冷却、资源、状态）。
+- **触发方式**：提供**调用方法**供外部触发释放（管理器 / 事件 / 战斗逻辑调用）。
+- **管理器**：后续建立能力管理器（授予、激活、更新）。
+- 参考 Forge 的 Ability / AbilityData / AbilityHandle / IAbilityBehavior 结构，但按本项目简化、去 Tag 化、费用基于 `AriaAttributeData`。
 
 ## 编码规范
 
@@ -89,7 +155,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - 类与脚本文件名保持一致（Godot 要求类名匹配文件名）。
 - 通过节点路径引用时使用 `GetNode<T>("...")`；优先使用 `@export` 在 Inspector 暴露参数。
 - 不使用 `_Process` 计算固定逻辑，改用 `_PhysicsProcess`。
-- 只有被明确要求时才添加注释，代码本身应自解释。
+- 不添加任何注释（包括 XML 文档注释），除非用户明确要求，代码本身应自解释。
 - 提交前不包含任何密钥或敏感信息。
 
 ### 性能注意事项
@@ -126,4 +192,3 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - ❌ 不要在场景中硬编码文件路径，使用 `[Export]` 或资源引用
 - ✅ .NET SDK 版本必须 ≥ 6.0
 - ✅ 确保 `.gitignore` 包含 `bin/` 和 `obj/` 目录
-- ✅ 所有公共 API 必须有 XML 文档注释
