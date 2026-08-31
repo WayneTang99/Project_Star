@@ -1,7 +1,8 @@
 using System;
 using Godot;
+using Project_Star.Core.Types;
 
-namespace Project_Star.Core;
+namespace Project_Star.Core.Managers;
 
 [GlobalClass]
 public partial class GameManager : Node

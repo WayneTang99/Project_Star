@@ -31,10 +31,10 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 
 ### 管理器架构
 
-所有管理器与实体基类均位于 `scripts/Core/`。管理器**不注册为 Autoload**，由主场景 `scenes/Main.tscn` 作为子节点挂载、统一注册；`EventManager` 持有两个子管理器（普通类实例，生命周期随 `EventManager`）。
+所有管理器与实体基类均位于 `scripts/Core/` 下的 `Managers/` 与 `Bases/`（类型定义在 `Types/`）。管理器**不注册为 Autoload、不作为场景子节点**，由根节点脚本 `scripts/Core/Main.cs` 在 `_Ready` 中 **new 生成并 AddChild 挂载**、统一注册；`EventManager` 持有两个子管理器（普通类实例，生命周期随 `EventManager`）。
 
 ```
-Main (主场景根节点，挂 Main.cs，缓存各管理器引用)
+Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引用)
 ├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换）
 ├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP
 ├── HeroManager              # 英雄：选角、持有 HeroBase、属性存取
@@ -70,7 +70,11 @@ Project_Star/
 │   ├── Menu.tscn      # 菜单场景
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
-│   ├── Core/          # 核心系统（管理器：Game/RoundTurn/Hero/Card/Board/Event 及子管理器；实体基类：HeroBase/CardBase/EnemyBase 等）
+│   ├── Core/          # 核心系统
+│   │   ├── Types/     # 类型定义（枚举等：GameState）
+│   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
+│   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集）
+│   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
 │   ├── UI/            # UI控制器
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
@@ -121,8 +125,8 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 - `scripts/Core/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含生命 / 护甲 / 财富 / 经验 / 等级）。
 - `scripts/Core/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`）。
-- `scripts/Core/GameState` + `GameManager`：主状态机（`StateChangedEvent` 信号广播）。
-- `scenes/Main.tscn` + `scenes/Main.cs`：主场景根节点，挂载并缓存各管理器引用。
+- `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播）。
+- `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
 ### 能力系统（规划中，未实现）
 

@@ -1,4 +1,4 @@
-namespace Project_Star.Core;
+namespace Project_Star.Core.Types;
 
 public enum GameState
 {

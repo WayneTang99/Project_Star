@@ -1,4 +1,5 @@
 using Godot;
+using Project_Star.Core.Managers;
 
 namespace Project_Star.Core;
 
@@ -9,6 +10,7 @@ public partial class Main : Node
 	public override void _Ready()
 	{
 		base._Ready();
-		GameManager = GetNode<GameManager>("GameManager");
+		GameManager = new GameManager();
+		AddChild(GameManager);
 	}
 }

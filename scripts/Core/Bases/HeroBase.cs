@@ -1,6 +1,6 @@
 using Godot;
 
-namespace Project_Star.Core;
+namespace Project_Star.Core.Bases;
 
 [GlobalClass]
 public partial class HeroBase : Node

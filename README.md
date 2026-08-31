@@ -21,7 +21,7 @@
 
 ## 管理器架构
 
-所有管理器不注册为 Autoload，由主场景 `scenes/Main.tscn` 作为子节点挂载，根节点 `Main.cs` 缓存引用；`EventManager` 持有两个子管理器（生命周期随主管理器）。
+所有管理器不注册为 Autoload、不作为场景子节点，由主场景 `scenes/Main.tscn` 的根节点脚本 `Main.cs` 在 `_Ready` 中 new 生成并 AddChild 挂载、统一注册；`EventManager` 持有两个子管理器（生命周期随主管理器）。
 
 - **GameManager**：主状态机（选英雄 → 局内 → 结算）
 - **RoundTurnManager**：局内轮次（8 回合/轮、事件派发、末回合固定 PvP）

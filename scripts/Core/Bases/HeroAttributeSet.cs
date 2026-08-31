@@ -1,7 +1,7 @@
 using Aria;
 using Godot;
 
-namespace Project_Star.Core;
+namespace Project_Star.Core.Bases;
 
 [GlobalClass]
 public partial class HeroAttributeSet : AriaAttributeSet
