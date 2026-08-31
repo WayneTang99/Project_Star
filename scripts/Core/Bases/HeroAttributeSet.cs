@@ -11,12 +11,14 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	public const string WEALTH = "Wealth";
 	public const string EXPERIENCE = "Experience";
 	public const string LEVEL = "Level";
+	public const string REPUTATION = "Reputation";
 
 	public AriaAttributeData Health => GetAttribute(HEALTH)!;
 	public AriaAttributeData Armor => GetAttribute(ARMOR)!;
 	public AriaAttributeData Wealth => GetAttribute(WEALTH)!;
 	public AriaAttributeData Experience => GetAttribute(EXPERIENCE)!;
 	public AriaAttributeData Level => GetAttribute(LEVEL)!;
+	public AriaAttributeData Reputation => GetAttribute(REPUTATION)!;
 
 	public HeroAttributeSet()
 	{
@@ -25,5 +27,6 @@ public partial class HeroAttributeSet : AriaAttributeSet
 		AddAttribute(WEALTH, new AriaAttributeData(0f, 0f, 100000f));
 		AddAttribute(EXPERIENCE, new AriaAttributeData(0f, 0f, 100000f));
 		AddAttribute(LEVEL, new AriaAttributeData(1f, 1f, 100f));
+		AddAttribute(REPUTATION, new AriaAttributeData(100f, 0f, 100f));
 	}
 }

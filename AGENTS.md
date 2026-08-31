@@ -35,8 +35,8 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 
 ```
 Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引用)
-├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换）
-├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP
+├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
+├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
 ├── HeroManager              # 英雄：选角、持有 HeroBase、属性存取
 ├── CardManager              # 卡牌：数据库、实例化、构筑（Bench/Battlefield 放置）
 ├── BoardManager             # 棋盘：战场/备战区排列、放置/移除/交换、容量与合法性校验
@@ -123,9 +123,10 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 ### 项目侧对 Aria 的扩展（已建）
 
-- `scripts/Core/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含生命 / 护甲 / 财富 / 经验 / 等级）。
-- `scripts/Core/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`）。
-- `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播）。
+- `scripts/Core/Bases/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
+- `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`）。
+- `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
+- `scripts/Core/Types/MatchEndReason` + `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定留白待补）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
 ### 能力系统（规划中，未实现）

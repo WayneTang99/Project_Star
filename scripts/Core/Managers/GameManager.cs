@@ -9,7 +9,11 @@ public partial class GameManager : Node
 {
 	public GameState CurrentState { get; private set; } = GameState.MainMenu;
 
+	public MatchEndReason? LastMatchEndReason { get; private set; }
+
 	public event Action<GameState>? StateChangedEvent;
+
+	public event Action<MatchEndReason>? MatchEndedEvent;
 
 	public override void _Ready()
 	{
@@ -27,13 +31,21 @@ public partial class GameManager : Node
 		ChangeState(GameState.InMatch);
 	}
 
-	public void EndMatch()
+	public void Surrender()
 	{
+		EndMatch(MatchEndReason.Surrendered);
+	}
+
+	public void EndMatch(MatchEndReason reason)
+	{
+		LastMatchEndReason = reason;
 		ChangeState(GameState.Result);
+		MatchEndedEvent?.Invoke(reason);
 	}
 
 	public void ReturnToMainMenu()
 	{
+		LastMatchEndReason = null;
 		ChangeState(GameState.MainMenu);
 	}
 

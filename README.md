@@ -23,8 +23,8 @@
 
 所有管理器不注册为 Autoload、不作为场景子节点，由主场景 `scenes/Main.tscn` 的根节点脚本 `Main.cs` 在 `_Ready` 中 new 生成并 AddChild 挂载、统一注册；`EventManager` 持有两个子管理器（生命周期随主管理器）。
 
-- **GameManager**：主状态机（选英雄 → 局内 → 结算）
-- **RoundTurnManager**：局内轮次（8 回合/轮、事件派发、末回合固定 PvP）
+- **GameManager**：主状态机（选英雄 → 局内 → 结算），EndMatch/Surrender 强制结束总线
+- **RoundTurnManager**：局内轮次（8 回合/轮、事件派发、末回合固定 PvP、轮末声望失败判定）
 - **HeroManager**：英雄选角、持有 HeroBase、属性存取
 - **CardManager**：卡牌数据库、实例化、构筑
 - **BoardManager**：棋盘（战场/备战区排列、放置校验）
