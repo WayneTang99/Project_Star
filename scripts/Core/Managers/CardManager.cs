@@ -52,7 +52,7 @@ public partial class CardManager : Node
 	{
 		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
 		{
-			if (type.IsAbstract || !typeof(CardBase).IsAssignableFrom(type))
+			if (type.IsAbstract || !type.IsPublic || !typeof(CardBase).IsAssignableFrom(type))
 			{
 				continue;
 			}

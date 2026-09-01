@@ -26,8 +26,8 @@
 - **GameManager**：主状态机（选英雄 → 局内 → 结算），EndMatch/Surrender 强制结束总线
 - **RoundTurnManager**：局内轮次（8 回合/轮、事件派发、末回合固定 PvP、轮末声望失败判定）
 - **HeroManager**：反射收集英雄模板池（每种各一个）、选择后复制实例、属性存取
-- **CardManager**：反射收集卡牌模板池、实例化、玩家拥有卡牌、按英雄 key 过滤供商店
-- **BoardManager**：棋盘（战场/备战区排列、放置校验）
+- **CardManager**：反射收集卡牌模板池、实例化、玩家拥有卡牌、按阵营 key 过滤供商店
+- **BoardManager**：棋盘（战场/备战区双棋盘各 10 格、推挤放置/移除/交换/跨区拖拽编排）
 - **EventManager**：事件生成、分发、结算，持有两个子管理器（MonsterEventManager / ShopEventManager）
 
 玩法框架使用自研 **Aria** 插件（参考 Forge for Godot 设计思路，不引用其运行时）。Aria 为跨游戏复用的通用插件，不含本项目专属逻辑。
@@ -43,6 +43,15 @@
 
 - **继承定义**：卡牌是 `CardBase` 抽象基类的子类，构造函数注入 `CardAttributeSet`（`CardKey`/`DisplayName`/`FactionKey`/`Size` 不可变，`Level` 可变）。
 - **模板池**：`CardManager` 用反射自动收集所有非抽象 `CardBase` 子类作模板，`CreateCard` 复制实例、`GetCardsByFaction` 按阵营 key 过滤。
+
+## 棋盘与推挤系统
+
+- **数据/视图分离**：`GameBoard`（纯类）只存卡牌引用 + `Order` + `StartCell`，不存渲染坐标；位置由 UI 按 `GetLayout()` 换算像素。
+- **双棋盘**：`BoardManager` 持战场区 + 备战区（各 10 格），支持同盘移动与跨区拖拽（先查来源盘再评估目标盘）。
+- **推挤**：`BoardUtil` 纯算法模拟向右/向左逐格推挤（遇卡并入段），`PushEvaluator` 只读评估返回 `PushPlan`（可行/方向/距离/受影响卡牌/最终布局），`PushExecutor` 执行落位并重排 order。
+- **择优**：目标被占时先释放被拖卡牌原位；方向选择按 距离短 → 影响卡牌少 → 取 Right。
+- **扩展**：容量可配、逐卡 `CanPush` 标记（不可推挤直接失败）、`ResultOffsets` 预留 undo/redo。
+- **测试 UI**：`test_ui/BoardTestUI.tscn` 独立于核心，在 Godot 中单独打开即可点击演示（选尺寸放卡 / 点卡移动 / 切换不可推挤）。
 
 ## 目录结构
 
@@ -69,6 +78,7 @@ Project_Star/
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
+├── test_ui/           # 独立测试UI（棋盘推挤演示，核心不引用）
 ├── Project_Star.csproj # C# 项目文件
 └── Project_Star.sln   # 解决方案文件
 ```

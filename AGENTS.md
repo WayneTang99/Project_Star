@@ -38,8 +38,8 @@ Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引�
 ├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
 ├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
 ├── HeroManager              # 英雄：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
-├── CardManager              # 卡牌：反射收集模板池、实例化、玩家拥有卡牌、按英雄key过滤供商店
-├── BoardManager             # 棋盘：战场/备战区排列、放置/移除/交换、容量与合法性校验
+├── CardManager              # 卡牌：反射收集模板池、实例化、玩家拥有卡牌、按阵营key过滤供商店
+├── BoardManager             # 棋盘：战场/备战区双棋盘（各10格）、推挤放置/移除/交换/跨区拖拽编排
 └── EventManager             # 事件：类型注册、生成（单/多选）、结果结算
     ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
     └── ShopEventManager      # 子管理器：商店事件（交易卡牌、扣 Wealth 属性）
@@ -71,9 +71,10 @@ Project_Star/
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
 │   ├── Core/          # 核心系统
-│   │   ├── Types/     # 类型定义（枚举等：GameState）
+│   │   ├── Types/     # 类型定义（枚举等：GameState、PushDirection、CardSize）
 │   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
 │   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集：HeroAttributeSet / CardAttributeSet）
+│   │   ├── Board/     # 棋盘：数据管理（GameBoard/BoardEntry）、纯算法（BoardUtil）、推挤评估/执行（PushEvaluator/PushExecutor/PushPlan）
 │   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard 等）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
@@ -81,6 +82,7 @@ Project_Star/
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
+├── test_ui/           # 独立测试UI（棋盘推挤演示，核心不引用，仅单独打开场景运行）
 ├── Project_Star.csproj # C# 项目文件
 └── Project_Star.sln   # 解决方案文件
 ```
@@ -150,6 +152,25 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - **Key 与展示名分离**：key（标识）与 display name（展示）使用不同字段，不用同一个字段兼任（如英雄 `HeroKey` + `HeroDisplayName`、卡牌 `CardKey` + `DisplayName`）。
 - **身份字段归属**：身份字段（key / display name / faction）一律放进实体对应的 `*AttributeSet`（`HeroAttributeSet` / `CardAttributeSet`），不放实体 Node 上。
 - **模板池**：`CardManager` 同样用**反射**收集所有非抽象 `CardBase` 子类作模板（`CardTemplates`）；`CreateCard` 复制实例、`AddCardToPlayer` 记录玩家拥有卡牌、`GetCardsByFaction(factionKey)` 供商店过滤。
+
+### 棋盘与推挤系统（已建）
+
+**分层**：非 UI 层三个模块均不依赖 UI，只依赖卡牌数据类（`CardBase`/`CardAttributeSet`）与尺寸枚举（`CardSize`）：
+
+- `scripts/Core/Board/GameBoard`：棋盘数据管理（纯类）。**只存卡牌引用 + `Order`（左→右顺序）+ `StartCell`（占用格）**，不存渲染坐标；容量可配（默认 10）；提供放置/移除/交换/`order` 归一与 `CardPlaced/Removed/Swapped/LayoutChangedEvent`。
+- `scripts/Core/Board/BoardUtil`：**纯算法**（静态类）。阻挡卡牌查找、向右/向左推挤逐格模拟、方向择优（距离短→影响卡牌少→取 Right）。
+- `scripts/Core/Board/PushEvaluator`：只读评估（边界校验、快照排除被拖卡牌以释放原位、调用 `BoardUtil`、组装 `PushPlan`）。
+- `scripts/Core/Board/PushExecutor`：执行 `PushPlan`（按 `ResultOffsets` 写回各 `StartCell`、落位、重排 order、发事件）。
+- `scripts/Core/Types/PushDirection`：`None/Left/Right`。
+- `scripts/Core/Managers/BoardManager`：`[GlobalClass] Node`，持有**战场区 + 备战区**两个 `GameBoard`（各 10 格），编排跨区拖拽（同盘移动释放原位；跨盘先查来源盘再评估目标盘，即"查两个区域"）。
+
+**交互 API（供 UI）**：`PreviewMove(card, targetBoard, targetCell)`（只读预览推挤方案）、`CommitMove(...)`（提交执行，不可行返回 false）、`RemoveCard`、`SwapCards`、`GetStartCell`、`GetLayout`（UI 据此换算像素）。
+
+**推挤规则**：目标区间无阻挡→直接放置；有阻挡→任一块 `CanPush=false` 直接失败；否则分别模拟向右/向左，择优执行。
+
+**扩展预留**：容量可配、逐卡 `CanPush` 标记、`PushPlan.ResultOffsets` 预留 undo/redo、等级/阵营优先级钩子后续可加。
+
+**测试 UI**：`test_ui/` 独立于核心（核心**不引用**它，仅它引用核心），在 Godot 中单独打开 `res://test_ui/BoardTestUI.tscn` 运行，点击式演示放置/移动/推挤/不可推挤。为保证隔离，`CardManager` 反射模板收集过滤 `type.IsPublic`，排除 `test_ui` 内部测试卡。
 
 ### MVC 分离约定（英雄 UI）
 

@@ -13,6 +13,8 @@ public partial class Main : Node
 
 	public CardManager CardManager { get; private set; } = null!;
 
+	public BoardManager BoardManager { get; private set; } = null!;
+
 	public override void _Ready()
 	{
 		base._Ready();
@@ -24,6 +26,9 @@ public partial class Main : Node
 
 		CardManager = new CardManager();
 		AddChild(CardManager);
+
+		BoardManager = new BoardManager();
+		AddChild(BoardManager);
 
 		RoundTurnManager = new RoundTurnManager();
 		AddChild(RoundTurnManager);
