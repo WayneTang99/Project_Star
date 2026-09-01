@@ -34,15 +34,15 @@
 
 ## 英雄系统
 
-- **继承定义**：每个英雄是 `HeroBase` 子类，覆写 `HeroName` 与 `ApplyInitialAttributes()` 实现初始属性差异，逻辑层不建场景。
+- **继承定义**：每个英雄是 `HeroBase` 子类，构造函数注入 `HeroAttributeSet`（`HeroKey`/`HeroDisplayName`/`FactionKey`）并覆写 `ApplyInitialAttributes()` 实现初始属性差异，逻辑层不建场景。
 - **模板池**：`HeroManager` 用反射自动收集所有非抽象 `HeroBase` 子类各建一个模板，选择时 `Duplicate()` 复制独立实例。
-- **商店**：卡牌定义带英雄 key，商店由 `ShopEventManager` 与 `CardManager` 按英雄 key 交互。
+- **商店**：卡牌定义带阵营 key，商店由 `ShopEventManager` 与 `CardManager` 按阵营 key 交互。
 - **MVC**：英雄 UI（`HeroSelectionUI` / `InMatchHeroUI`）为独立类，只读 Manager、订阅事件，视觉由 UI 层加载。
 
 ## 卡牌系统
 
-- **继承定义**：卡牌是 `CardBase` 抽象基类的子类，构造函数注入 `CardAttributeSet`（`CardKey`/`DisplayName`/`HeroKey`/`Size` 不可变，`Level` 可变）。
-- **模板池**：`CardManager` 用反射自动收集所有非抽象 `CardBase` 子类作模板，`CreateCard` 复制实例、`GetCardsByHero` 按英雄 key 过滤。
+- **继承定义**：卡牌是 `CardBase` 抽象基类的子类，构造函数注入 `CardAttributeSet`（`CardKey`/`DisplayName`/`FactionKey`/`Size` 不可变，`Level` 可变）。
+- **模板池**：`CardManager` 用反射自动收集所有非抽象 `CardBase` 子类作模板，`CreateCard` 复制实例、`GetCardsByFaction` 按阵营 key 过滤。
 
 ## 目录结构
 

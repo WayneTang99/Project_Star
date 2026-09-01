@@ -8,8 +8,6 @@ public partial class HeroBase : Node
 	[Export]
 	public HeroAttributeSet AttributeSet { get; set; } = new();
 
-	public virtual string HeroName { get; } = "Hero";
-
 	public override void _Ready()
 	{
 		base._Ready();

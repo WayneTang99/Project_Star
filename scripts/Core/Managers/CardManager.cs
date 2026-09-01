@@ -34,12 +34,12 @@ public partial class CardManager : Node
 		CardAddedEvent?.Invoke(card);
 	}
 
-	public Godot.Collections.Array<CardBase> GetCardsByHero(string heroKey)
+	public Godot.Collections.Array<CardBase> GetCardsByFaction(StringName factionKey)
 	{
 		var result = new Godot.Collections.Array<CardBase>();
 		foreach (CardBase card in PlayerCards)
 		{
-			if (card.AttributeSet.HeroKey == heroKey)
+			if (card.AttributeSet.FactionKey == factionKey)
 			{
 				result.Add(card);
 			}

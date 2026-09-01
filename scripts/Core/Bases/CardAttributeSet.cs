@@ -9,21 +9,21 @@ public partial class CardAttributeSet : AriaAttributeSet
 {
 	public const string LEVEL = "Level";
 
-	public string CardKey { get; }
+	public StringName CardKey { get; }
 
 	public string DisplayName { get; }
 
-	public string HeroKey { get; }
+	public StringName FactionKey { get; }
 
 	public CardSize Size { get; }
 
 	public AriaAttributeData Level => GetAttribute(LEVEL)!;
 
-	public CardAttributeSet(string cardKey, string displayName, string heroKey, CardSize size)
+	public CardAttributeSet(StringName cardKey, string displayName, StringName factionKey, CardSize size)
 	{
 		CardKey = cardKey;
 		DisplayName = displayName;
-		HeroKey = heroKey;
+		FactionKey = factionKey;
 		Size = size;
 		AddAttribute(LEVEL, new AriaAttributeData(1f, 1f, 100f));
 	}

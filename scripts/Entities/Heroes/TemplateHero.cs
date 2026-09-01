@@ -1,10 +1,14 @@
+using Godot;
 using Project_Star.Core.Bases;
 
 namespace Project_Star.Entities.Heroes;
 
 public partial class TemplateHero : HeroBase
 {
-	public override string HeroName => "Template";
+	public TemplateHero()
+	{
+		AttributeSet = new HeroAttributeSet(new StringName("Template"), "模板英雄", new StringName("Template"));
+	}
 
 	protected override void ApplyInitialAttributes()
 	{
