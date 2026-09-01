@@ -37,6 +37,8 @@ public partial class EventManager : Node
 		_roundTurnManager = GetNode<RoundTurnManager>("../RoundTurnManager");
 		_roundTurnManager.TurnStartedEvent += OnTurnStarted;
 		RegisterEventTemplates();
+		MonsterEventManager.RegisterTemplates(this);
+		ShopEventManager.RegisterTemplates(this);
 	}
 
 	public override void _ExitTree()
