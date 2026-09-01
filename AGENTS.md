@@ -74,8 +74,9 @@ Project_Star/
 ├── scripts/           # C# 脚本 (.cs)
 │   ├── Core/          # 核心系统
 │   │   ├── Types/     # 类型定义（枚举等：GameState、CardState、HeroState、BoardState）
+│   │   ├── AttributeSets/  # 属性集（HeroAttributeSet / CardAttributeSet / EventAttributeSet / ShopAttributeSet）
 │   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
-│   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集：HeroAttributeSet / CardAttributeSet）
+│   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EventBase / ShopEventBase / EnemyBase 等）
 │   │   ├── Board/     # 棋盘：数据管理（GameBoard/BoardEntry）、纯算法（BoardUtil）、推挤评估/执行（PushEvaluator/PushExecutor/PushPlan）
 │   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent 等）
@@ -128,22 +129,30 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 ### 项目侧对 Aria 的扩展（已建）
 
-- `scripts/Core/Bases/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
+- `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
 - `scripts/Core/Managers/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
-- `scripts/Core/Bases/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`FactionKey`/`Size` 与可变 `Level`）。
+- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`FactionKey`/`Size` 与可变 `Level`）。
 - `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`）。
 - `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
 - `scripts/Core/Managers/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
 - `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
 - `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
-- `scripts/Core/Types/EventState` + `scripts/Core/Bases/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName`）。
+- `scripts/Core/Types/EventState` + `scripts/Core/AttributeSets/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName` 与**等级（1~5）**、**轮次范围**（`MinRound`/`MaxRound`）属性）。
+- `scripts/Core/AttributeSets/ShopAttributeSet`：商店**独立属性集**（继承 `AriaAttributeSet`，暂为空壳，与事件属性集**不耦合**）。怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
 - `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
-- `scripts/Core/Bases/ShopEventBase` + `scripts/Core/Bases/MonsterEventBase`：商店 / 怪物事件**中间态抽象类**。
+- `scripts/Core/Bases/ShopEventBase`：商店事件**中间态抽象类**；怪物事件**不做中间态**，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
 - `scripts/Core/Managers/EventManager`：事件管理器（**反射**收集模板池、`ScheduleEvents` 排程钩子留空待排程系统覆写、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`、`EventsGeneratedEvent`/`EventResolvedEvent`，持有 `MonsterEventManager`/`ShopEventManager` 空壳子管理器）。
-- `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent` / `TemplateMonsterEvent`：示例事件（通用 / 商店 / 怪物）。
+- `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent`：示例事件（通用 / 商店）；`scripts/Entities/Events/MonsterEvent`：怪物对战事件叶子类（引用 `HeroBase` 作怪物）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
+
+### 事件排程（规划中，未实现）
+
+排程机制（`EventManager.ScheduleEvents`，结合回合规则：默认三选一至少 1 商店 / 第 4 回合三怪物 / 第 8 回合 PvP）：
+- 按当前轮过滤可排布事件模板：`MinRound <= 当前轮 <= MaxRound`。
+- **未出现加成**：事件有基础权重（`Weight`，默认 1）；本局尚未出现的事件权重乘固定倍率（`UNSEEN_MULTIPLIER` 常量，可调）提高排布几率，已出现事件回落基础权重。
+- `EventManager` 按 `EventKey` 跟踪本局已出现事件，进入 `InMatch`（新对局）时清空。
 
 ### 英雄系统
 

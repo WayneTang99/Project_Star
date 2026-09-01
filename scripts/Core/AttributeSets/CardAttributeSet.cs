@@ -2,7 +2,7 @@ using Aria;
 using Godot;
 using Project_Star.Core.Types;
 
-namespace Project_Star.Core.Bases;
+namespace Project_Star.Core.AttributeSets;
 
 // 卡牌属性集：身份字段不可变，等级走 AriaAttributeData 流转。
 [GlobalClass]

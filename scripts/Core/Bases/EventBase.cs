@@ -1,4 +1,5 @@
 using Godot;
+using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Types;
 
 namespace Project_Star.Core.Bases;

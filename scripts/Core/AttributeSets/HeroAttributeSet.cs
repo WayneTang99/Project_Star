@@ -1,7 +1,7 @@
 using Aria;
 using Godot;
 
-namespace Project_Star.Core.Bases;
+namespace Project_Star.Core.AttributeSets;
 
 // 英雄属性集：身份字段不可变，数值属性走 AriaAttributeData 流转。
 [GlobalClass]
