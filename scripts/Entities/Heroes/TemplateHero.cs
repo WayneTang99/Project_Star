@@ -3,6 +3,7 @@ using Project_Star.Core.Bases;
 
 namespace Project_Star.Entities.Heroes;
 
+// 模板英雄：示例英雄，覆写初始属性。
 public partial class TemplateHero : HeroBase
 {
 	public TemplateHero()

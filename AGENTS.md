@@ -71,7 +71,7 @@ Project_Star/
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
 │   ├── Core/          # 核心系统
-│   │   ├── Types/     # 类型定义（枚举等：GameState、PushDirection、CardSize）
+│   │   ├── Types/     # 类型定义（枚举等：GameState、CardState、HeroState、BoardState）
 │   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
 │   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集：HeroAttributeSet / CardAttributeSet）
 │   │   ├── Board/     # 棋盘：数据管理（GameBoard/BoardEntry）、纯算法（BoardUtil）、推挤评估/执行（PushEvaluator/PushExecutor/PushPlan）
@@ -135,7 +135,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
 - `scripts/Core/Managers/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
 - `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
-- `scripts/Core/Types/MatchEndReason` + `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
+- `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
 ### 英雄系统
@@ -161,7 +161,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Board/BoardUtil`：**纯算法**（静态类）。阻挡卡牌查找、向右/向左推挤逐格模拟、方向择优（距离短→影响卡牌少→取 Right）。
 - `scripts/Core/Board/PushEvaluator`：只读评估（边界校验、快照排除被拖卡牌以释放原位、调用 `BoardUtil`、组装 `PushPlan`）。
 - `scripts/Core/Board/PushExecutor`：执行 `PushPlan`（按 `ResultOffsets` 写回各 `StartCell`、落位、重排 order、发事件）。
-- `scripts/Core/Types/PushDirection`：`None/Left/Right`。
+- `scripts/Core/Types/BoardState`（含 `PushDirection`）：`None/Left/Right`。
 - `scripts/Core/Managers/BoardManager`：`[GlobalClass] Node`，持有**战场区 + 备战区**两个 `GameBoard`（各 10 格），编排跨区拖拽（同盘移动释放原位；跨盘先查来源盘再评估目标盘，即"查两个区域"）。
 
 **交互 API（供 UI）**：`PreviewMove(card, targetBoard, targetCell)`（只读预览推挤方案）、`CommitMove(...)`（提交执行，不可行返回 false）、`RemoveCard`、`SwapCards`、`GetStartCell`、`GetLayout`（UI 据此换算像素）。
@@ -210,7 +210,11 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - 类与脚本文件名保持一致（Godot 要求类名匹配文件名）。
 - 通过节点路径引用时使用 `GetNode<T>("...")`；优先使用 `@export` 在 Inspector 暴露参数。
 - 不使用 `_Process` 计算固定逻辑，改用 `_PhysicsProcess`。
-- 不添加任何注释（包括 XML 文档注释），除非用户明确要求，代码本身应自解释。
+- 注释一律使用普通 `//` 注释，**不使用 XML 文档注释（`///`）**。
+- **所有公共类型**（类 / 接口 / 结构体 / 枚举 / 公共属性 / 公共字段 / 公共常量）必须加注释，说明其用途。
+- **重要的公共函数 / 变量**应加注释（非全部），说明其行为、参数、返回值或约束；简单的、自解释的公共成员可不加。
+- **重载成员不加注释**：重载的函数 / 变量（如多个构造函数、同名方法）不逐一注释，意图由首个声明或上下文表达。
+- **叶子类注释从简**：继承/依赖链越末端的具体类（如实体子类、枚举、简单工具类）注释越少，仅保留类型级或分组级注释，不为琐碎成员逐一加注。
 - 提交前不包含任何密钥或敏感信息。
 
 ### 性能注意事项

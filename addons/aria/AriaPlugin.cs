@@ -3,6 +3,7 @@ using Godot;
 
 namespace Aria;
 
+// Aria 插件编辑器入口（暂为空，预留）。
 [Tool]
 public partial class AriaPlugin : EditorPlugin
 {

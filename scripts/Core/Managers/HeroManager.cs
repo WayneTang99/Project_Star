@@ -6,17 +6,22 @@ using Project_Star.Core.Types;
 
 namespace Project_Star.Core.Managers;
 
+// 英雄管理器：反射收集英雄模板池，玩家选择后复制独立实例。
 [GlobalClass]
 public partial class HeroManager : Node
 {
 	private GameManager _gameManager = null!;
 
+	// 可选英雄模板池
 	public Godot.Collections.Array<HeroBase> AvailableHeroes { get; private set; } = new();
 
+	// 当前选中的英雄实例；未选择时为 null
 	public HeroBase? CurrentHero { get; private set; }
 
+	// 英雄选中事件
 	public event Action<HeroBase>? HeroSelectedEvent;
 
+	// 英雄重置事件
 	public event Action? HeroResetEvent;
 
 	public override void _Ready()
@@ -36,6 +41,7 @@ public partial class HeroManager : Node
 		}
 	}
 
+	// 从模板复制英雄实例作为当前英雄，并通知状态机进入局内
 	public void SelectHero(HeroBase template)
 	{
 		HeroBase instance = (HeroBase)template.Duplicate();
@@ -47,6 +53,7 @@ public partial class HeroManager : Node
 		_gameManager.HeroSelected();
 	}
 
+	// 释放当前英雄实例并广播重置事件
 	public void ResetHero()
 	{
 		if (CurrentHero is not null)
@@ -58,6 +65,7 @@ public partial class HeroManager : Node
 		HeroResetEvent?.Invoke();
 	}
 
+	// 反射收集所有非抽象 HeroBase 子类作为模板
 	private void RegisterHeroTemplates()
 	{
 		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
@@ -75,6 +83,7 @@ public partial class HeroManager : Node
 		}
 	}
 
+	// 状态切换时重置英雄：离开局内即释放当前英雄
 	private void OnStateChanged(GameState newState)
 	{
 		switch (newState)

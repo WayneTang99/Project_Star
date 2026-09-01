@@ -6,8 +6,10 @@ using Project_Star.Utils;
 
 namespace Project_Star.Core.Board;
 
+// 推挤评估器：只读计算放置 / 移动的可行性与推挤方案，不修改棋盘。
 public sealed class PushEvaluator
 {
+	// 评估放置 / 移动；返回的 PushPlan 记录可行性、方向、受影响卡牌与结果偏移
 	public PushPlan Evaluate(GameBoard board, CardBase card, int targetCell)
 	{
 		var plan = new PushPlan
@@ -73,6 +75,7 @@ public sealed class PushEvaluator
 		return plan;
 	}
 
+	// 复制棋盘条目，排除被操作的卡牌以释放其原位
 	private static List<BoardEntry> CreateWorkingCopy(GameBoard board, CardBase card)
 	{
 		var copy = new List<BoardEntry>();
@@ -89,6 +92,7 @@ public sealed class PushEvaluator
 		return copy;
 	}
 
+	// 将工作副本中的各卡牌起始格组装为偏移字典，并放入被拖卡牌的目标格
 	private static Dictionary<CardBase, int> BuildOffsets(List<BoardEntry> working, CardBase card, int targetCell)
 	{
 		var offsets = new Dictionary<CardBase, int>();

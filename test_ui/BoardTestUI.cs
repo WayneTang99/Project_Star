@@ -8,6 +8,7 @@ using Project_Star.Core.Types;
 
 namespace Project_Star.TestUI;
 
+// 棋盘推挤独立测试 UI：点击式演示放置 / 移动 / 推挤 / 不可推挤。
 public partial class BoardTestUI : Control
 {
 	private const string EMPTY_CELL = "·";

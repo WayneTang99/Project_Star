@@ -4,6 +4,7 @@ using Project_Star.Core.Types;
 
 namespace Project_Star.Entities.Cards;
 
+// 模板卡牌：示例卡牌。
 public partial class TemplateCard : CardBase
 {
 	public TemplateCard()

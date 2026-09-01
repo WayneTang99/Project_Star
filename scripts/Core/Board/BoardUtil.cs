@@ -6,10 +6,13 @@ using Project_Star.Utils;
 
 namespace Project_Star.Core.Board;
 
+// 棋盘推挤纯算法：阻挡查找、左右推挤逐格模拟、方向择优。
 public static class BoardUtil
 {
+	// 单次推挤模拟的结果
 	public sealed record PushSimulation(bool IsFeasible, PushDirection Direction, int Distance, List<CardBase> AffectedCards);
 
+	// 指定区间（从 startCell 起 count 格）在容量内是否为空闲
 	public static bool IsRangeFree(IReadOnlyList<BoardEntry> entries, int capacity, int startCell, int count)
 	{
 		if (startCell < 0 || startCell + count > capacity)
@@ -28,6 +31,7 @@ public static class BoardUtil
 		return true;
 	}
 
+	// 找出与目标区间相交的所有阻挡卡牌条目
 	public static List<BoardEntry> FindBlockers(IReadOnlyList<BoardEntry> entries, int targetCell, int count)
 	{
 		var blockers = new List<BoardEntry>();
@@ -44,6 +48,7 @@ public static class BoardUtil
 		return blockers;
 	}
 
+	// 向指定方向逐格推挤模拟；成功返回可行结果，被边界阻挡返回不可行
 	public static PushSimulation SimulatePush(List<BoardEntry> working, int capacity, int targetCell, int count, PushDirection direction)
 	{
 		int distance = 0;
@@ -82,6 +87,7 @@ public static class BoardUtil
 		return new PushSimulation(true, direction, distance, affected);
 	}
 
+	// 择优选择推挤方向：可行者优先，其次距离短，再次受影响卡牌少，平局取 Right
 	public static PushSimulation? SelectDirection(PushSimulation right, PushSimulation left)
 	{
 		if (right.IsFeasible != left.IsFeasible)
@@ -107,6 +113,7 @@ public static class BoardUtil
 		return right;
 	}
 
+	// 查找向右推挤时需整体移动的连续卡牌块（从最左阻挡卡开始向右延展）
 	private static List<BoardEntry> FindRightBlock(IReadOnlyList<BoardEntry> entries, int targetCell, int count)
 	{
 		int left = int.MaxValue;
@@ -137,6 +144,7 @@ public static class BoardUtil
 		return block;
 	}
 
+	// 查找向左推挤时需整体移动的连续卡牌块（从最右阻挡卡开始向左延展）
 	private static List<BoardEntry> FindLeftBlock(IReadOnlyList<BoardEntry> entries, int targetCell, int count)
 	{
 		int right = -1;
@@ -167,6 +175,7 @@ public static class BoardUtil
 		return block;
 	}
 
+	// 尝试将卡牌块向右移动一格；越界返回 false
 	private static bool TryShiftRight(List<BoardEntry> working, List<BoardEntry> block, int capacity)
 	{
 		int x = int.MinValue;
@@ -204,6 +213,7 @@ public static class BoardUtil
 		return true;
 	}
 
+	// 尝试将卡牌块向左移动一格；越界返回 false
 	private static bool TryShiftLeft(List<BoardEntry> working, List<BoardEntry> block)
 	{
 		int l = int.MaxValue;
@@ -241,6 +251,7 @@ public static class BoardUtil
 		return true;
 	}
 
+	// 返回占用指定格的条目；该格空闲返回 null
 	private static BoardEntry? EntryAt(IReadOnlyList<BoardEntry> entries, int cell)
 	{
 		foreach (BoardEntry entry in entries)
