@@ -1,15 +1,26 @@
+using Aria;
 using Godot;
 using Project_Star.Core.AttributeSets;
+using Project_Star.Core.Interfaces;
 
 namespace Project_Star.Core.Bases;
 
 // 英雄基类，持有一份独立的英雄属性集，初始属性由子类覆写实现差异。
 [GlobalClass]
-public partial class HeroBase : Node
+public partial class HeroBase : Node, ICombatant
 {
 	// 英雄属性集
 	[Export]
 	public HeroAttributeSet AttributeSet { get; set; } = new();
+
+	// 能力（声明，构造函数或子类填充）
+	public Godot.Collections.Array<AriaAbilityBase> Abilities { get; } = new();
+
+	// 效果（声明，构造函数或子类填充）
+	public Godot.Collections.Array<AriaEffectBase> Effects { get; } = new();
+
+	// IAriaEntity 显式实现：以基类型暴露属性集
+	AriaAttributeSet IAriaEntity.AttributeSet => AttributeSet;
 
 	public override void _Ready()
 	{

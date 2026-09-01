@@ -65,7 +65,12 @@ Project_Star/
 │   ├── models/        # 3D模型 (.glb, .fbx)
 │   └── fonts/         # 字体 (.ttf)
 ├── addons/            # Godot 插件
-│   ├── aria/          # Aria 自研玩法插件（属性、能力等）
+│   ├── aria/          # Aria 自研玩法插件（属性、能力、效果等）
+│   │   ├── interfaces/  # Aria 接口（IAriaEntity）
+│   │   ├── attributes/  # Aria 属性（AriaAttributeData / AriaAttributeSet）
+│   │   ├── contexts/    # Aria 上下文基类（AriaContextBase）
+│   │   ├── abilities/   # Aria 能力（AriaAbilityBase / AriaAbilityHandle）
+│   │   └── effects/     # Aria 效果（AriaEffectBase）
 │   └── forge/         # Forge for Godot 插件（仅作参考，不引用）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
@@ -73,10 +78,12 @@ Project_Star/
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
 │   ├── Core/          # 核心系统
-│   │   ├── Types/     # 类型定义（枚举等：GameState、CardState、HeroState、BoardState）
+│   │   ├── Types/     # 类型定义（枚举等：GameState、CardState、HeroState、BoardState、TriggerType）
 │   │   ├── AttributeSets/  # 属性集（HeroAttributeSet / CardAttributeSet / EventAttributeSet / ShopAttributeSet）
 │   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
 │   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EventBase / ShopEventBase / EnemyBase 等）
+│   │   ├── Interfaces/  # 游戏侧接口（ICombatant 等）
+│   │   ├── Contexts/  # 游戏侧上下文（BattleContext 等）
 │   │   ├── Board/     # 棋盘：数据管理（GameBoard/BoardEntry）、纯算法（BoardUtil）、推挤评估/执行（PushEvaluator/PushExecutor/PushPlan）
 │   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent 等）
@@ -195,13 +202,60 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - 英雄视觉（立绘/模型）由 UI 层按英雄标识映射加载，英雄实体不感知自身表现。
 - 英雄 UI 尚未实现，仅约定；实现时机以 UI 开发阶段为准。
 
-### 能力系统（规划中，未实现）
+### 能力系统（框架已建，战斗管理器待实现）
 
-- **通用能力**：能力可被**英雄与卡牌**共同使用，通过**继承**定义各种能力（如攻击、施法、被动）。
-- **释放判断条件**：由每个能力子类**自定义**是否可释放（如冷却、资源、状态）。
-- **触发方式**：提供**调用方法**供外部触发释放（管理器 / 事件 / 战斗逻辑调用）。
-- **管理器**：后续建立能力管理器（授予、激活、更新）。
-- 参考 Forge 的 Ability / AbilityData / AbilityHandle / IAbilityBehavior 结构，但按本项目简化、去 Tag 化、费用基于 `AriaAttributeData`。
+**核心模型：能力触发效果**
+
+- **能力（Ability）**：可被触发的动作单元。主动（冷却/手动）与被动（事件触发）都是能力，区别仅在于触发方式，由管理器决定。能力类只负责**执行逻辑**。
+- **效果（Effect）**：被能力触发的被动后果（静态修饰 / 周期 DoT-HoT，细节待细化）。
+- 触发、冷却、编排、连锁（≤3 层上限）统一由后续 `CombatManager` 负责；管理器只与实体（`ICombatant`）通信，不直接驱动能力。
+
+**分层与文件**
+
+- Aria 层（`addons/aria/`，游戏无关，保留 `Aria` 前缀）：
+  - `interfaces/IAriaEntity.cs`：最小实体接口，暴露 `AriaAttributeSet`。
+  - `contexts/AriaContextBase.cs`：上下文基类，供游戏侧继承自定义。
+  - `abilities/AriaAbilityBase.cs`：能力基类（Key/DisplayName/冷却 + `CanActivate`/`Activate`，`Activate` 返回 `AriaAction[]`）。
+  - `abilities/AriaAction.cs`：动作载体（目标 → 效果字典，目标可多个）。
+  - `abilities/AriaAbilityHandle.cs`：能力运行期句柄（冷却计时 + 所属实体）。
+  - `effects/AriaEffectBase.cs`：效果基类（持续类型/时长/周期 + `Apply`/`Remove`/`Tick`）。
+  - `effects/AriaEffectDurationType.cs`：效果持续类型（Instant/HasDuration/Permanent）。
+  - `attributes/AriaAttributeOperation.cs`：属性运算方式（Add/Subtract/Multiply/Override）。
+  - `attributes/AriaAttributeModifier.cs`：属性修饰器（AttributeKey + Operation + Magnitude）。
+  - `attributes/AriaAttributeSet.cs`：支持 `ApplyModifier`/`RemoveModifier`（记录原值回滚）。
+- 游戏侧（`scripts/Core/`，不带 `Aria` 前缀）：
+  - `Interfaces/ICombatant.cs`：战斗参与者接口（英雄/卡牌共同实现），声明 `Abilities`/`Effects`。
+  - `Types/TriggerType.cs`：触发方式枚举（None/主动、BattleStart、CardActivated、HealthBelowHalf）。
+  - `Contexts/BattleContext.cs`：战斗上下文（继承 `AriaContextBase`），含来源/目标/触发方式、双方英雄（单个）与卡牌（数组）。
+
+**能力子类写法**（游戏侧 `scripts/Entities/Abilities/`）：
+```csharp
+public partial class PoisonAbility : AriaAbilityBase
+{
+    public override AriaAction[] Activate(AriaContextBase baseCtx)
+    {
+        var ctx = (BattleContext)baseCtx;
+        return [ new AriaAction {
+            EffectsByTarget = { [ctx.EnemyHero!] = [ new PoisonEffect() ] }
+        } ];
+    }
+}
+```
+
+**效果子类写法**（游戏侧 `scripts/Entities/Effects/`）：
+```csharp
+public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
+{
+    // DurationType = HasDuration; PeriodSeconds = 1f
+    public override void Tick(float delta, AriaContextBase baseCtx)
+    {
+        var ctx = (BattleContext)baseCtx;
+        // 每周期扣 ctx.Target 的 Health
+    }
+}
+```
+
+详细设计见 `docs/AbilityAndCombatFramework.md`。
 
 ## 编码规范
 
@@ -262,6 +316,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 ### 其他约定
 
 - 修改场景（.tscn）时注意保留 `.uid`，避免破坏资源引用。
+- **新建文件按用途归类，禁止乱扔进 `Bases/`**：接口→`Interfaces/`（或 Aria `interfaces/`）、上下文→`Contexts/`（或 Aria `contexts/`）、枚举/类型→`Types/`、实体基类才进 `Bases/`、实体子类进 `Entities/`。
 
 ## 重要约束
 
