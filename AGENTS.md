@@ -26,7 +26,9 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 - 游戏以 **轮（Round）** + **回合（Turn）** 逐步递进，每回合可能出现各种事件。
 - **商店事件**中，玩家可以**交易卡牌**。
 - 玩家拥有**备战区（Bench）** 与 **战场区（Battlefield）**，可随意放置卡牌。
-- **8 回合为 1 轮**，每轮**最后一回合固定为异步玩家对战事件**。
+- **默认回合**为**三选一事件组**，其中**至少 1 个商店事件**。
+- **每轮第 4 回合**：3 个怪物事件，三选一挑一个进入战斗。
+- **8 回合为 1 轮**，每轮**最后一回合（第 8 回合）固定为异步玩家对战事件**。
 - 玩家对战事件与怪物对战事件点击后**进入战斗**，战斗使用**战场区卡牌**自动进行。
 
 ### 管理器架构
@@ -76,7 +78,7 @@ Project_Star/
 │   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EnemyBase 及对应属性集：HeroAttributeSet / CardAttributeSet）
 │   │   ├── Board/     # 棋盘：数据管理（GameBoard/BoardEntry）、纯算法（BoardUtil）、推挤评估/执行（PushEvaluator/PushExecutor/PushPlan）
 │   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
-│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard 等）
+│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent 等）
 │   ├── Systems/       # 游戏系统（战斗、库存、存档）
 │   ├── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 │   └── Utils/         # 工具类（扩展方法、辅助函数）
@@ -136,6 +138,11 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Managers/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
 - `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
 - `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
+- `scripts/Core/Types/EventState` + `scripts/Core/Bases/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName`）。
+- `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
+- `scripts/Core/Bases/ShopEventBase` + `scripts/Core/Bases/MonsterEventBase`：商店 / 怪物事件**中间态抽象类**。
+- `scripts/Core/Managers/EventManager`：事件管理器（**反射**收集模板池、`ScheduleEvents` 排程钩子留空待排程系统覆写、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`、`EventsGeneratedEvent`/`EventResolvedEvent`，持有 `MonsterEventManager`/`ShopEventManager` 空壳子管理器）。
+- `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent` / `TemplateMonsterEvent`：示例事件（通用 / 商店 / 怪物）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
 ### 英雄系统

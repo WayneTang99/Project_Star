@@ -21,6 +21,9 @@ public partial class Main : Node
 	// 棋盘管理器
 	public BoardManager BoardManager { get; private set; } = null!;
 
+	// 事件管理器
+	public EventManager EventManager { get; private set; } = null!;
+
 	public override void _Ready()
 	{
 		base._Ready();
@@ -38,5 +41,8 @@ public partial class Main : Node
 
 		RoundTurnManager = new RoundTurnManager();
 		AddChild(RoundTurnManager);
+
+		EventManager = new EventManager();
+		AddChild(EventManager);
 	}
 }
