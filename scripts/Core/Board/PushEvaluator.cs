@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Project_Star.Core.Bases;
 using Project_Star.Core.Types;
@@ -17,28 +18,32 @@ public sealed class PushEvaluator
 
 		int cells = card.AttributeSet.Size.GetCells();
 
-		if (targetCell < 0 || targetCell + cells > board.Capacity)
+		if (targetCell < 0 || targetCell >= board.Capacity)
 		{
 			return plan;
 		}
 
-		if (board.GetStartCell(card) == targetCell)
+		int fitTarget = Math.Min(targetCell, board.Capacity - cells);
+
+		if (board.GetStartCell(card) == fitTarget)
 		{
 			plan.IsFeasible = true;
-			plan.ResultOffsets = BuildOffsets(CreateWorkingCopy(board, card), card, targetCell);
+			plan.TargetCell = fitTarget;
+			plan.ResultOffsets = BuildOffsets(CreateWorkingCopy(board, card), card, fitTarget);
 			return plan;
 		}
 
 		List<BoardEntry> working = CreateWorkingCopy(board, card);
 
-		if (BoardUtil.IsRangeFree(working, board.Capacity, targetCell, cells))
+		if (BoardUtil.IsRangeFree(working, board.Capacity, fitTarget, cells))
 		{
 			plan.IsFeasible = true;
-			plan.ResultOffsets = BuildOffsets(working, card, targetCell);
+			plan.TargetCell = fitTarget;
+			plan.ResultOffsets = BuildOffsets(working, card, fitTarget);
 			return plan;
 		}
 
-		foreach (BoardEntry blocker in BoardUtil.FindBlockers(working, targetCell, cells))
+		foreach (BoardEntry blocker in BoardUtil.FindBlockers(working, fitTarget, cells))
 		{
 			if (!blocker.CanPush)
 			{
@@ -47,9 +52,9 @@ public sealed class PushEvaluator
 		}
 
 		var rightWorking = CreateWorkingCopy(board, card);
-		BoardUtil.PushSimulation right = BoardUtil.SimulatePush(rightWorking, board.Capacity, targetCell, cells, PushDirection.Right);
+		BoardUtil.PushSimulation right = BoardUtil.SimulatePush(rightWorking, board.Capacity, fitTarget, cells, PushDirection.Right);
 		var leftWorking = CreateWorkingCopy(board, card);
-		BoardUtil.PushSimulation left = BoardUtil.SimulatePush(leftWorking, board.Capacity, targetCell, cells, PushDirection.Left);
+		BoardUtil.PushSimulation left = BoardUtil.SimulatePush(leftWorking, board.Capacity, fitTarget, cells, PushDirection.Left);
 		BoardUtil.PushSimulation? chosen = BoardUtil.SelectDirection(right, left);
 
 		if (chosen is null)
@@ -58,12 +63,13 @@ public sealed class PushEvaluator
 		}
 
 		plan.IsFeasible = true;
+		plan.TargetCell = fitTarget;
 		plan.Direction = chosen.Direction;
 		plan.PushDistance = chosen.Distance;
 		plan.AffectedCards = chosen.AffectedCards;
 
 		List<BoardEntry> chosenWorking = chosen.Direction == PushDirection.Right ? rightWorking : leftWorking;
-		plan.ResultOffsets = BuildOffsets(chosenWorking, card, targetCell);
+		plan.ResultOffsets = BuildOffsets(chosenWorking, card, fitTarget);
 		return plan;
 	}
 
