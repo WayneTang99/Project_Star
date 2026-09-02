@@ -33,6 +33,9 @@ public partial class CombatManager : Node
 	private float _accumulator;
 	private bool _inBattle;
 
+	// 是否处于战斗中
+	public bool IsInBattle => _inBattle;
+
 	// 我方英雄
 	public ICombatant? FriendlyHero { get; private set; }
 
@@ -181,6 +184,20 @@ public partial class CombatManager : Node
 
 	// 取句柄目标实体
 	private static ICombatant? TargetOf(AriaEffectHandle handle) => handle.Target as ICombatant;
+
+	// 读取某实体指定能力的剩余冷却（供 UI 展示）；未找到返回 0
+	public float GetCooldownRemaining(ICombatant combatant, AriaAbilityBase ability)
+	{
+		foreach (AriaAbilityHandle handle in _abilityHandles)
+		{
+			if (ReferenceEquals(handle.Owner, combatant) && ReferenceEquals(handle.Definition, ability))
+			{
+				return handle.CooldownRemaining;
+			}
+		}
+
+		return 0f;
+	}
 
 	// 发动主动能力（非被动能力中冷却就绪的），并分发 AbilityActivated 事件
 	private void ActivateActiveAbilities()
@@ -354,6 +371,7 @@ public partial class CombatManager : Node
 				continue;
 			}
 
+			ctx.Self = passive.Combatant;
 			if (!passive.Handle.Definition.CanActivate(ctx))
 			{
 				continue;
@@ -374,6 +392,7 @@ public partial class CombatManager : Node
 		{
 			Source = source,
 			Target = target,
+			Self = source,
 			FriendlyHero = FriendlyHero,
 			EnemyHero = EnemyHero,
 		};

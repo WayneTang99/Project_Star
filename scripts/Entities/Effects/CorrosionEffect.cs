@@ -1,7 +1,7 @@
 using Aria;
 using Godot;
 
-namespace Project_Star.Combat.Effects;
+namespace Project_Star.Entities.Effects;
 
 // 腐蚀效果：周期伤害，每次周期结算以内嵌伤害效果入队，由管理器统一结算。
 [GlobalClass]

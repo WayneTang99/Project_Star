@@ -66,12 +66,12 @@ public partial class HeroManager : Node
 		HeroResetEvent?.Invoke();
 	}
 
-	// 反射收集所有非抽象 HeroBase 子类作为模板
+	// 反射收集所有非抽象公开的 HeroBase 子类作为模板（过滤内部测试类）
 	private void RegisterHeroTemplates()
 	{
 		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
 		{
-			if (type.IsAbstract || !typeof(HeroBase).IsAssignableFrom(type))
+			if (type.IsAbstract || !type.IsPublic || !typeof(HeroBase).IsAssignableFrom(type))
 			{
 				continue;
 			}

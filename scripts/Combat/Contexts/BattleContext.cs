@@ -14,6 +14,9 @@ public partial class BattleContext : AriaContextBase
 	// 目标
 	public ICombatant? Target { get; set; }
 
+	// 当前执行主体（发动能力 / 持有被评估效果的实体，被动能力据此识别归属）
+	public ICombatant? Self { get; set; }
+
 	// 当前分发的事件（被动能力按此读取触发载荷）
 	public CombatEventBase? CurrentEvent { get; set; }
 

@@ -4,7 +4,7 @@ using Project_Star.Combat.Contexts;
 using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Interfaces;
 
-namespace Project_Star.Combat.Effects;
+namespace Project_Star.Entities.Effects;
 
 // 即时穿透伤害效果：应用一次立即结算，无视护甲直接扣除目标生命。
 [GlobalClass]

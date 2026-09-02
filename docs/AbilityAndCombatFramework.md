@@ -242,7 +242,7 @@ public partial class ThornsAbility : AriaAbilityBase, IPassiveAbility
     }
 }
 ```
-- **效果子类写法**（游戏侧，如 `scripts/Combat/Effects/`）：
+- **效果子类写法**（游戏侧，如 `scripts/Entities/Effects/`）：
 ```csharp
 public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 {
@@ -258,6 +258,6 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 
 ## 待实现（后续阶段）
 
-- 具体能力/效果模板（`scripts/Entities/Abilities/`、`scripts/Combat/Effects/`）。
+- 具体能力/效果模板（`scripts/Entities/Abilities/`、`scripts/Entities/Effects/`）。
 - 战斗入场接线：由怪物/PvP 事件调用 `CombatManager.StartBattle`；目标选取约定（能力自治，用 ctx 双方列表自行选目标）。
 - 连锁/总线的事件订阅清理约定（`EndBattle` 前断开外部订阅）。

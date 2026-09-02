@@ -76,7 +76,7 @@ Project_Star/
 │   ├── Board/         # 棋盘子系统（Manager/Data/Algo）
 │   ├── Match/         # 局内轮次与事件管理器（RoundTurnManager / EventManager）
 │   ├── Combat/        # 战斗子系统（Managers/Contexts/Events/Effects）
-│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard 等）
+│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Abilities、Effects 等）
 │   └── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试

@@ -87,8 +87,8 @@ Project_Star/
 │   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
 │   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
 │   ├── Match/         # 局内轮次与事件管理器（RoundTurnManager / EventManager / MonsterEventManager / ShopEventManager）
-│   ├── Combat/        # 战斗子系统（Managers/CombatManager、Contexts/BattleContext、Events/战斗事件、Effects/战斗效果）
-│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent 等）
+│   ├── Combat/        # 战斗子系统（Managers/CombatManager、Contexts/BattleContext、Events/战斗事件）
+│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent、Abilities/能力、Effects/效果 等）
 │   └── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
@@ -246,7 +246,7 @@ public partial class PoisonAbility : AriaAbilityBase
 }
 ```
 
-**效果子类写法**（游戏侧 `scripts/Combat/Effects/`）：
+**效果子类写法**（游戏侧 `scripts/Entities/Effects/`）：
 ```csharp
 public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 {
