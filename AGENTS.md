@@ -83,7 +83,7 @@ Project_Star/
 │   │   ├── Bases/     # 抽象基类（HeroBase / CardBase / EventBase / MerchantBase / MonsterBase）
 │   │   ├── Interfaces/  # 游戏侧接口（ICombatant / IDamageEffect / IPassiveAbility）
 │   │   ├── Types/     # 非实体类型定义（GameState / CardState / HeroState / EventState）
-│   │   └── AttributeSets/  # 属性集（Hero / Card / Merchant / Event / Shop）
+│   │   └── AttributeSets/  # 属性集（Hero / Card / Merchant / Event）
 │   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
 │   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
 │   ├── Match/         # 局内轮次与事件管理器（RoundTurnManager / EventManager / MonsterEventManager / ShopEventManager）
@@ -147,7 +147,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Types/GameState` + `scripts/Systems/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
 - `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
 - `scripts/Core/Types/EventState` + `scripts/Core/AttributeSets/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName` 与**等级（1~5）**、**轮次范围**（`MinRound`/`MaxRound`）属性）。
-- `scripts/Core/AttributeSets/ShopAttributeSet`：商店**独立属性集**（继承 `AriaAttributeSet`，暂为空壳，与事件属性集**不耦合**）。怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
+- `scripts/Core/AttributeSets/MerchantAttributeSet`：商人属性集（继承 `AriaAttributeSet`，暂为空壳，预留交易数据）。怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
 - `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
 - `scripts/Core/Bases/ShopEventBase`：商店事件**中间态抽象类**；怪物事件**不做中间态**，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
 - `scripts/Match/EventManager`：事件管理器（**反射**收集模板池、`ScheduleEvents` 排程钩子留空待排程系统覆写、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`、`EventsGeneratedEvent`/`EventResolvedEvent`，持有 `scripts/Match/` 下 `MonsterEventManager`/`ShopEventManager` 子管理器）。
