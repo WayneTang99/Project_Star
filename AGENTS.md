@@ -136,7 +136,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 ### 项目侧对 Aria 的扩展（已建）
 
-- `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
+- `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望 / **辐射** / **腐蚀** / **生命再生**）。
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
 - `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
@@ -228,6 +228,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
   - `scripts/Core/Interfaces/ICombatant.cs`：战斗参与者接口（英雄/卡牌共同实现），声明 `Abilities`/`Effects`。
   - `scripts/Core/Interfaces/IPassiveAbility.cs`：被动能力接口，声明响应的事件类型（`Type ReactEventType`）；主动能力不实现该接口。
   - `scripts/Core/Interfaces/IDamageEffect.cs`：伤害效果接口（结算器据此识别伤害并广播）。
+  - `scripts/Core/Interfaces/IHealEffect.cs`：治疗效果接口（结算器据此触发净化：削减目标腐蚀/辐射）。
   - `scripts/Combat/Events/CombatEventBase.cs`：战斗事件抽象基类；子类 `BattleStartEvent`/`AbilityActivatedEvent`/`AdjacentCardActivatedEvent`/`EffectAppliedEvent`/`DamageDealtEvent`/`HealthBelowHalfEvent`/`NearDeathEvent` 自带载荷，被动按事件类型路由。
   - `scripts/Combat/Events/CombatEventBus.cs`：全局战斗事件总线（静态观察者通道，供 UI/统计/管理器订阅；被动连锁不走总线）。
   - `scripts/Combat/Contexts/BattleContext.cs`：战斗上下文（继承 `AriaContextBase`），含来源/目标/当前事件（`CurrentEvent`）、双方英雄（单个）与卡牌（数组）。

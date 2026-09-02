@@ -136,6 +136,32 @@ internal sealed partial class CombatTestRadiationAbility : AriaAbilityBase
 	}
 }
 
+// 主动能力：对敌方英雄施加周期伤害（腐蚀，线性衰减）。
+internal sealed partial class CombatTestCorrosionAbility : AriaAbilityBase
+{
+	private readonly float _damagePerTick;
+
+	public CombatTestCorrosionAbility(float cooldown, float damagePerTick)
+	{
+		Key = new StringName("Corrosion");
+		DisplayName = "腐蚀";
+		CooldownSeconds = cooldown;
+		_damagePerTick = damagePerTick;
+	}
+
+	public override AriaAction[] Activate(AriaContextBase baseCtx)
+	{
+		var ctx = (BattleContext)baseCtx;
+		ICombatant? target = CombatTestTargeting.EnemyHeroOf(ctx);
+		if (target is null)
+		{
+			return [];
+		}
+
+		return [ new AriaAction { EffectsByTarget = { [target] = [ new CorrosionEffect { DamageAmount = _damagePerTick } ] } } ];
+	}
+}
+
 // 主动能力：治疗己方英雄。
 internal sealed partial class CombatTestHealAbility : AriaAbilityBase
 {

@@ -6,10 +6,11 @@ using Project_Star.Combat.Contexts;
 using Project_Star.Combat.Events;
 using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Interfaces;
+using Project_Star.Entities.Effects;
 
 namespace Project_Star.Combat.Managers;
 
-// 战斗管理器：统一计时与结算。每 0.2s 推进冷却与周期效果、发动主动能力，
+// 战斗管理器：统一计时与结算。每 0.2s 推进冷却与周期效果、发动主动能力、按属性结算 DoT，
 // 结算效果队列并分发事件；被动能力按事件类型路由响应（连锁代数 ≤3 阻断）。
 [GlobalClass]
 public partial class CombatManager : Node
@@ -22,6 +23,18 @@ public partial class CombatManager : Node
 
 	// 濒死阈值（生命比例，首次跌破时分发 NearDeathEvent）
 	private const float NEAR_DEATH_THRESHOLD = 0.25f;
+
+	// 辐射每秒半衰因子（值 × 0.5^dt，每秒减半）
+	private const float DOT_RADIATION_HALFLIFE = 0.5f;
+
+	// 腐蚀每秒线性衰减量
+	private const float DOT_CORROSION_DECAY_PER_SECOND = 1f;
+
+	// 再生每秒线性衰减量
+	private const float DOT_REGENERATION_DECAY_PER_SECOND = 1f;
+
+	// DoT 结算下限（低于该值不再结算）
+	private const float DOT_EPSILON = 0.01f;
 
 	private readonly List<AriaAbilityHandle> _abilityHandles = new();
 	private readonly List<AriaEffectHandle> _activeEffects = new();
@@ -138,11 +151,12 @@ public partial class CombatManager : Node
 		}
 	}
 
-	// 执行一帧：计时推进 → 发动主动能力 → 结算队列排水
+	// 执行一帧：计时推进 → 发动主动能力 → DoT 结算 → 结算队列排水
 	private void TickFrame()
 	{
 		AdvanceTimers();
 		ActivateActiveAbilities();
+		ApplyDot();
 		DrainQueue();
 	}
 
@@ -296,6 +310,11 @@ public partial class CombatManager : Node
 		CombatEventBus.RaiseEffectApplied(resolution.Target, resolution.Effect);
 		Dispatch(new EffectAppliedEvent(resolution.Target, resolution.Effect), null, ctx, resolution.Generation);
 
+		if (resolution.Effect is IHealEffect heal)
+		{
+			PurgeDot(resolution.Target, heal.HealAmount);
+		}
+
 		if (resolution.Effect is IDamageEffect damage)
 		{
 			var info = new DamageInfo
@@ -310,6 +329,100 @@ public partial class CombatManager : Node
 			Dispatch(new DamageDealtEvent(info), null, ctx, resolution.Generation);
 			CheckHealthBelowHalf(resolution.Target);
 			CheckNearDeath(resolution.Target);
+		}
+	}
+
+	// 治疗净化：削减目标辐射/腐蚀属性，削减总量 = 治疗量 × 50%，按当前值比例分摊
+	private void PurgeDot(ICombatant? target, float healAmount)
+	{
+		if (target?.AttributeSet is not { } set)
+		{
+			return;
+		}
+
+		AriaAttributeData? radiation = set.GetAttribute(HeroAttributeSet.RADIATION);
+		AriaAttributeData? corrosion = set.GetAttribute(HeroAttributeSet.CORROSION);
+		if (radiation is null && corrosion is null)
+		{
+			return;
+		}
+
+		float rad = radiation?.CurrentValue ?? 0f;
+		float corr = corrosion?.CurrentValue ?? 0f;
+		float total = rad + corr;
+		if (total <= 0f)
+		{
+			return;
+		}
+
+		float deduction = healAmount * 0.5f;
+		if (radiation is not null)
+		{
+			radiation.SetCurrentValue(Mathf.Max(0f, rad - deduction * (rad / total)));
+		}
+
+		if (corrosion is not null)
+		{
+			corrosion.SetCurrentValue(Mathf.Max(0f, corr - deduction * (corr / total)));
+		}
+	}
+
+	// DoT 结算：按辐射/腐蚀属性值结算每秒伤害并衰减，复用统一结算管线入队伤害效果
+	private void ApplyDot()
+	{
+		ApplyDotTo(FriendlyHero);
+		ApplyDotTo(EnemyHero);
+		foreach (ICombatant card in FriendlyCards)
+		{
+			ApplyDotTo(card);
+		}
+
+		foreach (ICombatant card in EnemyCards)
+		{
+			ApplyDotTo(card);
+		}
+	}
+
+	// 结算单个目标的 DoT/HoT：辐射穿透、腐蚀普通（值 ×dt 为每秒伤害）；再生直接恢复生命（值 ×dt）；随后衰减
+	private void ApplyDotTo(ICombatant? combatant)
+	{
+		if (combatant?.AttributeSet is not { } set)
+		{
+			return;
+		}
+
+		AriaAttributeData? radiation = set.GetAttribute(HeroAttributeSet.RADIATION);
+		AriaAttributeData? corrosion = set.GetAttribute(HeroAttributeSet.CORROSION);
+		AriaAttributeData? regen = set.GetAttribute(HeroAttributeSet.REGENERATION);
+		if (radiation is null && corrosion is null && regen is null)
+		{
+			return;
+		}
+
+		float dt = TICK_INTERVAL;
+		if (radiation is not null && radiation.CurrentValue > DOT_EPSILON)
+		{
+			float rad = radiation.CurrentValue;
+			_resolutionQueue.Enqueue(new EffectResolution(new PierceDamageEffect { DamageAmount = rad * dt }, null, combatant, 0));
+			radiation.SetCurrentValue(rad * Mathf.Pow(DOT_RADIATION_HALFLIFE, dt));
+		}
+
+		if (corrosion is not null && corrosion.CurrentValue > DOT_EPSILON)
+		{
+			float corr = corrosion.CurrentValue;
+			_resolutionQueue.Enqueue(new EffectResolution(new DamageEffect { DamageAmount = corr * dt }, null, combatant, 0));
+			corrosion.SetCurrentValue(Mathf.Max(0f, corr - DOT_CORROSION_DECAY_PER_SECOND * dt));
+		}
+
+		if (regen is not null && regen.CurrentValue > DOT_EPSILON)
+		{
+			float reg = regen.CurrentValue;
+			if (set.GetAttribute(HeroAttributeSet.HEALTH) is { } health)
+			{
+				health.SetCurrentValue(health.CurrentValue + reg * dt);
+			}
+
+			regen.SetCurrentValue(Mathf.Max(0f, reg - DOT_REGENERATION_DECAY_PER_SECOND * dt));
 		}
 	}
 

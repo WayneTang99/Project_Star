@@ -48,6 +48,7 @@ public partial class CombatTestUI : Control
 		public ProgressBar? HpBar;
 		public Label? HpTextLabel;
 		public Label? ArmorLabel;
+		public Label? DotLabel;
 		public readonly List<Label> AbilityLabels = new();
 	}
 
@@ -248,6 +249,12 @@ public partial class CombatTestUI : Control
 			armor.AddThemeFontSizeOverride("font_size", 13);
 			vbox.AddChild(armor);
 			cell.ArmorLabel = armor;
+
+			var dot = new Label();
+			dot.AddThemeFontSizeOverride("font_size", 13);
+			dot.AddThemeColorOverride("font_color", new Color(1f, 0.75f, 0.5f));
+			vbox.AddChild(dot);
+			cell.DotLabel = dot;
 		}
 
 		foreach (AriaAbilityBase ability in abilities)
@@ -440,6 +447,30 @@ public partial class CombatTestUI : Control
 		if (cell.ArmorLabel is not null)
 		{
 			cell.ArmorLabel.Text = $"护甲 {hero.Armor:F0}";
+		}
+
+		if (cell.DotLabel is not null)
+		{
+			float rad = hero.AttributeSet.Radiation.CurrentValue;
+			float corr = hero.AttributeSet.Corrosion.CurrentValue;
+			float regen = hero.AttributeSet.Regeneration.CurrentValue;
+			var parts = new List<string>();
+			if (rad > 0.01f)
+			{
+				parts.Add($"辐射 {rad:F1}");
+			}
+
+			if (corr > 0.01f)
+			{
+				parts.Add($"腐蚀 {corr:F1}");
+			}
+
+			if (regen > 0.01f)
+			{
+				parts.Add($"再生 {regen:F1}");
+			}
+
+			cell.DotLabel.Text = parts.Count > 0 ? string.Join("  ", parts) : "";
 		}
 
 		UpdateAbilityLabels(cell, hero.Abilities, hero);

@@ -55,6 +55,7 @@
 | `scripts/Core/Interfaces/ICombatant.cs` | 战斗参与者接口（英雄/卡牌共同实现）：声明 `Abilities`/`Effects` |
 | `scripts/Core/Interfaces/IPassiveAbility.cs` | 被动能力接口：声明响应的事件类型（`Type ReactEventType`）|
 | `scripts/Core/Interfaces/IDamageEffect.cs` | 伤害效果接口：结算器据此识别并广播 DamageDealt |
+| `scripts/Core/Interfaces/IHealEffect.cs` | 治疗效果接口：结算器据此触发净化（削减目标腐蚀/辐射）|
 | `scripts/Combat/Contexts/BattleContext.cs` | 战斗上下文（继承 `AriaContextBase`，含当前事件 `CurrentEvent`）|
 | `scripts/Combat/Events/CombatEventBase.cs` | 战斗事件抽象基类（按类型路由被动）|
 | `scripts/Combat/Events/CombatEventBus.cs` | 全局战斗事件总线（静态观察者通道：DamageDealt/AbilityActivated/EffectApplied/HealthBelowHalf/NearDeath）|
@@ -105,6 +106,10 @@ public abstract partial class AriaEffectBase : Resource
     public virtual AriaEffectBase[] GetTickEffects(AriaContextBase ctx) => [this]; // 周期到期结算项
 }
 ```
+
+> **属性化 DoT/HoT**：辐射/腐蚀/再生值作为 `HeroAttributeSet` 属性（`Radiation`/`Corrosion`/`Regeneration`，值 = 每秒量），效果（`RadiationEffect`/`CorrosionEffect`/`RegenerationEffect`）为即时效果只负责加值。每帧由 CombatManager 的 `ApplyDot` 按值结算：辐射 → 穿透伤害 `值×dt` + 指数半衰（`×0.5^dt`）；腐蚀 → 普通伤害 `值×dt` + 线性衰减（`−1/s`）；再生 → 直接恢复生命 `值×dt` + 线性衰减（`−1/s`）。伤害复用统一结算管线入队伤害效果。
+>
+> **治疗净化**：结算 `IHealEffect`（如 `HealEffect`）后，削减目标 `Radiation`/`Corrosion` 属性值，**削减总量 = 治疗量 × 50%，按两属性当前值比例分摊**。
 
 ### `AriaAttributeModifier`
 ```csharp

@@ -2,12 +2,13 @@ using Aria;
 using Godot;
 using Project_Star.Combat.Contexts;
 using Project_Star.Core.AttributeSets;
+using Project_Star.Core.Interfaces;
 
 namespace Project_Star.Entities.Effects;
 
-// 即时治疗效果：应用一次立即恢复目标生命（不超过最大生命）。
+// 即时治疗效果：应用一次立即恢复目标生命（不超过最大生命）；同时削减目标腐蚀 / 辐射（净化）。
 [GlobalClass]
-public partial class HealEffect : AriaEffectBase
+public partial class HealEffect : AriaEffectBase, IHealEffect
 {
 	// 治疗数值
 	[Export]

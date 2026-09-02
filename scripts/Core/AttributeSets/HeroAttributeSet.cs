@@ -25,6 +25,12 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	public const string LEVEL = "Level";
 	// 声望属性 key
 	public const string REPUTATION = "Reputation";
+	// 辐射属性 key
+	public const string RADIATION = "Radiation";
+	// 腐蚀属性 key
+	public const string CORROSION = "Corrosion";
+	// 生命再生属性 key
+	public const string REGENERATION = "Regeneration";
 
 	// 英雄标识 key（不可变）
 	public StringName HeroKey { get; }
@@ -53,6 +59,12 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	public AriaAttributeData Level => GetAttribute(LEVEL)!;
 	// 声望属性
 	public AriaAttributeData Reputation => GetAttribute(REPUTATION)!;
+	// 辐射属性（值 = 每秒穿透伤害；指数半衰衰减）
+	public AriaAttributeData Radiation => GetAttribute(RADIATION)!;
+	// 腐蚀属性（值 = 每秒伤害；线性衰减）
+	public AriaAttributeData Corrosion => GetAttribute(CORROSION)!;
+	// 生命再生属性（值 = 每秒恢复生命；线性衰减）
+	public AriaAttributeData Regeneration => GetAttribute(REGENERATION)!;
 
 	public HeroAttributeSet()
 		: this(new StringName("Hero"), "Hero", new StringName("Default"))
@@ -73,6 +85,9 @@ public partial class HeroAttributeSet : AriaAttributeSet
 		AddAttribute(EXPERIENCE, new AriaAttributeData(0f, 0f, 100000f));
 		AddAttribute(LEVEL, new AriaAttributeData(1f, 1f, 100f));
 		AddAttribute(REPUTATION, new AriaAttributeData(100f, 0f, 100f));
+		AddAttribute(RADIATION, new AriaAttributeData(0f, 0f, 1000f));
+		AddAttribute(CORROSION, new AriaAttributeData(0f, 0f, 1000f));
+		AddAttribute(REGENERATION, new AriaAttributeData(0f, 0f, 1000f));
 
 		// 游戏侧联动：MaxHealth 变化同步 Health.MaxValue、MaxEnergy 同步 Energy.MaxValue（不纳入 Aria 框架）
 		MaxHealth.OnValueChanged += (_, _) => Health.SetMaxValue(MaxHealth.CurrentValue);
