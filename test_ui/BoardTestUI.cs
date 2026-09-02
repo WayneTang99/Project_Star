@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Project_Star.Board.Algo;
+using Project_Star.Board.Data;
+using Project_Star.Board.Manager;
 using Project_Star.Core.Bases;
-using Project_Star.Core.Board;
-using Project_Star.Core.Managers;
 using Project_Star.Core.Types;
 
 namespace Project_Star.TestUI;

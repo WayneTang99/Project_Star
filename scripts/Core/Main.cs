@@ -1,5 +1,8 @@
 using Godot;
-using Project_Star.Core.Managers;
+using Project_Star.Board.Manager;
+using Project_Star.Combat.Managers;
+using Project_Star.Match;
+using Project_Star.Systems;
 
 namespace Project_Star.Core;
 
@@ -24,6 +27,9 @@ public partial class Main : Node
 	// 事件管理器
 	public EventManager EventManager { get; private set; } = null!;
 
+	// 战斗管理器
+	public CombatManager CombatManager { get; private set; } = null!;
+
 	public override void _Ready()
 	{
 		base._Ready();
@@ -44,5 +50,8 @@ public partial class Main : Node
 
 		EventManager = new EventManager();
 		AddChild(EventManager);
+
+		CombatManager = new CombatManager();
+		AddChild(CombatManager);
 	}
 }

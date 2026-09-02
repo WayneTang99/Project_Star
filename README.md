@@ -71,11 +71,13 @@ Project_Star/
 │   ├── Menu.tscn      # 菜单场景
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
-│   ├── Core/          # 核心系统（管理器：Game/RoundTurn/Hero/Card/Board/Event 及子管理器；实体基类：HeroBase/CardBase/EnemyBase 等）
+│   ├── Core/          # 共享定义/契约层（抽象基类、接口、非实体类型定义、Main）
+│   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
+│   ├── Board/         # 棋盘子系统（Manager/Data/Algo）
+│   ├── Match/         # 局内轮次与事件管理器（RoundTurnManager / EventManager）
+│   ├── Combat/        # 战斗子系统（Managers/Contexts/Events/Effects）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard 等）
-│   ├── Systems/       # 游戏系统（战斗、库存、存档）
-│   ├── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
-│   └── Utils/         # 工具类（扩展方法、辅助函数）
+│   └── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
 ├── test_ui/           # 独立测试UI（棋盘推挤演示，核心不引用）

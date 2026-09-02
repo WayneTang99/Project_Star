@@ -38,4 +38,7 @@ public abstract partial class AriaEffectBase : Resource
 	public virtual void Tick(float delta, AriaContextBase ctx)
 	{
 	}
+
+	// 周期到期时产生的结算项；默认结算自身，自定义周期效果覆写（如返回内嵌即时效果）
+	public virtual AriaEffectBase[] GetTickEffects(AriaContextBase ctx) => [this];
 }

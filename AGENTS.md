@@ -33,18 +33,19 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 
 ### 管理器架构
 
-所有管理器与实体基类均位于 `scripts/Core/` 下的 `Managers/` 与 `Bases/`（类型定义在 `Types/`）。管理器**不注册为 Autoload、不作为场景子节点**，由根节点脚本 `scripts/Core/Main.cs` 在 `_Ready` 中 **new 生成并 AddChild 挂载**、统一注册；`EventManager` 持有两个子管理器（普通类实例，生命周期随 `EventManager`）。
+管理器**不注册为 Autoload、不作为场景子节点**，由根节点脚本 `scripts/Core/Main.cs` 在 `_Ready` 中 **new 生成并 AddChild 挂载**、统一注册。管理器按子系统分目录：元游戏（`scripts/Systems/`）、棋盘（`scripts/Board/Manager/`）、局内轮次与事件（`scripts/Match/`）、战斗（`scripts/Combat/Managers/`）。`scripts/Core/` 只放**共享定义**（抽象基类 / 接口 / 非实体类型定义）与组合根 `Main.cs`，不落具体实现。
 
 ```
 Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引用)
-├── GameManager              # 主状态机：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
-├── RoundTurnManager         # 局内轮次：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
-├── HeroManager              # 英雄：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
-├── CardManager              # 卡牌：反射收集模板池、实例化、玩家拥有卡牌、按阵营key过滤供商店
-├── BoardManager             # 棋盘：战场/备战区双棋盘（各10格）、推挤放置/移除/交换/跨区拖拽编排
-└── EventManager             # 事件：类型注册、生成（单/多选）、结果结算
-    ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
-    └── ShopEventManager      # 子管理器：商店事件（交易卡牌、扣 Wealth 属性）
+├── GameManager              # 主状态机（Systems）：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
+├── HeroManager              # 英雄（Systems）：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
+├── CardManager              # 卡牌（Systems）：反射收集模板池、实例化、玩家拥有卡牌、按阵营key过滤供商店
+├── BoardManager             # 棋盘（Board/Manager）：战场/备战区双棋盘（各10格）、推挤放置/移除/交换/跨区拖拽编排
+├── RoundTurnManager         # 局内轮次（Match）：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
+├── EventManager             # 事件（Match）：类型注册、生成（单/多选）、结果结算
+│   ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
+│   └── ShopEventManager      # 子管理器：商店事件（交易卡牌、扣 Wealth 属性）
+└── CombatManager            # 战斗（Combat/Managers）：统一计时与结算、事件分发、被动连锁
 ```
 
 **通信与数据约定**
@@ -52,7 +53,7 @@ Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引�
 - 管理器间通过 **Godot 信号（C# event）** 通信，避免互相直调。
 - 数值流转一律走 `AriaAttributeSet`（扣财富、扣血等），不直接改字段。
 - `CardManager` 管卡牌实例与数据，`BoardManager` 管卡牌在棋盘上的位置与布局。
-- 实体基类（`HeroBase` / `CardBase` / `EnemyBase` 等）与管理器同放 `scripts/Core/`，供各系统与 UI 复用。
+- 实体基类（`HeroBase` / `CardBase` / `EventBase` 等）与共享定义放 `scripts/Core/`，供各系统与 UI 复用。
 
 ## 目录结构
 
@@ -77,19 +78,18 @@ Project_Star/
 │   ├── Menu.tscn      # 菜单场景
 │   └── Gameplay/      # 游戏玩法场景
 ├── scripts/           # C# 脚本 (.cs)
-│   ├── Core/          # 核心系统
-│   │   ├── Types/     # 类型定义（枚举等：GameState、CardState、HeroState、BoardState、TriggerType）
-│   │   ├── AttributeSets/  # 属性集（HeroAttributeSet / CardAttributeSet / EventAttributeSet / ShopAttributeSet）
-│   │   ├── Managers/  # 管理器（GameManager / RoundTurnManager / HeroManager / CardManager / BoardManager / EventManager 及子管理器）
-│   │   ├── Bases/     # 实体基类（HeroBase / CardBase / EventBase / ShopEventBase / EnemyBase 等）
-│   │   ├── Interfaces/  # 游戏侧接口（ICombatant 等）
-│   │   ├── Contexts/  # 游戏侧上下文（BattleContext 等）
-│   │   ├── Board/     # 棋盘：数据管理（GameBoard/BoardEntry）、纯算法（BoardUtil）、推挤评估/执行（PushEvaluator/PushExecutor/PushPlan）
-│   │   └── Main.cs    # 主场景根节点脚本（缓存各管理器引用）
+│   ├── Core/          # 共享定义/契约层（仅抽象基类、接口、非实体类型定义、Main）
+│   │   ├── Main.cs    # 组合根：_Ready 生成并挂载各子系统管理器（唯一引用具体管理器的文件）
+│   │   ├── Bases/     # 抽象基类（HeroBase / CardBase / EventBase / MerchantBase / MonsterBase）
+│   │   ├── Interfaces/  # 游戏侧接口（ICombatant / IDamageEffect / IPassiveAbility）
+│   │   ├── Types/     # 非实体类型定义（GameState / CardState / HeroState / EventState）
+│   │   └── AttributeSets/  # 属性集（Hero / Card / Merchant / Event / Shop）
+│   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
+│   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
+│   ├── Match/         # 局内轮次与事件管理器（RoundTurnManager / EventManager / MonsterEventManager / ShopEventManager）
+│   ├── Combat/        # 战斗子系统（Managers/CombatManager、Contexts/BattleContext、Events/战斗事件、Effects/战斗效果）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent 等）
-│   ├── Systems/       # 游戏系统（战斗、库存、存档）
-│   ├── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
-│   └── Utils/         # 工具类（扩展方法、辅助函数）
+│   └── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
 ├── test_ui/           # 独立测试UI（棋盘推挤演示，核心不引用，仅单独打开场景运行）
@@ -139,18 +139,18 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望）。
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
-- `scripts/Core/Managers/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
+- `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
 - `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`FactionKey`/`Size` 与可变 `Level`）。
 - `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`）。
 - `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
-- `scripts/Core/Managers/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
-- `scripts/Core/Types/GameState` + `scripts/Core/Managers/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
-- `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Core/Managers/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
+- `scripts/Systems/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
+- `scripts/Core/Types/GameState` + `scripts/Systems/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
+- `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
 - `scripts/Core/Types/EventState` + `scripts/Core/AttributeSets/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName` 与**等级（1~5）**、**轮次范围**（`MinRound`/`MaxRound`）属性）。
 - `scripts/Core/AttributeSets/ShopAttributeSet`：商店**独立属性集**（继承 `AriaAttributeSet`，暂为空壳，与事件属性集**不耦合**）。怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
 - `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
 - `scripts/Core/Bases/ShopEventBase`：商店事件**中间态抽象类**；怪物事件**不做中间态**，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
-- `scripts/Core/Managers/EventManager`：事件管理器（**反射**收集模板池、`ScheduleEvents` 排程钩子留空待排程系统覆写、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`、`EventsGeneratedEvent`/`EventResolvedEvent`，持有 `MonsterEventManager`/`ShopEventManager` 空壳子管理器）。
+- `scripts/Match/EventManager`：事件管理器（**反射**收集模板池、`ScheduleEvents` 排程钩子留空待排程系统覆写、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`、`EventsGeneratedEvent`/`EventResolvedEvent`，持有 `scripts/Match/` 下 `MonsterEventManager`/`ShopEventManager` 子管理器）。
 - `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent`：示例事件（通用 / 商店）；`scripts/Entities/Events/MonsterEvent`：怪物对战事件叶子类（引用 `HeroBase` 作怪物）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
@@ -180,12 +180,12 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 **分层**：非 UI 层三个模块均不依赖 UI，只依赖卡牌数据类（`CardBase`/`CardAttributeSet`）与尺寸枚举（`CardSize`）：
 
-- `scripts/Core/Board/GameBoard`：棋盘数据管理（纯类）。**只存卡牌引用 + `Order`（左→右顺序）+ `StartCell`（占用格）**，不存渲染坐标；容量可配（默认 10）；提供放置/移除/交换/`order` 归一与 `CardPlaced/Removed/Swapped/LayoutChangedEvent`。
-- `scripts/Core/Board/BoardUtil`：**纯算法**（静态类）。阻挡卡牌查找、向右/向左推挤逐格模拟、方向择优（距离短→影响卡牌少→取 Right）。
-- `scripts/Core/Board/PushEvaluator`：只读评估（边界校验、快照排除被拖卡牌以释放原位、调用 `BoardUtil`、组装 `PushPlan`）。
-- `scripts/Core/Board/PushExecutor`：执行 `PushPlan`（按 `ResultOffsets` 写回各 `StartCell`、落位、重排 order、发事件）。
-- `scripts/Core/Types/BoardState`（含 `PushDirection`）：`None/Left/Right`。
-- `scripts/Core/Managers/BoardManager`：`[GlobalClass] Node`，持有**战场区 + 备战区**两个 `GameBoard`（各 10 格），编排跨区拖拽（同盘移动释放原位；跨盘先查来源盘再评估目标盘，即"查两个区域"）。
+- `scripts/Board/Data/GameBoard`：棋盘数据管理（纯类）。**只存卡牌引用 + `Order`（左→右顺序）+ `StartCell`（占用格）**，不存渲染坐标；容量可配（默认 10）；提供放置/移除/交换/`order` 归一与 `CardPlaced/Removed/Swapped/LayoutChangedEvent`。
+- `scripts/Board/Algo/BoardUtil`：**纯算法**（静态类）。阻挡卡牌查找、向右/向左推挤逐格模拟、方向择优（距离短→影响卡牌少→取 Right）。
+- `scripts/Board/Algo/PushEvaluator`：只读评估（边界校验、快照排除被拖卡牌以释放原位、调用 `BoardUtil`、组装 `PushPlan`）。
+- `scripts/Board/Algo/PushExecutor`：执行 `PushPlan`（按 `ResultOffsets` 写回各 `StartCell`、落位、重排 order、发事件）。
+- `scripts/Board/Algo/BoardState`（含 `PushDirection`）：`None/Left/Right`。
+- `scripts/Board/Manager/BoardManager`：`[GlobalClass] Node`，持有**战场区 + 备战区**两个 `GameBoard`（各 10 格），编排跨区拖拽（同盘移动释放原位；跨盘先查来源盘再评估目标盘，即"查两个区域"）。
 
 **交互 API（供 UI）**：`PreviewMove(card, targetBoard, targetCell)`（只读预览推挤方案）、`CommitMove(...)`（提交执行，不可行返回 false）、`RemoveCard`、`SwapCards`、`GetStartCell`、`GetLayout`（UI 据此换算像素）。
 
@@ -218,15 +218,19 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
   - `abilities/AriaAbilityBase.cs`：能力基类（Key/DisplayName/冷却 + `CanActivate`/`Activate`，`Activate` 返回 `AriaAction[]`）。
   - `abilities/AriaAction.cs`：动作载体（目标 → 效果字典，目标可多个）。
   - `abilities/AriaAbilityHandle.cs`：能力运行期句柄（冷却计时 + 所属实体）。
-  - `effects/AriaEffectBase.cs`：效果基类（持续类型/时长/周期 + `Apply`/`Remove`/`Tick`）。
+  - `effects/AriaEffectBase.cs`：效果基类（持续类型/时长/周期 + `Apply`/`Remove`/`Tick`/`GetTickEffects`）。
+  - `effects/AriaEffectHandle.cs`：效果运行期句柄（挂载信息 + 计时，管理器统一驱动）。
   - `effects/AriaEffectDurationType.cs`：效果持续类型（Instant/HasDuration/Permanent）。
   - `attributes/AriaAttributeOperation.cs`：属性运算方式（Add/Subtract/Multiply/Override）。
   - `attributes/AriaAttributeModifier.cs`：属性修饰器（AttributeKey + Operation + Magnitude）。
   - `attributes/AriaAttributeSet.cs`：支持 `ApplyModifier`/`RemoveModifier`（记录原值回滚）。
-- 游戏侧（`scripts/Core/`，不带 `Aria` 前缀）：
-  - `Interfaces/ICombatant.cs`：战斗参与者接口（英雄/卡牌共同实现），声明 `Abilities`/`Effects`。
-  - `Types/TriggerType.cs`：触发方式枚举（None/主动、BattleStart、CardActivated、HealthBelowHalf）。
-  - `Contexts/BattleContext.cs`：战斗上下文（继承 `AriaContextBase`），含来源/目标/触发方式、双方英雄（单个）与卡牌（数组）。
+- 游戏侧（不带 `Aria` 前缀）：
+  - `scripts/Core/Interfaces/ICombatant.cs`：战斗参与者接口（英雄/卡牌共同实现），声明 `Abilities`/`Effects`。
+  - `scripts/Core/Interfaces/IPassiveAbility.cs`：被动能力接口，声明响应的事件类型（`Type ReactEventType`）；主动能力不实现该接口。
+  - `scripts/Core/Interfaces/IDamageEffect.cs`：伤害效果接口（结算器据此识别伤害并广播）。
+  - `scripts/Combat/Events/CombatEventBase.cs`：战斗事件抽象基类；子类 `BattleStartEvent`/`AbilityActivatedEvent`/`AdjacentCardActivatedEvent`/`EffectAppliedEvent`/`DamageDealtEvent`/`HealthBelowHalfEvent`/`NearDeathEvent` 自带载荷，被动按事件类型路由。
+  - `scripts/Combat/Events/CombatEventBus.cs`：全局战斗事件总线（静态观察者通道，供 UI/统计/管理器订阅；被动连锁不走总线）。
+  - `scripts/Combat/Contexts/BattleContext.cs`：战斗上下文（继承 `AriaContextBase`），含来源/目标/当前事件（`CurrentEvent`）、双方英雄（单个）与卡牌（数组）。
 
 **能力子类写法**（游戏侧 `scripts/Entities/Abilities/`）：
 ```csharp
@@ -242,7 +246,7 @@ public partial class PoisonAbility : AriaAbilityBase
 }
 ```
 
-**效果子类写法**（游戏侧 `scripts/Entities/Effects/`）：
+**效果子类写法**（游戏侧 `scripts/Combat/Effects/`）：
 ```csharp
 public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 {
@@ -272,6 +276,9 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 | 常量 | UPPER_SNAKE_CASE | MAX_PLAYERS, DEFAULT_SPEED |
 | 枚举 | PascalCase | GameState, WeaponType |
 | 信号/事件 | Event 后缀 | HealthChangedEvent, GameOverEvent |
+| 基类/抽象类 | Base 后缀 | AriaAbilityBase, CardBase, CombatEventBase |
+
+- **基类 / 抽象类一律以 `Base` 结尾**：凡被继承的类（含抽象基类）命名必须带 `Base` 后缀，子类直接继承该命名，不允许裸名基类（如事件基类须为 `CombatEventBase`）。
 
 ### 代码规范
 
@@ -317,6 +324,7 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 
 - 修改场景（.tscn）时注意保留 `.uid`，避免破坏资源引用。
 - **新建文件按用途归类，禁止乱扔进 `Bases/`**：接口→`Interfaces/`（或 Aria `interfaces/`）、上下文→`Contexts/`（或 Aria `contexts/`）、枚举/类型→`Types/`、实体基类才进 `Bases/`、实体子类进 `Entities/`。
+- **按子系统分目录**：元游戏管理器→`Systems/`、棋盘实现→`Board/`（Manager/Data/Algo）、局内轮次与事件管理器→`Match/`、战斗实现→`Combat/`；可能被其他模块引用的共享类型放 `scripts/Core/`。
 
 ## 重要约束
 
