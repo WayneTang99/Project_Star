@@ -136,7 +136,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 ### 项目侧对 Aria 的扩展（已建）
 
-- `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望 / **辐射** / **腐蚀** / **生命再生**）。
+- `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望 / **辐射** / **腐蚀** / **生命再生** / **麻痹时长**）。
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
 - `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
