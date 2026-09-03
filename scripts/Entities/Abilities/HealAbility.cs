@@ -1,8 +1,10 @@
 using Aria;
 using Godot;
 using Project_Star.Combat.Contexts;
-using Project_Star.Entities.Effects;
+using Project_Star.Core.AttributeSets;
+using Project_Star.Core.Bases;
 using Project_Star.Core.Interfaces;
+using Project_Star.Entities.Effects;
 
 namespace Project_Star.Entities.Abilities;
 
@@ -14,11 +16,20 @@ public partial class HealAbility : AriaAbilityBase
 	[Export]
 	public float HealAmount { get; set; } = 15f;
 
-	public HealAbility()
+	public HealAbility() { }
+
+	public HealAbility(float cooldownSeconds)
 	{
-		Key = new StringName("Heal");
-		DisplayName = "治疗";
-		CooldownSeconds = 3f;
+		CooldownSeconds = cooldownSeconds;
+	}
+
+	public override float GetCooldownSeconds()
+	{
+		if (Owner is CardBase card && card.AttributeSet.GetAttribute(CardAttributeSet.COOLDOWN) is { } cooldown)
+		{
+			return cooldown.CurrentValue;
+		}
+		return CooldownSeconds;
 	}
 
 	public override AriaAction[] Activate(AriaContextBase baseCtx)

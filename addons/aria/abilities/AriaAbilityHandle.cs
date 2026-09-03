@@ -33,6 +33,6 @@ public partial class AriaAbilityHandle : Resource
 	// 发动后进入冷却；无冷却能力保持 0
 	public void StartCooldown()
 	{
-		CooldownRemaining = Definition.HasCooldown ? Definition.CooldownSeconds : 0f;
+		CooldownRemaining = Definition.HasCooldown ? Definition.GetCooldownSeconds() : 0f;
 	}
 }

@@ -140,7 +140,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
 - `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
-- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`FactionKey`/`Size` 与可变 `Level`）。
+- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`FactionKey`/`Size` 与可变 `Level`、`Cooldown`）。
 - `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`）。
 - `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
 - `scripts/Systems/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
@@ -170,7 +170,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 ### 卡牌系统
 
 - **继承定义**：卡牌是 `CardBase` 抽象基类的子类（放 `scripts/Entities/Cards/`），构造函数内创建 `CardAttributeSet`（注入 `CardKey`/`DisplayName`/`FactionKey`/`Size`）。功能相似的卡牌后期可继承自同一中间抽象类。
-- **身份字段不可变**：`CardKey` / `DisplayName` / `FactionKey` / `Size` 为 get-only，创建后不可修改；`Level` 走 `AriaAttributeData`（可变，数值流转）。
+- **身份字段不可变**：`CardKey` / `DisplayName` / `FactionKey` / `Size` 为 get-only，创建后不可修改；`Level` / `Cooldown` 走 `AriaAttributeData`（可变，数值流转）。
 - **Key 类型统一用 `StringName`**：所有标识性 key（`CardKey` / `FactionKey` / `HeroKey`）一律用 `Godot.StringName`（创建用 `new StringName("...")`），`DisplayName`/`HeroDisplayName` 等展示文本保持 `string`。
 - **Key 与展示名分离**：key（标识）与 display name（展示）使用不同字段，不用同一个字段兼任（如英雄 `HeroKey` + `HeroDisplayName`、卡牌 `CardKey` + `DisplayName`）。
 - **身份字段归属**：身份字段（key / display name / faction）一律放进实体对应的 `*AttributeSet`（`HeroAttributeSet` / `CardAttributeSet`），不放实体 Node 上。
@@ -215,7 +215,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - Aria 层（`addons/aria/`，游戏无关，保留 `Aria` 前缀）：
   - `interfaces/IAriaEntity.cs`：最小实体接口，暴露 `AriaAttributeSet`。
   - `contexts/AriaContextBase.cs`：上下文基类，供游戏侧继承自定义。
-  - `abilities/AriaAbilityBase.cs`：能力基类（Key/DisplayName/冷却 + `CanActivate`/`Activate`，`Activate` 返回 `AriaAction[]`）。
+  - `abilities/AriaAbilityBase.cs`：能力基类（Key/DisplayName/冷却 + `CanActivate`/`Activate`，`Activate` 返回 `AriaAction[]`；`Owner` 属性由管理器注入，`GetCooldownSeconds()` 供子类覆写从属性集动态读取冷却）。
   - `abilities/AriaAction.cs`：动作载体（目标 → 效果字典，目标可多个）。
   - `abilities/AriaAbilityHandle.cs`：能力运行期句柄（冷却计时 + 所属实体）。
   - `effects/AriaEffectBase.cs`：效果基类（持续类型/时长/周期 + `Apply`/`Remove`/`Tick`/`GetTickEffects`）。

@@ -22,6 +22,8 @@ public partial class CardAttributeSet : AriaAttributeSet
 	public const string CORROSION_POWER = "CorrosionPower";
 	// 超频时长属性 key
 	public const string OVERCLOCK_DURATION = "OverclockDuration";
+	// 冷却时间属性 key
+	public const string COOLDOWN = "Cooldown";
 
 	// 卡牌标识 key（不可变）
 	public StringName CardKey { get; }
@@ -49,6 +51,8 @@ public partial class CardAttributeSet : AriaAttributeSet
 	public AriaAttributeData CorrosionPower => GetAttribute(CORROSION_POWER)!;
 	// 超频时长属性
 	public AriaAttributeData OverclockDuration => GetAttribute(OVERCLOCK_DURATION)!;
+	// 冷却时间属性
+	public AriaAttributeData Cooldown => GetAttribute(COOLDOWN)!;
 
 	// 构造：注入不可变身份字段并初始化等级属性
 	public CardAttributeSet(StringName cardKey, string displayName, StringName factionKey, CardSize size)
@@ -64,5 +68,6 @@ public partial class CardAttributeSet : AriaAttributeSet
 		AddAttribute(RADIATION_POWER, new AriaAttributeData(0f, 0f, 9999f));
 		AddAttribute(CORROSION_POWER, new AriaAttributeData(0f, 0f, 9999f));
 		AddAttribute(OVERCLOCK_DURATION, new AriaAttributeData(0f, 0f, 9999f));
+		AddAttribute(COOLDOWN, new AriaAttributeData(0f, 0f, 9999f));
 	}
 }

@@ -67,7 +67,9 @@ public partial class CombatManager : Node
 		{
 			return;
 		}
-
+		
+		AdvanceTimers();
+		
 		_accumulator += (float)delta;
 		while (_accumulator >= TICK_INTERVAL)
 		{
@@ -135,6 +137,7 @@ public partial class CombatManager : Node
 
 		foreach (AriaAbilityBase ability in combatant.Abilities)
 		{
+			ability.Owner = combatant;
 			var handle = new AriaAbilityHandle(ability, combatant);
 			_abilityHandles.Add(handle);
 
@@ -154,7 +157,6 @@ public partial class CombatManager : Node
 	// 执行一帧：计时推进 → 发动主动能力 → DoT 结算 → 结算队列排水
 	private void TickFrame()
 	{
-		AdvanceTimers();
 		ActivateActiveAbilities();
 		ApplyDot();
 		DrainQueue();

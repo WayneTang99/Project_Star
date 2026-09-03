@@ -12,11 +12,17 @@ public abstract partial class AriaAbilityBase : Resource
 	// 能力展示名（不可变）
 	public string DisplayName { get; protected set; } = "Ability";
 
-	// 冷却秒数（主动能力用）
-	public float CooldownSeconds { get; protected set; }
+	// 冷却秒数（主动能力用，基础值）
+	public float CooldownSeconds { get; set; }
 
 	// 是否有冷却（CooldownSeconds 大于 0 即有）
 	public bool HasCooldown => CooldownSeconds > 0f;
+
+	// 所属实体（由管理器注入，用于动态读取属性）
+	public IAriaEntity? Owner { get; set; }
+
+	// 获取实际冷却秒数，供子类覆写从属性集动态读取
+	public virtual float GetCooldownSeconds() => CooldownSeconds;
 
 	// 能否发动，供子类覆写条件判断
 	public virtual bool CanActivate(AriaContextBase ctx) => true;
