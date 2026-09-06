@@ -19,4 +19,12 @@ public static class Tags
 		CardSize.Large => Large,
 		_ => Small,
 	};
+
+	// 词条类型标签
+	public static readonly StringName Weapon = new("Weapon");       // 武器
+	public static readonly StringName Clothing = new("Clothing");   // 服饰
+	public static readonly StringName Human = new("Human");         // 人类
+	public static readonly StringName Mechanical = new("Mechanical"); // 机械
+	public static readonly StringName Vehicle = new("Vehicle");     // 载具
+	public static readonly StringName Consumable = new("Consumable"); // 消耗品
 }

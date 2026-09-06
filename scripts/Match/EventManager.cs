@@ -25,6 +25,9 @@ public partial class EventManager : Node
 	// 商店事件子管理器
 	public ShopEventManager ShopEventManager { get; } = new();
 
+	// 局内事件分发器：路由被动能力对局内事件的响应
+	public MatchEventDispatcher MatchEventDispatcher { get; } = new();
+
 	// 事件组生成事件，参数为（轮数, 回合数, 事件组）
 	public event Action<int, int, Godot.Collections.Array<EventBase>>? EventsGeneratedEvent;
 
@@ -44,6 +47,7 @@ public partial class EventManager : Node
 	public override void _ExitTree()
 	{
 		base._ExitTree();
+		MatchEventDispatcher.Dispose();
 		if (_roundTurnManager is not null)
 		{
 			_roundTurnManager.TurnStartedEvent -= OnTurnStarted;

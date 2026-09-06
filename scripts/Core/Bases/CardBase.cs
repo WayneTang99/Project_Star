@@ -21,6 +21,16 @@ public abstract partial class CardBase : Node, ICombatant
 	// 效果（声明，构造函数或子类填充）
 	public Godot.Collections.Array<AriaEffectBase> Effects { get; } = new();
 
+	// 等级变化钩子，子类覆写以根据等级更新属性值
+	protected virtual void OnLevelChanged(int newLevel) { }
+
+	// 订阅等级变化事件，子类构造函数末尾调用
+	protected void InitializeLevelListener()
+	{
+		AttributeSet.Level.OnValueChanged += (_, _) =>
+			OnLevelChanged((int)AttributeSet.Level.CurrentValue);
+	}
+
 	// IAriaEntity 显式实现：以基类型暴露属性集
 	AriaAttributeSet IAriaEntity.AttributeSet => AttributeSet;
 }

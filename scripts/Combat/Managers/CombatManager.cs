@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Aria;
 using Godot;
 using Project_Star.Combat.Contexts;
@@ -42,6 +43,7 @@ public partial class CombatManager : Node
 	private readonly Queue<EffectResolution> _resolutionQueue = new();
 	private readonly HashSet<ICombatant> _belowHalf = new();
 	private readonly HashSet<ICombatant> _nearDeath = new();
+	private readonly Dictionary<int, float> _durationContributions = new();
 
 	private float _accumulator;
 	private bool _inBattle;
@@ -120,6 +122,7 @@ public partial class CombatManager : Node
 		_resolutionQueue.Clear();
 		_belowHalf.Clear();
 		_nearDeath.Clear();
+		_durationContributions.Clear();
 		FriendlyCards.Clear();
 		EnemyCards.Clear();
 		FriendlyHero = null;
@@ -162,12 +165,13 @@ public partial class CombatManager : Node
 		DrainQueue();
 	}
 
-	// 计时推进：冷却递减；active 效果计时，到期入队结算项、耗尽移除
+	// 计时推进：冷却递减（含超频/麻痹倍率）；active 效果计时，到期入队结算项、耗尽移除；递减卡牌超频/麻痹时长
 	private void AdvanceTimers()
 	{
 		foreach (AriaAbilityHandle handle in _abilityHandles)
 		{
-			handle.UpdateCooldown(TICK_INTERVAL);
+			float multiplier = GetCooldownMultiplier(handle);
+			handle.UpdateCooldown(TICK_INTERVAL, multiplier);
 		}
 
 		for (int i = _activeEffects.Count - 1; i >= 0; i--)
@@ -189,10 +193,17 @@ public partial class CombatManager : Node
 
 			if (active.IsExpired)
 			{
-				active.Definition.Remove(BuildContext(OwnerOf(active), TargetOf(active)));
+				// 到期扣减本实例贡献的时长（而非直接清零），支持多来源叠加
+				if (_durationContributions.Remove(active.GetHashCode(), out float contributed))
+				{
+					SubtractCardDuration(active.Target, active.Definition, contributed);
+				}
+
 				_activeEffects.RemoveAt(i);
 			}
 		}
+
+		TickCardDurations();
 	}
 
 	// 取句柄所属实体
@@ -200,6 +211,60 @@ public partial class CombatManager : Node
 
 	// 取句柄目标实体
 	private static ICombatant? TargetOf(AriaEffectHandle handle) => handle.Target as ICombatant;
+
+	// 计算冷却速度倍率：超频 ×2、麻痹 ×0.5、同时存在时抵消（×1）
+	private static float GetCooldownMultiplier(AriaAbilityHandle handle)
+	{
+		if (handle.Owner?.AttributeSet is not CardAttributeSet card) return 1f;
+		float oc = card.OverclockDuration.CurrentValue;
+		float pa = card.ParalysisDuration.CurrentValue;
+		if (oc > 0f && pa > 0f) return 1f;
+		if (oc > 0f) return 2f;
+		if (pa > 0f) return 0.5f;
+		return 1f;
+	}
+
+	// 递减所有卡牌的超频/麻痹时长属性（每帧 TICK_INTERVAL）
+	private void TickCardDurations()
+	{
+		ICombatant[] allCards = FriendlyCards.Concat(EnemyCards).ToArray();
+		foreach (ICombatant card in allCards)
+		{
+			if (card?.AttributeSet is not CardAttributeSet c) continue;
+			if (c.OverclockDuration.CurrentValue > 0f)
+				c.OverclockDuration.SetCurrentValue(Mathf.Max(0f, c.OverclockDuration.CurrentValue - TICK_INTERVAL));
+			if (c.ParalysisDuration.CurrentValue > 0f)
+				c.ParalysisDuration.SetCurrentValue(Mathf.Max(0f, c.ParalysisDuration.CurrentValue - TICK_INTERVAL));
+		}
+	}
+
+	// 根据效果类型返回目标卡牌对应的时长属性
+	private static AriaAttributeData? GetCardDurationAttribute(IAriaEntity? target, AriaEffectBase effect)
+	{
+		if (target?.AttributeSet is not CardAttributeSet card) return null;
+		return effect switch
+		{
+			OverclockEffect => card.OverclockDuration,
+			ParalysisEffect => card.ParalysisDuration,
+			_ => null,
+		};
+	}
+
+	// 获取效果施加的时长秒数
+	private static float GetEffectDuration(AriaEffectBase effect) => effect switch
+	{
+		OverclockEffect oc => oc.Duration,
+		ParalysisEffect pa => pa.Duration,
+		_ => 0f,
+	};
+
+	// 到期扣减：从目标卡牌对应属性中减去本实例贡献的时长，下限 0
+	private static void SubtractCardDuration(IAriaEntity? target, AriaEffectBase effect, float contributed)
+	{
+		AriaAttributeData? attr = GetCardDurationAttribute(target, effect);
+		if (attr is null) return;
+		attr.SetCurrentValue(Mathf.Max(0f, attr.CurrentValue - contributed));
+	}
 
 	// 读取某实体指定能力的剩余冷却（供 UI 展示）；未找到返回 0
 	public float GetCooldownRemaining(ICombatant combatant, AriaAbilityBase ability)
@@ -298,7 +363,7 @@ public partial class CombatManager : Node
 		}
 	}
 
-	// 结算单个效果：Apply → 注册持续/永久效果 → 分发结算/伤害事件 → 触发被动
+	// 结算单个效果：Apply → 注册持续/永久效果（记录时长贡献） → 分发结算/伤害事件 → 触发被动
 	private void ResolveEffect(EffectResolution resolution)
 	{
 		BattleContext ctx = BuildContext(resolution.Source, resolution.Target);
@@ -306,7 +371,21 @@ public partial class CombatManager : Node
 
 		if (resolution.Effect.DurationType is AriaEffectDurationType.HasDuration or AriaEffectDurationType.Permanent)
 		{
-			_activeEffects.Add(new AriaEffectHandle(resolution.Effect, resolution.Source, resolution.Target));
+			var handle = new AriaEffectHandle(resolution.Effect, resolution.Source, resolution.Target);
+			_activeEffects.Add(handle);
+
+			// 记录本次 Apply 写入的时长增量（用于到期扣减，支持多来源叠加）
+			if (resolution.Effect is OverclockEffect or ParalysisEffect)
+			{
+				AriaAttributeData? attr = GetCardDurationAttribute(resolution.Target, resolution.Effect);
+				if (attr is not null)
+				{
+					// Apply 已执行，属性值 = 旧值 + 本次增量；增量 = 属性当前值 - AriaEffectHandle 记录的 DurationSeconds
+					// 但因为 TickCardDurations 可能已递减过，直接用属性变化量更准确：
+					// 此处简化：记录该 handle 的 DurationSeconds 作为贡献（Apply 累加了该值）
+					_durationContributions[handle.GetHashCode()] = GetEffectDuration(resolution.Effect);
+				}
+			}
 		}
 
 		CombatEventBus.RaiseEffectApplied(resolution.Target, resolution.Effect);

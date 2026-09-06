@@ -47,7 +47,7 @@ public partial class CardManager : Node
 		var result = new Godot.Collections.Array<CardBase>();
 		foreach (CardBase card in PlayerCards)
 		{
-			if (card.AttributeSet.FactionKey == factionKey)
+			if (card.AttributeSet.HeroKey == factionKey)
 			{
 				result.Add(card);
 			}

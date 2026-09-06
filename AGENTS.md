@@ -260,7 +260,30 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 }
 ```
 
+**效果堆叠约定**（适用于所有可叠加属性：时长、腐蚀、辐射、生命再生等）：
+
+- **Apply 累加**：效果的 `Apply()` 必须**累加**到目标属性（`CurrentValue + amount`），而非覆盖赋值。多个来源对同一目标施加同类效果时，属性自然叠加。
+- **到期扣减**（HasDuration 效果）：`CombatManager` 在效果到期时，从目标属性中**扣减该实例贡献的量**（通过 `_durationContributions` 字典追踪），而非直接清零。Instant 效果无此问题，属性由衰减逻辑自然归零。
+- **不清零**：HasDuration 效果的 `Remove()` 不再直接设置属性为 0。属性值由 `TickCardDurations()` 每帧自然衰减至 0。
+- **抵消判定**：`GetCooldownMultiplier()` 读取属性值判断倍率（超频×2 / 麻痹×0.5 / 两者均>0时抵消×1），与效果实例数量无关，仅看属性最终值。
+
+**写新效果时的检查清单**：
+1. 效果类继承 `AriaEffectBase`
+2. `Apply()` 中对目标属性做 `SetCurrentValue(CurrentValue + amount)` 累加
+3. **不覆写** `Remove()`（或 `Remove()` 为空操作）
+4. 若属性需衰减，在 `CombatManager` 中增加递减逻辑（如 `TickCardDurations()` 或 `ApplyDot()`）
+5. 若需根据属性值计算倍率，在 `GetCooldownMultiplier()` 或类似方法中读取属性值
+
 详细设计见 `docs/AbilityAndCombatFramework.md`。
+
+**能力复用约定**（重要）：
+
+- ⚠️ **能力必须可复用，禁止为单张卡写专属能力**：能力是通用动作单元，一张卡由多个已有能力组合而成。
+- **卡牌组合能力**：卡牌构造函数中通过 `Abilities.Add(...)` 组装已有能力（如 `AttackAbility` + `ParalysisAbility`），通过 `[Export]` 属性传入参数差异化。
+- **新能力的判断标准**：只有当现有能力组合无法表达所需逻辑时，才新建能力类。新能力必须能被多张卡复用。
+- **禁止的情况**：如 `ShockPistolAbility`（仅服务于"电击手枪"一张卡）→ 应拆分为 `AttackAbility` + `ParalysisAbility` 组合。
+- **正确示例**：`电击手枪` = `AttackAbility` + `ParalysisAbility { DurationSeconds = 1f }`；`麻痹枪` = `ParalysisAbility { DurationSeconds = 3f }`；`重型攻击` = `AttackAbility { DamageAmount = 50f }`。
+- **等级伤害由卡牌处理**：能力不感知等级。卡牌在构造函数中根据等级设置属性值（如 `ATTACK_POWER`），并在等级变化时通过 `OnLevelChanged` 钩子自动更新。能力只读属性，不关心值从哪来。
 
 ## 编码规范
 

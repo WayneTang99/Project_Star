@@ -31,8 +31,6 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	public const string CORROSION = "Corrosion";
 	// 生命再生属性 key
 	public const string REGENERATION = "Regeneration";
-	// 麻痹时长属性 key
-	public const string PARALYSIS_DURATION = "ParalysisDuration";
 
 	// 英雄标识 key（不可变）
 	public StringName HeroKey { get; }
@@ -67,8 +65,6 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	public AriaAttributeData Corrosion => GetAttribute(CORROSION)!;
 	// 生命再生属性（值 = 每秒恢复生命；线性衰减）
 	public AriaAttributeData Regeneration => GetAttribute(REGENERATION)!;
-	// 麻痹时长属性（值 = 剩余麻痹秒数；每秒衰减）
-	public AriaAttributeData ParalysisDuration => GetAttribute(PARALYSIS_DURATION)!;
 
 	public HeroAttributeSet()
 		: this(new StringName("Hero"), "Hero", new StringName("Default"))
@@ -92,7 +88,6 @@ public partial class HeroAttributeSet : AriaAttributeSet
 		AddAttribute(RADIATION, new AriaAttributeData(0f, 0f, 1000f));
 		AddAttribute(CORROSION, new AriaAttributeData(0f, 0f, 1000f));
 		AddAttribute(REGENERATION, new AriaAttributeData(0f, 0f, 1000f));
-		AddAttribute(PARALYSIS_DURATION, new AriaAttributeData(0f, 0f, 1000f));
 
 		// 游戏侧联动：MaxHealth 变化同步 Health.MaxValue、MaxEnergy 同步 Energy.MaxValue（不纳入 Aria 框架）
 		MaxHealth.OnValueChanged += (_, _) => Health.SetMaxValue(MaxHealth.CurrentValue);

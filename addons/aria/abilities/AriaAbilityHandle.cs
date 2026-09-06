@@ -24,10 +24,10 @@ public partial class AriaAbilityHandle : Resource
 		Owner = owner;
 	}
 
-	// 冷却递减，下限为 0
-	public void UpdateCooldown(float delta)
+	// 冷却递减，下限为 0；multiplier 由外部传入，用于超频/麻痹等速度修正
+	public void UpdateCooldown(float delta, float multiplier = 1f)
 	{
-		CooldownRemaining = Mathf.Max(0f, CooldownRemaining - delta);
+		CooldownRemaining = Mathf.Max(0f, CooldownRemaining - delta * multiplier);
 	}
 
 	// 发动后进入冷却；无冷却能力保持 0
