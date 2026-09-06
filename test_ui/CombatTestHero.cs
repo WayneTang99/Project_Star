@@ -11,7 +11,7 @@ internal sealed partial class CombatTestHero : HeroBase
 	// 构造：指定名称 / 生命 / 护甲与能力列表
 	public CombatTestHero(string name, float maxHealth, float armor, params AriaAbilityBase[] abilities)
 	{
-		AttributeSet = new HeroAttributeSet(new StringName(name), name, new StringName("Test"));
+		AttributeSet = new HeroAttributeSet(new StringName(name), name);
 		AttributeSet.MaxHealth.SetCurrentValue(maxHealth);
 		AttributeSet.Health.SetCurrentValue(maxHealth);
 		AttributeSet.Armor.SetCurrentValue(armor);

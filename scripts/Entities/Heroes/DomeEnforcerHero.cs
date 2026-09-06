@@ -9,7 +9,7 @@ public partial class DomeEnforcerHero : HeroBase
 {
 	public DomeEnforcerHero()
 	{
-		AttributeSet = new HeroAttributeSet(new StringName("Dome_Enforcer"), "穹顶执法官", new StringName("Human"));
+		AttributeSet = new HeroAttributeSet(new StringName("Dome_Enforcer"), "穹顶执法官");
 	}
 
 	protected override void ApplyInitialAttributes()

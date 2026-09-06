@@ -38,9 +38,6 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	// 英雄展示名（不可变）
 	public string HeroDisplayName { get; }
 
-	// 阵营 key（不可变）
-	public StringName FactionKey { get; }
-
 	// 生命属性
 	public AriaAttributeData Health => GetAttribute(HEALTH)!;
 	// 最大生命属性
@@ -67,15 +64,14 @@ public partial class HeroAttributeSet : AriaAttributeSet
 	public AriaAttributeData Regeneration => GetAttribute(REGENERATION)!;
 
 	public HeroAttributeSet()
-		: this(new StringName("Hero"), "Hero", new StringName("Default"))
+		: this(new StringName("Hero"), "Hero")
 	{
 	}
 
-	public HeroAttributeSet(StringName heroKey, string heroDisplayName, StringName factionKey)
+	public HeroAttributeSet(StringName heroKey, string heroDisplayName)
 	{
 		HeroKey = heroKey;
 		HeroDisplayName = heroDisplayName;
-		FactionKey = factionKey;
 		AddAttribute(HEALTH, new AriaAttributeData(100f, 0f, 100f));
 		AddAttribute(MAX_HEALTH, new AriaAttributeData(100f, 0f, 10000f));
 		AddAttribute(ARMOR, new AriaAttributeData(0f, 0f, 100f));

@@ -9,7 +9,7 @@ public partial class TemplateHero : HeroBase
 {
 	public TemplateHero()
 	{
-		AttributeSet = new HeroAttributeSet(new StringName("Template"), "模板英雄", new StringName("Template"));
+		AttributeSet = new HeroAttributeSet(new StringName("Template"), "模板英雄");
 	}
 
 	protected override void ApplyInitialAttributes()
