@@ -35,4 +35,10 @@ public partial class AriaAbilityHandle : Resource
 	{
 		CooldownRemaining = Definition.HasCooldown ? Definition.GetCooldownSeconds() : 0f;
 	}
+
+	// 立即减少冷却秒数，下限为 0
+	public void ReduceCooldown(float seconds)
+	{
+		CooldownRemaining = Mathf.Max(0f, CooldownRemaining - seconds);
+	}
 }

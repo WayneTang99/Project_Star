@@ -22,6 +22,8 @@ public partial class ShockPistolCard : CardBase
 			CardSize.Small);
 		TagSet.Add(Tags.FromSize(AttributeSet.Size));
 		TagSet.Add(Tags.Weapon);
+		CooldownDuration = 5f;
+		AttributeSet.Cooldown.SetCurrentValue(5f);
 		Abilities.Add(new AttackAbility());
 		Abilities.Add(new ParalysisAbility { DurationSeconds = 1f });
 		InitializeLevelListener();

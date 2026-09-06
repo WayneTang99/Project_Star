@@ -45,7 +45,7 @@ Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引�
 ├── EventManager             # 事件（Match）：类型注册、生成（单/多选）、结果结算
 │   ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
 │   └── ShopEventManager      # 子管理器：商店事件（交易卡牌、扣 Wealth 属性）
-└── CombatManager            # 战斗（Combat/Managers）：统一计时与结算、事件分发、被动连锁
+└── CombatManager            # 战斗（Combat/Managers）：统一计时与结算、事件分发、被动连锁、卡牌级冷却（AdvanceTimers 内 IsEqualApprox 钳制浮点残差归零）
 ```
 
 **通信与数据约定**
@@ -140,7 +140,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
 - `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
-- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`FactionKey`/`Size` 与可变 `Level`、`Cooldown`）。
+- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`HeroKey`/`Size` 与可变 `Level`、`Cooldown`）。
 - `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`）。
 - `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
 - `scripts/Systems/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
@@ -165,16 +165,23 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 - **继承定义**：每个英雄是 `HeroBase` 子类（放 `scripts/Entities/Heroes/`），构造函数内创建 `HeroAttributeSet`（注入 `HeroKey`/`HeroDisplayName`/`FactionKey`）并覆写 `ApplyInitialAttributes()` 实现初始属性差异；**不建英雄场景**（逻辑层纯代码）。
 - **模板池**：`HeroManager` 用**反射扫描程序集**，`_Ready` 自动收集所有非抽象 `HeroBase` 子类各建一个作模板（`AvailableHeroes`）；玩家选择时从模板 `Duplicate()` 复制独立实例（含独立 `AttributeSet`）成为 `CurrentHero`。
-- **商店与卡牌**：英雄不管理商店。卡牌定义携带**阵营 key**；商店由 `ShopEventManager` 与 `CardManager` 交互，按阵营 key 过滤卡池。
+- **商店与卡牌**：英雄不管理商店。卡牌定义携带**归属 key**（`HeroKey`）；商店由 `ShopEventManager` 与 `CardManager` 交互，按归属 key 过滤卡池。
 
 ### 卡牌系统
 
-- **继承定义**：卡牌是 `CardBase` 抽象基类的子类（放 `scripts/Entities/Cards/`），构造函数内创建 `CardAttributeSet`（注入 `CardKey`/`DisplayName`/`FactionKey`/`Size`）。功能相似的卡牌后期可继承自同一中间抽象类。
-- **身份字段不可变**：`CardKey` / `DisplayName` / `FactionKey` / `Size` 为 get-only，创建后不可修改；`Level` / `Cooldown` 走 `AriaAttributeData`（可变，数值流转）。
-- **Key 类型统一用 `StringName`**：所有标识性 key（`CardKey` / `FactionKey` / `HeroKey`）一律用 `Godot.StringName`（创建用 `new StringName("...")`），`DisplayName`/`HeroDisplayName` 等展示文本保持 `string`。
+- **继承定义**：卡牌是 `CardBase` 抽象基类的子类（放 `scripts/Entities/Cards/`），构造函数内创建 `CardAttributeSet`（注入 `CardKey`/`DisplayName`/`HeroKey`/`Size`）。功能相似的卡牌后期可继承自同一中间抽象类。
+- **身份字段不可变**：`CardKey` / `DisplayName` / `HeroKey` / `Size` 为 get-only，创建后不可修改；`Level` / `Cooldown` 走 `AriaAttributeData`（可变，数值流转）。
+- **Key 类型统一用 `StringName`**：所有标识性 key（`CardKey` / `HeroKey`）一律用 `Godot.StringName`（创建用 `new StringName("...")`），`DisplayName`/`HeroDisplayName` 等展示文本保持 `string`。
 - **Key 与展示名分离**：key（标识）与 display name（展示）使用不同字段，不用同一个字段兼任（如英雄 `HeroKey` + `HeroDisplayName`、卡牌 `CardKey` + `DisplayName`）。
-- **身份字段归属**：身份字段（key / display name / faction）一律放进实体对应的 `*AttributeSet`（`HeroAttributeSet` / `CardAttributeSet`），不放实体 Node 上。
+- **身份字段归属**：身份字段（key / display name / 归属）一律放进实体对应的 `*AttributeSet`（`HeroAttributeSet` / `CardAttributeSet`），不放实体 Node 上。
 - **模板池**：`CardManager` 同样用**反射**收集所有非抽象 `CardBase` 子类作模板（`CardTemplates`）；`CreateCard` 复制实例、`AddCardToPlayer` 记录玩家拥有卡牌、`GetCardsByFaction(factionKey)` 供商店过滤。
+
+### 标签（词条）系统
+
+- **标签容器**：`addons/aria/tags/AriaTagSet`（`HashSet<StringName>`），轻量级通用标签容器，无元数据，只存 key。
+- **标签常量**：`scripts/Core/Types/Tags.cs` 定义所有游戏标签（`Small`/`Medium`/`Large`/`Weapon`/`Clothing`/`Human`/`Mechanical`/`Vehicle`/`Consumable`）。
+- **显示名映射**：`Tags.GetDisplayName(StringName tag)` 返回中文显示名（如 `Weapon` → `"武器"`），未知标签返回原始 key。
+- **标签由卡牌构造函数挂载**：如 `TagSet.Add(Tags.FromSize(AttributeSet.Size))` + `TagSet.Add(Tags.Weapon)`。
 
 ### 棋盘与推挤系统（已建）
 
@@ -191,9 +198,9 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 **推挤规则**：目标区间无阻挡→直接放置；有阻挡→任一块 `CanPush=false` 直接失败；否则分别模拟向右/向左，择优执行。
 
-**扩展预留**：容量可配、逐卡 `CanPush` 标记、`PushPlan.ResultOffsets` 预留 undo/redo、等级/阵营优先级钩子后续可加。
+**扩展预留**：容量可配、逐卡 `CanPush` 标记、`PushPlan.ResultOffsets` 预留 undo/redo、等级/归属优先级钩子后续可加。
 
-**测试 UI**：`test_ui/` 独立于核心（核心**不引用**它，仅它引用核心），在 Godot 中单独打开 `res://test_ui/BoardTestUI.tscn` 运行，点击式演示放置/移动/推挤/不可推挤。为保证隔离，`CardManager` 反射模板收集过滤 `type.IsPublic`，排除 `test_ui` 内部测试卡。
+**测试 UI**：`test_ui/` 独立于核心（核心**不引用**它，仅它引用核心），在 Godot 中单独打开 `res://test_ui/BoardTestUI.tscn` 或 `BattleTestUI.tscn` 运行。`BattleTestUI` 已集成棋盘网格渲染：使用 `BoardManager` 管理战场，卡牌按尺寸渲染（Small 1格、Medium 2格、Large 3格，宽度比 Small 1:2 / Medium 1:1 / Large 3:2），点击卡牌列表选中 → 点棋盘空格放置；点已放卡牌 → 点空格移动；敌方棋盘自动放置、仅显示。卡牌 UI 从上到下依次显示：名称 → 归属（`HeroKey`）→ CD → 词条（标签） → 能力。为保证隔离，`CardManager` 反射模板收集过滤 `type.IsPublic`，排除 `test_ui` 内部测试卡。
 
 ### MVC 分离约定（英雄 UI）
 

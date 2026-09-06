@@ -29,6 +29,8 @@ public partial class HeroBase : Node, ICombatant
 	{
 		base._Ready();
 		ApplyInitialAttributes();
+		// 同步 Health 上限：子类可能先设 Health 再设 MaxHealth，导致 Health 被 Clamp 到旧上限
+		AttributeSet.Health.SetMaxValue(AttributeSet.MaxHealth.CurrentValue);
 	}
 
 	// 应用英雄初始属性，供子类覆写实现初始属性差异

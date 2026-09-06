@@ -6,6 +6,7 @@ using Godot;
 using Project_Star.Combat.Contexts;
 using Project_Star.Combat.Events;
 using Project_Star.Core.AttributeSets;
+using Project_Star.Core.Bases;
 using Project_Star.Core.Interfaces;
 using Project_Star.Entities.Effects;
 
@@ -70,12 +71,11 @@ public partial class CombatManager : Node
 			return;
 		}
 		
-		AdvanceTimers();
-		
 		_accumulator += (float)delta;
 		while (_accumulator >= TICK_INTERVAL)
 		{
 			_accumulator -= TICK_INTERVAL;
+			AdvanceTimers();
 			TickFrame();
 		}
 	}
@@ -103,6 +103,7 @@ public partial class CombatManager : Node
 		}
 
 		_inBattle = true;
+		GD.Print($"[StartBattle] handles={_abilityHandles.Count} friendlyCards={FriendlyCards.Count} enemyCards={EnemyCards.Count}");
 		Dispatch(new BattleStartEvent(), null, BuildContext(null, null), 0);
 	}
 
@@ -160,18 +161,29 @@ public partial class CombatManager : Node
 	// 执行一帧：计时推进 → 发动主动能力 → DoT 结算 → 结算队列排水
 	private void TickFrame()
 	{
+		_tickCount++;
 		ActivateActiveAbilities();
 		ApplyDot();
 		DrainQueue();
 	}
 
-	// 计时推进：冷却递减（含超频/麻痹倍率）；active 效果计时，到期入队结算项、耗尽移除；递减卡牌超频/麻痹时长
+	private int _tickCount;
+
+	// 计时推进：卡牌冷却递减；active 效果计时，到期入队结算项、耗尽移除；递减卡牌超频/麻痹时长
 	private void AdvanceTimers()
 	{
+		// 递减卡牌冷却（每张卡只递减一次）
+		var cooledDown = new HashSet<CardBase>();
 		foreach (AriaAbilityHandle handle in _abilityHandles)
 		{
-			float multiplier = GetCooldownMultiplier(handle);
-			handle.UpdateCooldown(TICK_INTERVAL, multiplier);
+			if (handle.Owner is CardBase card && cooledDown.Add(card))
+			{
+				float multiplier = GetCooldownMultiplier(handle);
+				float current = card.AttributeSet.Cooldown.CurrentValue;
+				float newVal = Mathf.Max(0f, current - TICK_INTERVAL * multiplier);
+				if (Mathf.IsEqualApprox(newVal, 0f)) newVal = 0f;
+				card.AttributeSet.Cooldown.SetCurrentValue(newVal);
+			}
 		}
 
 		for (int i = _activeEffects.Count - 1; i >= 0; i--)
@@ -266,9 +278,15 @@ public partial class CombatManager : Node
 		attr.SetCurrentValue(Mathf.Max(0f, attr.CurrentValue - contributed));
 	}
 
-	// 读取某实体指定能力的剩余冷却（供 UI 展示）；未找到返回 0
+	// 读取某实体的剩余冷却（供 UI 展示）
+	// 卡牌：返回卡牌级 Cooldown；英雄：返回能力级句柄冷却
 	public float GetCooldownRemaining(ICombatant combatant, AriaAbilityBase ability)
 	{
+		if (combatant is CardBase card)
+		{
+			return card.AttributeSet.Cooldown.CurrentValue;
+		}
+
 		foreach (AriaAbilityHandle handle in _abilityHandles)
 		{
 			if (ReferenceEquals(handle.Owner, combatant) && ReferenceEquals(handle.Definition, ability))
@@ -280,23 +298,97 @@ public partial class CombatManager : Node
 		return 0f;
 	}
 
-	// 发动主动能力（非被动能力中冷却就绪的），并分发 AbilityActivated 事件
-	private void ActivateActiveAbilities()
+	// 立即减少指定实体所有能力的冷却秒数
+	public void ReduceCooldownFor(ICombatant combatant, float seconds)
 	{
 		foreach (AriaAbilityHandle handle in _abilityHandles)
 		{
-			AriaAbilityBase ability = handle.Definition;
-			if (ability is IPassiveAbility || !handle.IsReady)
+			if (ReferenceEquals(handle.Owner, combatant))
 			{
-				continue;
+				handle.ReduceCooldown(seconds);
 			}
+		}
+	}
+
+	// 发动主动能力（非被动能力中冷却就绪的），并分发 AbilityActivated 事件
+	// 发动主动能力：按卡牌分组，卡牌冷却就绪时发动该卡牌所有主动能力
+	private void ActivateActiveAbilities()
+	{
+		// 收集所有主动能力，按所属卡牌分组
+		var cardAbilities = new Dictionary<CardBase, List<AriaAbilityHandle>>();
+		var heroAbilities = new List<AriaAbilityHandle>();
+
+		foreach (AriaAbilityHandle handle in _abilityHandles)
+		{
+			AriaAbilityBase ability = handle.Definition;
+			if (ability is IPassiveAbility) continue;
+
+			if (handle.Owner is CardBase card)
+			{
+				if (!cardAbilities.TryGetValue(card, out List<AriaAbilityHandle>? list))
+				{
+					list = new List<AriaAbilityHandle>();
+					cardAbilities[card] = list;
+				}
+				list.Add(handle);
+			}
+			else
+			{
+				heroAbilities.Add(handle);
+			}
+		}
+
+		// 卡牌：冷却就绪时发动所有主动能力
+		foreach ((CardBase card, List<AriaAbilityHandle> handles) in cardAbilities)
+		{
+			if (card.AttributeSet.Cooldown.CurrentValue > 0f) continue;
+
+			foreach (AriaAbilityHandle handle in handles)
+			{
+				try
+				{
+					AriaAbilityBase ability = handle.Definition;
+					ICombatant? owner = handle.Owner as ICombatant;
+					BattleContext ctx = BuildContext(owner, null);
+					if (!ability.CanActivate(ctx)) continue;
+
+					AriaAction[] actions = ability.Activate(ctx);
+					foreach (AriaAction action in actions)
+					{
+						EnqueueAction(action, owner, 0);
+					}
+
+					CombatEventBus.RaiseAbilityActivated(owner, ability);
+					Dispatch(new AbilityActivatedEvent(owner, ability), handle, ctx, 0);
+
+					if (owner is not null)
+					{
+						List<ICombatant> adjacent = GetAdjacentCards(owner);
+						if (adjacent.Count > 0)
+						{
+							Dispatch(new AdjacentCardActivatedEvent(owner, adjacent), null, ctx, 0);
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					GD.PrintErr($"[CombatManager] 能力发动异常: {ex.Message}\n{ex.StackTrace}");
+				}
+			}
+
+			// 发动完毕，启动卡牌冷却
+			card.AttributeSet.Cooldown.SetCurrentValue(card.CooldownDuration);
+		}
+
+		// 英雄：保留原有逻辑（无卡牌冷却，用能力自身冷却）
+		foreach (AriaAbilityHandle handle in heroAbilities)
+		{
+			AriaAbilityBase ability = handle.Definition;
+			if (!handle.IsReady) continue;
 
 			ICombatant? owner = handle.Owner as ICombatant;
 			BattleContext ctx = BuildContext(owner, null);
-			if (!ability.CanActivate(ctx))
-			{
-				continue;
-			}
+			if (!ability.CanActivate(ctx)) continue;
 
 			foreach (AriaAction action in ability.Activate(ctx))
 			{
@@ -306,15 +398,6 @@ public partial class CombatManager : Node
 			handle.StartCooldown();
 			CombatEventBus.RaiseAbilityActivated(owner, ability);
 			Dispatch(new AbilityActivatedEvent(owner, ability), handle, ctx, 0);
-
-			if (owner is not null)
-			{
-				List<ICombatant> adjacent = GetAdjacentCards(owner);
-				if (adjacent.Count > 0)
-				{
-					Dispatch(new AdjacentCardActivatedEvent(owner, adjacent), null, ctx, 0);
-				}
-			}
 		}
 	}
 
@@ -394,6 +477,15 @@ public partial class CombatManager : Node
 		if (resolution.Effect is IHealEffect heal)
 		{
 			PurgeDot(resolution.Target, heal.HealAmount);
+		}
+
+		if (resolution.Effect is CooldownReductionEffect charge)
+		{
+			ICombatant? target = resolution.Target ?? resolution.Source;
+			if (target is not null)
+			{
+				ReduceCooldownFor(target, charge.ReductionSeconds);
+			}
 		}
 
 		if (resolution.Effect is IDamageEffect damage)
@@ -579,20 +671,44 @@ public partial class CombatManager : Node
 		}
 	}
 
-	// 构造战斗上下文
+	// 构造战斗上下文（根据 source 归属自动翻转敌我视角）
 	private BattleContext BuildContext(ICombatant? source, ICombatant? target)
 	{
+		bool isEnemy = source is not null && IsEnemy(source);
+
 		var ctx = new BattleContext
 		{
 			Source = source,
 			Target = target,
 			Self = source,
-			FriendlyHero = FriendlyHero,
-			EnemyHero = EnemyHero,
+			FriendlyHero = isEnemy ? EnemyHero : FriendlyHero,
+			EnemyHero = isEnemy ? FriendlyHero : EnemyHero,
 		};
-		ctx.FriendlyCards.AddRange(FriendlyCards);
-		ctx.EnemyCards.AddRange(EnemyCards);
+
+		if (isEnemy)
+		{
+			ctx.FriendlyCards.AddRange(EnemyCards);
+			ctx.EnemyCards.AddRange(FriendlyCards);
+		}
+		else
+		{
+			ctx.FriendlyCards.AddRange(FriendlyCards);
+			ctx.EnemyCards.AddRange(EnemyCards);
+		}
+
 		return ctx;
+	}
+
+	// 判断实体是否属于敌方
+	private bool IsEnemy(ICombatant combatant)
+	{
+		if (ReferenceEquals(combatant, EnemyHero)) return true;
+		foreach (ICombatant c in EnemyCards)
+		{
+			if (ReferenceEquals(c, combatant)) return true;
+		}
+
+		return false;
 	}
 
 	// 被动能力登记项
