@@ -13,3 +13,6 @@ export_presets.cfg
 .idea/
 *.DotSettings.user
 .vs/
+
+# 编排工件（计划/draft/ledger，不入库）
+.omo/

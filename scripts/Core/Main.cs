@@ -3,6 +3,7 @@ using Project_Star.Board.Manager;
 using Project_Star.Combat.Managers;
 using Project_Star.Match;
 using Project_Star.Systems;
+using Project_Star.UI;
 
 namespace Project_Star.Core;
 
@@ -30,28 +31,42 @@ public partial class Main : Node
 	// 战斗管理器
 	public CombatManager CombatManager { get; private set; } = null!;
 
+	// 对局流程协调器
+	public MatchFlowCoordinator MatchFlow { get; private set; } = null!;
+
+	// 极简可玩 UI
+	public MinimalGameUI GameUI { get; private set; } = null!;
+
 	public override void _Ready()
 	{
 		base._Ready();
-		GameManager = new GameManager();
+		// 管理器由 new 生成时节点名为空（自动命名 @Node@N），必须显式命名，
+		// 否则各管理器 _Ready 中的 GetNode("../XxxManager") 找不到兄弟节点。
+		GameManager = new GameManager { Name = "GameManager" };
 		AddChild(GameManager);
 
-		HeroManager = new HeroManager();
+		HeroManager = new HeroManager { Name = "HeroManager" };
 		AddChild(HeroManager);
 
-		CardManager = new CardManager();
+		CardManager = new CardManager { Name = "CardManager" };
 		AddChild(CardManager);
 
-		BoardManager = new BoardManager();
+		BoardManager = new BoardManager { Name = "BoardManager" };
 		AddChild(BoardManager);
 
-		RoundTurnManager = new RoundTurnManager();
+		RoundTurnManager = new RoundTurnManager { Name = "RoundTurnManager" };
 		AddChild(RoundTurnManager);
 
-		EventManager = new EventManager();
+		EventManager = new EventManager { Name = "EventManager" };
 		AddChild(EventManager);
 
-		CombatManager = new CombatManager();
+		CombatManager = new CombatManager { Name = "CombatManager" };
 		AddChild(CombatManager);
+
+		MatchFlow = new MatchFlowCoordinator { Name = "MatchFlow" };
+		AddChild(MatchFlow);
+
+		GameUI = new MinimalGameUI { Name = "GameUI" };
+		AddChild(GameUI);
 	}
 }

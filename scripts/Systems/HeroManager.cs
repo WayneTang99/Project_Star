@@ -46,7 +46,7 @@ public partial class HeroManager : Node
 	public void SelectHero(HeroBase template)
 	{
 		HeroBase instance = (HeroBase)template.Duplicate();
-		instance.AttributeSet = (HeroAttributeSet)template.AttributeSet.Duplicate(true);
+		instance.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
 		AddChild(instance);
 
 		CurrentHero = instance;

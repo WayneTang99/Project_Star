@@ -13,6 +13,7 @@ public partial class TemplateCard : CardBase
 	{
 		AttributeSet = new CardAttributeSet(new StringName("Template_Card"), "模板卡牌", new StringName("Template"), CardSize.Large);
 		TagSet.Add(Tags.FromSize(AttributeSet.Size));
+		AttributeSet.Value.SetCurrentValue(5f); // 价格 5
 		Abilities.Add(new PassiveDamageAbility { DamageAmount = 10f, EventType = CombatEventType.BattleStart });
 		Abilities.Add(new HealAbility(10f) { HealAmount = 10f });
 	}

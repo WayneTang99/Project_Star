@@ -16,7 +16,7 @@ public sealed class MonsterEventManager
 	public MonsterBase CreateMonster(MonsterBase template, Node parent)
 	{
 		MonsterBase instance = (MonsterBase)template.Duplicate();
-		instance.AttributeSet = (HeroAttributeSet)template.AttributeSet.Duplicate(true);
+		instance.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
 		parent.AddChild(instance);
 		return instance;
 	}

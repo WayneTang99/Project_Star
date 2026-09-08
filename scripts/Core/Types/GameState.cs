@@ -20,4 +20,6 @@ public enum MatchEndReason
 	Defeat,
 	// 玩家主动认输
 	Surrendered,
+	// 玩家达成胜利条件（如连续 PvP 胜利达到阈值）
+	Victory,
 }

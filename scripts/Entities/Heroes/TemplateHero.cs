@@ -19,6 +19,6 @@ public partial class TemplateHero : HeroBase
 		AttributeSet.Wealth.SetCurrentValue(200f);
 		AttributeSet.Experience.SetCurrentValue(0f);
 		AttributeSet.Level.SetCurrentValue(1f);
-		AttributeSet.Reputation.SetCurrentValue(100f);
+		AttributeSet.Reputation.SetCurrentValue(20f);
 	}
 }

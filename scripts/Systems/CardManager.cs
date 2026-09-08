@@ -1,8 +1,10 @@
 using System;
 using System.Reflection;
+using Aria;
 using Godot;
 using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Bases;
+using Project_Star.Match.Events;
 
 namespace Project_Star.Systems;
 
@@ -29,7 +31,7 @@ public partial class CardManager : Node
 	public CardBase CreateCard(CardBase template)
 	{
 		CardBase instance = (CardBase)template.Duplicate();
-		instance.AttributeSet = (CardAttributeSet)template.AttributeSet.Duplicate(true);
+		instance.AttributeSet = (CardAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
 		AddChild(instance);
 		return instance;
 	}
@@ -54,6 +56,63 @@ public partial class CardManager : Node
 		}
 
 		return result;
+	}
+
+	// 按阵营 key 过滤卡牌模板池，供商店生成可购买卡牌（区别于 GetCardsByFaction，后者过滤玩家卡牌）
+	public Godot.Collections.Array<CardBase> GetCardTemplatesByFaction(StringName factionKey)
+	{
+		var result = new Godot.Collections.Array<CardBase>();
+		foreach (CardBase card in CardTemplates)
+		{
+			if (card.AttributeSet.HeroKey == factionKey)
+			{
+				result.Add(card);
+			}
+		}
+
+		return result;
+	}
+
+	// 购买卡牌：财富充足则扣财富、从模板复制独立实例并加入玩家卡池后广播事件；否则不执行。
+	// 传入的 card 为模板，模板本身永不加入玩家，仅加入其独立副本（模板池保持不变）。
+	public bool BuyCard(CardBase card, AriaAttributeData wealth)
+	{
+		float price = card.AttributeSet.Value.CurrentValue;
+		if (wealth.CurrentValue < price)
+		{
+			return false;
+		}
+
+		wealth.SetCurrentValue(wealth.CurrentValue - price);
+		CardBase instance = CreateCard(card);
+		AddCardToPlayer(instance);
+		MatchEventBus.Raise(new ItemPurchasedEvent(instance));
+		return true;
+	}
+
+	// 将卡牌从玩家卡池移除，若存在返回 true
+	public bool RemoveCardFromPlayer(CardBase card)
+	{
+		if (PlayerCards.Contains(card))
+		{
+			PlayerCards.Remove(card);
+			return true;
+		}
+
+		return false;
+	}
+
+	// 出售卡牌：从玩家卡池移除并按 0.5 倍价值回补财富，广播事件；未持有则不执行
+	public bool SellCard(CardBase card, AriaAttributeData wealth)
+	{
+		if (!RemoveCardFromPlayer(card))
+		{
+			return false;
+		}
+
+		wealth.SetCurrentValue(wealth.CurrentValue + 0.5f * card.AttributeSet.Value.CurrentValue);
+		MatchEventBus.Raise(new ItemSoldEvent(card));
+		return true;
 	}
 
 	// 反射收集所有非抽象公开的 CardBase 子类作为模板

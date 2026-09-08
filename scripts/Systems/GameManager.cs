@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Project_Star.Core.Bases;
 using Project_Star.Core.Types;
 
 namespace Project_Star.Systems;
@@ -20,6 +21,12 @@ public partial class GameManager : Node
 	// 对局结束事件，参数为结束原因
 	public event Action<MatchEndReason>? MatchEndedEvent;
 
+	// 连续 PvP 胜利计数，达到阈值后以 Victory 结束对局
+	private int MatchWinCount;
+
+	// 连续 PvP 胜利阈值，达到后判定对局胜利（可按需调整）
+	private const int VICTORY_WIN_THRESHOLD = 10;
+
 	public override void _Ready()
 	{
 		base._Ready();
@@ -29,6 +36,7 @@ public partial class GameManager : Node
 	// 开始新对局：进入英雄选择阶段
 	public void StartNewMatch()
 	{
+		MatchWinCount = 0;
 		ChangeState(GameState.HeroSelect);
 	}
 
@@ -57,6 +65,23 @@ public partial class GameManager : Node
 	{
 		LastMatchEndReason = null;
 		ChangeState(GameState.MainMenu);
+	}
+
+	// 记录一次 PvP 胜利：累计计数，达到阈值时以 Victory 结束对局
+	public void RecordPvPWin()
+	{
+		MatchWinCount++;
+		if (MatchWinCount >= VICTORY_WIN_THRESHOLD)
+		{
+			EndMatch(MatchEndReason.Victory);
+		}
+	}
+
+	// 记录一次 PvP 失败：按当前轮数扣减英雄声望（调用方负责在战斗结算后调用）
+	public void RecordPvPLoss(HeroBase hero, int round)
+	{
+		var reputation = hero.AttributeSet.Reputation;
+		reputation.SetCurrentValue(reputation.CurrentValue - round);
 	}
 
 	// 切换状态并广播事件；状态相同时忽略

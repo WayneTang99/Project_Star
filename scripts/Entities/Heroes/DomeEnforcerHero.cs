@@ -17,6 +17,6 @@ public partial class DomeEnforcerHero : HeroBase
 		AttributeSet.Health.SetCurrentValue(300f);
 		AttributeSet.Armor.SetCurrentValue(0f);
 		AttributeSet.Wealth.SetCurrentValue(15f);
-		AttributeSet.Reputation.SetCurrentValue(100f);
+		AttributeSet.Reputation.SetCurrentValue(20f);
 	}
 }

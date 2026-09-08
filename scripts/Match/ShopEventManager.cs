@@ -16,7 +16,7 @@ public sealed class ShopEventManager
 	public MerchantBase CreateMerchant(MerchantBase template, Node parent)
 	{
 		MerchantBase instance = (MerchantBase)template.Duplicate();
-		instance.AttributeSet = (MerchantAttributeSet)template.AttributeSet.Duplicate(true);
+		instance.AttributeSet = (MerchantAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
 		parent.AddChild(instance);
 		return instance;
 	}

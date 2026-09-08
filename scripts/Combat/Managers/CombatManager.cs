@@ -9,6 +9,7 @@ using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Bases;
 using Project_Star.Core.Interfaces;
 using Project_Star.Entities.Effects;
+using Project_Star.Match.Events;
 
 namespace Project_Star.Combat.Managers;
 
@@ -51,6 +52,9 @@ public partial class CombatManager : Node
 
 	// 是否处于战斗中
 	public bool IsInBattle => _inBattle;
+
+	// 最近一场战斗的胜者（战斗结束时记录，供 UI / 消费者读取）
+	public ICombatant? LastWinner { get; private set; }
 
 	// 我方英雄
 	public ICombatant? FriendlyHero { get; private set; }
@@ -124,6 +128,7 @@ public partial class CombatManager : Node
 		_belowHalf.Clear();
 		_nearDeath.Clear();
 		_durationContributions.Clear();
+		LastWinner = null;
 		FriendlyCards.Clear();
 		EnemyCards.Clear();
 		FriendlyHero = null;
@@ -158,13 +163,14 @@ public partial class CombatManager : Node
 		}
 	}
 
-	// 执行一帧：计时推进 → 发动主动能力 → DoT 结算 → 结算队列排水
+	// 执行一帧：计时推进 → 发动主动能力 → DoT 结算 → 结算队列排水 → 死亡判定
 	private void TickFrame()
 	{
 		_tickCount++;
 		ActivateActiveAbilities();
 		ApplyDot();
 		DrainQueue();
+		CheckBattleEnd();
 	}
 
 	private int _tickCount;
@@ -597,6 +603,35 @@ public partial class CombatManager : Node
 
 			regen.SetCurrentValue(Mathf.Max(0f, reg - DOT_REGENERATION_DECAY_PER_SECOND * dt));
 		}
+	}
+
+	// 判断实体是否死亡（生命值 ≤ 0）
+	private static bool IsDead(ICombatant? combatant)
+	{
+		AriaAttributeData? health = combatant?.AttributeSet.GetAttribute(HeroAttributeSet.HEALTH);
+		return health is not null && health.CurrentValue <= 0f;
+	}
+
+	// 战斗结局检测：任一方英雄生命归零即结束战斗并广播胜负事件（双方同时阵亡按己方胜）
+	private void CheckBattleEnd()
+	{
+		bool friendlyDown = IsDead(FriendlyHero);
+		bool enemyDown = IsDead(EnemyHero);
+		if (!friendlyDown && !enemyDown)
+		{
+			return;
+		}
+
+		// 敌方阵亡则己方胜（含平局场景）；否则己方阵亡则敌方胜
+		ICombatant? winner = enemyDown ? FriendlyHero : EnemyHero;
+		if (winner is null)
+		{
+			return;
+		}
+
+		EndBattle();
+		LastWinner = winner;
+		MatchEventBus.Raise(new BattleWonEvent(winner));
 	}
 
 	// 生命值首次跌破半血时分发事件

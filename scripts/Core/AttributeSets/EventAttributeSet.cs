@@ -13,6 +13,8 @@ public partial class EventAttributeSet : AriaAttributeSet
 	public const string MIN_ROUND = "MinRound";
 	// 最大轮次属性 key
 	public const string MAX_ROUND = "MaxRound";
+	// 排布权重属性 key
+	public const string WEIGHT = "Weight";
 
 	// 事件标识 key（不可变）
 	public StringName EventKey { get; }
@@ -29,6 +31,9 @@ public partial class EventAttributeSet : AriaAttributeSet
 	// 最大可排布轮次属性
 	public AriaAttributeData MaxRound => GetAttribute(MAX_ROUND)!;
 
+	// 排布权重属性（默认 1，未出现事件乘未出现倍率）
+	public AriaAttributeData Weight => GetAttribute(WEIGHT)!;
+
 	// 构造：注入不可变身份字段并初始化等级与轮次范围属性
 	public EventAttributeSet(StringName eventKey, string eventDisplayName, int minRound = 1, int maxRound = int.MaxValue, int level = 1)
 	{
@@ -37,5 +42,6 @@ public partial class EventAttributeSet : AriaAttributeSet
 		AddAttribute(LEVEL, new AriaAttributeData(level, 1f, 5f));
 		AddAttribute(MIN_ROUND, new AriaAttributeData(minRound, 1f, float.MaxValue));
 		AddAttribute(MAX_ROUND, new AriaAttributeData(maxRound, 1f, float.MaxValue));
+		AddAttribute(WEIGHT, new AriaAttributeData(1f, 0f, 100f));
 	}
 }
