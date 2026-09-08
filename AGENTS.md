@@ -140,9 +140,11 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
 - `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
 - `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
-- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`HeroKey`/`Size` 与可变 `Level`、`Cooldown`）。
-- `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`）。
+- `scripts/Core/Types/CardEconomy`：卡牌经济常量与价值公式（普通卡价值系数 2、购买折半倍率 0.5、型号系数 小1/中2/大3、`InitialValue`）。
+- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`HeroKey`/`Size` 与可变 `Level`、`Value`、`Cooldown`）。
+- `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`；提供 `ValueScale`/`GetInitialValue`/`InitializeValue` 支撑价值公式）。
 - `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
+- `scripts/Entities/Cards/BeastHideCard`：兽皮卡（价值系数 4、**无能力**、归属中立 key `Neutral` → 不进入按英雄过滤的商店货架；作怪物掉落/奖励道具，加入玩家卡池后出售换钱）。
 - `scripts/Systems/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
 - `scripts/Core/Types/GameState` + `scripts/Systems/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
 - `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
@@ -170,7 +172,9 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 ### 卡牌系统
 
 - **继承定义**：卡牌是 `CardBase` 抽象基类的子类（放 `scripts/Entities/Cards/`），构造函数内创建 `CardAttributeSet`（注入 `CardKey`/`DisplayName`/`HeroKey`/`Size`）。功能相似的卡牌后期可继承自同一中间抽象类。
-- **身份字段不可变**：`CardKey` / `DisplayName` / `HeroKey` / `Size` 为 get-only，创建后不可修改；`Level` / `Cooldown` 走 `AriaAttributeData`（可变，数值流转）。
+- **身份字段不可变**：`CardKey` / `DisplayName` / `HeroKey` / `Size` 为 get-only，创建后不可修改；`Level` / `Value` / `Cooldown` 走 `AriaAttributeData`（可变，数值流转）。
+- **价值公式**：初始价值 = **价值系数 × 等级 × 型号系数**（小 1 / 中 2 / 大 3）。普通卡系数 2（`CardEconomy.STANDARD_VALUE_SCALE`），**特殊价值物品**在子类覆写 `ValueScale`（如兽皮系数 4）。`CardBase.GetInitialValue()` 实时推导；构造函数末尾经 `InitializeValue()` 把现值同步进 `Value` 属性（等级变化**不**自动重算价值，增值/减值事件直接修改 `Value`）。
+- **获得折半**：**任何途径**加入玩家卡池即视为获得（购买、掉落、奖励一致），价值在 `CardManager.AddCardToPlayer` 统一按 `初始价值 × CardEconomy.OBTAINED_VALUE_RATIO(0.5)` 折半；`BuyCard` 按初始价值全额计价。折半与购买行为无关，目的是让后续增值/减值事件的**叠加逻辑**始终作用在一致的半价基线上；`SellCard` 按现值 `Value` **全额**回补，不再二次打折。
 - **Key 类型统一用 `StringName`**：所有标识性 key（`CardKey` / `HeroKey`）一律用 `Godot.StringName`（创建用 `new StringName("...")`），`DisplayName`/`HeroDisplayName` 等展示文本保持 `string`。
 - **Key 与展示名分离**：key（标识）与 display name（展示）使用不同字段，不用同一个字段兼任（如英雄 `HeroKey` + `HeroDisplayName`、卡牌 `CardKey` + `DisplayName`）。
 - **身份字段归属**：身份字段（key / display name / 归属）一律放进实体对应的 `*AttributeSet`（`HeroAttributeSet` / `CardAttributeSet`），不放实体 Node 上。

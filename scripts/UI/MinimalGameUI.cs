@@ -543,7 +543,7 @@ public partial class MinimalGameUI : CanvasLayer
 		{
 			var row = new HBoxContainer();
 			row.AddThemeConstantOverride("separation", 8);
-			float price = card.AttributeSet.Value.CurrentValue;
+			float price = card.GetInitialValue();
 			var nameLabel = new Label { Text = $"{card.AttributeSet.DisplayName}  ${price:F0}" };
 			var buyButton = new Button { Text = "购买" };
 			CardBase captured = card;

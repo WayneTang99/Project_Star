@@ -22,9 +22,9 @@ public partial class ShockPistolCard : CardBase
 			CardSize.Small);
 		TagSet.Add(Tags.FromSize(AttributeSet.Size));
 		TagSet.Add(Tags.Weapon);
+		InitializeValue();
 		CooldownDuration = 5f;
 		AttributeSet.Cooldown.SetCurrentValue(5f);
-		AttributeSet.Value.SetCurrentValue(8f); // 价格 8
 		Abilities.Add(new AttackAbility());
 		Abilities.Add(new ParalysisAbility { DurationSeconds = 1f });
 		InitializeLevelListener();

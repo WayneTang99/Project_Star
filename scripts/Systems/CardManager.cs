@@ -4,6 +4,7 @@ using Aria;
 using Godot;
 using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Bases;
+using Project_Star.Core.Types;
 using Project_Star.Match.Events;
 
 namespace Project_Star.Systems;
@@ -36,9 +37,12 @@ public partial class CardManager : Node
 		return instance;
 	}
 
-	// 将卡牌加入玩家拥有的卡池并广播事件
+	// 将卡牌加入玩家拥有的卡池并广播事件。
+	// 加入卡池即视为获得，价值统一按当前初始价值折半（与获得途径无关），
+	// 使后续增值/减值事件（叠加逻辑）始终在一致的半价基线上进行。
 	public void AddCardToPlayer(CardBase card)
 	{
+		card.AttributeSet.Value.SetCurrentValue(card.GetInitialValue() * CardEconomy.OBTAINED_VALUE_RATIO);
 		PlayerCards.Add(card);
 		CardAddedEvent?.Invoke(card);
 	}
@@ -73,11 +77,12 @@ public partial class CardManager : Node
 		return result;
 	}
 
-	// 购买卡牌：财富充足则扣财富、从模板复制独立实例并加入玩家卡池后广播事件；否则不执行。
+	// 购买卡牌：财富充足则按初始价值扣财富、从模板复制独立实例并加入玩家卡池后广播事件；否则不执行。
 	// 传入的 card 为模板，模板本身永不加入玩家，仅加入其独立副本（模板池保持不变）。
+	// 成交价 = 初始价值（价值系数 * 等级 * 型号系数）；加入卡池后的价值折半见 AddCardToPlayer。
 	public bool BuyCard(CardBase card, AriaAttributeData wealth)
 	{
-		float price = card.AttributeSet.Value.CurrentValue;
+		float price = card.GetInitialValue();
 		if (wealth.CurrentValue < price)
 		{
 			return false;
@@ -102,7 +107,8 @@ public partial class CardManager : Node
 		return false;
 	}
 
-	// 出售卡牌：从玩家卡池移除并按 0.5 倍价值回补财富，广播事件；未持有则不执行
+	// 出售卡牌：从玩家卡池移除并按现值全额回补财富，广播事件；未持有则不执行。
+	// 购买折半已计入副本 Value（现值），此处不再二次打折。
 	public bool SellCard(CardBase card, AriaAttributeData wealth)
 	{
 		if (!RemoveCardFromPlayer(card))
@@ -110,7 +116,7 @@ public partial class CardManager : Node
 			return false;
 		}
 
-		wealth.SetCurrentValue(wealth.CurrentValue + 0.5f * card.AttributeSet.Value.CurrentValue);
+		wealth.SetCurrentValue(wealth.CurrentValue + card.AttributeSet.Value.CurrentValue);
 		MatchEventBus.Raise(new ItemSoldEvent(card));
 		return true;
 	}
