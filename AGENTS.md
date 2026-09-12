@@ -41,11 +41,8 @@ Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引�
 ├── HeroManager              # 英雄（Systems）：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
 ├── CardManager              # 卡牌（Systems）：反射收集模板池、实例化、玩家拥有卡牌、按阵营key过滤供商店
 ├── BoardManager             # 棋盘（Board/Manager）：战场/备战区双棋盘（各10格）、推挤放置/移除/交换/跨区拖拽编排
-├── RoundTurnManager         # 局内轮次（Match）：8回合/轮、每回合事件派发、末回合固定PvP、轮末声望失败判定
-├── EventManager             # 事件（Match）：类型注册、生成（单/多选）、结果结算
-│   ├── MonsterEventManager   # 子管理器：怪物事件（生成怪物、点击后转 CombatManager 战斗）
-│   └── ShopEventManager      # 子管理器：商店事件（交易卡牌、扣 Wealth 属性）
-└── CombatManager            # 战斗（Combat/Managers）：统一计时与结算、事件分发、被动连锁、卡牌级冷却（AdvanceTimers 内 IsEqualApprox 钳制浮点残差归零）
+├── CombatManager            # 战斗（Combat/Managers）：持有 BattleClock + Resolver，管理战斗生命周期 + A/B 超时
+└── MatchManager             # 对局管理器（Match）：整合轮次(RoundTurn)、事件管理(EventManager)、事件执行(EventExecutor)、局外被动路由(OutOfBattleTrigger)
 ```
 
 **通信与数据约定**
@@ -71,7 +68,9 @@ Project_Star/
 │   │   ├── attributes/  # Aria 属性（AriaAttributeData / AriaAttributeSet）
 │   │   ├── contexts/    # Aria 上下文基类（AriaContextBase）
 │   │   ├── abilities/   # Aria 能力（AriaAbilityBase / AriaAbilityHandle）
-│   │   └── effects/     # Aria 效果（AriaEffectBase）
+│   │   ├── effects/     # Aria 效果（AriaEffectBase）
+│   │   ├── expressions/ # 动态值表达式（ValueExpression / Condition）
+│   │   └── definitions/ # 数据驱动定义（AbilityDefinition / EffectDefinition / DataDrivenAbility / EffectFactory）
 │   └── forge/         # Forge for Godot 插件（仅作参考，不引用）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
@@ -80,16 +79,17 @@ Project_Star/
 ├── scripts/           # C# 脚本 (.cs)
 │   ├── Core/          # 共享定义/契约层（仅抽象基类、接口、非实体类型定义、Main）
 │   │   ├── Main.cs    # 组合根：_Ready 生成并挂载各子系统管理器（唯一引用具体管理器的文件）
-│   │   ├── Bases/     # 抽象基类（HeroBase / CardBase / EventBase / MerchantBase / MonsterBase）
-│   │   ├── Interfaces/  # 游戏侧接口（ICombatant / IDamageEffect / IPassiveAbility）
+│   │   ├── Bases/     # 抽象基类（HeroBase / CardBase / EventBase / MonsterBase / ManagerBase）
+│   │   ├── Interfaces/  # 游戏侧接口（ICombatant / IDamageEffect / IPassiveAbility / IEntity）
 │   │   ├── Types/     # 非实体类型定义（GameState / CardState / HeroState / EventState）
-│   │   └── AttributeSets/  # 属性集（Hero / Card / Merchant / Event）
+│   │   ├── AttributeSets/  # 属性集（Hero / Card / Merchant / Event）
+│   │   └── Pools/     # 泛型池（PoolBase<T>）
 │   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
 │   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
-│   ├── Match/         # 局内轮次与事件管理器（RoundTurnManager / EventManager / MonsterEventManager / ShopEventManager）
-│   ├── Combat/        # 战斗子系统（Managers/CombatManager、Contexts/BattleContext、Events/战斗事件）
+│   ├── Match/         # 对局管理器（MatchManager + 普通类：RoundTurn / EventManager / EventExecutor / OutOfBattleTrigger）
+│   ├── Combat/        # 战斗子系统（Managers/CombatManager、BattleClock / Resolver / BattleSnapshot、Contexts/BattleContext、Events/战斗事件）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent、Abilities/能力、Effects/效果 等）
-│   └── UI/            # UI控制器（HeroSelectionUI / InMatchHeroUI 等）
+│   └── UI/            # UI控制器（MinimalGameUI / HeroSelectionUI / InMatchHeroUI 等）
 ├── shaders/           # 着色器 (.gdshader)
 ├── tests/             # 单元测试
 ├── test_ui/           # 独立测试UI（棋盘推挤演示，核心不引用，仅单独打开场景运行）
@@ -147,12 +147,12 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Entities/Cards/BeastHideCard`：兽皮卡（价值系数 4、**无能力**、归属中立 key `Neutral` → 不进入按英雄过滤的商店货架；作怪物掉落/奖励道具，加入玩家卡池后出售换钱）。
 - `scripts/Systems/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
 - `scripts/Core/Types/GameState` + `scripts/Systems/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
-- `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/RoundTurnManager`：局内轮次（8 回合/轮、末回合 PvP、轮末声望失败判定）。
+- `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/MatchManager`：对局管理器（整合轮次 `RoundTurn`、事件管理 `EventManager`（普通类）、事件执行 `EventExecutor`、局外被动路由 `OutOfBattleTrigger`）。
 - `scripts/Core/Types/EventState` + `scripts/Core/AttributeSets/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName` 与**等级（1~5）**、**轮次范围**（`MinRound`/`MaxRound`）属性）。
 - `scripts/Core/AttributeSets/MerchantAttributeSet`：商人属性集（继承 `AriaAttributeSet`，暂为空壳，预留交易数据）。怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
 - `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
 - `scripts/Core/Bases/ShopEventBase`：商店事件**中间态抽象类**；怪物事件**不做中间态**，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
-- `scripts/Match/EventManager`：事件管理器（**反射**收集模板池、`ScheduleEvents` 排程钩子留空待排程系统覆写、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`、`EventsGeneratedEvent`/`EventResolvedEvent`，持有 `scripts/Match/` 下 `MonsterEventManager`/`ShopEventManager` 子管理器）。
+- `scripts/Match/EventManager`：事件管理器（**普通类**，反射收集模板池、排程生成事件组、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`，持有 `MonsterEventManager`/`ShopEventManager` 子管理器）。
 - `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent`：示例事件（通用 / 商店）；`scripts/Entities/Events/MonsterEvent`：怪物对战事件叶子类（引用 `HeroBase` 作怪物）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
@@ -219,7 +219,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 - **能力（Ability）**：可被触发的动作单元。主动（冷却/手动）与被动（事件触发）都是能力，区别仅在于触发方式，由管理器决定。能力类只负责**执行逻辑**。
 - **效果（Effect）**：被能力触发的被动后果（静态修饰 / 周期 DoT-HoT，细节待细化）。
-- 触发、冷却、编排、连锁（≤3 层上限）统一由后续 `CombatManager` 负责；管理器只与实体（`ICombatant`）通信，不直接驱动能力。
+- 触发、冷却、编排、连锁（≤3 层上限）统一由 `Resolver`（确定性战斗解析器）负责；管理器只与实体（`ICombatant`）通信，不直接驱动能力。
 
 **分层与文件**
 
@@ -282,10 +282,32 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 1. 效果类继承 `AriaEffectBase`
 2. `Apply()` 中对目标属性做 `SetCurrentValue(CurrentValue + amount)` 累加
 3. **不覆写** `Remove()`（或 `Remove()` 为空操作）
-4. 若属性需衰减，在 `CombatManager` 中增加递减逻辑（如 `TickCardDurations()` 或 `ApplyDot()`）
+4. 若属性需衰减，在 `Resolver` 中增加递减逻辑（如 `TickCardDurations()` 或 `ApplyDot()`）
 5. 若需根据属性值计算倍率，在 `GetCooldownMultiplier()` 或类似方法中读取属性值
 
 详细设计见 `docs/AbilityAndCombatFramework.md`。
+
+### 战斗层（已建）
+
+- `scripts/Combat/BattleClock`：1/30 秒固定步长时钟，`Advance(float delta)` 推进时间，每满一步触发 `StepTicked` 回调。
+- `scripts/Combat/Resolver`（普通类）：确定性战斗解析器，包含全部战斗结算逻辑（冷却递减、主动能力发动、DoT/HoT、效果队列排水、死亡判定、被动连锁 ≤3 代）。每步调用 `Tick(float stepDelta)` 执行一步。
+- `scripts/Combat/BattleSnapshot`：状态快照，每步保存所有参战实体的属性值，支持 `Rollback(int stepsBack)` 回滚。
+- `scripts/Combat/Managers/CombatManager`（Node）：持有 `BattleClock` + `Resolver`，管理战斗生命周期 + A/B 超时（A=300s 正常 / B=600s PvP）+ 超时自动结束。
+- 战斗步长由 `BattleClock.FIXED_STEP`（1/30s）驱动，`CombatManager._PhysicsProcess` 推进时钟，时钟每步回调 `Resolver.Tick`。
+
+### 数据驱动模型（已建）
+
+- `addons/aria/expressions/ValueExpression`：动态值表达式，支持常量、属性读取、算术运算，运算符 `+`-`*`/` 重载链式组合。用于能力/效果中需要动态计算的数值。
+- `addons/aria/expressions/Condition`：条件判断，支持比较（Equals/GreaterThan/LessThan 等）、AND/OR/NOT 组合。用于能力激活条件、解锁条件等。
+- `addons/aria/definitions/AbilityDefinition`：数据驱动能力定义（触发方式/目标选择/冷却/激活条件/效果列表）。不继承 `AriaAbilityBase`，而是持有配置数据。
+- `addons/aria/definitions/EffectDefinition`：数据驱动效果定义（类型/数值表达式/持续时间/穿透标记）。
+- `addons/aria/definitions/DataDrivenAbility`：桥接类，将 `AbilityDefinition` 包装为 `AriaAbilityBase`，可直接用于 Resolver。
+- `addons/aria/definitions/EffectFactory`：从 `EffectDefinition` 创建 `AriaEffectBase` 实例的工厂。
+
+### 池系统（已建）
+
+- `scripts/Core/Pools/PoolBase<T>`：泛型实体池基类。反射收集模板、`Duplicate` + `DeepCopy AttributeSet` 创建实例、跟踪拥有/释放。消除各管理器中重复的反射模板收集逻辑。
+- `scripts/Core/Bases/IEntity`：游戏实体公共接口，提供 `AttributeSet` 访问，供通用逻辑使用。
 
 **能力复用约定**（重要）：
 
@@ -359,7 +381,7 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 
 - 修改场景（.tscn）时注意保留 `.uid`，避免破坏资源引用。
 - **新建文件按用途归类，禁止乱扔进 `Bases/`**：接口→`Interfaces/`（或 Aria `interfaces/`）、上下文→`Contexts/`（或 Aria `contexts/`）、枚举/类型→`Types/`、实体基类才进 `Bases/`、实体子类进 `Entities/`。
-- **按子系统分目录**：元游戏管理器→`Systems/`、棋盘实现→`Board/`（Manager/Data/Algo）、局内轮次与事件管理器→`Match/`、战斗实现→`Combat/`；可能被其他模块引用的共享类型放 `scripts/Core/`。
+- **按子系统分目录**：元游戏管理器→`Systems/`、棋盘实现→`Board/`（Manager/Data/Algo）、对局管理与事件→`Match/`、战斗实现→`Combat/`；可能被其他模块引用的共享类型放 `scripts/Core/`。
 
 ## 重要约束
 
