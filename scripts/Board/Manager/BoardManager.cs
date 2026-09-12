@@ -9,7 +9,7 @@ namespace Project_Star.Board.Manager;
 
 // 棋盘管理器：持有战场区与备战区两个棋盘，编排放置 / 移动 / 推挤 / 跨区拖拽。
 [GlobalClass]
-public partial class BoardManager : Node
+public partial class BoardManager : GlobalManagerBase
 {
 	// 每个棋盘的格子容量
 	public const int BOARD_CAPACITY = 10;

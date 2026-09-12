@@ -21,7 +21,8 @@ public class MatchLoopIntegrationTest : TestClass
 	private readonly Node _testScene;
 
 	// 对局最长等待秒数：超过视为闭环未在限时内闭合
-	private const double MATCH_TIMEOUT_SECONDS = 120;
+	// 健全生命恢复后 PvP 战斗需要更多回合；完整 6 轮约需 10-15 分钟
+	private const double MATCH_TIMEOUT_SECONDS = 1800;
 
 	public MatchLoopIntegrationTest(Node testScene) : base(testScene)
 	{
@@ -67,12 +68,12 @@ public class MatchLoopIntegrationTest : TestClass
 		main.HeroManager.SelectHero(new FastTestHero());
 		Assert.True(main.GameManager.CurrentState == GameState.InMatch, "选英雄后应进入 InMatch");
 
-		// 限时轮询等待闭环推进到对局结算（每 0.5s 检查一次，超时即失败，绝不无限挂起）
+		// 限时轮询等待闭环推进到对局结算（每 0.2s 检查一次，超时即失败，绝不无限挂起）
 		var stopwatch = Stopwatch.StartNew();
 		while (main.GameManager.CurrentState != GameState.Result
 			&& stopwatch.Elapsed.TotalSeconds < MATCH_TIMEOUT_SECONDS)
 		{
-			await _testScene.ToSignal(_testScene.GetTree().CreateTimer(0.5f), SceneTreeTimer.SignalName.Timeout);
+			await _testScene.ToSignal(_testScene.GetTree().CreateTimer(0.2f), SceneTreeTimer.SignalName.Timeout);
 		}
 
 		// 主断言：对局必须到达 Result，结束原因为真实胜负（非认输/未知）

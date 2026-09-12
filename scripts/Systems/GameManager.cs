@@ -7,7 +7,7 @@ namespace Project_Star.Systems;
 
 // 主状态机管理器：广播状态切换，EndMatch / Surrender 强制结束对局。
 [GlobalClass]
-public partial class GameManager : Node
+public partial class GameManager : GlobalManagerBase
 {
 	// 当前游戏状态
 	public GameState CurrentState { get; private set; } = GameState.MainMenu;
@@ -27,9 +27,9 @@ public partial class GameManager : Node
 	// 连续 PvP 胜利阈值，达到后判定对局胜利（可按需调整）
 	private const int VICTORY_WIN_THRESHOLD = 10;
 
-	public override void _Ready()
+	protected override void OnInitialize()
 	{
-		base._Ready();
+		base.OnInitialize();
 		ChangeState(GameState.MainMenu);
 	}
 

@@ -9,6 +9,8 @@ public partial class TestRunner : Node
 {
 	public override async void _Ready()
 	{
+		// 禁用框架超时：集成测试（自动对局）需较长运行时间，由测试内部自行管理超时
+		GoTest.TimeoutMilliseconds = 0;
 		// 依据命令行参数构建测试环境，识别 --run-tests / --quit-on-finish
 		var environment = TestEnvironment.From(OS.GetCmdlineArgs());
 		await GoTest.RunTests(Assembly.GetExecutingAssembly(), this, environment);

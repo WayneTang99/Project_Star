@@ -9,7 +9,7 @@ namespace Project_Star.Systems;
 
 // 英雄管理器：反射收集英雄模板池，玩家选择后复制独立实例。
 [GlobalClass]
-public partial class HeroManager : Node
+public partial class HeroManager : GlobalManagerBase
 {
 	private GameManager _gameManager = null!;
 
@@ -25,17 +25,17 @@ public partial class HeroManager : Node
 	// 英雄重置事件
 	public event Action? HeroResetEvent;
 
-	public override void _Ready()
+	protected override void OnInitialize()
 	{
-		base._Ready();
+		base.OnInitialize();
 		_gameManager = GetNode<GameManager>("../GameManager");
 		_gameManager.StateChangedEvent += OnStateChanged;
 		RegisterHeroTemplates();
 	}
 
-	public override void _ExitTree()
+	protected override void OnShutdown()
 	{
-		base._ExitTree();
+		base.OnShutdown();
 		if (_gameManager is not null)
 		{
 			_gameManager.StateChangedEvent -= OnStateChanged;

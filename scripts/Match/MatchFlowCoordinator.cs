@@ -160,6 +160,9 @@ public partial class MatchFlowCoordinator : Node
 		// 释放幽灵对手临时实体（战斗已结束，避免泄漏）
 		CleanupTempCombatants();
 
+		// 战斗结束后英雄生命回满
+		RestoreHeroHealthAfterBattle();
+
 		if (playerWon)
 		{
 			ApplyWinRewards();
@@ -251,6 +254,19 @@ public partial class MatchFlowCoordinator : Node
 		}
 
 		_tempCombatants.Clear();
+	}
+
+	// 战斗结束后英雄生命回满
+	private void RestoreHeroHealthAfterBattle()
+	{
+		HeroBase? hero = _heroManager.CurrentHero;
+		if (hero is null)
+		{
+			return;
+		}
+
+		hero.AttributeSet.Health.SetCurrentValue(hero.AttributeSet.MaxHealth.CurrentValue);
+		FlowLog?.Invoke("战斗结束：英雄生命已回满");
 	}
 
 	// 自动对局：事件生成后自动选择战斗/非战斗事件推进回合

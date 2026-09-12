@@ -11,7 +11,7 @@ namespace Project_Star.Systems;
 
 // 卡牌管理器：反射收集模板池、复制实例、管理玩家拥有的卡牌并支持按阵营过滤。
 [GlobalClass]
-public partial class CardManager : Node
+public partial class CardManager : GlobalManagerBase
 {
 	// 全部卡牌模板（反射收集，每种一张）
 	public Godot.Collections.Array<CardBase> CardTemplates { get; private set; } = new();
@@ -22,9 +22,9 @@ public partial class CardManager : Node
 	// 卡牌加入玩家事件
 	public event Action<CardBase>? CardAddedEvent;
 
-	public override void _Ready()
+	protected override void OnInitialize()
 	{
-		base._Ready();
+		base.OnInitialize();
 		RegisterCardTemplates();
 	}
 
