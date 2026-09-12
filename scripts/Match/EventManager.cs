@@ -9,23 +9,22 @@ using Project_Star.Entities.Events;
 
 namespace Project_Star.Match;
 
-// 事件管理器：回合开始生成事件组（按回合规则排程），维护当前回合事件与结算。
-[GlobalClass]
-public partial class EventManager : Node
+// 事件管理器（普通类）：反射收集事件模板、按回合规则排程、维护当前回合事件组与结算。
+public class EventManager
 {
-	// 未出现事件权重倍率：本局尚未出现的事件排布权重翻倍
+	private readonly Node _owner;
+
+	// 未出现事件权重倍率
 	private const float UNSEEN_MULTIPLIER = 2f;
 
-	private RoundTurnManager _roundTurnManager = null!;
-
-	// 本局已出现事件（按 EventKey 记录，用于未出现加权；新对局首回合重置）
+	// 本局已出现事件（按 EventKey 记录）
 	private readonly HashSet<StringName> _seenEvents = new();
 
 	// 全部事件模板（反射收集，每种一张）
-	public Godot.Collections.Array<EventBase> EventTemplates { get; private set; } = new();
+	public Godot.Collections.Array<EventBase> EventTemplates { get; } = new();
 
 	// 当前回合的事件组
-	public Godot.Collections.Array<EventBase> CurrentEvents { get; private set; } = new();
+	public Godot.Collections.Array<EventBase> CurrentEvents { get; } = new();
 
 	// 怪物事件子管理器
 	public MonsterEventManager MonsterEventManager { get; } = new();
@@ -33,44 +32,34 @@ public partial class EventManager : Node
 	// 商店事件子管理器
 	public ShopEventManager ShopEventManager { get; } = new();
 
-	// 局内事件分发器：路由被动能力对局内事件的响应
-	public MatchEventDispatcher MatchEventDispatcher { get; } = new();
-
-	// 可注入随机数生成器：测试可设置 Seed 保证排程确定性
+	// 可注入随机数生成器
 	public RandomNumberGenerator Rng { get; set; } = new();
 
-	// 事件组生成事件，参数为（轮数, 回合数, 事件组）
+	// 事件组生成事件
 	public event Action<int, int, Godot.Collections.Array<EventBase>>? EventsGeneratedEvent;
 
 	// 事件结算事件
 	public event Action<EventBase>? EventResolvedEvent;
 
-	public override void _Ready()
+	public EventManager(Node owner)
 	{
-		base._Ready();
-		_roundTurnManager = GetNode<RoundTurnManager>("../RoundTurnManager");
-		_roundTurnManager.TurnStartedEvent += OnTurnStarted;
+		_owner = owner;
+	}
+
+	// 初始化：注册所有事件模板（反射收集）
+	public void Initialize()
+	{
 		RegisterEventTemplates();
-		MonsterEventManager.RegisterTemplates(this);
-		ShopEventManager.RegisterTemplates(this);
+		MonsterEventManager.RegisterTemplates(_owner);
+		ShopEventManager.RegisterTemplates(_owner);
 	}
 
-	public override void _ExitTree()
-	{
-		base._ExitTree();
-		MatchEventDispatcher.Dispose();
-		if (_roundTurnManager is not null)
-		{
-			_roundTurnManager.TurnStartedEvent -= OnTurnStarted;
-		}
-	}
-
-	// 从模板复制一份事件实例并挂载为本节点子节点
+	// 从模板复制一份事件实例并挂载为 owner 子节点
 	public EventBase CreateEvent(EventBase template)
 	{
 		EventBase instance = (EventBase)template.Duplicate();
 		instance.AttributeSet = (EventAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
-		AddChild(instance);
+		_owner.AddChild(instance);
 		return instance;
 	}
 
@@ -103,39 +92,17 @@ public partial class EventManager : Node
 		EventResolvedEvent?.Invoke(evt);
 	}
 
-	// 回合开始：清空上回合事件并执行排程钩子，生成事件则广播事件组
-	private void OnTurnStarted(int round, int turn)
+	// 按回合规则生成事件组并广播
+	public void GenerateEvents(int round, int turn)
 	{
-		ClearEvents();
-		ScheduleEvents(round, turn);
-		if (CurrentEvents.Count > 0)
-		{
-			EventsGeneratedEvent?.Invoke(round, turn, CurrentEvents);
-		}
-	}
-
-	// 排程钩子：按回合规则决定本回合事件组。
-	// 末回合（第 8 回合）生成 1 个 PvP 事件；第 4 回合生成 3 个怪物事件；其余回合生成 3 选事件组（至少 1 个商店事件）。
-	protected virtual void ScheduleEvents(int round, int turn)
-	{
-		// 新对局首回合重置本局已出现事件记录
 		if (round == 1 && turn == 1)
 		{
 			_seenEvents.Clear();
 		}
 
-		// 按轮次范围过滤可排布模板：MinRound ≤ round ≤ MaxRound
-		List<EventBase> eligible = new();
-		foreach (EventBase template in EventTemplates)
-		{
-			EventAttributeSet attr = template.AttributeSet;
-			if (attr.MinRound.CurrentValue <= round && round <= attr.MaxRound.CurrentValue)
-			{
-				eligible.Add(template);
-			}
-		}
+		List<EventBase> eligible = FilterEligible(round);
 
-		if (turn == RoundTurnManager.TURNS_PER_ROUND)
+		if (turn == RoundTurn.TURNS_PER_ROUND)
 		{
 			CreatePvPEvent();
 		}
@@ -147,22 +114,45 @@ public partial class EventManager : Node
 		{
 			CreateDefaultEvents(eligible);
 		}
+
+		if (CurrentEvents.Count > 0)
+		{
+			EventsGeneratedEvent?.Invoke(round, turn, CurrentEvents);
+		}
 	}
 
-	// 创建 PvP 事件：复制模板；战斗对手由后续接线任务填充
+	// 按轮次范围过滤可排布模板
+	private List<EventBase> FilterEligible(int round)
+	{
+		var eligible = new List<EventBase>();
+		foreach (EventBase template in EventTemplates)
+		{
+			EventAttributeSet attr = template.AttributeSet;
+			if (attr.MinRound.CurrentValue <= round && round <= attr.MaxRound.CurrentValue)
+			{
+				eligible.Add(template);
+			}
+		}
+
+		return eligible;
+	}
+
+	// 创建 PvP 事件
 	private void CreatePvPEvent()
 	{
 		foreach (EventBase template in EventTemplates)
 		{
 			if (template is PvPEvent)
 			{
-				AddCreated(template);
+				EventBase evt = CreateEvent(template);
+				AddEvent(evt);
+				MarkSeen(evt);
 				return;
 			}
 		}
 	}
 
-	// 创建怪物事件组：固定 3 个怪物事件，每个挂载一个怪物实例；无怪物事件/怪物模板时退化为默认事件组
+	// 创建怪物事件组：固定 3 个怪物事件
 	private void CreateMonsterEvents(List<EventBase> eligible)
 	{
 		List<EventBase> monsterEvents = eligible.FindAll(evt => evt is MonsterEvent);
@@ -183,10 +173,10 @@ public partial class EventManager : Node
 		}
 	}
 
-	// 创建默认 3 选事件组：先按权重选 1 个商店事件保证组内 ≥1 商店，再补足到 3 个；池不足时取全部可用
+	// 创建默认 3 选事件组：先选 1 个商店事件，再补足到 3 个
 	private void CreateDefaultEvents(List<EventBase> eligible)
 	{
-		List<EventBase> pool = eligible.FindAll(evt => evt is not MonsterEvent && evt is not PvPEvent);
+		List<EventBase> pool = eligible.FindAll(evt => evt is not MonsterEvent and not PvPEvent);
 		if (pool.Count == 0)
 		{
 			return;
@@ -194,34 +184,30 @@ public partial class EventManager : Node
 
 		List<EventBase> remaining = new(pool);
 
-		// 优先选 1 个商店事件（商店候选中按权重选取）
+		// 优先选 1 个商店事件
 		List<EventBase> shopPool = remaining.FindAll(evt => evt is ShopEvent);
 		if (shopPool.Count > 0)
 		{
 			EventBase shop = PickWeighted(shopPool);
-			AddCreated(shop);
+			EventBase shopEvt = CreateEvent(shop);
+			AddEvent(shopEvt);
+			MarkSeen(shopEvt);
 			remaining.Remove(shop);
 		}
 
-		// 其余从完整非怪物池中按权重补足（可再含商店）
+		// 其余按权重补足到 3 个
 		int target = Math.Min(3, pool.Count);
 		while (CurrentEvents.Count < target && remaining.Count > 0)
 		{
 			EventBase picked = PickWeighted(remaining);
-			AddCreated(picked);
+			EventBase evt = CreateEvent(picked);
+			AddEvent(evt);
+			MarkSeen(evt);
 			remaining.Remove(picked);
 		}
 	}
 
-	// 复制模板创建事件实例、加入当前回合事件组并标记为本局已出现
-	private void AddCreated(EventBase template)
-	{
-		EventBase evt = CreateEvent(template);
-		AddEvent(evt);
-		MarkSeen(evt);
-	}
-
-	// 按权重随机选取一个模板：权重 = 基础权重 ×（本局未出现则乘未出现倍率）
+	// 按权重随机选取一个模板
 	private EventBase PickWeighted(List<EventBase> pool)
 	{
 		float total = 0f;
@@ -244,7 +230,7 @@ public partial class EventManager : Node
 		return pool[pool.Count - 1];
 	}
 
-	// 计算模板的排布权重：未出现事件翻倍
+	// 计算模板排布权重
 	private float GetSelectionWeight(EventBase template)
 	{
 		float baseWeight = template.AttributeSet.Weight.CurrentValue;
@@ -252,7 +238,7 @@ public partial class EventManager : Node
 		return baseWeight * (unseen ? UNSEEN_MULTIPLIER : 1f);
 	}
 
-	// 记录事件为本局已出现（按 EventKey）
+	// 记录事件为本局已出现
 	private void MarkSeen(EventBase evt)
 	{
 		_seenEvents.Add(evt.AttributeSet.EventKey);
@@ -270,7 +256,7 @@ public partial class EventManager : Node
 
 			if (Activator.CreateInstance(type) is EventBase evt)
 			{
-				AddChild(evt);
+				_owner.AddChild(evt);
 				EventTemplates.Add(evt);
 			}
 		}

@@ -35,7 +35,7 @@ public class MatchLoopIntegrationTest : TestClass
 	public async Task FullMatch_AutoPlayReachesResult()
 	{
 		// 实例化真实主节点并挂入场景树：触发 GameManager/HeroManager/CardManager/BoardManager/
-		// RoundTurnManager/EventManager/CombatManager/MatchFlow 全部 _Ready 装配
+		// CombatManager/MatchManager 全部 _Ready 装配
 		Main main = await SpawnMain();
 
 		// 反射模板池应排除 internal 测试英雄，验证不污染生产英雄池
@@ -63,8 +63,7 @@ public class MatchLoopIntegrationTest : TestClass
 		}
 
 		// 先开自动对局再选英雄：第 1 回合事件组一经生成即被协调器接管推进
-		main.MatchFlow.FlowLog += msg => GD.Print($"[MatchLoop] {msg}");
-		main.MatchFlow.AutoPlay = true;
+		main.MatchManager.AutoPlay = true;
 		main.HeroManager.SelectHero(new FastTestHero());
 		Assert.True(main.GameManager.CurrentState == GameState.InMatch, "选英雄后应进入 InMatch");
 
@@ -96,8 +95,8 @@ public class MatchLoopIntegrationTest : TestClass
 		{
 			// 选英雄即进入局内并生成第 1 回合事件组
 			main.HeroManager.SelectHero(new FastTestHero());
-			Assert.True(main.EventManager.CurrentEvents.Count > 0, "第 1 回合应生成事件组");
-			Assert.True(main.EventManager.CurrentEvents.Any(evt => evt is ShopEvent),
+			Assert.True(main.MatchManager.CurrentEvents.Count > 0, "第 1 回合应生成事件组");
+			Assert.True(main.MatchManager.CurrentEvents.Any(evt => evt is ShopEvent),
 				"默认回合事件组应至少包含 1 个商店事件");
 		}
 		finally
