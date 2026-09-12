@@ -1,9 +1,10 @@
-using Godot;
+using Aria;
 using Project_Star.Entities.Effects;
 
-namespace Aria;
+namespace Project_Star.Combat;
 
-// 效果工厂：从 EffectDefinition 创建对应的 AriaEffectBase 实例。
+// 游戏侧效果工厂：从 EffectDefinition 创建具体效果实例。
+// 将 Aria 的数据驱动定义映射到游戏的具体效果类，保持 Aria 插件游戏无关。
 public static class EffectFactory
 {
 	public static AriaEffectBase Create(EffectDefinition def)
