@@ -82,7 +82,7 @@ Project_Star/
 │   │   ├── Bases/     # 抽象基类（HeroBase / CardBase / EventBase / MonsterBase / ManagerBase）
 │   │   ├── Interfaces/  # 游戏侧接口（ICombatant / IDamageEffect / IPassiveAbility / IEntity）
 │   │   ├── Types/     # 非实体类型定义（GameState / CardState / HeroState / EventState）
-│   │   ├── AttributeSets/  # 属性集（Hero / Card / Merchant / Event）
+│   │   ├── AttributeSets/  # 属性集（Hero / Card / Event）
 │   │   └── Pools/     # 泛型池（PoolBase<T>）
 │   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
 │   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
@@ -149,10 +149,10 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 - `scripts/Core/Types/GameState` + `scripts/Systems/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
 - `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/MatchManager`：对局管理器（整合轮次 `RoundTurn`、事件管理 `EventManager`（普通类）、事件执行 `EventExecutor`、局外被动路由 `OutOfBattleTrigger`）。
 - `scripts/Core/Types/EventState` + `scripts/Core/AttributeSets/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName` 与**等级（1~5）**、**轮次范围**（`MinRound`/`MaxRound`）属性）。
-- `scripts/Core/AttributeSets/MerchantAttributeSet`：商人属性集（继承 `AriaAttributeSet`，暂为空壳，预留交易数据）。怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
+- 怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
 - `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
-- `scripts/Core/Bases/ShopEventBase`：商店事件**中间态抽象类**；怪物事件**不做中间态**，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
-- `scripts/Match/EventManager`：事件管理器（**普通类**，反射收集模板池、排程生成事件组、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`，持有 `MonsterEventManager`/`ShopEventManager` 子管理器）。
+- 怪物事件不做中间态，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
+- `scripts/Match/EventManager`：事件管理器（**普通类**，反射收集模板池、排程生成事件组、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`，持有 `MonsterEventManager` 子管理器）。
 - `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent`：示例事件（通用 / 商店）；`scripts/Entities/Events/MonsterEvent`：怪物对战事件叶子类（引用 `HeroBase` 作怪物）。
 - `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
 
@@ -167,7 +167,7 @@ godot --path .                  # 编辑器可执行文件已配置好 mono 模�
 
 - **继承定义**：每个英雄是 `HeroBase` 子类（放 `scripts/Entities/Heroes/`），构造函数内创建 `HeroAttributeSet`（注入 `HeroKey`/`HeroDisplayName`/`FactionKey`）并覆写 `ApplyInitialAttributes()` 实现初始属性差异；**不建英雄场景**（逻辑层纯代码）。
 - **模板池**：`HeroManager` 用**反射扫描程序集**，`_Ready` 自动收集所有非抽象 `HeroBase` 子类各建一个作模板（`AvailableHeroes`）；玩家选择时从模板 `Duplicate()` 复制独立实例（含独立 `AttributeSet`）成为 `CurrentHero`。
-- **商店与卡牌**：英雄不管理商店。卡牌定义携带**归属 key**（`HeroKey`）；商店由 `ShopEventManager` 与 `CardManager` 交互，按归属 key 过滤卡池。
+- **商店与卡牌**：英雄不管理商店。卡牌定义携带**归属 key**（`HeroKey`）；商店由 `ShopEvent` 事件触发，`CardManager` 按归属 key 过滤卡池。
 
 ### 卡牌系统
 
