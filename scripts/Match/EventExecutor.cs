@@ -98,7 +98,7 @@ public class EventExecutor
 			return;
 		}
 
-		_combatManager.StartBattle(friendlyHero, friendlyCards, enemyHero, enemyCards);
+		_combatManager.StartBattle(friendlyHero, friendlyCards, enemyHero, enemyCards, _currentBattleIsPvP);
 	}
 
 	// 结算非战斗事件（商店/通用）并推进回合
@@ -125,11 +125,11 @@ public class EventExecutor
 
 		if (playerWon)
 		{
-			ApplyWinRewards();
+			ApplyWinRewards(battleWon);
 		}
 		else
 		{
-			ApplyLossPenalty();
+			ApplyLossPenalty(battleWon);
 		}
 
 		_roundTurn.CompleteTurn();
@@ -159,8 +159,8 @@ public class EventExecutor
 		}
 	}
 
-	// 玩家胜利：按战斗类型发放财富/经验奖励，PvP 额外记录连续胜利
-	private void ApplyWinRewards()
+	// 玩家胜利：怪物战按剩余血量比例发放财富/经验 + 随机卡牌；PvP 固定奖励 + 记录连续胜利
+	private void ApplyWinRewards(BattleWonEvent battleWon)
 	{
 		HeroBase? hero = _heroManager.CurrentHero;
 		if (hero is null)
@@ -168,21 +168,35 @@ public class EventExecutor
 			return;
 		}
 
-		float wealthGain = _currentBattleIsPvP ? PVP_WIN_WEALTH : MONSTER_WIN_WEALTH;
-		float expGain = _currentBattleIsPvP ? PVP_WIN_EXPERIENCE : MONSTER_WIN_EXPERIENCE;
-		hero.AttributeSet.Wealth.SetCurrentValue(hero.AttributeSet.Wealth.CurrentValue + wealthGain);
-		hero.AttributeSet.Experience.SetCurrentValue(hero.AttributeSet.Experience.CurrentValue + expGain);
-
-		if (_currentBattleIsPvP)
+		if (battleWon.IsPvP)
 		{
+			hero.AttributeSet.Wealth.SetCurrentValue(hero.AttributeSet.Wealth.CurrentValue + PVP_WIN_WEALTH);
+			hero.AttributeSet.Experience.SetCurrentValue(hero.AttributeSet.Experience.CurrentValue + PVP_WIN_EXPERIENCE);
 			_gameManager.RecordPvPWin();
+		}
+		else
+		{
+			// 怪物战奖励按敌方剩余血量比例缩放（打得越漂亮奖励越少，鼓励速杀）
+			float ratio = 1f - battleWon.EnemyRemainingRatio;
+			float wealthGain = Mathf.Max(1f, MONSTER_WIN_WEALTH * ratio);
+			float expGain = Mathf.Max(1f, MONSTER_WIN_EXPERIENCE * ratio);
+			hero.AttributeSet.Wealth.SetCurrentValue(hero.AttributeSet.Wealth.CurrentValue + wealthGain);
+			hero.AttributeSet.Experience.SetCurrentValue(hero.AttributeSet.Experience.CurrentValue + expGain);
+
+			// 怪物战胜利奖励随机卡牌
+			if (_cardManager.CardTemplates.Count > 0)
+			{
+				CardBase template = _cardManager.CardTemplates[GD.RandRange(0, _cardManager.CardTemplates.Count - 1)];
+				CardBase reward = _cardManager.CreateCard(template);
+				_cardManager.AddCardToPlayer(reward);
+			}
 		}
 	}
 
-	// 玩家失败：PvP 失败按当前轮扣声望，怪物失败无惩罚
-	private void ApplyLossPenalty()
+	// 玩家失败：PvP 失败按当前轮扣声望，怪物失败无惩罚；声望 ≤0 立即结束对局
+	private void ApplyLossPenalty(BattleWonEvent battleWon)
 	{
-		if (!_currentBattleIsPvP)
+		if (!battleWon.IsPvP)
 		{
 			return;
 		}
@@ -194,6 +208,12 @@ public class EventExecutor
 		}
 
 		_gameManager.RecordPvPLoss(hero, _roundTurn.CurrentRound);
+
+		// PvP 失败后立即检查声望：≤0 时以失败结束对局
+		if (hero.AttributeSet.Reputation.CurrentValue <= 0f)
+		{
+			_gameManager.EndMatch(MatchEndReason.Defeat);
+		}
 	}
 
 	// 生成幽灵对手：模板池随机英雄深拷贝 + 按轮次缩放卡牌

@@ -56,6 +56,9 @@ public partial class CombatManager : Node
 	// 最近一场战斗的胜者（战斗结束时记录，供 UI / 消费者读取）
 	public ICombatant? LastWinner { get; private set; }
 
+	// 当前战斗是否为 PvP
+	public bool IsPvP { get; private set; }
+
 	// 我方英雄
 	public ICombatant? FriendlyHero { get; private set; }
 
@@ -86,7 +89,7 @@ public partial class CombatManager : Node
 
 	// 开始战斗：登记参战双方、清空旧状态并分发 BattleStart 事件
 	public void StartBattle(ICombatant? friendlyHero, IReadOnlyCollection<ICombatant> friendlyCards,
-		ICombatant? enemyHero, IReadOnlyCollection<ICombatant> enemyCards)
+		ICombatant? enemyHero, IReadOnlyCollection<ICombatant> enemyCards, bool isPvP = false)
 	{
 		ClearState();
 
@@ -94,6 +97,7 @@ public partial class CombatManager : Node
 		FriendlyCards.AddRange(friendlyCards);
 		EnemyHero = enemyHero;
 		EnemyCards.AddRange(enemyCards);
+		IsPvP = isPvP;
 
 		RegisterCombatant(friendlyHero);
 		foreach (ICombatant card in friendlyCards)
@@ -629,9 +633,22 @@ public partial class CombatManager : Node
 			return;
 		}
 
+		// 计算敌方剩余生命比例（0~1），供奖励按血量缩放
+		float enemyRatio = 0f;
+		if (EnemyHero is not null && EnemyHero.AttributeSet is not null)
+		{
+			var health = EnemyHero.AttributeSet.GetAttribute("Health");
+			var maxHealth = EnemyHero.AttributeSet.GetAttribute("MaxHealth");
+			if (health is not null && maxHealth is not null && maxHealth.CurrentValue > 0f)
+			{
+				enemyRatio = Mathf.Clamp(health.CurrentValue / maxHealth.CurrentValue, 0f, 1f);
+			}
+		}
+
+		bool isPvP = IsPvP;
 		EndBattle();
 		LastWinner = winner;
-		MatchEventBus.Raise(new BattleWonEvent(winner));
+		MatchEventBus.Raise(new BattleWonEvent(winner, enemyRatio, isPvP));
 	}
 
 	// 生命值首次跌破半血时分发事件

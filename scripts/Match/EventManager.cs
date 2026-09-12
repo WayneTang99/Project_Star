@@ -104,7 +104,7 @@ public class EventManager
 
 		if (turn == RoundTurn.TURNS_PER_ROUND)
 		{
-			CreatePvPEvent();
+			CreatePvPEvents();
 		}
 		else if (turn == 4)
 		{
@@ -137,16 +137,20 @@ public class EventManager
 		return eligible;
 	}
 
-	// 创建 PvP 事件
-	private void CreatePvPEvent()
+	// 创建 PvP 事件：固定 3 个镜像 PvP 事件（各对应不同幽灵快照），三选一
+	private void CreatePvPEvents()
 	{
 		foreach (EventBase template in EventTemplates)
 		{
 			if (template is PvPEvent)
 			{
-				EventBase evt = CreateEvent(template);
-				AddEvent(evt);
-				MarkSeen(evt);
+				for (int i = 0; i < 3; i++)
+				{
+					EventBase evt = CreateEvent(template);
+					AddEvent(evt);
+					MarkSeen(evt);
+				}
+
 				return;
 			}
 		}

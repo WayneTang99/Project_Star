@@ -79,7 +79,7 @@ public partial class HeroAttributeSet : AriaAttributeSet
 		AddAttribute(MAX_ENERGY, new AriaAttributeData(100f, 0f, 10000f));
 		AddAttribute(WEALTH, new AriaAttributeData(0f, 0f, 100000f));
 		AddAttribute(EXPERIENCE, new AriaAttributeData(0f, 0f, 100000f));
-		AddAttribute(LEVEL, new AriaAttributeData(1f, 1f, 100f));
+		AddAttribute(LEVEL, new AriaAttributeData(0f, 0f, 100f));
 		AddAttribute(REPUTATION, new AriaAttributeData(100f, 0f, 100f));
 		AddAttribute(RADIATION, new AriaAttributeData(0f, 0f, 1000f));
 		AddAttribute(CORROSION, new AriaAttributeData(0f, 0f, 1000f));
