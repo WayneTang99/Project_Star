@@ -7,11 +7,14 @@ namespace Project_Star.Core.Bases;
 
 // 英雄基类，持有一份独立的英雄属性集与标签集，初始属性由子类覆写实现差异。
 [GlobalClass]
-public partial class HeroBase : Node, ICombatant
+public partial class HeroBase : Node, ICombatant, IEntity
 {
 	// 英雄属性集
 	[Export]
 	public HeroAttributeSet AttributeSet { get; set; } = new();
+
+	// IEntity 显式实现
+	AriaAttributeSet? IEntity.AttributeSet => AttributeSet;
 
 	// 标签集（词条）
 	public AriaTagSet TagSet { get; set; } = new();

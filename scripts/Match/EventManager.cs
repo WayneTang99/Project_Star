@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Godot;
 using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Bases;
+using Project_Star.Core.Pools;
 using Project_Star.Core.Types;
 using Project_Star.Entities.Events;
 
 namespace Project_Star.Match;
 
-// 事件管理器（普通类）：反射收集事件模板、按回合规则排程、维护当前回合事件组与结算。
+// 事件管理器（普通类）：通过 PoolBase 管理事件模板池、按回合规则排程、维护当前回合事件组与结算。
 public class EventManager
 {
 	private readonly Node _owner;
+	private PoolBase<EventBase> _pool = null!;
 
 	// 未出现事件权重倍率
 	private const float UNSEEN_MULTIPLIER = 2f;
@@ -46,10 +47,17 @@ public class EventManager
 		_owner = owner;
 	}
 
-	// 初始化：注册所有事件模板（反射收集）
+	// 初始化：注册所有事件模板（通过 PoolBase 反射收集）
 	public void Initialize()
 	{
-		RegisterEventTemplates();
+		_pool = new PoolBase<EventBase>(_owner);
+		_pool.RegisterTemplates();
+
+		foreach (EventBase template in _pool.Templates)
+		{
+			EventTemplates.Add(template);
+		}
+
 		MonsterEventManager.RegisterTemplates(_owner);
 		ShopEventManager.RegisterTemplates(_owner);
 	}
@@ -57,10 +65,7 @@ public class EventManager
 	// 从模板复制一份事件实例并挂载为 owner 子节点
 	public EventBase CreateEvent(EventBase template)
 	{
-		EventBase instance = (EventBase)template.Duplicate();
-		instance.AttributeSet = (EventAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
-		_owner.AddChild(instance);
-		return instance;
+		return _pool.CreateInstance(template);
 	}
 
 	// 将事件加入当前回合事件组
@@ -246,23 +251,5 @@ public class EventManager
 	private void MarkSeen(EventBase evt)
 	{
 		_seenEvents.Add(evt.AttributeSet.EventKey);
-	}
-
-	// 反射收集所有非抽象公开的 EventBase 子类作为模板
-	private void RegisterEventTemplates()
-	{
-		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
-		{
-			if (type.IsAbstract || !type.IsPublic || !typeof(EventBase).IsAssignableFrom(type))
-			{
-				continue;
-			}
-
-			if (Activator.CreateInstance(type) is EventBase evt)
-			{
-				_owner.AddChild(evt);
-				EventTemplates.Add(evt);
-			}
-		}
 	}
 }

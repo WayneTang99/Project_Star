@@ -50,28 +50,31 @@ public class PoolBase<T> where T : Node
 	public T CreateInstance(T template)
 	{
 		T instance = (T)template.Duplicate();
-
-		// 如果实体有 AttributeSet，深拷贝隔离
-		if (instance is HeroBase hero && template is HeroBase templateHero)
-		{
-			hero.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(templateHero.AttributeSet);
-		}
-		else if (instance is CardBase card && template is CardBase templateCard)
-		{
-			card.AttributeSet = (CardAttributeSet)AttributeSetCopier.DeepCopy(templateCard.AttributeSet);
-		}
-		else if (instance is EventBase evt && template is EventBase templateEvt)
-		{
-			evt.AttributeSet = (EventAttributeSet)AttributeSetCopier.DeepCopy(templateEvt.AttributeSet);
-		}
-		else if (instance is MonsterBase monster && template is MonsterBase templateMonster)
-		{
-			monster.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(templateMonster.AttributeSet);
-		}
-
+		DeepCopyAttributeSet(template, instance);
 		_owner.AddChild(instance);
 		_instances.Add(instance);
 		return instance;
+	}
+
+	// 深拷贝属性集：根据实体类型调用 AttributeSetCopier 并赋值给实例
+	private static void DeepCopyAttributeSet(T source, T target)
+	{
+		if (source is HeroBase heroSrc && target is HeroBase heroTgt)
+		{
+			heroTgt.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(heroSrc.AttributeSet);
+		}
+		else if (source is CardBase cardSrc && target is CardBase cardTgt)
+		{
+			cardTgt.AttributeSet = (CardAttributeSet)AttributeSetCopier.DeepCopy(cardSrc.AttributeSet);
+		}
+		else if (source is EventBase evtSrc && target is EventBase evtTgt)
+		{
+			evtTgt.AttributeSet = (EventAttributeSet)AttributeSetCopier.DeepCopy(evtSrc.AttributeSet);
+		}
+		else if (source is MonsterBase monsterSrc && target is MonsterBase monsterTgt)
+		{
+			monsterTgt.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(monsterSrc.AttributeSet);
+		}
 	}
 
 	// 释放指定实例

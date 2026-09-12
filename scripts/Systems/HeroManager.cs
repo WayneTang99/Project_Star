@@ -1,17 +1,16 @@
-using System;
-using System.Reflection;
 using Godot;
-using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Bases;
+using Project_Star.Core.Pools;
 using Project_Star.Core.Types;
 
 namespace Project_Star.Systems;
 
-// 英雄管理器：反射收集英雄模板池，玩家选择后复制独立实例。
+// 英雄管理器：通过 PoolBase 管理英雄模板池，玩家选择后复制独立实例。
 [GlobalClass]
 public partial class HeroManager : GlobalManagerBase
 {
 	private GameManager _gameManager = null!;
+	private PoolBase<HeroBase> _pool = null!;
 
 	// 可选英雄模板池
 	public Godot.Collections.Array<HeroBase> AvailableHeroes { get; private set; } = new();
@@ -20,17 +19,25 @@ public partial class HeroManager : GlobalManagerBase
 	public HeroBase? CurrentHero { get; private set; }
 
 	// 英雄选中事件
-	public event Action<HeroBase>? HeroSelectedEvent;
+	public event System.Action<HeroBase>? HeroSelectedEvent;
 
 	// 英雄重置事件
-	public event Action? HeroResetEvent;
+	public event System.Action? HeroResetEvent;
 
 	protected override void OnInitialize()
 	{
 		base.OnInitialize();
 		_gameManager = GetNode<GameManager>("../GameManager");
 		_gameManager.StateChangedEvent += OnStateChanged;
-		RegisterHeroTemplates();
+
+		_pool = new PoolBase<HeroBase>(this);
+		_pool.RegisterTemplates();
+
+		// 同步到公开属性供 UI 等外部读取
+		foreach (HeroBase template in _pool.Templates)
+		{
+			AvailableHeroes.Add(template);
+		}
 	}
 
 	protected override void OnShutdown()
@@ -45,10 +52,7 @@ public partial class HeroManager : GlobalManagerBase
 	// 从模板复制英雄实例作为当前英雄，并通知状态机进入局内
 	public void SelectHero(HeroBase template)
 	{
-		HeroBase instance = (HeroBase)template.Duplicate();
-		instance.AttributeSet = (HeroAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
-		AddChild(instance);
-
+		HeroBase instance = _pool.CreateInstance(template);
 		CurrentHero = instance;
 		HeroSelectedEvent?.Invoke(instance);
 		_gameManager.HeroSelected();
@@ -64,24 +68,6 @@ public partial class HeroManager : GlobalManagerBase
 
 		CurrentHero = null;
 		HeroResetEvent?.Invoke();
-	}
-
-	// 反射收集所有非抽象公开的 HeroBase 子类作为模板（过滤内部测试类）
-	private void RegisterHeroTemplates()
-	{
-		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
-		{
-			if (type.IsAbstract || !type.IsPublic || !typeof(HeroBase).IsAssignableFrom(type))
-			{
-				continue;
-			}
-
-			if (Activator.CreateInstance(type) is HeroBase hero)
-			{
-				AddChild(hero);
-				AvailableHeroes.Add(hero);
-			}
-		}
 	}
 
 	// 状态切换时重置英雄：离开局内即释放当前英雄

@@ -8,10 +8,13 @@ namespace Project_Star.Core.Bases;
 
 // 卡牌抽象基类，持有一份卡牌属性集与标签集。
 [GlobalClass]
-public abstract partial class CardBase : Node, ICombatant
+public abstract partial class CardBase : Node, ICombatant, IEntity
 {
 	// 卡牌属性集
 	public CardAttributeSet AttributeSet { get; set; } = null!;
+
+	// IEntity 显式实现
+	AriaAttributeSet? IEntity.AttributeSet => AttributeSet;
 
 	// 标签集（词条）
 	public AriaTagSet TagSet { get; set; } = new();

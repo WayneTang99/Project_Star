@@ -1,18 +1,20 @@
 using System;
-using System.Reflection;
 using Aria;
 using Godot;
 using Project_Star.Core.AttributeSets;
 using Project_Star.Core.Bases;
+using Project_Star.Core.Pools;
 using Project_Star.Core.Types;
 using Project_Star.Match.Events;
 
 namespace Project_Star.Systems;
 
-// 卡牌管理器：反射收集模板池、复制实例、管理玩家拥有的卡牌并支持按阵营过滤。
+// 卡牌管理器：通过 PoolBase 管理模板池，复制实例、管理玩家拥有的卡牌并支持按阵营过滤。
 [GlobalClass]
 public partial class CardManager : GlobalManagerBase
 {
+	private PoolBase<CardBase> _pool = null!;
+
 	// 全部卡牌模板（反射收集，每种一张）
 	public Godot.Collections.Array<CardBase> CardTemplates { get; private set; } = new();
 
@@ -25,16 +27,21 @@ public partial class CardManager : GlobalManagerBase
 	protected override void OnInitialize()
 	{
 		base.OnInitialize();
-		RegisterCardTemplates();
+
+		_pool = new PoolBase<CardBase>(this);
+		_pool.RegisterTemplates();
+
+		// 同步到公开属性供外部读取
+		foreach (CardBase template in _pool.Templates)
+		{
+			CardTemplates.Add(template);
+		}
 	}
 
 	// 从模板复制一份卡牌实例并挂载为本节点子节点
 	public CardBase CreateCard(CardBase template)
 	{
-		CardBase instance = (CardBase)template.Duplicate();
-		instance.AttributeSet = (CardAttributeSet)AttributeSetCopier.DeepCopy(template.AttributeSet);
-		AddChild(instance);
-		return instance;
+		return _pool.CreateInstance(template);
 	}
 
 	// 将卡牌加入玩家拥有的卡池并广播事件。
@@ -119,23 +126,5 @@ public partial class CardManager : GlobalManagerBase
 		wealth.SetCurrentValue(wealth.CurrentValue + card.AttributeSet.Value.CurrentValue);
 		MatchEventBus.Raise(new ItemSoldEvent(card));
 		return true;
-	}
-
-	// 反射收集所有非抽象公开的 CardBase 子类作为模板
-	private void RegisterCardTemplates()
-	{
-		foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
-		{
-			if (type.IsAbstract || !type.IsPublic || !typeof(CardBase).IsAssignableFrom(type))
-			{
-				continue;
-			}
-
-			if (Activator.CreateInstance(type) is CardBase card)
-			{
-				AddChild(card);
-				CardTemplates.Add(card);
-			}
-		}
 	}
 }
