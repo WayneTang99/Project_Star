@@ -70,7 +70,7 @@ Project_Star/
 │   │   ├── abilities/   # Aria 能力（AriaAbilityBase / AriaAbilityHandle）
 │   │   ├── effects/     # Aria 效果（AriaEffectBase）
 │   │   ├── expressions/ # 动态值表达式（ValueExpression / Condition）
-│   │   └── definitions/ # 数据驱动定义（AbilityDefinition / EffectDefinition / DataDrivenAbility / EffectFactory）
+│   │   └── definitions/ # 数据驱动定义（AbilityDefinition / EffectDefinition / DataDrivenAbility）
 │   └── forge/         # Forge for Godot 插件（仅作参考，不引用）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
@@ -87,7 +87,7 @@ Project_Star/
 │   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
 │   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
 │   ├── Match/         # 对局管理器（MatchManager + 普通类：RoundTurn / EventManager / EventExecutor / OutOfBattleTrigger）
-│   ├── Combat/        # 战斗子系统（Managers/CombatManager、BattleClock / Resolver / BattleSnapshot、Contexts/BattleContext、Events/战斗事件）
+│   ├── Combat/        # 战斗子系统（Managers/CombatManager、BattleClock / Resolver / BattleSnapshot、Contexts/BattleContext、Events/战斗事件、AbilityHelper / EffectFactory）
 │   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent、Abilities/能力、Effects/效果 等）
 │   └── UI/            # UI控制器（MinimalGameUI / HeroSelectionUI / InMatchHeroUI 等）
 ├── shaders/           # 着色器 (.gdshader)
@@ -301,8 +301,9 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 - `addons/aria/expressions/Condition`：条件判断，支持比较（Equals/GreaterThan/LessThan 等）、AND/OR/NOT 组合。用于能力激活条件、解锁条件等。
 - `addons/aria/definitions/AbilityDefinition`：数据驱动能力定义（触发方式/目标选择/冷却/激活条件/效果列表）。不继承 `AriaAbilityBase`，而是持有配置数据。
 - `addons/aria/definitions/EffectDefinition`：数据驱动效果定义（类型/数值表达式/持续时间/穿透标记）。
-- `addons/aria/definitions/DataDrivenAbility`：桥接类，将 `AbilityDefinition` 包装为 `AriaAbilityBase`，可直接用于 Resolver。
-- `addons/aria/definitions/EffectFactory`：从 `EffectDefinition` 创建 `AriaEffectBase` 实例的工厂。
+- `addons/aria/definitions/DataDrivenAbility`：桥接类，将 `AbilityDefinition` 包装为 `AriaAbilityBase`，通过委托注入目标解析和效果创建，保持 Aria 游戏无关。
+- `scripts/Combat/EffectFactory`：游戏侧效果工厂，从 `EffectDefinition` 创建具体效果实例（`DamageEffect` / `HealEffect` 等）。
+- `scripts/Combat/AbilityHelper`：游戏侧辅助工具，为 `DataDrivenAbility` 注入基于 `BattleContext` 的目标解析和效果创建委托。
 
 ### 池系统（已建）
 
