@@ -30,9 +30,6 @@ public class EventManager
 	// 怪物事件子管理器
 	public MonsterEventManager MonsterEventManager { get; } = new();
 
-	// 商店事件子管理器
-	public ShopEventManager ShopEventManager { get; } = new();
-
 	// 可注入随机数生成器
 	public RandomNumberGenerator Rng { get; set; } = new();
 
@@ -59,7 +56,6 @@ public class EventManager
 		}
 
 		MonsterEventManager.RegisterTemplates(_owner);
-		ShopEventManager.RegisterTemplates(_owner);
 	}
 
 	// 从模板复制一份事件实例并挂载为 owner 子节点

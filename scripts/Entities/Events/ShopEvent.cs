@@ -4,13 +4,9 @@ using Project_Star.Core.Bases;
 
 namespace Project_Star.Entities.Events;
 
-// 商店事件：商店对战事件，直接引用商人实体（商人继承 MerchantBase，与英雄同样持有属性集与卡牌）。
+// 商店事件：商店事件，玩家可在此进行卡牌交易。
 public partial class ShopEvent : EventBase
 {
-	// 商人实体
-	[Export]
-	public MerchantBase Merchant { get; set; } = null!;
-
 	public ShopEvent()
 	{
 		AttributeSet = new EventAttributeSet(new StringName("Shop_Event"), "商店事件");
