@@ -1,16 +1,13 @@
 # AGENTS.md
 
-Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项目约定，请遵守其中的规则。
+Project_Star 需求说明。本文件仅保留游戏设计需求，供重构与后续需求提出使用；术语定义见 `docs/GLOSSARY.md`。
 
 ## 项目概览
 
-- 基于 **Godot 4.7** 的 3D 游戏项目
-- 使用 **C# / .NET** 编写脚本（dotnet 模块，程序集名 `Project_Star`）
+- 基于 **Godot 4.7** 的 3D 游戏项目，脚本使用 **C# / .NET**
 - 物理引擎：**Jolt Physics**
-- 渲染：**Forward Plus**，Windows 下使用 **D3D12** 驱动
-- 视口拉伸模式：`canvas_items` + `expand` 自适应
 - 类型：类《The Bazaar》（大巴扎）的**卡牌异步对战自走棋**
-- 玩法框架：自研 **Aria** 插件（承接 Forge for Godot 设计思路，独立实现）
+- 玩法框架：自研 **Aria** 插件（承接 Forge for Godot 设计思路，独立实现，跨游戏复用，不含游戏专属逻辑）
 
 ## 游戏设计（立项）
 
@@ -31,322 +28,453 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 - **8 回合为 1 轮**，每轮**最后一回合（第 8 回合）固定为异步玩家对战事件**。
 - 玩家对战事件与怪物对战事件点击后**进入战斗**，战斗使用**战场区卡牌**自动进行。
 
-### 管理器架构
+### 对局胜负
 
-管理器**不注册为 Autoload、不作为场景子节点**，由根节点脚本 `scripts/Core/Main.cs` 在 `_Ready` 中 **new 生成并 AddChild 挂载**、统一注册。管理器按子系统分目录：元游戏（`scripts/Systems/`）、棋盘（`scripts/Board/Manager/`）、局内轮次与事件（`scripts/Match/`）、战斗（`scripts/Combat/Managers/`）。`scripts/Core/` 只放**共享定义**（抽象基类 / 接口 / 非实体类型定义）与组合根 `Main.cs`，不落具体实现。
-
-```
-Main (主场景根节点，挂 Main.cs，_Ready 生成并缓存各管理器引用)
-├── GameManager              # 主状态机（Systems）：选英雄 → 局内 → 结算（信号广播状态切换；EndMatch/Surrender 强制结束总线）
-├── HeroManager              # 英雄（Systems）：持有英雄模板池（每种各一个）、选择后复制实例、属性存取
-├── CardManager              # 卡牌（Systems）：反射收集模板池、实例化、玩家拥有卡牌、按阵营key过滤供商店
-├── BoardManager             # 棋盘（Board/Manager）：战场/备战区双棋盘（各10格）、推挤放置/移除/交换/跨区拖拽编排
-├── CombatManager            # 战斗（Combat/Managers）：持有 BattleClock + Resolver，管理战斗生命周期 + A/B 超时
-└── MatchManager             # 对局管理器（Match）：整合轮次(RoundTurn)、事件管理(EventManager)、事件执行(EventExecutor)、局外被动路由(OutOfBattleTrigger)
-```
-
-**通信与数据约定**
-
-- 管理器间通过 **Godot 信号（C# event）** 通信，避免互相直调。
-- 数值流转一律走 `AriaAttributeSet`（扣财富、扣血等），不直接改字段。
-- `CardManager` 管卡牌实例与数据，`BoardManager` 管卡牌在棋盘上的位置与布局。
-- 实体基类（`HeroBase` / `CardBase` / `EventBase` 等）与共享定义放 `scripts/Core/`，供各系统与 UI 复用。
-
-## 目录结构
-
-```
-Project_Star/
-├── .godot/            # Godot 缓存（忽略）
-├── assets/            # 资源文件
-│   ├── sprites/       # 精灵图 (.png, .svg)
-│   ├── sounds/        # 音效 (.wav, .ogg)
-│   ├── models/        # 3D模型 (.glb, .fbx)
-│   └── fonts/         # 字体 (.ttf)
-├── addons/            # Godot 插件
-│   ├── aria/          # Aria 自研玩法插件（属性、能力、效果等）
-│   │   ├── interfaces/  # Aria 接口（IAriaEntity）
-│   │   ├── attributes/  # Aria 属性（AriaAttributeData / AriaAttributeSet）
-│   │   ├── contexts/    # Aria 上下文基类（AriaContextBase）
-│   │   ├── abilities/   # Aria 能力（AriaAbilityBase / AriaAbilityHandle）
-│   │   ├── effects/     # Aria 效果（AriaEffectBase）
-│   │   ├── expressions/ # 动态值表达式（ValueExpression / Condition）
-│   │   └── definitions/ # 数据驱动定义（AbilityDefinition / EffectDefinition / DataDrivenAbility）
-├── scenes/            # 场景文件 (.tscn)
-│   ├── Main.tscn      # 主场景
-│   ├── Menu.tscn      # 菜单场景
-│   └── Gameplay/      # 游戏玩法场景
-├── scripts/           # C# 脚本 (.cs)
-│   ├── Core/          # 共享定义/契约层（仅抽象基类、接口、非实体类型定义、Main）
-│   │   ├── Main.cs    # 组合根：_Ready 生成并挂载各子系统管理器（唯一引用具体管理器的文件）
-│   │   ├── Bases/     # 抽象基类（HeroBase / CardBase / EventBase / MonsterBase / ManagerBase）
-│   │   ├── Interfaces/  # 游戏侧接口（ICombatant / IDamageEffect / IPassiveAbility / IEntity）
-│   │   ├── Types/     # 非实体类型定义（GameState / CardState / HeroState / EventState）
-│   │   ├── AttributeSets/  # 属性集（Hero / Card / Event）
-│   │   └── Pools/     # 泛型池（PoolBase<T>）
-│   ├── Systems/       # 元游戏管理器（GameManager / HeroManager / CardManager）
-│   ├── Board/         # 棋盘子系统（Manager/BoardManager、Data/GameBoard|BoardEntry、Algo/BoardUtil|Push*|BoardState、CardSizeExtensions）
-│   ├── Match/         # 对局管理器（MatchManager + 普通类：RoundTurn / EventManager / EventExecutor / OutOfBattleTrigger）
-│   ├── Combat/        # 战斗子系统（Managers/CombatManager、BattleClock / Resolver / BattleSnapshot、Contexts/BattleContext、Events/战斗事件、AbilityHelper / EffectFactory）
-│   ├── Entities/      # 实体子类（Heroes/TemplateHero、Cards/TemplateCard、Events/TemplateEvent、Abilities/能力、Effects/效果 等）
-│   └── UI/            # UI控制器（MinimalGameUI / HeroSelectionUI / InMatchHeroUI 等）
-├── shaders/           # 着色器 (.gdshader)
-├── tests/             # 单元测试
-├── test_ui/           # 独立测试UI（棋盘推挤演示，核心不引用，仅单独打开场景运行）
-├── Project_Star.csproj # C# 项目文件
-└── Project_Star.sln   # 解决方案文件
-```
-
-- 新脚本放 `scripts/` 对应模块目录；新场景放 `scenes/`，命名与对应脚本保持一致。
-- `.godot/` 由编辑器生成，禁止手动修改，已加入 `.gitignore`。
-
-## 构建与运行
-
-```powershell
-dotnet build                    # 编译 C# 脚本
-# 运行：用 Godot 4.7 (mono 版) 打开项目目录，或：
-godot --path .                  # 编辑器可执行文件已配置好 mono 模块
-```
-
-## Aria 插件（自研）
-
-`addons/aria/` 是自研玩法插件，承接 Forge 设计思路但**独立实现，不依赖任何第三方运行时**。
-
-### 插件定位（重要）
-
-- ⚠️ Aria 是**跨游戏复用的通用玩法插件**，与具体游戏项目无关，后期可应用于其他游戏。
-- ⚠️ **插件内不得包含游戏专属逻辑**：不引用 `scripts/`、不依赖具体管理器（`GameManager` 等）、不感知英雄/卡牌/事件等游戏概念。
-- 游戏专属逻辑（管理器、实体基类）放 `scripts/Core/`，由主场景注册；插件只提供通用框架（属性、能力等）。
-- 插件可导出为独立模块（如 Godot Asset Library 打包）供多项目复用。
-
-### 属性系统（已建）
-
-- `attributes/AriaAttributeData`：单个属性（BaseValue / CurrentValue / MinValue / MaxValue，值变更事件，Min/Max 联动校正）。
-- `attributes/AriaAttributeSet`：属性集合（字典管理，按 key 增查改）。
-
-### 项目侧对 Aria 的扩展（已建）
-
-- `scripts/Core/AttributeSets/HeroAttributeSet`：英雄属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `HeroKey`/`HeroDisplayName`/`FactionKey` 与生命 / 护甲 / 财富 / 经验 / 等级 / 声望 / **辐射** / **腐蚀** / **生命再生** / **麻痹时长**）。
-- `scripts/Core/Bases/HeroBase`：英雄基类（Node，持有 `HeroAttributeSet`，`ApplyInitialAttributes` 供子类覆写）。
-- `scripts/Entities/Heroes/TemplateHero`：示例英雄（继承 `HeroBase`，覆写初始属性）。
-- `scripts/Systems/HeroManager`：英雄管理器（**反射**收集所有非抽象 `HeroBase` 子类作模板池、`SelectHero` 复制实例、`HeroSelectedEvent`/`HeroResetEvent`）。
-- `scripts/Core/Types/CardEconomy`：卡牌经济常量与价值公式（普通卡价值系数 2、购买折半倍率 0.5、型号系数 小1/中2/大3、`InitialValue`）。
-- `scripts/Core/AttributeSets/CardAttributeSet`：卡牌属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `CardKey`/`DisplayName`/`HeroKey`/`Size` 与可变 `Level`、`Value`、`Cooldown`）。
-- `scripts/Core/Bases/CardBase`：卡牌抽象基类（Node，持有 `CardAttributeSet`；提供 `ValueScale`/`GetInitialValue`/`InitializeValue` 支撑价值公式）。
-- `scripts/Entities/Cards/TemplateCard`：示例卡牌（继承 `CardBase`）。
-- `scripts/Entities/Cards/BeastHideCard`：兽皮卡（价值系数 4、**无能力**、归属中立 key `Neutral` → 不进入按英雄过滤的商店货架；作怪物掉落/奖励道具，加入玩家卡池后出售换钱）。
-- `scripts/Systems/CardManager`：卡牌管理器（**反射**收集模板池、`CreateCard` 复制实例、`AddCardToPlayer`、`GetCardsByFaction` 供商店过滤）。
-- `scripts/Core/Types/GameState` + `scripts/Systems/GameManager`：主状态机（`StateChangedEvent` 信号广播，`EndMatch`/`Surrender` 强制结束总线）。
-- `scripts/Core/Types/GameState`（含 `MatchEndReason`）+ `scripts/Match/MatchManager`：对局管理器（整合轮次 `RoundTurn`、事件管理 `EventManager`（普通类）、事件执行 `EventExecutor`、局外被动路由 `OutOfBattleTrigger`）。
-- `scripts/Core/Types/EventState` + `scripts/Core/AttributeSets/EventAttributeSet`：事件属性集（继承 `AriaAttributeSet`，含**不可变**身份字段 `EventKey`/`EventDisplayName` 与**等级（1~5）**、**轮次范围**（`MinRound`/`MaxRound`）属性）。
-- 怪物直接复用 `HeroAttributeSet`（不另建怪物属性集）。
-- `scripts/Core/Bases/EventBase`：事件抽象基类（Node，持有 `EventAttributeSet`，`State` 生命周期，`Initialize`/`OnResolve` 供子类覆写）。
-- 怪物事件不做中间态，仅一个 `scripts/Entities/Events/MonsterEvent` 叶子类直接继承 `EventBase`，并引用 `HeroBase` 作怪物实体（怪物继承 `HeroBase`，与英雄同样持有属性集与卡牌）。
-- `scripts/Match/EventManager`：事件管理器（**普通类**，反射收集模板池、排程生成事件组、`CreateEvent`/`AddEvent`/`ClearEvents`/`ResolveEvent`，持有 `MonsterEventManager` 子管理器）。
-- `scripts/Entities/Events/TemplateEvent` / `TemplateShopEvent`：示例事件（通用 / 商店）；`scripts/Entities/Events/MonsterEvent`：怪物对战事件叶子类（引用 `HeroBase` 作怪物）。
-- `scenes/Main.tscn` + `scripts/Core/Main.cs`：主场景根节点，`_Ready` 中 new 生成并挂载各管理器。
+- **对局胜利** = 第 8 回合 PvP 胜利累计满 **10 次**。
+- **对局失败** = **声望 ≤ 0**。
+- 声望只在 **PvP 战斗结束后**检查；PvP 失败扣声望，扣量 = **当前轮次**；怪物战不掉声望。
+- 战斗胜利 ≠ 对局胜利：战斗胜利只是该场战斗结果；战斗内英雄血量归零仅为该场战斗失败，不影响对局。
 
 ### 事件排程（规划中，未实现）
 
-排程机制（`EventManager.ScheduleEvents`，结合回合规则：默认三选一至少 1 商店 / 第 4 回合三怪物 / 第 8 回合 PvP）：
+结合回合规则的排程机制（默认三选一至少 1 商店 / 第 4 回合三怪物 / 第 8 回合 PvP）：
+
 - 按当前轮过滤可排布事件模板：`MinRound <= 当前轮 <= MaxRound`。
-- **未出现加成**：事件有基础权重（`Weight`，默认 1）；本局尚未出现的事件权重乘固定倍率（`UNSEEN_MULTIPLIER` 常量，可调）提高排布几率，已出现事件回落基础权重。
-- `EventManager` 按 `EventKey` 跟踪本局已出现事件，进入 `InMatch`（新对局）时清空。
+- **未出现加成**：事件有基础权重（默认 1）；本局尚未出现的事件权重乘固定倍率提高排布几率，已出现事件回落基础权重。
+- 按事件 key 跟踪本局已出现事件，新对局时清空。
 
 ### 英雄系统
 
-- **继承定义**：每个英雄是 `HeroBase` 子类（放 `scripts/Entities/Heroes/`），构造函数内创建 `HeroAttributeSet`（注入 `HeroKey`/`HeroDisplayName`/`FactionKey`）并覆写 `ApplyInitialAttributes()` 实现初始属性差异；**不建英雄场景**（逻辑层纯代码）。
-- **模板池**：`HeroManager` 用**反射扫描程序集**，`_Ready` 自动收集所有非抽象 `HeroBase` 子类各建一个作模板（`AvailableHeroes`）；玩家选择时从模板 `Duplicate()` 复制独立实例（含独立 `AttributeSet`）成为 `CurrentHero`。
-- **商店与卡牌**：英雄不管理商店。卡牌定义携带**归属 key**（`HeroKey`）；商店由 `ShopEvent` 事件触发，`CardManager` 按归属 key 过滤卡池。
+- **继承定义**：每个英雄是英雄基类的子类，构造函数内注入身份字段（key/展示名/阵营）并覆写初始属性差异；**不建英雄场景**（逻辑层纯代码）。
+- **模板池**：用**反射扫描程序集**自动收集所有非抽象英雄子类各建一个作模板；玩家选择时从模板**复制独立实例**（含独立属性集）。
+- **商店与卡牌**：英雄不管理商店。卡牌定义携带**归属 key**；商店按归属 key 过滤卡池。
 
 ### 卡牌系统
 
-- **继承定义**：卡牌是 `CardBase` 抽象基类的子类（放 `scripts/Entities/Cards/`），构造函数内创建 `CardAttributeSet`（注入 `CardKey`/`DisplayName`/`HeroKey`/`Size`）。功能相似的卡牌后期可继承自同一中间抽象类。
-- **身份字段不可变**：`CardKey` / `DisplayName` / `HeroKey` / `Size` 为 get-only，创建后不可修改；`Level` / `Value` / `Cooldown` 走 `AriaAttributeData`（可变，数值流转）。
-- **价值公式**：初始价值 = **价值系数 × 等级 × 型号系数**（小 1 / 中 2 / 大 3）。普通卡系数 2（`CardEconomy.STANDARD_VALUE_SCALE`），**特殊价值物品**在子类覆写 `ValueScale`（如兽皮系数 4）。`CardBase.GetInitialValue()` 实时推导；构造函数末尾经 `InitializeValue()` 把现值同步进 `Value` 属性（等级变化**不**自动重算价值，增值/减值事件直接修改 `Value`）。
-- **获得折半**：**任何途径**加入玩家卡池即视为获得（购买、掉落、奖励一致），价值在 `CardManager.AddCardToPlayer` 统一按 `初始价值 × CardEconomy.OBTAINED_VALUE_RATIO(0.5)` 折半；`BuyCard` 按初始价值全额计价。折半与购买行为无关，目的是让后续增值/减值事件的**叠加逻辑**始终作用在一致的半价基线上；`SellCard` 按现值 `Value` **全额**回补，不再二次打折。
-- **Key 类型统一用 `StringName`**：所有标识性 key（`CardKey` / `HeroKey`）一律用 `Godot.StringName`（创建用 `new StringName("...")`），`DisplayName`/`HeroDisplayName` 等展示文本保持 `string`。
-- **Key 与展示名分离**：key（标识）与 display name（展示）使用不同字段，不用同一个字段兼任（如英雄 `HeroKey` + `HeroDisplayName`、卡牌 `CardKey` + `DisplayName`）。
-- **身份字段归属**：身份字段（key / display name / 归属）一律放进实体对应的 `*AttributeSet`（`HeroAttributeSet` / `CardAttributeSet`），不放实体 Node 上。
-- **模板池**：`CardManager` 同样用**反射**收集所有非抽象 `CardBase` 子类作模板（`CardTemplates`）；`CreateCard` 复制实例、`AddCardToPlayer` 记录玩家拥有卡牌、`GetCardsByFaction(factionKey)` 供商店过滤。
+- **继承定义**：卡牌是卡牌抽象基类的子类，构造函数内注入身份字段（key/展示名/归属/尺寸）。功能相似的卡牌后期可继承自同一中间抽象类。
+- **身份字段不可变**：key / 展示名 / 归属 / 尺寸为 get-only，创建后不可修改；等级 / 价值 / 冷却走属性（可变，数值流转）。
+- **价值公式**：初始价值 = **价值系数 × 等级 × 型号系数**（小 1 / 中 2 / 大 3）。普通卡系数 2，**特殊价值物品**在子类覆写系数（如兽皮系数 4）。等级变化**不**自动重算价值，增值/减值事件直接修改价值。
+- **获得折半**：**任何途径**加入玩家卡池即视为获得（购买、掉落、奖励一致），价值统一按 `初始价值 × 0.5` 折半；购买按初始价值全额计价。折半与购买行为无关，目的是让后续增值/减值事件的**叠加逻辑**始终作用在一致的半价基线上；出售按现值**全额**回补，不再二次打折。
+- **Key 类型统一用 `StringName`**：所有标识性 key 一律用 `Godot.StringName`，展示文本保持 `string`。
+- **Key 与展示名分离**：key（标识）与展示名（展示）使用不同字段，不用同一个字段兼任。
+- **身份字段归属**：身份字段（key / 展示名 / 归属）一律放进实体对应的属性集，不放实体 Node 上。
+- **模板池**：用**反射**收集所有非抽象卡牌子类作模板；创建时复制实例，按归属 key 过滤供商店。
 
 ### 标签（词条）系统
 
-- **标签容器**：`addons/aria/tags/AriaTagSet`（`HashSet<StringName>`），轻量级通用标签容器，无元数据，只存 key。
-- **标签常量**：`scripts/Core/Types/Tags.cs` 定义所有游戏标签（`Small`/`Medium`/`Large`/`Weapon`/`Clothing`/`Human`/`Mechanical`/`Vehicle`/`Consumable`）。
-- **显示名映射**：`Tags.GetDisplayName(StringName tag)` 返回中文显示名（如 `Weapon` → `"武器"`），未知标签返回原始 key。
-- **标签由卡牌构造函数挂载**：如 `TagSet.Add(Tags.FromSize(AttributeSet.Size))` + `TagSet.Add(Tags.Weapon)`。
+- **标签容器**：轻量级通用标签容器（`HashSet<StringName>`），无元数据，只存 key。
+- **标签常量**：定义所有游戏标签（`Small`/`Medium`/`Large`/`Weapon`/`Clothing`/`Human`/`Mechanical`/`Vehicle`/`Consumable`）。
+- **显示名映射**：返回中文显示名（如 `Weapon` → `"武器"`），未知标签返回原始 key。
+- **标签由卡牌挂载**：如型号标签（由尺寸自动推导）+ 词条标签。
 
-### 棋盘与推挤系统（已建）
+### 棋盘与推挤系统
 
-**分层**：非 UI 层三个模块均不依赖 UI，只依赖卡牌数据类（`CardBase`/`CardAttributeSet`）与尺寸枚举（`CardSize`）：
-
-- `scripts/Board/Data/GameBoard`：棋盘数据管理（纯类）。**只存卡牌引用 + `Order`（左→右顺序）+ `StartCell`（占用格）**，不存渲染坐标；容量可配（默认 10）；提供放置/移除/交换/`order` 归一与 `CardPlaced/Removed/Swapped/LayoutChangedEvent`。
-- `scripts/Board/Algo/BoardUtil`：**纯算法**（静态类）。阻挡卡牌查找、向右/向左推挤逐格模拟、方向择优（距离短→影响卡牌少→取 Right）。
-- `scripts/Board/Algo/PushEvaluator`：只读评估（边界校验、快照排除被拖卡牌以释放原位、调用 `BoardUtil`、组装 `PushPlan`）。
-- `scripts/Board/Algo/PushExecutor`：执行 `PushPlan`（按 `ResultOffsets` 写回各 `StartCell`、落位、重排 order、发事件）。
-- `scripts/Board/Algo/BoardState`（含 `PushDirection`）：`None/Left/Right`。
-- `scripts/Board/Manager/BoardManager`：`[GlobalClass] Node`，持有**战场区 + 备战区**两个 `GameBoard`（各 10 格），编排跨区拖拽（同盘移动释放原位；跨盘先查来源盘再评估目标盘，即"查两个区域"）。
-
-**交互 API（供 UI）**：`PreviewMove(card, targetBoard, targetCell)`（只读预览推挤方案）、`CommitMove(...)`（提交执行，不可行返回 false）、`RemoveCard`、`SwapCards`、`GetStartCell`、`GetLayout`（UI 据此换算像素）。
-
-**推挤规则**：目标区间无阻挡→直接放置；有阻挡→任一块 `CanPush=false` 直接失败；否则分别模拟向右/向左，择优执行。
-
-**扩展预留**：容量可配、逐卡 `CanPush` 标记、`PushPlan.ResultOffsets` 预留 undo/redo、等级/归属优先级钩子后续可加。
-
-**测试 UI**：`test_ui/` 独立于核心（核心**不引用**它，仅它引用核心），在 Godot 中单独打开 `res://test_ui/BoardTestUI.tscn` 或 `BattleTestUI.tscn` 运行。`BattleTestUI` 已集成棋盘网格渲染：使用 `BoardManager` 管理战场，卡牌按尺寸渲染（Small 1格、Medium 2格、Large 3格，宽度比 Small 1:2 / Medium 1:1 / Large 3:2），点击卡牌列表选中 → 点棋盘空格放置；点已放卡牌 → 点空格移动；敌方棋盘自动放置、仅显示。卡牌 UI 从上到下依次显示：名称 → 归属（`HeroKey`）→ CD → 词条（标签） → 能力。为保证隔离，`CardManager` 反射模板收集过滤 `type.IsPublic`，排除 `test_ui` 内部测试卡。
+- **数据/视图分离**：棋盘数据层只存卡牌引用 + 顺序 + 占用格，不存渲染坐标；位置由 UI 按布局换算像素。
+- **双棋盘**：棋盘管理器持**战场区 + 备战区**两个棋盘（各 10 格），支持同盘移动与跨区拖拽。
+- **推挤规则**：目标区间无阻挡→直接放置；有阻挡→任一块不可推挤直接失败；否则分别模拟向右/向左，择优执行。
+- **择优**：先释放被拖卡牌原位；方向按 距离短 → 影响卡牌少 → 取 Right。
+- **扩展预留**：容量可配、逐卡可推挤标记、结果偏移预留 undo/redo、等级/归属优先级钩子后续可加。
 
 ### MVC 分离约定（英雄 UI）
 
-- 英雄 UI 为**独立类**，与底层逻辑分离，分两类：`HeroSelectionUI`（选角界面）与 `InMatchHeroUI`（局内界面），放 `scripts/UI/`。
-- UI 只读 Manager 状态（如 `HeroManager.AvailableHeroes` / `CurrentHero`）、订阅事件刷新，**不直接改模型**。
+- 英雄 UI 为**独立类**，与底层逻辑分离，分两类：`HeroSelectionUI`（选角界面）与 `InMatchHeroUI`（局内界面）。
+- UI 只读管理器状态、订阅事件刷新，**不直接改模型**。
 - 英雄视觉（立绘/模型）由 UI 层按英雄标识映射加载，英雄实体不感知自身表现。
 - 英雄 UI 尚未实现，仅约定；实现时机以 UI 开发阶段为准。
 
-### 能力系统（框架已建，战斗管理器待实现）
+### 能力系统
 
 **核心模型：能力触发效果**
 
-- **能力（Ability）**：可被触发的动作单元。主动（冷却/手动）与被动（事件触发）都是能力，区别仅在于触发方式，由管理器决定。能力类只负责**执行逻辑**。
-- **效果（Effect）**：被能力触发的被动后果（静态修饰 / 周期 DoT-HoT，细节待细化）。
-- 触发、冷却、编排、连锁（≤3 层上限）统一由 `Resolver`（确定性战斗解析器）负责；管理器只与实体（`ICombatant`）通信，不直接驱动能力。
-
-**分层与文件**
-
-- Aria 层（`addons/aria/`，游戏无关，保留 `Aria` 前缀）：
-  - `interfaces/IAriaEntity.cs`：最小实体接口，暴露 `AriaAttributeSet`。
-  - `contexts/AriaContextBase.cs`：上下文基类，供游戏侧继承自定义。
-  - `abilities/AriaAbilityBase.cs`：能力基类（Key/DisplayName/冷却 + `CanActivate`/`Activate`，`Activate` 返回 `AriaAction[]`；`Owner` 属性由管理器注入，`GetCooldownSeconds()` 供子类覆写从属性集动态读取冷却）。
-  - `abilities/AriaAction.cs`：动作载体（目标 → 效果字典，目标可多个）。
-  - `abilities/AriaAbilityHandle.cs`：能力运行期句柄（冷却计时 + 所属实体）。
-  - `effects/AriaEffectBase.cs`：效果基类（持续类型/时长/周期 + `Apply`/`Remove`/`Tick`/`GetTickEffects`）。
-  - `effects/AriaEffectHandle.cs`：效果运行期句柄（挂载信息 + 计时，管理器统一驱动）。
-  - `effects/AriaEffectDurationType.cs`：效果持续类型（Instant/HasDuration/Permanent）。
-  - `attributes/AriaAttributeOperation.cs`：属性运算方式（Add/Subtract/Multiply/Override）。
-  - `attributes/AriaAttributeModifier.cs`：属性修饰器（AttributeKey + Operation + Magnitude）。
-  - `attributes/AriaAttributeSet.cs`：支持 `ApplyModifier`/`RemoveModifier`（记录原值回滚）。
-- 游戏侧（不带 `Aria` 前缀）：
-  - `scripts/Core/Interfaces/ICombatant.cs`：战斗参与者接口（英雄/卡牌共同实现），声明 `Abilities`/`Effects`。
-  - `scripts/Core/Interfaces/IPassiveAbility.cs`：被动能力接口，声明响应的事件类型（`Type ReactEventType`）；主动能力不实现该接口。
-  - `scripts/Core/Interfaces/IDamageEffect.cs`：伤害效果接口（结算器据此识别伤害并广播）。
-  - `scripts/Core/Interfaces/IHealEffect.cs`：治疗效果接口（结算器据此触发净化：削减目标腐蚀/辐射）。
-  - `scripts/Combat/Events/CombatEventBase.cs`：战斗事件抽象基类；子类 `BattleStartEvent`/`AbilityActivatedEvent`/`AdjacentCardActivatedEvent`/`EffectAppliedEvent`/`DamageDealtEvent`/`HealthBelowHalfEvent`/`NearDeathEvent` 自带载荷，被动按事件类型路由。
-  - `scripts/Combat/Events/CombatEventBus.cs`：全局战斗事件总线（静态观察者通道，供 UI/统计/管理器订阅；被动连锁不走总线）。
-  - `scripts/Combat/Contexts/BattleContext.cs`：战斗上下文（继承 `AriaContextBase`），含来源/目标/当前事件（`CurrentEvent`）、双方英雄（单个）与卡牌（数组）。
-
-**能力子类写法**（游戏侧 `scripts/Entities/Abilities/`）：
-```csharp
-public partial class PoisonAbility : AriaAbilityBase
-{
-    public override AriaAction[] Activate(AriaContextBase baseCtx)
-    {
-        var ctx = (BattleContext)baseCtx;
-        return [ new AriaAction {
-            EffectsByTarget = { [ctx.EnemyHero!] = [ new PoisonEffect() ] }
-        } ];
-    }
-}
-```
-
-**效果子类写法**（游戏侧 `scripts/Entities/Effects/`）：
-```csharp
-public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
-{
-    // DurationType = HasDuration; PeriodSeconds = 1f
-    public override void Tick(float delta, AriaContextBase baseCtx)
-    {
-        var ctx = (BattleContext)baseCtx;
-        // 每周期扣 ctx.Target 的 Health
-    }
-}
-```
+- **能力（Ability）**：可被触发的动作单元。主动（冷却/手动）与被动（事件触发）都是能力，区别仅在于触发方式，由管理器决定。能力只负责**执行逻辑**。
+- **效果（Effect）**：被能力触发的被动后果（静态修饰 / 周期 DoT-HoT）。
+- 触发、冷却、编排、连锁（≤3 层上限）统一由战斗解析器负责；管理器只与实体通信，不直接驱动能力。
 
 **效果堆叠约定**（适用于所有可叠加属性：时长、腐蚀、辐射、生命再生等）：
 
-- **Apply 累加**：效果的 `Apply()` 必须**累加**到目标属性（`CurrentValue + amount`），而非覆盖赋值。多个来源对同一目标施加同类效果时，属性自然叠加。
-- **到期扣减**（HasDuration 效果）：`CombatManager` 在效果到期时，从目标属性中**扣减该实例贡献的量**（通过 `_durationContributions` 字典追踪），而非直接清零。Instant 效果无此问题，属性由衰减逻辑自然归零。
-- **不清零**：HasDuration 效果的 `Remove()` 不再直接设置属性为 0。属性值由 `TickCardDurations()` 每帧自然衰减至 0。
-- **抵消判定**：`GetCooldownMultiplier()` 读取属性值判断倍率（超频×2 / 麻痹×0.5 / 两者均>0时抵消×1），与效果实例数量无关，仅看属性最终值。
-
-**写新效果时的检查清单**：
-1. 效果类继承 `AriaEffectBase`
-2. `Apply()` 中对目标属性做 `SetCurrentValue(CurrentValue + amount)` 累加
-3. **不覆写** `Remove()`（或 `Remove()` 为空操作）
-4. 若属性需衰减，在 `Resolver` 中增加递减逻辑（如 `TickCardDurations()` 或 `ApplyDot()`）
-5. 若需根据属性值计算倍率，在 `GetCooldownMultiplier()` 或类似方法中读取属性值
-
-详细设计见 `docs/AbilityAndCombatFramework.md`。
-
-### 战斗层（已建）
-
-- `scripts/Combat/BattleClock`：1/30 秒固定步长时钟，`Advance(float delta)` 推进时间，每满一步触发 `StepTicked` 回调。
-- `scripts/Combat/Resolver`（普通类）：确定性战斗解析器，包含全部战斗结算逻辑（冷却递减、主动能力发动、DoT/HoT、效果队列排水、死亡判定、被动连锁 ≤3 代）。每步调用 `Tick(float stepDelta)` 执行一步。
-- `scripts/Combat/BattleSnapshot`：状态快照，每步保存所有参战实体的属性值，支持 `Rollback(int stepsBack)` 回滚。
-- `scripts/Combat/Managers/CombatManager`（Node）：持有 `BattleClock` + `Resolver`，管理战斗生命周期 + A/B 超时（A=300s 正常 / B=600s PvP）+ 超时自动结束。
-- 战斗步长由 `BattleClock.FIXED_STEP`（1/30s）驱动，`CombatManager._PhysicsProcess` 推进时钟，时钟每步回调 `Resolver.Tick`。
-
-### 数据驱动模型（已建）
-
-- `addons/aria/expressions/ValueExpression`：动态值表达式，支持常量、属性读取、算术运算，运算符 `+`-`*`/` 重载链式组合。用于能力/效果中需要动态计算的数值。
-- `addons/aria/expressions/Condition`：条件判断，支持比较（Equals/GreaterThan/LessThan 等）、AND/OR/NOT 组合。用于能力激活条件、解锁条件等。
-- `addons/aria/definitions/AbilityDefinition`：数据驱动能力定义（触发方式/目标选择/冷却/激活条件/效果列表）。不继承 `AriaAbilityBase`，而是持有配置数据。
-- `addons/aria/definitions/EffectDefinition`：数据驱动效果定义（类型/数值表达式/持续时间/穿透标记）。
-- `addons/aria/definitions/DataDrivenAbility`：桥接类，将 `AbilityDefinition` 包装为 `AriaAbilityBase`，通过委托注入目标解析和效果创建，保持 Aria 游戏无关。
-- `scripts/Combat/EffectFactory`：游戏侧效果工厂，从 `EffectDefinition` 创建具体效果实例（`DamageEffect` / `HealEffect` 等）。
-- `scripts/Combat/AbilityHelper`：游戏侧辅助工具，为 `DataDrivenAbility` 注入基于 `BattleContext` 的目标解析和效果创建委托。
-
-### 池系统（已建）
-
-- `scripts/Core/Pools/PoolBase<T>`：泛型实体池基类。反射收集模板、`Duplicate` + `DeepCopy AttributeSet` 创建实例、跟踪拥有/释放。消除各管理器中重复的反射模板收集逻辑。
-- `scripts/Core/Bases/IEntity`：游戏实体公共接口，提供 `AttributeSet` 访问，供通用逻辑使用。
+- **Apply 累加**：效果的施加必须**累加**到目标属性，而非覆盖赋值。多个来源对同一目标施加同类效果时，属性自然叠加。
+- **到期扣减**（有时长效果）：效果到期时从目标属性中**扣减该实例贡献的量**，而非直接清零。
+- **不清零**：有时长效果的移除不再直接设置属性为 0，属性由衰减逻辑自然归零。
+- **抵消判定**：根据属性最终值判断倍率（超频×2 / 麻痹×0.5 / 两者均>0时抵消×1），与效果实例数量无关。
 
 **能力复用约定**（重要）：
 
 - ⚠️ **能力必须可复用，禁止为单张卡写专属能力**：能力是通用动作单元，一张卡由多个已有能力组合而成。
-- **卡牌组合能力**：卡牌构造函数中通过 `Abilities.Add(...)` 组装已有能力（如 `AttackAbility` + `ParalysisAbility`），通过 `[Export]` 属性传入参数差异化。
+- **卡牌组合能力**：卡牌构造函数中组装已有能力，通过参数差异化。
 - **新能力的判断标准**：只有当现有能力组合无法表达所需逻辑时，才新建能力类。新能力必须能被多张卡复用。
-- **禁止的情况**：如 `ShockPistolAbility`（仅服务于"电击手枪"一张卡）→ 应拆分为 `AttackAbility` + `ParalysisAbility` 组合。
-- **正确示例**：`电击手枪` = `AttackAbility` + `ParalysisAbility { DurationSeconds = 1f }`；`麻痹枪` = `ParalysisAbility { DurationSeconds = 3f }`；`重型攻击` = `AttackAbility { DamageAmount = 50f }`。
-- **等级伤害由卡牌处理**：能力不感知等级。卡牌在构造函数中根据等级设置属性值（如 `ATTACK_POWER`），并在等级变化时通过 `OnLevelChanged` 钩子自动更新。能力只读属性，不关心值从哪来。
+- **禁止的情况**：如 `ShockPistolAbility`（仅服务于"电击手枪"一张卡）→ 应拆分为攻击 + 麻痹组合。
+- **正确示例**：`电击手枪` = 攻击能力 + 麻痹能力（时长 1s）；`麻痹枪` = 麻痹能力（时长 3s）；`重型攻击` = 攻击能力（伤害 50）。
+- **等级伤害由卡牌处理**：能力不感知等级。卡牌根据等级设置属性值，并在等级变化时自动更新。能力只读属性，不关心值从哪来。
 
-## 编码规范
+### 战斗时间规则
 
-### 命名规范
+- 战斗有 A/B 超时（A 正常对局超时 / B PvP 对局超时），超时自动结束。
+- 战斗时间阶段用语见 `docs/GLOSSARY.md`「战斗描述用语」。
 
-| 类型 | 规范 | 示例 |
+## 战斗系统
+
+### 基础术语
+
+- **英雄（Hero）**：玩家在战斗中的主体。英雄是唯一有血量的单位。英雄没有攻击能力，所有输出都来自卡牌。英雄是伤害、治疗、辐射、腐蚀的目标。英雄血量归零则该方战斗失败。
+- **卡牌（Card）**：战斗中的能力载体。卡牌没有血量，放在战场区。卡牌发动能力，效果作用于英雄或敌方卡牌。卡牌不会被伤害，但可以被 debuff 或摧毁。卡牌被摧毁不影响战斗胜负，只影响后续战斗能力。
+- **战场区（Battlefield）**：玩家放置参战卡牌的区域。战斗时只有战场区的卡牌生效。
+- **备战区（Bench）**：玩家放置备用卡牌的区域。备战区卡牌不参战，但可能有被动能力生效，也可能影响战场区卡牌的数值。
+- **事件（Event）**：对局中的选项。每回合玩家从若干事件中选一个执行。事件类型包括商店、怪物战、PvP、其他。
+- **对局（Match）**：从选英雄进入，到胜利或失败结束的完整过程。一局游戏 = 一个对局。
+- **战斗（Battle）**：对局中的一次自动战斗。怪物战和 PvP 都是战斗。
+
+### 战斗的参与者
+
+参战实体：
+
+- 玩家英雄（HeroInstance）
+- 敌方英雄（HeroInstance）
+- 玩家战场卡牌（CardInstance 数组）
+- 敌方战场卡牌（CardInstance 数组）
+- 玩家备战卡牌（CardInstance 数组，可能影响战斗）
+
+怪物：本质是预设英雄。怪物战就是英雄 vs 英雄，只是敌方英雄是预设的。所以战斗逻辑不为怪物单独写。
+
+### 战斗的生命周期
+
+阶段：
+
+```
+战斗开始
+  ↓
+从对局内持久状态派生战斗内初始值
+  ↓
+战斗主循环（只操作战斗内临时状态）
+  ↓
+战斗结束
+  ↓
+收集永久性质变化 → 应用到本体
+  ↓
+丢弃战斗内临时状态
+  ↓
+返回战斗结果（BattleResult）
+```
+
+**混合方案（对局内持久 + 战斗内临时）**
+
+不深拷贝实体副本。实体状态分两部分：
+
+- **对局内持久状态**：战斗内不动。英雄为金钱、经验、等级、声望；卡牌为对局内持久加成、解锁记录、等级、价值。
+- **战斗内临时状态**：单独存储。英雄为生命、护甲、辐射、腐蚀、能量等；卡牌为战斗内临时加成、冷却、超频、麻痹、禁锢、是否被摧毁。
+
+战斗开始时从对局内持久状态派生战斗内初始值；战斗内只操作战斗内临时状态；战斗结束丢弃战斗内临时状态，不应用到本体。
+
+**永久性质**
+
+战斗内可能发生永久性质的变化（如永久摧毁某张卡牌）。这些变化在战斗内标记，战斗结束时收集并应用到本体：**永久摧毁 = 直接从玩家卡池删除该卡牌**。与战斗内临时状态（随战斗结束丢弃）区分。
+
+### 战斗的时序
+
+**两层帧推进**
+
+| 层 | 频率 | 职责 |
 |---|---|---|
-| 类/结构体 | PascalCase | PlayerController, GameManager |
-| 接口 | I + PascalCase | IDamageable, ISaveable |
-| 方法 | PascalCase | TakeDamage(), SaveGame() |
-| 本地变量 | camelCase | playerHealth, moveSpeed |
-| 私有字段 | _camelCase | _health, _isInitialized |
-| 公共属性 | PascalCase | Health, MaxSpeed |
-| 常量 | UPPER_SNAKE_CASE | MAX_PLAYERS, DEFAULT_SPEED |
-| 枚举 | PascalCase | GameState, WeaponType |
-| 信号/事件 | Event 后缀 | HealthChangedEvent, GameOverEvent |
-| 基类/抽象类 | Base 后缀 | AriaAbilityBase, CardBase, CombatEventBase |
+| 时间推进层 | 高频（步长可配置） | 只推进时钟，不做逻辑 |
+| 逻辑结算层 | 低频（步长可配置） | 做所有逻辑结算 |
 
-- **基类 / 抽象类一律以 `Base` 结尾**：凡被继承的类（含抽象基类）命名必须带 `Base` 后缀，子类直接继承该命名，不允许裸名基类（如事件基类须为 `CombatEventBase`）。
+约束：除了时钟计算，其他所有步长都是逻辑结算层步长的整数倍。
 
-### 代码规范
+**逻辑步做什么**
 
-- 遵循 C# / Godot 官方风格，按上方命名规范执行。
-- 每个类一个文件，文件名与类名一致（如 `PlayerController.cs` → `public class PlayerController`）。
-- 类与脚本文件名保持一致（Godot 要求类名匹配文件名）。
-- 通过节点路径引用时使用 `GetNode<T>("...")`；优先使用 `@export` 在 Inspector 暴露参数。
-- 不使用 `_Process` 计算固定逻辑，改用 `_PhysicsProcess`。
-- 注释一律使用普通 `//` 注释，**不使用 XML 文档注释（`///`）**。
-- **所有公共类型**（类 / 接口 / 结构体 / 枚举 / 公共属性 / 公共字段 / 公共常量）必须加注释，说明其用途。
-- **重要的公共函数 / 变量**应加注释（非全部），说明其行为、参数、返回值或约束；简单的、自解释的公共成员可不加。
-- **重载成员不加注释**：重载的函数 / 变量（如多个构造函数、同名方法）不逐一注释，意图由首个声明或上下文表达。
-- **叶子类注释从简**：继承/依赖链越末端的具体类（如实体子类、枚举、简单工具类）注释越少，仅保留类型级或分组级注释，不为琐碎成员逐一加注。
-- 提交前不包含任何密钥或敏感信息。
+每个逻辑步，按顺序执行：
 
-### 性能注意事项
+1. 坍缩检查：是否到达坍缩时间
+2. 寂灭检查：是否到达寂灭时间
+3. 卡牌冷却递减：所有卡牌的 CD 递减
+4. 主动能力入队：CD 到了的卡牌，主动能力进队列
+5. 英雄状态结算：辐射、腐蚀、生命再生、能量再生
+6. 处理能力队列：执行队列里的能力，产生效果，触发被动
+7. 检查死亡：英雄是否死亡
+8. 检查战斗结束：是否满足结束条件
 
-- 避免在 `_Process()` 中使用 `GetNode()` 或 `FindChild()`，应在 `_Ready()` 中缓存节点引用。
-- 使用 Pool（对象池）管理频繁创建/销毁的对象（如子弹）。
-- 在 `_ExitTree()` 中断开信号连接，防止内存泄漏。
-- 使用 `[GodotClass]` 属性标记自定义类。
+**坍缩时间**：战斗到达坍缩时间后，双方英雄同时扣血。扣血按配置的曲线（如斐波那契、线性、分段等）。卡牌继续正常发动。
+
+**寂灭时间**：战斗到达寂灭时间后，强制结束。双方同时死亡，判玩家方获胜。
+
+命名说明：坍缩 = 开始同时扣血的时间点；寂灭 = 强制结束的时间点。
+
+### 战斗的触发
+
+触发来源：
+
+- 主动能力：CD 到了，主动发动
+- 被动能力：监听事件，事件发生触发
+- 英雄状态结算：辐射、腐蚀、生命再生、能量再生
+- 坍缩扣血：坍缩时间后，双方扣血
+- 其他战斗内事件
+
+触发机制：
+
+- 主动能力：CD 到了 → 进队列（depth = 0）→ 检查 CanActivate → 通过 → 执行
+- 被动能力：监听某个事件 → 事件发生 → 进队列（depth = 上一层 + 1）→ 检查 CanActivate → 通过 → 执行
+
+深度上限：
+
+- 主动 depth = 0
+- 被动 depth = 上一层 + 1
+- 超过上限（可配置）不入队
+- 被主动触发过的被动，不能再触发另一个被动
+
+执行顺序：同一逻辑步内，队列按入队顺序处理；处理完队列，再检查死亡。
+
+事件类型：
+
+| 事件 | 触发时机 |
+|---|---|
+| BattleStartEvent | 战斗开始 |
+| TickEvent | 时间推进 |
+| AbilityActivatedEvent | 能力发动 |
+| AdjacentCardActivatedEvent | 相邻卡牌发动 |
+| DamageDealtEvent | 造成伤害 |
+| HealAppliedEvent | 治疗 |
+| EnergyChangedEvent | 能量变化 |
+| UnitKilledEvent | 击杀 |
+| CardDestroyedEvent | 卡牌被摧毁 |
+| CollapseStartedEvent | 坍缩开始 |
+| CollapseDamageEvent | 坍缩扣血 |
+| AnnihilationEvent | 寂灭 |
+| BattleEndEvent | 战斗结束 |
+
+队列：主动和被动进同一个队列。队列按入队顺序处理。深度上限防止无限链式触发。
+
+### 战斗的状态
+
+**英雄状态**
+
+英雄的属性分两部分：**对局内持久状态**（跨战斗保留、战斗内不动）与**战斗内临时状态**（单独存储、战斗结束丢弃）。
+
+对局内持久状态：
+
+| 状态 | 说明 |
+|---|---|
+| Wealth | 金钱 |
+| Experience | 经验 |
+| Level | 等级 |
+| Reputation | 声望 |
+
+战斗内临时状态：
+
+| 状态 | 说明 |
+|---|---|
+| Health | 生命（当前值） |
+| MaxHealth | 最大生命 |
+| Armor | 护甲 |
+| Radiation | 辐射 |
+| Corrosion | 腐蚀 |
+| HealthRegen | 生命再生 |
+| Energy | 能量（当前值） |
+| MaxEnergy | 最大能量 |
+| EnergyRegen | 能量再生 |
+
+所有属性可动态修改，通过 ApplyModifier / RemoveModifier。对局内持久状态在战斗结束后保留；战斗内临时状态的变化不应用到本体，随战斗结束丢弃。
+
+**卡牌状态**
+
+对局内持久状态：
+
+| 状态 | 说明 |
+|---|---|
+| Level | 等级 |
+| Value | 价值 |
+| PersistentBonus | 对局内持久加成 |
+| UnlockRecord | 解锁记录 |
+
+战斗内临时状态：
+
+| 状态 | 说明 |
+|---|---|
+| Bonus | 战斗内临时加成 |
+| Cooldown | 冷却 |
+| OverclockDuration | 超频时长 |
+| ParalysisDuration | 麻痹时长 |
+| ImmobilizeDuration | 禁锢时长 |
+| Destroyed | 是否被摧毁 |
+
+**状态规则**
+
+- 多个来源直接累加到属性
+- 无来源
+- 自己结算
+- 有独立的触发周期和衰减周期
+- 周期都是基础逻辑步长的整数倍
+- 取整
+
+辐射：
+
+- 触发周期：1 秒；衰减周期：1 秒
+- 伤害：Floor(辐射值)，不受护甲影响；衰减：Floor(辐射值 / 2)
+- 触发受伤事件
+
+腐蚀：
+
+- 触发周期：1 秒；衰减周期：0.2 秒
+- 伤害：Floor(腐蚀值)，优先扣护甲；衰减：Max(0, Floor(腐蚀值 - 固定值))
+- 触发受伤事件
+
+生命再生：
+
+- 触发周期：1 秒；回血：Floor(生命再生)；触发治疗事件
+
+能量再生：
+
+- 触发周期：1 秒；回能：Floor(能量再生)，上限 MaxEnergy；触发能量变化事件
+
+超频 / 麻痹 / 禁锢：
+
+- 影响卡牌冷却速度；超频：冷却速度 ×2；麻痹：冷却速度 ×0.5；禁锢：冷却停止
+- 超频和麻痹同时存在时抵消为 ×1
+
+### 战斗的能力
+
+**能力（Ability）**：可被触发的动作单元。主动（冷却触发）与被动（事件触发）都是能力，区别仅在于触发方式。能力复用约定见上文「能力系统」。
+
+**能量消耗**：
+
+- 能力发动前检查能量
+- 检查在 CanActivate 里
+- 检查通过 → 扣能量 → 执行
+- 检查失败 → 不发动
+- 免能量卡牌：energyCost = 0
+
+**效果（Effect）**：
+
+- 伤害、治疗、加护甲都是即时结算
+- 即时结算也要放在逻辑步中
+- 状态（辐射、腐蚀、超频等）直接改属性
+
+### 战斗的数值
+
+**卡牌数值计算**
+
+两层：
+
+- 基础值：卡牌自己重写计算
+- Modifier 叠加：影响源主动施加
+- 最终值 = 基础值 + sum(Modifiers)
+
+允许依赖：
+
+- 数量（武器卡数量、战场卡数量等）
+- 标签
+- 位置（相邻、战场、备战等）
+- 基础值
+- 状态（辐射、腐蚀等）
+- 属性（护甲、能量等）
+
+不允许依赖：
+
+- 其他卡牌的最终值（攻击力、护甲等）
+- 其他卡牌的动态计算结果
+
+原因：避免循环依赖，避免无限递归，保证计算一次完成，保证结果确定可回放。
+
+卡牌示例：
+
+| 卡牌 | 依赖 | 允许 |
+|---|---|---|
+| A 卡：每有一张武器卡，+10 | 数量、标签 | 允许 |
+| B 卡：每与一张武器卡相邻，+10 | 位置、标签 | 允许 |
+| C 卡：战场每有一张牌，+10 | 数量 | 允许 |
+| D 卡：所有可攻击卡牌 +10 | 影响源施加 Modifier | 允许 |
+| E 卡：所有卡攻击力之和 | 其他卡最终值 | 不允许 |
+
+**刷新**
+
+- 非战斗状态可随时调整排布
+- 每次操作后实时刷新
+- 重算基础值、重新施加 Modifier、更新属性集、更新 UI
+
+触发刷新的时机：
+
+- 卡牌进入 / 离开战场
+- 卡牌进入 / 离开备战
+- 卡牌移动
+- 卡牌被摧毁
+- 卡牌被创建
+- 标签变化
+- 其他影响排布的操作
+
+### 战斗的结束
+
+结束条件：
+
+| 情况 | 结果 |
+|---|---|
+| 敌方英雄血量归零 | 玩家胜利 |
+| 己方英雄血量归零 | 玩家失败 |
+| 双方都死 | 玩家胜利（正反馈） |
+| 到达寂灭时间 | 强制结束，同时死亡判玩家胜 |
+
+结束原因：
+
+- EnemyHeroDied
+- PlayerHeroDied
+- Timeout
+- Surrender
+- Draw
+
+输出：
+
+```
+BattleResult {
+    Winner          // Player / Enemy / Draw
+    EndReason       // 结束原因
+    PlayerSurvivors // 玩家幸存者
+    EnemySurvivors  // 敌方幸存者
+    PermanentChanges // 永久性质变化
+}
+```
+
+### 战斗与对局的关系
+
+**对局层触发战斗**：
+
+- 怪物战：第 4 回合或其他事件触发
+- PvP：第 8 回合触发
+
+**战斗结束回传**：
+
+- 战斗结果回传给对局层
+- 对局层结算奖励 / 惩罚
+- 对局层应用永久变化到本体
+
+对局胜负规则见上文「对局胜负」。
+
+**战斗内外分离**：
+
+- 对局层触发机制独立
+- 战斗层触发机制独立
+- 两套不共用
+- 战斗内事件不直接发到局外总线
+
+### 三层生命周期
+
+| 层 | 管理器 | 生命周期 | 职责 |
+|---|---|---|---|
+| 全局层 | GameManager | 游戏启动到退出 | 主界面到各种模式间的调度 |
+| 对局层 | MatchManager | 进入对局到对局结束 | 非战斗事件调度、触发机制 |
+| 战斗层 | CombatManager | 对局开始时创建，战斗时启动 | 战斗驱动 |
+
+### 扩展预留
+
+- 时间推进层可挂表现层回调
+- 逻辑结算层可挂统计 / 日志 / 回放回调
+- 步长可运行时调整
+- 两层可独立暂停
+- 逻辑层可支持多种步长
+- 触发类型可扩展
+- 动作类型可扩展
+- 条件类型可扩展
+- 数值表达式可扩展
+- 结束原因可扩展
+- 事件类型可扩展
+- 仅一次战斗的技能（预留）
+- 永久性质结算（预留）
 
 ## Git 工作流
 
@@ -367,16 +495,9 @@ public partial class PoisonEffect : AriaEffectBase   // 周期毒：每秒扣血
 - `fix: 修复碰撞检测问题`
 - `docs: 更新 API 文档`
 
-### 其他约定
-
-- 修改场景（.tscn）时注意保留 `.uid`，避免破坏资源引用。
-- **新建文件按用途归类，禁止乱扔进 `Bases/`**：接口→`Interfaces/`（或 Aria `interfaces/`）、上下文→`Contexts/`（或 Aria `contexts/`）、枚举/类型→`Types/`、实体基类才进 `Bases/`、实体子类进 `Entities/`。
-- **按子系统分目录**：元游戏管理器→`Systems/`、棋盘实现→`Board/`（Manager/Data/Algo）、对局管理与事件→`Match/`、战斗实现→`Combat/`；可能被其他模块引用的共享类型放 `scripts/Core/`。
-
-## 重要约束
+## 项目约束
 
 - ❌ 不要直接修改 `.godot/` 文件夹内容
 - ❌ 不要提交 `export_presets.cfg` 到仓库（除非需要）
-- ❌ 不要在场景中硬编码文件路径，使用 `[Export]` 或资源引用
 - ✅ .NET SDK 版本必须 ≥ 6.0
 - ✅ 确保 `.gitignore` 包含 `bin/` 和 `obj/` 目录
