@@ -10,7 +10,7 @@ Project_Star 的代理工作指南。本文件供 AI 代理 / 开发者了解项
 - 渲染：**Forward Plus**，Windows 下使用 **D3D12** 驱动
 - 视口拉伸模式：`canvas_items` + `expand` 自适应
 - 类型：类《The Bazaar》（大巴扎）的**卡牌异步对战自走棋**
-- 玩法框架：自研 **Aria** 插件（基于 Forge for Godot 思路参考，**不得引用 Forge 运行时**）
+- 玩法框架：自研 **Aria** 插件（承接 Forge for Godot 设计思路，独立实现）
 
 ## 游戏设计（立项）
 
@@ -71,7 +71,6 @@ Project_Star/
 │   │   ├── effects/     # Aria 效果（AriaEffectBase）
 │   │   ├── expressions/ # 动态值表达式（ValueExpression / Condition）
 │   │   └── definitions/ # 数据驱动定义（AbilityDefinition / EffectDefinition / DataDrivenAbility）
-│   └── forge/         # Forge for Godot 插件（仅作参考，不引用）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
 │   ├── Menu.tscn      # 菜单场景
@@ -108,19 +107,9 @@ dotnet build                    # 编译 C# 脚本
 godot --path .                  # 编辑器可执行文件已配置好 mono 模块
 ```
 
-## Forge for Godot 插件（仅参考）
-
-**Forge for Godot**（Unreal GAS 风格的游戏玩法框架，仅支持 C#）只作为 Aria 插件的**设计参考**。
-
-### 注意事项
-
-- ⚠️ **本项目不得引用 Forge 运行时**：不 `using Gamesmiths.Forge.*`，不依赖 `Forge.props` / NuGet 包，不为 Forge 写业务代码。
-- ⚠️ 插件位于 `addons/forge/`，仅保留用于阅读参考，其源码问题不修复、不依赖。
-- 改动前先参考 `addons/forge/` 与 NuGet 包 `Gamesmiths.Forge 0.4.0` 的设计思路（如 Ability、Attribute 结构）。
-
 ## Aria 插件（自研）
 
-`addons/aria/` 是自研玩法插件，承接 Forge 思路但**独立实现，不依赖 Forge**。
+`addons/aria/` 是自研玩法插件，承接 Forge 设计思路但**独立实现，不依赖任何第三方运行时**。
 
 ### 插件定位（重要）
 

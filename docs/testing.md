@@ -65,4 +65,3 @@ dotnet build
 ## 说明
 
 - 新增的 NuGet 包引用（`Chickensoft.GoDotTest` / `Chickensoft.GodotTestDriver`）已加入 `Project_Star.csproj`，可从本地 NuGet 缓存离线还原，无需网络。
-- 未移除 `addons/forge/Forge.props` 的导入。

@@ -30,7 +30,7 @@
 - **BoardManager**：棋盘（战场/备战区双棋盘各 10 格、推挤放置/移除/交换/跨区拖拽编排）
 - **EventManager**：事件生成、分发、结算，持有两个子管理器（MonsterEventManager / ShopEventManager）
 
-玩法框架使用自研 **Aria** 插件（参考 Forge for Godot 设计思路，不引用其运行时）。Aria 为跨游戏复用的通用插件，不含本项目专属逻辑。
+玩法框架使用自研 **Aria** 插件（承接 Forge for Godot 设计思路，独立实现，不依赖任何第三方运行时）。Aria 为跨游戏复用的通用插件，不含本项目专属逻辑。
 
 ## 英雄系统
 
@@ -64,8 +64,7 @@ Project_Star/
 │   ├── models/        # 3D模型 (.glb, .fbx)
 │   └── fonts/         # 字体 (.ttf)
 ├── addons/            # Godot 插件
-│   ├── aria/          # Aria 自研玩法插件（属性、能力等）
-│   └── forge/         # Forge for Godot 插件（仅作参考，不引用）
+│   └── aria/          # Aria 自研玩法插件（属性、能力等）
 ├── scenes/            # 场景文件 (.tscn)
 │   ├── Main.tscn      # 主场景
 │   ├── Menu.tscn      # 菜单场景

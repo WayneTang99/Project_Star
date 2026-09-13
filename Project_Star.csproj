@@ -13,5 +13,7 @@
     <PackageReference Include="Chickensoft.GodotTestDriver" Version="3.1.81" />
   </ItemGroup>
 
-  <Import Project="addons/forge/Forge.props" />
+  <ItemGroup>
+    <Content Include="AGENTS.md" />
+  </ItemGroup>
 </Project>
