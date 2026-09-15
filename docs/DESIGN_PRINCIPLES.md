@@ -77,15 +77,15 @@ Project_Star 代码层遵循的软件设计原则。供 AI 代理 / 开发者编
 
 ## 三、本项目扩展点速查
 
-| 扩展需求 | 扩展方式 | 涉及步骤 |
+| 扩展需求 | 扩展方式 | 参见 |
 |---|---|---|
-| 新增能力类型 | 继承 `AbilityBase`，override `Execute` | 2.2 |
-| 新增效果类型 | 继承 `EffectBase`，override `Apply` | 2.2 |
-| 能力需要棋盘信息 | 在 `AbilityContext` 加 `Board` 属性 | 2.3 |
-| 能力监听战斗事件 | `AbilityContext` 加 `Event` 属性 | 2.3 |
-| 新增战斗事件 | 继承 `CombatEvent`，发布到 `CombatEventBus` | 5.7 |
-| 新增对局事件 | 继承 `MatchEvent`，发布到 `MatchEventBus` | 3.5-3.6 |
-| 新增英雄子类 | 继承 `HeroBase`，反射模板池自动收集 | 3.3 |
-| 新增卡牌子类 | 继承 `CardBase`，反射模板池自动收集 | 3.4 |
-| 新增战斗结束原因 | 扩展 `BattleEndReason` 枚举 | 5.6 |
-| 新增遭遇类型 | 继承 `EncounterBase`，反射模板池自动收集 | 4.5 |
+| 新增能力类型 | 继承 `AbilityBase`，override `Execute` | ARCHITECTURE.md「四、能力系统」 |
+| 新增效果类型 | 继承 `EffectBase`，override `Apply` | ARCHITECTURE.md「四、能力系统」 |
+| 能力需要棋盘信息 | 在 `AbilityContext` 加 `Board` 属性 | ARCHITECTURE.md「四、能力系统」 |
+| 能力监听战斗事件 | `AbilityContext` 加 `Event` 属性 | ARCHITECTURE.md「四、能力系统」 |
+| 新增战斗事件 | 继承 `CombatEvent`，发布到 `CombatEventBus` | ARCHITECTURE.md「二、分层与管理器」 |
+| 新增对局事件 | 继承 `MatchEvent`，发布到 `MatchEventBus` | ARCHITECTURE.md「二、分层与管理器」 |
+| 新增英雄子类 | 继承 `HeroBase`，反射模板池自动收集 | ARCHITECTURE.md「三、实体与状态」 |
+| 新增卡牌子类 | 继承 `CardBase`，反射模板池自动收集 | ARCHITECTURE.md「三、实体与状态」 |
+| 新增战斗结束原因 | 扩展 `BattleEndReason` 枚举 | ARCHITECTURE.md「五、战斗系统」 |
+| 新增遭遇类型 | 继承 `EncounterBase`，反射模板池自动收集 | ARCHITECTURE.md「三、实体与状态」 |

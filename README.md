@@ -23,4 +23,10 @@
 
 ## 详细需求
 
-游戏设计需求见 `AGENTS.md`，术语定义见 `docs/GLOSSARY.md`。
+游戏设计规则见 `docs/GAME_DESIGN.md`，架构实现见 `docs/ARCHITECTURE.md`，术语定义见 `docs/GLOSSARY.md`。
+
+## 项目文件
+
+- `README.md` — 本文件，项目概览（人看）
+- `AGENTS.md` — AI 代理入口：行为准则、硬约束、文档导航
+- `docs/` — 专项文档（游戏设计、架构、术语、开发约定等）

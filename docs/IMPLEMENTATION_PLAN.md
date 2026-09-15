@@ -1,4 +1,10 @@
 # IMPLEMENTATION_PLAN.md
+
+> 本表为临时执行计划，实现完成后删除。
+> 表中出现的规则细节仅为执行时就近参考，
+> 权威定义见 `docs/ARCHITECTURE.md` 与 `docs/GAME_DESIGN.md`。
+> 若本表与上述文档冲突，以上述文档为准。
+
 Project_Star 实现计划。与 `AGENTS.md`（导航）、`docs/ARCHITECTURE.md`（架构）配合使用；术语定义见 `docs/GLOSSARY.md`。
 
 ## 实施约定
@@ -53,7 +59,7 @@ Project_Star 实现计划。与 `AGENTS.md`（导航）、`docs/ARCHITECTURE.md`
 - [ ] **4.2 GameBoard 纯数据**：卡牌引用 + 顺序（Order）+ 占用格（StartCell），不存渲染坐标；战场 + 备战各 10 格；`GetCards()` / `GetLayout()` 等查询。
 - [ ] **4.3 BoardManager**：双棋盘管理（战场 + 备战）、放置 / 移除 / 交换 / 跨区拖拽编排、预览（评估）与提交（执行）分离、随对局创建 / 销毁。
 - [ ] **4.4 轮次调度**：8 回合 / 轮、当前轮 / 当前回合推进、`IsPvPTurn`（第 8 回合）、`CompleteTurn`、`CheckDefeat`。
-- [ ] **4.5 遭遇排程**：默认三选一（≥1 商店）、第 4 回合三怪物、第 8 回合 PvP；按 MinRound / MaxRound 过滤模板；未出现加成（基础权重 × 倍率）、按 key 跟踪已出现、新对局清空。
+- [ ] **4.5 遭遇排程**（未实现）：默认三选一（≥1 商店）、第 4 回合三怪物、第 8 回合 PvP；按 MinRound / MaxRound 过滤模板；未出现加成（基础权重 × 倍率）、按 key 跟踪已出现、新对局清空。
 - [ ] **4.6 遭遇执行与商店交易**：遭遇点击进入战斗 / 商店交易（买卡扣钱入池、卖卡出池回钱）、`ItemPurchasedEvent` / `ItemSoldEvent`、归属 key 过滤卡池。
 - **完成标准**：`dotnet build` 通过；推挤算法配单元测试。
 
@@ -85,8 +91,8 @@ Project_Star 实现计划。与 `AGENTS.md`（导航）、`docs/ARCHITECTURE.md`
 
 #### 第 7 步子拆解（逐步讨论+执行）
 
-- [ ] **7.1 HeroSelectionUI**：选角界面（英雄列表 → 点击 → `HeroManager.SelectHero`），只读订阅、不直接改模型。
-- [ ] **7.2 InMatchHeroUI**：局内界面（金钱 / 经验 / 等级 / 声望展示，订阅属性事件刷新）。
+- [ ] **7.1 HeroSelectionUI**（未实现）：选角界面（英雄列表 → 点击 → `HeroManager.SelectHero`），只读订阅、不直接改模型。
+- [ ] **7.2 InMatchHeroUI**（未实现）：局内界面（金钱 / 经验 / 等级 / 声望展示，订阅属性事件刷新）。
 - [ ] **7.3 棋盘视图**：像素换算（数据层坐标 → UI 像素）、战场 + 备战双棋盘渲染、点击放置 / 移动。
 - [ ] **7.4 卡牌展示**：卡牌信息展示（价值 / 等级 / 能力）、商店列表、购买 / 出售交互。
 - **完成标准**：最小可玩版本。

@@ -7,10 +7,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="AGENTS.md" />
+    <Content Include="docs\API.md" />
     <Content Include="docs\ARCHITECTURE.md" />
+    <Content Include="docs\BUG_LOG.md" />
+    <Content Include="docs\GAME_DESIGN.md" />
     <Content Include="docs\GLOSSARY.md" />
     <Content Include="docs\IMPLEMENTATION_PLAN.md" />
     <Content Include="docs\DESIGN_PRINCIPLES.md" />
     <Content Include="docs\DEV_CONVENTIONS.md" />
+    <Content Include="README.md" />
   </ItemGroup>
 </Project>
