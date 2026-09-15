@@ -38,6 +38,12 @@ Project_Star 架构说明。本文档供 AI 代理 / 开发者理解项目架构
 - 数值流转一律走属性集（扣金钱、扣血等），不直接改字段。
 - CardManager 管卡牌实例与数据，BoardManager 管卡牌在棋盘上的位置与布局。
 
+### 事件总线
+
+- 共享层 `EventBus<TEvent>`：强类型事件按 `Type` 分发；`Subscribe<T>` 返回 `IDisposable` 令牌（Dispose 即退订）；`Publish` 沿事件类型继承链分发（订阅基类可收子类事件）。
+- 两套总线通过泛型约束编译期隔离：`MatchEventBus : EventBus<MatchEvent>`（对局层）、`CombatEventBus : EventBus<CombatEvent>`（战斗层），互不互通。
+- 事件类继承对应基类（`MatchEvent` / `CombatEvent`），基类继承 `EventBase`（共享层）。
+
 ### 棋盘架构
 
 棋盘归属对局层，随对局创建 / 销毁；推挤算法为共享层纯函数，跨局复用。

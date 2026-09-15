@@ -19,10 +19,10 @@ Project_Star 实现计划。与 `AGENTS.md`（需求）、`docs/ARCHITECTURE.md`
 
 ### 第 2 步：通用机制——事件总线 + 能力/效果
 
-- 局外 `MatchEventBus` / 战斗内 `CombatEventBus`（两套分离，互不互通）。
-- 能力基类（主动 / 被动触发）、效果基类。
-- 效果堆叠约定：Apply 累加 / 到期扣减 / 不清零 / 抵消判定。
-- **完成标准**：`dotnet build` 通过。
+- ✅ 双事件总线：`EventBus<TEvent>` 共享基类 + `MatchEventBus` / `CombatEventBus`（泛型约束编译期隔离、订阅令牌退订、按继承链分发）。
+- ⏳ 能力基类（主动 / 被动触发）、效果基类（待实现）。
+- ⏳ 效果堆叠约定：Apply 累加 / 到期扣减 / 不清零 / 抵消判定（待实现）。
+- **完成标准**：`dotnet build` 通过（事件总线部分已通过）。
 
 ### 第 3 步：全局层——管理器 + 卡牌经济
 
