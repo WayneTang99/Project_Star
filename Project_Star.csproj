@@ -11,5 +11,6 @@
     <Content Include="docs\GLOSSARY.md" />
     <Content Include="docs\IMPLEMENTATION_PLAN.md" />
     <Content Include="docs\DESIGN_PRINCIPLES.md" />
+    <Content Include="docs\DEV_CONVENTIONS.md" />
   </ItemGroup>
 </Project>
