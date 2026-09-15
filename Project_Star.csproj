@@ -9,5 +9,6 @@
     <Content Include="AGENTS.md" />
     <Content Include="docs\ARCHITECTURE.md" />
     <Content Include="docs\GLOSSARY.md" />
+    <Content Include="docs\IMPLEMENTATION_PLAN.md" />
   </ItemGroup>
 </Project>
