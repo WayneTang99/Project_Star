@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="AGENTS.md" />
+    <Content Include="docs\ARCHITECTURE.md" />
     <Content Include="docs\GLOSSARY.md" />
   </ItemGroup>
 </Project>
