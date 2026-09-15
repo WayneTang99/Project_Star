@@ -15,13 +15,11 @@ public abstract class AbilityBase : IAbility
     public int Cooldown { get; init; }
 
     // 默认检查：能量是否足够。子类覆写时须 base.CanActivate && 自定义条件。
-    public virtual bool CanActivate(object caster)
+    public virtual bool CanActivate(HeroBattleState caster)
     {
-        if (caster is HeroBattleState hero)
-            return hero.Energy >= EnergyCost;
-        return true;
+        return caster.Energy >= EnergyCost;
     }
 
     // 执行能力逻辑（子类实现）。
-    public abstract void Execute(object context);
+    public abstract void Execute(AbilityContext context);
 }

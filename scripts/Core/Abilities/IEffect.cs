@@ -12,6 +12,6 @@ public interface IEffect
     string DisplayName { get; }
     // 效果类型（即时/周期）
     EffectType Type { get; }
-    // 施加效果到目标（通过 context 获取施法者/目标/战场等信息）
-    void Apply(object context);
+    // 施加效果到目标
+    void Apply(AbilityContext context);
 }

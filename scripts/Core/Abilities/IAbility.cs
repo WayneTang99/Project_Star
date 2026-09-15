@@ -1,4 +1,5 @@
 using Godot;
+using Project_Star.Core.States;
 
 namespace Project_Star.Core.Abilities;
 
@@ -18,7 +19,7 @@ public interface IAbility
     // 基础冷却时间
     int Cooldown { get; }
     // 是否满足发动条件（子类可覆写扩展）
-    bool CanActivate(object caster);
-    // 执行能力逻辑（context 为执行上下文，2.3 步实现）
-    void Execute(object context);
+    bool CanActivate(HeroBattleState caster);
+    // 执行能力逻辑
+    void Execute(AbilityContext context);
 }

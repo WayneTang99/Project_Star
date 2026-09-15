@@ -19,5 +19,5 @@ public abstract class EffectBase : IEffect
     public int ContributionAmount { get; set; }
 
     // 施加效果到目标（子类实现具体逻辑）。
-    public abstract void Apply(object context);
+    public abstract void Apply(AbilityContext context);
 }
