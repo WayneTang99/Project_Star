@@ -13,7 +13,7 @@ Project_Star 实现计划。与 `AGENTS.md`（需求）、`docs/ARCHITECTURE.md`
 ### 第 1 步：地基——属性与实体
 
 - 状态容器：对局资源 AttributeSet + 战斗状态 BattleState，ApplyModifier / RemoveModifier。
-- 实体基类 `HeroBase` / `CardBase` / `EventBase`（身份字段 get-only，key 用 StringName）。
+- 实体基类 `HeroBase` / `CardBase` / `EncounterBase`（身份字段 get-only，key 用 StringName）。
 - 反射模板池 `PoolBase<T>`。
 - **完成标准**：`dotnet build` 通过。
 
@@ -34,7 +34,7 @@ Project_Star 实现计划。与 `AGENTS.md`（需求）、`docs/ARCHITECTURE.md`
 
 - 推挤算法（纯函数：评估 / 执行分离、择优）。
 - `GameBoard` 纯数据（战场 + 备战各 10 格）+ `BoardManager`（操作协调、跨区，随对局创建 / 销毁）。
-- 轮次调度（8 回合 / 轮）、事件排程（默认三选一含商店 / 第 4 回合三怪物 / 第 8 回合 PvP）、事件执行、商店交易。
+- 轮次调度（8 回合 / 轮）、遭遇排程（默认三选一含商店 / 第 4 回合三怪物 / 第 8 回合 PvP）、遭遇执行、商店交易。
 - **完成标准**：`dotnet build` 通过；推挤算法配单元测试。
 
 ### 第 5 步：战斗层——时钟 + 解析器

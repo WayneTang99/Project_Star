@@ -1,5 +1,6 @@
 namespace Project_Star.Core.States;
 
+// 英雄战斗内临时状态（战斗层）：生命/护甲/辐射/腐蚀/能量等，战斗结束丢弃。
 public class HeroBattleState : BattleState
 {
     public int Health { get => GetValue(nameof(Health)); set => SetValue(nameof(Health), value); }

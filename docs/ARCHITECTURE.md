@@ -28,7 +28,7 @@ Project_Star 架构说明。本文档供 AI 代理 / 开发者理解项目架构
 | GameManager | 全局 | 主状态机（选英雄 → 局内 → 结算），信号广播状态切换 |
 | HeroManager | 全局 | 英雄模板池（反射收集）、实例化、玩家当前英雄 |
 | CardManager | 全局 | 卡牌模板池（反射收集）、实例化、玩家拥有卡牌、按归属 key 过滤供商店 |
-| MatchManager | 对局 | 轮次调度、事件生成排程与执行、局外事件总线 |
+| MatchManager | 对局 | 轮次调度、遭遇生成排程与执行、局外事件总线 |
 | BoardManager | 对局 | 本局棋盘：战场 / 备战双棋盘（各 10 格），随对局创建 / 销毁，推挤放置/移除/交换/跨区编排 |
 | CombatManager | 战斗 | 持有 BattleClock + Resolver，管理战斗生命周期 + A/B 超时 |
 
@@ -57,7 +57,7 @@ BoardManager（对局层）  对外操作入口：放置/移除/交换/跨区拖
 
 ### 实体基类
 
-- `HeroBase` / `CardBase` / `EventBase`：实体抽象基类，持对应属性集。
+- `HeroBase` / `CardBase` / `EncounterBase`：实体抽象基类，持对应属性集。遭遇（Encounter）指玩家回合遭遇选项（商店/怪物战/PvP），与总线事件（MatchEvent / CombatEvent）区分。
 - 身份字段（key / 展示名 / 归属 / 尺寸）为 get-only，创建后不可修改。
 - Key 统一用 `StringName`，展示名保持 `string`；身份字段放进属性集，不放实体 Node 上。
 
@@ -170,7 +170,7 @@ Project_Star/
 │   ├── Systems/      # 全局管理器（GameManager / HeroManager / CardManager）
 │   ├── Match/        # 对局管理器（MatchManager）、本局棋盘（BoardManager / GameBoard）、轮次、事件排程与执行
 │   ├── Combat/       # 战斗管理器、时钟、解析器、战斗事件
-│   ├── Entities/     # 英雄 / 卡牌 / 事件 / 怪物子类
+│   ├── Entities/     # 英雄 / 卡牌 / 遭遇 / 怪物子类
 │   └── UI/           # 视图控制器（只读订阅）
 ├── Project_Star.csproj
 └── Project_Star.sln

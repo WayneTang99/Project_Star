@@ -1,5 +1,6 @@
 namespace Project_Star.Core.States;
 
+// 卡牌战斗内临时状态（战斗层）：冷却/超频/麻痹/禁锢/是否被摧毁等，战斗结束丢弃。
 public class CardBattleState : BattleState
 {
     public int Bonus { get => GetValue(nameof(Bonus)); set => SetValue(nameof(Bonus), value); }
