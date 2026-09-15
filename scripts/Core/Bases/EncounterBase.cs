@@ -18,7 +18,7 @@ public abstract partial class EncounterBase : RefCounted, IEntity
     }
 
     // 复制独立遭遇实例（供模板池调用，含独立属性集）。
-    public object Clone()
+    public virtual object Clone()
     {
         var copy = (EncounterBase)Activator.CreateInstance(GetType())!;
         copy.Attributes = (EncounterAttributeSet)Attributes.Clone();

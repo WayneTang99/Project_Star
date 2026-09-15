@@ -20,7 +20,7 @@ public abstract partial class HeroBase : RefCounted, IEntity
     }
 
     // 复制独立英雄实例（供模板池调用，含独立属性集与战斗状态）。
-    public object Clone()
+    public virtual object Clone()
     {
         var copy = (HeroBase)Activator.CreateInstance(GetType())!;
         copy.Attributes = (HeroAttributeSet)Attributes.Clone();
