@@ -1,377 +1,306 @@
-# ARCHITECTURE.md
-Project_Star 架构说明。本文档供 AI 代理 / 开发者理解项目架构，与 `AGENTS.md`（导航/需求）、`docs/DESIGN_PRINCIPLES.md`（设计原则）配合使用；术语定义见 `docs/GLOSSARY.md`。
+# Project_Star 架构说明
 
-## 一、架构总原则
+本文档从 `AGENTS.md` 的玩法需求出发，定义代码边界、数据所有权、依赖方向和运行流程。术语以 `docs/GLOSSARY.md` 为准；本文不改变玩法规则。
 
-- **三层生命周期**：全局 / 对局 / 战斗，职责互不越界。
-- **战斗内外分离**：局外 `MatchEventBus` 与战斗内 `CombatEventBus` 两套事件通道，互不互通；战斗内事件不直接发到局外总线。
-- **静态定义 + 动态实例**：实体基类子类为静态定义（身份字段 get-only），模板池反射收集并复制独立实例。
-- **状态分离**：对局资源（跨战斗保留）与战斗状态（每场战斗重置、结束丢弃）分离存储，战斗结束不污染本体。
-- **事件驱动**：行为发事件，能力监听事件；管理器间通过事件通信，避免互相直调。
-- **数据/视图分离**：棋盘等数据层纯数据，UI 只读管理器状态、订阅事件刷新。
-- **确定性战斗**：数值计算一次完成、结果确定可回放，禁止依赖其他卡牌最终值。
+## 1. 架构目标
 
-## 二、分层与管理器
+- 对局状态不跨局泄漏，整局数据可整体创建和销毁。
+- 战斗只修改临时状态，通过结果显式回写永久变化。
+- 相同输入、配置和随机种子产生相同结果，支持异步 PvP 复算和回放。
+- 属性、经济、棋盘、排程和战斗可脱离 Godot 场景树测试。
+- 新增英雄、卡牌和事件主要增加内容定义，不修改核心引擎。
+- UI 提交意图并读取快照，不直接修改领域对象。
 
-### 三层生命周期
+## 2. 总体分层
 
-| 层 | 管理器 | 生命周期 | 职责 |
-|---|---|---|---|
-| 全局层 | GameManager | 游戏启动到退出 | 主状态机、模板池 |
-| 对局层 | MatchManager / BoardManager | 进入对局到对局结束 | 非战斗事件调度、触发机制、本局棋盘 |
-| 战斗层 | CombatManager | 对局开始时创建，战斗时启动 | 战斗驱动 |
-
-### 管理器清单
-
-| 管理器 | 层 | 职责 |
-|---|---|---|
-| GameManager | 全局 | 主状态机（选英雄 → 局内 → 结算），信号广播状态切换 |
-| HeroManager | 全局 | 英雄模板池（反射收集）、实例化、玩家当前英雄 |
-| CardManager | 全局 | 卡牌模板池（反射收集）、实例化、玩家拥有卡牌、按归属 key 过滤供商店 |
-| MatchManager | 对局 | 轮次调度、遭遇生成排程与执行、局外事件总线 |
-| BoardManager | 对局 | 本局棋盘：战场 / 备战双棋盘（各 10 格），随对局创建 / 销毁，推挤放置/移除/交换/跨区编排 |
-| CombatManager | 战斗 | 持有 BattleClock + Resolver，管理战斗生命周期 + A/B 超时 |
-
-### 通信约定
-
-- 管理器间通过事件 / 信号通信，避免互相直调。
-- 数值流转一律走属性集（扣金钱、扣血等），不直接改字段。
-- CardManager 管卡牌实例与数据，BoardManager 管卡牌在棋盘上的位置与布局。
-
-### 事件总线
-
-- 共享层 `EventBus<TEvent>`：强类型事件按 `Type` 分发；`Subscribe<T>` 返回 `IDisposable` 令牌（Dispose 即退订）；`Publish` 沿事件类型继承链分发（订阅基类可收子类事件）。
-- 两套总线通过泛型约束编译期隔离：`MatchEventBus : EventBus<MatchEvent>`（对局层）、`CombatEventBus : EventBus<CombatEvent>`（战斗层），互不互通。
-- 事件类继承对应基类（`MatchEvent` / `CombatEvent`），基类继承 `EventBase`（共享层）。
-
-### 棋盘架构
-
-棋盘归属对局层，随对局创建 / 销毁；推挤算法为共享层纯函数，跨局复用。
-
-```
-BoardManager（对局层）  对外操作入口：放置/移除/交换/跨区拖拽编排、发事件
-├── 棋盘实例 GameBoard   纯数据（卡牌引用 + Order + StartCell），战场 + 备战
-└── 推挤算法（共享层）   纯算法：评估（只读）→ 执行（写回），含择优
+```mermaid
+flowchart TB
+    subgraph P["表现层 Presentation / Godot"]
+        UI["选角 / 局内 / 棋盘 / 战斗 UI"]
+    end
+    subgraph A["应用层 Application"]
+        Coordinator["GameCoordinator"]
+        Cases["对局 / 商店 / 棋盘 / 战斗用例"]
+    end
+    subgraph D["领域层 Domain"]
+        Session["MatchSession"]
+        Board["BoardState + PlacementSolver"]
+        Scheduler["EventScheduler"]
+        Combat["CombatSimulator + Resolver"]
+        Rules["Ability + Effect + Attribute + Tag"]
+    end
+    subgraph I["基础设施层 Infrastructure"]
+        Registry["DefinitionRegistry"]
+        Factory["EntityFactory"]
+        Random["SeededRandom"]
+        Storage["存档 / 异步阵容 / Godot Adapter"]
+    end
+    subgraph C["游戏内容 Content"]
+        Definitions["英雄 / 卡牌 / 事件定义子类"]
+    end
+    P --> A
+    A --> D
+    A --> I
+    Session --> Board
+    Session --> Scheduler
+    Combat --> Rules
+    Registry --> Definitions
+    Factory --> Registry
+    Scheduler --> Random
+    Combat --> Random
 ```
 
-- **操作**（放置/移除/交换/跨区）属 BoardManager 协调职责。
-- **整理**（推挤 + 重排 order）为独立纯算法：评估与执行分离，供 UI 预览 / 落位复用。
-- **数据**（GameBoard）为最底层，不感知算法与操作。
-- 棋盘生命周期与对局对齐：对局开始创建空棋盘，对局结束随对局销毁，无残留清理。
+依赖规则：
 
-## 三、实体与状态
+1. `Domain` 使用普通 C#，不得依赖 `Node`、场景树、渲染帧或 UI。
+2. `Application` 编排完整用例，但不实现游戏公式。
+3. `Infrastructure` 实现反射、随机、存储和 Godot 适配。
+4. `Presentation` 只能通过应用层操作模型。
+5. `Content` 依赖领域定义基类和通用能力，不依赖 UI。
 
-### 实体基类
+## 3. 生命周期与所有权
 
-- `HeroBase` / `CardBase` / `EncounterBase`：实体抽象基类，持对应属性集。遭遇（Encounter）指玩家回合遭遇选项（商店/怪物战/PvP），与总线事件（MatchEvent / CombatEvent）区分。
-- 身份字段（key / 展示名 / 归属 / 尺寸）为 get-only，创建后不可修改。
-- Key 统一用 `StringName`，展示名保持 `string`；身份字段放进属性集，不放实体 Node 上。
-
-### 模板池
-
-- 用反射扫描程序集收集所有非抽象子类各建一个作模板。
-- 玩家选择 / 创建时从模板复制独立实例（含独立属性集）。
-- 卡牌按归属 key 过滤供商店。
-
-### 状态容器（混合方案）
-
-实体状态分两部分，不深拷贝实体副本：
-
-| | 对局资源（跨战斗保留、战斗内不动） | 战斗状态（每场开始派生初始值、结束丢弃） |
-|---|---|---|
-| 英雄 | 金钱、经验、等级、声望 | 生命、最大生命、护甲、辐射、腐蚀、生命再生、能量、最大能量、能量再生 |
-| 卡牌 | 等级、价值、对局加成、解锁记录 | 临时加成、冷却、超频时长、麻痹时长、禁锢时长、被摧毁 |
-
-- 战斗开始：从对局资源派生战斗状态初始值。
-- 战斗内：只操作战斗状态。
-- 战斗结束：收集永久性质变化应用到本体（永久摧毁 = 直接从玩家卡池删除卡牌），丢弃战斗状态。
-
-## 四、能力系统
-
-### 核心模型
-
-- **能力（Ability）**：可被触发的动作单元。主动（冷却触发）与被动（事件触发）都是能力，区别仅在于触发方式。能力只负责执行逻辑。
-- **效果（Effect）**：被能力触发的被动后果（即时结算 / 周期 DoT-HoT）。
-- 触发、冷却、编排、连锁（≤ 上限）统一由战斗解析器负责；管理器只与实体通信，不直接驱动能力。
-- **词条说明**：词条（发动 / 回响 / 任务）仅为需求语义概念与卡牌文案，不进入代码逻辑；代码层全部由能力承担实现。
-
-### 能力复用约定
-
-- 能力必须可复用，禁止为单张卡写专属能力；一张卡由多个已有能力组合而成。
-- 新能力的判断标准：现有能力组合无法表达所需逻辑时才新建，且必须能被多张卡复用。
-- 能力不感知等级；卡牌根据等级设置属性值，等级变化时自动更新。
-
-### 效果堆叠约定
-
-- **Apply 累加**：效果的施加必须累加到目标属性，而非覆盖赋值。
-- **到期扣减**（有时长效果）：到期时从目标属性中扣减该实例贡献的量，而非直接清零。
-- **不清零**：移除不再直接置 0，属性由衰减逻辑自然归零。
-- **抵消判定**：根据属性最终值判断倍率（超频 ×2 / 麻痹 ×0.5 / 两者均 >0 时抵消 ×1）。
-
-### 能量消耗
-
-- 能力发动前检查能量（在 `CanActivate` 中）。
-- 检查通过 → 扣能量 → 执行；检查失败 → 不发动。
-- 免能量卡牌：`EnergyCost = 0`。
-
-### 能力实现
-
-- 接口 `IAbility` + 基类 `AbilityBase`（主动/被动区分，能力只负责执行逻辑）。
-- 效果接口 `IEffect` + 基类 `EffectBase`（即时/周期分类）。
-- 遵循开闭原则设计：新增能力/效果只需继承基类 override `Execute`/`Apply`，不改现有代码。
-
-## 五、战斗系统
-
-### 战斗参与者
-
-参战实体：
-
-- 玩家英雄（HeroInstance）
-- 敌方英雄（HeroInstance）
-- 玩家战场卡牌（CardInstance 数组）
-- 敌方战场卡牌（CardInstance 数组）
-- 玩家备战卡牌（CardInstance 数组，可能影响战斗）
-
-怪物：本质是预设英雄。怪物战就是英雄 vs 英雄，只是敌方英雄是预设的。战斗逻辑不为怪物单独写。
-
-### 战斗生命周期
-
-```
-战斗开始
-  ↓
-从对局内持久状态派生战斗内初始值
-  ↓
-战斗主循环（只操作战斗内临时状态）
-  ↓
-战斗结束
-  ↓
-收集永久性质变化 → 应用到本体
-  ↓
-丢弃战斗内临时状态
-  ↓
-返回战斗结果（BattleResult）
+```mermaid
+flowchart LR
+    subgraph Global["全局"]
+        GC["GameCoordinator"]
+        DR["DefinitionRegistry"]
+        EF["EntityFactory"]
+    end
+    subgraph Match["一局对局"]
+        MS["MatchSession"]
+        MP["MatchProgress"]
+        PS["PlayerState"]
+        CI["CardInventory"]
+        BS["BoardState"]
+        ES["EventScheduleState"]
+        MR["MatchRandomState"]
+    end
+    subgraph Battle["一场战斗"]
+        Setup["BattleSetup"]
+        Runtime["BattleRuntime"]
+        Queue["AbilityQueue"]
+        Log["BattleEventLog"]
+        Result["BattleResult"]
+    end
+    GC --> MS
+    DR --> EF --> MS
+    MS --> MP
+    MS --> PS
+    MS --> CI
+    MS --> BS
+    MS --> ES
+    MS --> MR
+    MS -->|"生成不可变输入"| Setup
+    Setup --> Runtime
+    Runtime --> Queue
+    Runtime --> Log
+    Runtime --> Result
+    Result -->|"显式应用"| MS
 ```
 
-**混合方案（对局内持久 + 战斗内临时）**
+### 3.1 全局
 
-不深拷贝实体副本。实体状态分两部分：
+- `GameCoordinator` 只协调选角、局内和结算阶段。
+- `DefinitionRegistry` 只保存不可变定义。
+- `EntityFactory` 根据定义创建独立实例。
+- 全局对象不得保存本局金钱、声望、卡池或棋盘。
 
-- **对局内持久状态**：战斗内不动。英雄为金钱、经验、等级、声望；卡牌为对局内持久加成、解锁记录、等级、价值。
-- **战斗内临时状态**：单独存储。英雄为生命、护甲、辐射、腐蚀、能量等；卡牌为战斗内临时加成、冷却、超频、麻痹、禁锢、是否被摧毁。
+### 3.2 对局
 
-战斗开始时从对局内持久状态派生战斗内初始值；战斗内只操作战斗内临时状态；战斗结束丢弃战斗内临时状态，不应用到本体。
+`MatchSession` 是整局聚合根和唯一事实来源，拥有进度、玩家状态、卡池、双棋盘、事件历史和本局随机状态。新对局创建新 Session；对局结束整体销毁。
 
-**永久性质**
+### 3.3 战斗
 
-战斗内可能发生永久性质的变化（如永久摧毁某张卡牌）。这些变化在战斗内标记，战斗结束时收集并应用到本体：**永久摧毁 = 直接从玩家卡池删除该卡牌**。与战斗内临时状态（随战斗结束丢弃）区分。
+对局生成不可变 `BattleSetup`，`CombatSimulator` 据此创建 `BattleRuntime`。战斗只修改 Runtime，结束后返回 `BattleResult`。对局应用层负责奖励、惩罚、胜场、声望和永久变化。
 
-### 两层帧推进
+`CombatManager` 只作为 Godot/应用层运行协调器，可在对局开始时创建、战斗时启动；它不拥有规则真相。
 
-| 层 | 频率 | 职责 |
-|---|---|---|
-| 时间推进层 | 高频（步长可配置） | 只推进时钟，不做逻辑 |
-| 逻辑结算层 | 低频（步长可配置） | 做所有逻辑结算 |
+## 4. 定义、实例与属性
 
-约束：除了时钟计算，其他所有步长都是逻辑结算层步长的整数倍。
+### 4.1 静态定义
 
-### 逻辑步序
+- `HeroDefinition`、`CardDefinition`、`EventDefinition` 是抽象基类。
+- 每个具体内容是非抽象子类，在构造函数中声明身份、初始属性、标签和能力组合。
+- `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、轮次范围和能力引用。
+- 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
 
-每个逻辑步，按顺序执行：
+### 4.2 运行实例
 
-1. 坍缩检查：是否到达坍缩时间
-2. 寂灭检查：是否到达寂灭时间
-3. 卡牌冷却递减：所有卡牌的 CD 递减
-4. 主动能力入队：CD 到了的卡牌，主动能力进队列
-5. 英雄状态结算：辐射、腐蚀、生命再生、能量再生
-6. 处理能力队列：执行队列里的能力，产生效果，触发被动
-7. 检查死亡：英雄是否死亡
-8. 检查战斗结束：是否满足结束条件
+- `HeroInstance` 和 `CardInstance` 具有唯一 `EntityId`。
+- 选择、购买、掉落和奖励均通过 `EntityFactory` 创建独立实例及属性集。
+- 定义不可变，实例变化不得回写定义。
+- 怪物与玩家使用同一种英雄和卡牌模型。
 
-### 触发机制
+### 4.3 属性分区
 
-- 主动能力：CD 到了 → 进队列（depth = 0）→ 检查 CanActivate → 通过 → 执行。
-- 被动能力：监听某个事件 → 事件发生 → 进队列（depth = 上一层 + 1）→ 检查 CanActivate → 通过 → 执行。
-
-深度上限：
-
-- 主动 depth = 0
-- 被动 depth = 上一层 + 1
-- 超过上限（可配置，默认 ≤3）不入队
-- 被主动触发过的被动，不能再触发另一个被动
-
-执行顺序：同一逻辑步内，队列按入队顺序处理；处理完队列，再检查死亡。
-
-### 战斗事件
-
-| 事件 | 触发时机 |
-|---|---|
-| BattleStartEvent | 战斗开始 |
-| TickEvent | 时间推进 |
-| AbilityActivatedEvent | 能力发动 |
-| AdjacentCardActivatedEvent | 相邻卡牌发动 |
-| DamageDealtEvent | 造成伤害 |
-| HealAppliedEvent | 治疗 |
-| EnergyChangedEvent | 能量变化 |
-| UnitKilledEvent | 击杀 |
-| CardDestroyedEvent | 卡牌被摧毁 |
-| CollapseStartedEvent | 坍缩开始 |
-| CollapseDamageEvent | 坍缩扣血 |
-| AnnihilationEvent | 寂灭 |
-| BattleEndEvent | 战斗结束 |
-
-### 状态周期结算
-
-**英雄状态结算**
-
-辐射：
-
-- 触发周期：1 秒；衰减周期：1 秒
-- 伤害：Floor(辐射值)，不受护甲影响；衰减：Floor(辐射值 / 2)
-- 触发受伤事件
-
-腐蚀：
-
-- 触发周期：1 秒；衰减周期：0.2 秒
-- 伤害：Floor(腐蚀值)，优先扣护甲；衰减：Max(0, Floor(腐蚀值 - 固定值))
-- 触发受伤事件
-
-生命再生：
-
-- 触发周期：1 秒；回血：Floor(生命再生)；触发治疗事件
-
-能量再生：
-
-- 触发周期：1 秒；回能：Floor(能量再生)，上限 MaxEnergy；触发能量变化事件
-
-**卡牌状态结算**
-
-超频 / 麻痹 / 禁锢：
-
-- 影响卡牌冷却速度；超频：冷却速度 ×2；麻痹：冷却速度 ×0.5；禁锢：冷却停止
-- 超频和麻痹同时存在时抵消为 ×1
-
-### 坍缩与寂灭
-
-**坍缩时间**：战斗到达坍缩时间后，双方英雄同时扣血。扣血按配置的曲线（如斐波那契、线性、分段等）。卡牌继续正常发动。
-
-**寂灭时间**：战斗到达寂灭时间后，强制结束。双方同时死亡，判玩家方获胜。
-
-### 战斗数值
-
-**卡牌数值计算**
-
-两层：
-
-- 基础值：卡牌自己重写计算
-- Modifier 叠加：影响源主动施加
-- 最终值 = 基础值 + sum(Modifiers)
-
-允许依赖：
-
-- 数量（武器卡数量、战场卡数量等）
-- 标签
-- 位置（相邻、战场、备战等）
-- 基础值
-- 状态（辐射、腐蚀等）
-- 属性（护甲、能量等）
-
-不允许依赖：
-
-- 其他卡牌的最终值（攻击力、护甲等）
-- 其他卡牌的动态计算结果
-
-原因：避免循环依赖，避免无限递归，保证计算一次完成，保证结果确定可回放。
-
-**刷新**
-
-- 非战斗状态可随时调整排布
-- 每次操作后实时刷新
-- 重算基础值、重新施加 Modifier、更新属性集、更新 UI
-
-触发刷新的时机：
-
-- 卡牌进入 / 离开战场
-- 卡牌进入 / 离开备战
-- 卡牌移动
-- 卡牌被摧毁
-- 卡牌被创建
-- 标签变化
-- 其他影响排布的操作
-
-### 战斗结束
-
-结束条件：
-
-| 情况 | 结果 |
-|---|---|
-| 敌方英雄血量归零 | 玩家胜利 |
-| 己方英雄血量归零 | 玩家失败 |
-| 双方都死 | 玩家胜利（正反馈） |
-| 到达寂灭时间 | 强制结束，同时死亡判玩家胜 |
-
-结束原因：
-
-- `EnemyHeroDied`
-- `PlayerHeroDied`
-- `Timeout`
-- `Surrender`
-- `Draw`
-
-输出（BattleResult）：
-
-```
-BattleResult {
-    Winner          // Player / Enemy / Draw
-    EndReason       // 结束原因
-    PlayerSurvivors // 玩家幸存者
-    EnemySurvivors  // 敌方幸存者
-    PermanentChanges // 永久性质变化
-}
+```text
+EntityAttributes
+├── IdentityAttributes     只读：key、展示名、归属、尺寸
+├── PersistentAttributes   对局内：等级、价值、金钱、声望等
+└── BaseCombatAttributes   派生战斗初始值的基础数值
 ```
 
-### 战斗与对局的关系
+身份字段仍位于实体属性集中，但属于只读分区。战斗状态单独存储在 `HeroBattleState` / `CardBattleState`，不写回实体本体。
 
-**对局层触发战斗**：怪物战（第 4 回合或其他事件触发）、PvP（第 8 回合触发）。
+### 4.4 Modifier
 
-**战斗结束回传**：战斗结果回传给对局层 → 对局层结算奖励/惩罚 → 对局层应用永久变化到本体。
+每个 `StatModifier` 包含唯一 ID、来源实体、目标属性、贡献值和生命周期。
 
-**战斗内外分离**：对局层触发机制独立、战斗层触发机制独立、两套不共用、战斗内事件不直接发到局外总线。
+- Apply 按 ID 添加贡献，Remove 按 ID 精确移除。
+- 效果到期只移除自身贡献，不能清零整个属性。
+- 超频与麻痹按最终属性值判断抵消。
 
-## 六、目录结构
+## 5. 标签与词条
 
+- **标签 Tag**：`HashSet<StringName>`，进入代码，用于筛选、计数、位置依赖和数值计算。
+- **词条 Keyword**：发动、回响、任务等文案语义，不建立独立执行引擎；实际行为由能力、条件和效果组合表达。
+
+标签模块包含 `GameTags`、`TagSet`、`TagDisplayNames`，并从尺寸自动推导 Small / Medium / Large；未知标签显示原始 key。
+
+## 6. 用例、命令与事件
+
+应用层入口包括 `SelectHero`、`ChooseEvent`、`BuyCard`、`SellCard`、`AcquireCard`、`MoveCard`、`StartBattle` 和 `AdvanceTurn`。
+
+- Command：请求操作，可能失败。
+- Result：操作的同步结果。
+- Domain Event：已经发生的事实。
+
+对局事件与战斗事件分别实现 `IMatchEvent` 和 `ICombatEvent`，互不转发。事件用于通知和被动触发，不代替有返回值的领域操作。
+
+## 7. 卡牌经济
+
+```mermaid
+flowchart LR
+    Buy["购买"] --> Acquire["AcquireCard"]
+    Drop["掉落"] --> Acquire
+    Reward["奖励"] --> Acquire
+    Buy -->|"按初始价值扣款"| Pay["扣 Wealth"]
+    Acquire --> Create["创建 CardInstance"]
+    Create --> Half["Value = InitialValue × 0.5"]
+    Half --> Inventory["加入 CardInventory"]
 ```
-Project_Star/
-├── docs/             # 文档（GLOSSARY / ARCHITECTURE / DESIGN_PRINCIPLES / IMPLEMENTATION_PLAN / DEV_CONVENTIONS）
-├── scenes/           # 场景文件 (.tscn)
-├── scripts/          # C# 脚本 (.cs)
-│   ├── Core/         # 实体基类、接口、属性集、模板池、类型定义、能力/效果基类、棋盘推挤算法（纯函数）
-│   ├── Systems/      # 全局管理器（GameManager / HeroManager / CardManager）
-│   ├── Match/        # 对局管理器（MatchManager）、本局棋盘（BoardManager / GameBoard）、轮次、事件排程与执行
-│   ├── Combat/       # 战斗管理器、时钟、解析器、战斗事件
-│   ├── Entities/     # 英雄 / 卡牌 / 遭遇 / 怪物子类
-│   └── UI/           # 视图控制器（只读订阅）
-├── Project_Star.csproj
-└── Project_Star.sln
+
+- 所有获得来源统一进入 `AcquireCard`。
+- 购买按初始价值全额扣款；出售按当前价值全额回补。
+- 交易是原子事务，失败不得留下部分修改。
+
+## 8. 棋盘系统
+
+- `BoardState`：纯数据，只保存卡牌实例 ID、顺序、起始格和占用格。
+- `BoardPlacementSolver`：纯函数，评估直接放置、左推和右推。
+- `BoardService`：验证所有权，协调同盘/跨区操作并原子提交。
+
+求解器返回包含失败原因、方向、总距离、影响数量和完整移动列表的 `PlacementPlan`，不直接写棋盘。择优固定为：总距离短 → 影响卡牌少 → Right。评估前先释放拖拽卡原位，只有完整方案成功才提交。
+
+## 9. 事件排程
+
+```mermaid
+flowchart TD
+    Start["生成当前回合事件"] --> T4{"第 4 回合？"}
+    T4 -->|是| Monster["三个怪物事件"]
+    T4 -->|否| T8{"第 8 回合？"}
+    T8 -->|是| Pvp["固定 PvP 事件"]
+    T8 -->|否| Filter["按轮次范围过滤"]
+    Filter --> Weight["基础权重 × 未出现倍率"]
+    Weight --> Shop["保证至少一个商店"]
+    Shop --> Others["抽取其余不重复事件"]
+    Monster --> Choices["EventChoiceSet"]
+    Pvp --> Choices
+    Others --> Choices
 ```
 
-## 七、扩展预留
+`EventScheduler` 输入当前进度、事件定义、已出现 key 和显式随机源，输出候选组。事件何时记为“已出现”必须在实施前确认。
 
-- 时间推进层可挂表现层回调
-- 逻辑结算层可挂统计 / 日志 / 回放回调
-- 步长可运行时调整
-- 两层可独立暂停
-- 逻辑层可支持多种步长
-- 触发类型 / 动作类型 / 条件类型 / 数值表达式 / 结束原因 / 事件类型可扩展
-- 仅一次战斗的技能（预留）
-- 永久性质结算（预留）
+## 10. 战斗边界
 
-## 八、架构决策记录
+### 10.1 BattleSetup
 
-| 决策 | 结论 |
-|---|---|
-| 词条落地 | 词条仅为需求语义概念（发动 / 回响 / 任务），不进入代码逻辑；逻辑全部由能力承担 |
-| 卡牌数值计算 | 基础值由卡牌自身 override，外界影响以 Modifier 主动叠加；最终值 = 基础值 + sum(Modifiers) |
-| 数值刷新时机 | 战斗外每次操作后刷新；战斗内随逻辑帧刷新 |
-| 配置载体 | 纯代码继承 + 反射模板池，不引入 Resource 数据文件 |
-| 棋盘归属 | 棋盘实例随对局创建 / 销毁（对局层）；推挤算法为共享层纯函数，跨局复用 |
-| 能力/效果框架 | IAbility/AbilityBase + IEffect/EffectBase，遵循开闭原则，扩展通过继承而非修改 |
+不可变输入包含战斗类型、双方英雄、双方战场与备战卡牌快照、战斗配置和随机种子。
+
+### 10.2 BattleRuntime
+
+Runtime 拥有时钟、双方战斗状态、能力队列、战斗事件分发器、事件日志和永久变化收集器。所有影响结算的集合必须使用稳定顺序，不能依赖 HashSet 或 Dictionary 的遍历顺序。
+
+### 10.3 BattleResult
+
+结果包含 Winner、EndReason、双方幸存者、PermanentChanges，并可附统计和日志。战斗模拟器不得直接修改 `MatchSession`。
+
+## 11. 战斗时钟与逻辑步
+
+规则时间使用整数 tick，配置负责将秒转换为 tick，并验证周期是逻辑步长的整数倍。时间推进层只累计时钟，规则只在逻辑 tick 执行。
+
+```mermaid
+flowchart TD
+    Tick["逻辑步开始"] --> Collapse["1. 坍缩检查"]
+    Collapse --> Extinction["2. 寂灭检查"]
+    Extinction -->|"到期"| Timeout["强制结束"]
+    Extinction -->|"未到期"| Cooldown["3. 冷却递减"]
+    Cooldown --> Active["4. 主动能力入队"]
+    Active --> Status["5. 英雄状态结算"]
+    Status --> Queue["6. 处理能力队列"]
+    Queue --> Death["7. 检查死亡"]
+    Death --> End["8. 检查结束"]
+    End -->|继续| Tick
+    End -->|结束| Result["BattleResult"]
+```
+
+## 12. 能力、效果与 Resolver
+
+`AbilityDefinition` 由 ActivationRule、TargetSelector、EnergyCost、Cooldown 和 EffectDefinition 列表组成。卡牌组合通用能力，能力只读取已计算属性，不感知等级。
+
+主动和被动统一转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源、CanActivate 和能量；通过后扣能量、执行效果、发布事件并匹配被动。连锁深度和“被主动触发过的被动不能再触发另一个被动”由独立 `ChainPolicy` 管理。
+
+## 13. 数值刷新
+
+`FinalValue = CardBaseValue + Sum(Modifiers)`。
+
+- 基础值可依赖自身等级、标签、区域、位置和符合条件的卡牌数量。
+- 外部影响通过 Modifier 主动施加。
+- 禁止读取其他卡牌的最终数值。
+- 非战斗时，棋盘或标签变化后清理布局来源 Modifier、重算基础值并重新施加。
+- 战斗开始后使用快照，变化只留在 Runtime。
+
+## 14. UI 与 Godot
+
+- UI 读取不可变 Snapshot 或只读 ViewModel。
+- 拖拽、购买和选事件转换为 Command。
+- UI 不持有可修改的领域集合。
+- 视觉资源由表现层按 key 加载。
+- 战斗动画消费 `BattleEventLog`，不得反向驱动规则。
+
+## 15. 推荐目录
+
+```text
+scripts/
+├── Domain/
+│   ├── Common/         # Identity / Attributes / Tags / Random
+│   ├── Definitions/
+│   ├── Match/          # Economy / Board / Events
+│   └── Combat/         # State / Abilities / Effects / Events / Resolution
+├── Application/        # Match / Shop / Board / Combat 用例
+├── Infrastructure/     # Reflection / Persistence / Godot
+├── Presentation/       # HeroSelection / InMatch / Board / Combat
+└── Content/            # Heroes / Cards / Events
+tests/
+└── Project_Star.Tests/
+```
+
+目录表达依赖边界，不要求为每个概念创建空目录或单文件。
+
+## 16. 测试边界
+
+纯逻辑测试至少覆盖定义反射与实例隔离、标签、Modifier、经济事务、棋盘推挤与回滚、事件排程、能力队列与连锁、状态周期、坍缩寂灭、对局胜负、永久变化和确定性复算。Godot 层只保留必要的场景集成测试。
+
+## 17. 关键不变量
+
+1. 定义不可变，运行实例互相独立。
+2. 全局层不拥有本局玩家状态。
+3. 棋盘卡牌必须存在于本局卡池，同一实例只能位于一个区域。
+4. 失败的经济或棋盘操作不得产生部分修改。
+5. 战斗模拟器不能直接修改对局对象。
+6. 永久变化只能通过 BattleResult 回写。
+7. 战斗规则不读取渲染帧时间。
+8. 所有随机行为来自显式 seed 随机源。
+9. UI、动画和 Godot 信号不能决定战斗结果。
+10. 标签进入代码；词条仅描述能力系统表达的行为。
