@@ -44,5 +44,4 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | `docs/DESIGN_PRINCIPLES.md` | 软件设计原则（SOLID + 扩展模式） | 编写与审查代码时 |
 | `docs/IMPLEMENTATION_PLAN.md` | 实现计划 + 实施约定 | 了解当前进度、下一步做什么 |
 | `docs/DEV_CONVENTIONS.md` | Git 工作流 + 提交规范 + 代码注释约定 + 项目约束 | 提交代码、写注释时 |
-| `docs/API.md` | 通用接口文档（IEntity / IAbility / IEffect / IBoardQuery） | 实现接口、扩展能力系统时 |
 | `docs/BUG_LOG.md` | BUG 发现与修复记录 | 发现 bug、修复 bug 时 |

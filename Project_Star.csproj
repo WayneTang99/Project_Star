@@ -7,7 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="AGENTS.md" />
-    <Content Include="docs\API.md" />
     <Content Include="docs\ARCHITECTURE.md" />
     <Content Include="docs\BUG_LOG.md" />
     <Content Include="docs\GAME_DESIGN.md" />
