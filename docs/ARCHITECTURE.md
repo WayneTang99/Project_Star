@@ -1,6 +1,6 @@
 # Project_Star 架构说明
 
-本文档从 `AGENTS.md` 的玩法需求出发，定义代码边界、数据所有权、依赖方向和运行流程。术语以 `docs/GLOSSARY.md` 为准；本文不改变玩法规则。
+本文档依据 `docs/GAME_DESIGN.md` 的玩法需求，定义代码边界、数据所有权、依赖方向和运行流程。`AGENTS.md` 是项目导航入口，术语以 `docs/GLOSSARY.md` 为准；本文不改变玩法规则。
 
 ## 1. 架构目标
 
@@ -8,7 +8,7 @@
 - 战斗只修改临时状态，通过结果显式回写永久变化。
 - 相同输入、配置和随机种子产生相同结果，支持异步 PvP 复算和回放。
 - 属性、经济、棋盘、排程和战斗可脱离 Godot 场景树测试。
-- 新增英雄、卡牌和事件主要增加内容定义，不修改核心引擎。
+- 新增英雄、卡牌和遭遇主要增加内容定义，不修改核心引擎。
 - UI 提交意图并读取快照，不直接修改领域对象。
 
 ## 2. 总体分层
@@ -25,7 +25,7 @@ flowchart TB
     subgraph D["领域层 Domain"]
         Session["MatchSession"]
         Board["BoardState + PlacementSolver"]
-        Scheduler["EventScheduler"]
+        Scheduler["EncounterScheduler"]
         Combat["CombatSimulator + Resolver"]
         Rules["Ability + Effect + Attribute + Tag"]
     end
@@ -36,7 +36,7 @@ flowchart TB
         Storage["存档 / 异步阵容 / Godot Adapter"]
     end
     subgraph C["游戏内容 Content"]
-        Definitions["英雄 / 卡牌 / 事件定义子类"]
+        Definitions["英雄 / 卡牌 / 遭遇定义子类"]
     end
     P --> A
     A --> D
@@ -73,7 +73,7 @@ flowchart LR
         PS["PlayerState"]
         CI["CardInventory"]
         BS["BoardState"]
-        ES["EventScheduleState"]
+        ES["EncounterScheduleState"]
         MR["MatchRandomState"]
     end
     subgraph Battle["一场战斗"]
@@ -108,7 +108,7 @@ flowchart LR
 
 ### 3.2 对局
 
-`MatchSession` 是整局聚合根和唯一事实来源，拥有进度、玩家状态、卡池、双棋盘、事件历史和本局随机状态。新对局创建新 Session；对局结束整体销毁。
+`MatchSession` 是整局聚合根和唯一事实来源，拥有进度、玩家状态、卡池、双棋盘、遭遇历史和本局随机状态。新对局创建新 Session；对局结束整体销毁。
 
 ### 3.3 战斗
 
@@ -120,7 +120,7 @@ flowchart LR
 
 ### 4.1 静态定义
 
-- `HeroDefinition`、`CardDefinition`、`EventDefinition` 是抽象基类。
+- `HeroDefinition`、`CardDefinition`、`EncounterDefinition` 是抽象基类。
 - 每个具体内容是非抽象子类，在构造函数中声明身份、初始属性、标签和能力组合。
 - `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、轮次范围和能力引用。
 - 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
@@ -160,7 +160,7 @@ EntityAttributes
 
 ## 6. 用例、命令与事件
 
-应用层入口包括 `SelectHero`、`ChooseEvent`、`BuyCard`、`SellCard`、`AcquireCard`、`MoveCard`、`StartBattle` 和 `AdvanceTurn`。
+应用层入口包括 `SelectHero`、`ChooseEncounter`、`BuyCard`、`SellCard`、`AcquireCard`、`MoveCard`、`StartBattle` 和 `AdvanceTurn`。
 
 - Command：请求操作，可能失败。
 - Result：操作的同步结果。
@@ -193,24 +193,24 @@ flowchart LR
 
 求解器返回包含失败原因、方向、总距离、影响数量和完整移动列表的 `PlacementPlan`，不直接写棋盘。择优固定为：总距离短 → 影响卡牌少 → Right。评估前先释放拖拽卡原位，只有完整方案成功才提交。
 
-## 9. 事件排程
+## 9. 遭遇排程
 
 ```mermaid
 flowchart TD
-    Start["生成当前回合事件"] --> T4{"第 4 回合？"}
-    T4 -->|是| Monster["三个怪物事件"]
+    Start["生成当前回合遭遇"] --> T4{"第 4 回合？"}
+    T4 -->|是| Monster["三个怪物遭遇"]
     T4 -->|否| T8{"第 8 回合？"}
-    T8 -->|是| Pvp["固定 PvP 事件"]
+    T8 -->|是| Pvp["固定 PvP 遭遇"]
     T8 -->|否| Filter["按轮次范围过滤"]
     Filter --> Weight["基础权重 × 未出现倍率"]
     Weight --> Shop["保证至少一个商店"]
-    Shop --> Others["抽取其余不重复事件"]
-    Monster --> Choices["EventChoiceSet"]
+    Shop --> Others["抽取其余不重复遭遇"]
+    Monster --> Choices["EncounterChoiceSet"]
     Pvp --> Choices
     Others --> Choices
 ```
 
-`EventScheduler` 输入当前进度、事件定义、已出现 key 和显式随机源，输出候选组。事件何时记为“已出现”必须在实施前确认。
+`EncounterScheduler` 输入当前进度、遭遇定义、已出现 key 和显式随机源，输出候选组。遭遇何时记为“已出现”必须在实施前确认。
 
 ## 10. 战斗边界
 
@@ -264,7 +264,7 @@ flowchart TD
 ## 14. UI 与 Godot
 
 - UI 读取不可变 Snapshot 或只读 ViewModel。
-- 拖拽、购买和选事件转换为 Command。
+- 拖拽、购买和选择遭遇转换为 Command。
 - UI 不持有可修改的领域集合。
 - 视觉资源由表现层按 key 加载。
 - 战斗动画消费 `BattleEventLog`，不得反向驱动规则。
@@ -281,7 +281,7 @@ scripts/
 ├── Application/        # Match / Shop / Board / Combat 用例
 ├── Infrastructure/     # Reflection / Persistence / Godot
 ├── Presentation/       # HeroSelection / InMatch / Board / Combat
-└── Content/            # Heroes / Cards / Events
+└── Content/            # Heroes / Cards / Encounters
 tests/
 └── Project_Star.Tests/
 ```
@@ -290,7 +290,7 @@ tests/
 
 ## 16. 测试边界
 
-纯逻辑测试至少覆盖定义反射与实例隔离、标签、Modifier、经济事务、棋盘推挤与回滚、事件排程、能力队列与连锁、状态周期、坍缩寂灭、对局胜负、永久变化和确定性复算。Godot 层只保留必要的场景集成测试。
+纯逻辑测试至少覆盖定义反射与实例隔离、标签、Modifier、经济事务、棋盘推挤与回滚、遭遇排程、能力队列与连锁、状态周期、坍缩寂灭、对局胜负、永久变化和确定性复算。Godot 层只保留必要的场景集成测试。
 
 ## 17. 关键不变量
 

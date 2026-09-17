@@ -1,91 +1,147 @@
-# DESIGN_PRINCIPLES.md
-Project_Star 代码层遵循的软件设计原则。供 AI 代理 / 开发者编写与审查代码时参考；与 `AGENTS.md`（需求）、`docs/ARCHITECTURE.md`（架构）配合使用。
+# Project_Star 设计原则
 
-## 一、SOLID 原则
+本文档规定 Project_Star 代码设计与审查时采用的原则。玩法规则以 `docs/GAME_DESIGN.md` 为准，架构边界以 `docs/ARCHITECTURE.md` 为准，实施顺序以 `docs/IMPLEMENTATION_PLAN.md` 为准。
 
-### 1. 单一职责原则（SRP — Single Responsibility Principle）
+## 1. 领域核心保持纯净
 
-> 一个类只有一个引起它变化的原因。
+- 属性、经济、棋盘、遭遇排程和战斗规则使用普通 C#。
+- 领域层不得依赖 `Node`、场景树、渲染帧、动画或 UI。
+- `Godot.StringName` 可以作为需求指定的标识类型使用，但不能因此把领域对象变成 Node。
+- Godot 生命周期、资源加载和信号放在 Infrastructure / Presentation 适配层。
 
-- 一个类只做一件事，做好一件事。
-- 属性集（AttributeSet）只管数值存取，不包含业务逻辑。
-- 能力（Ability）只负责执行逻辑，触发与编排由战斗解析器负责。
-- 管理器之间职责不重叠：CardManager 管卡牌实例与数据，BoardManager 管棋盘位置与布局。
+目的：领域规则可以无场景运行、批量模拟、单元测试和服务端复算。
 
-### 2. 开闭原则（OCP — Open/Closed Principle）
+## 2. 数据所有权必须唯一
 
-> 对扩展开放，对修改关闭。
+- `DefinitionRegistry` 拥有不可变内容定义。
+- `MatchSession` 是一整局的聚合根，拥有玩家状态、卡池、双棋盘、遭遇历史和对局随机状态。
+- `BattleRuntime` 只拥有一场战斗的临时状态。
+- UI 只拥有表现状态，不拥有领域真相。
 
-- 新增能力类型：继承 `AbilityBase`，override `Execute`，不改现有代码。
-- 新增效果类型：继承 `EffectBase`，override `Apply`，不改现有代码。
-- 新增事件：继承 `CombatEvent` / `MatchEvent`，发布到总线，不改现有事件处理器。
-- 新增实体子类：继承 `HeroBase` / `CardBase`，反射模板池自动收集，不改池逻辑。
-- 新增战斗结束原因：扩展 `BattleEndReason` 枚举，不改战斗结束判断逻辑。
-- **判断标准**：如果新增功能需要修改现有类的代码，说明设计未遵循 OCP。
+任何可变数据都必须能明确回答“由谁创建、由谁修改、何时销毁”。不得由多个 Manager 重复保存同一份状态。
 
-### 3. 里氏替换原则（LSP — Liskov Substitution Principle）
+## 3. 定义、实例和运行态分离
 
-> 子类必须能替换父类使用，且不改变程序的正确性。
+- Definition 描述不可变内容：key、展示名、归属、尺寸、标签、基础属性和能力组合。
+- Instance 表示本局独立实体，具有唯一 `EntityId` 和对局内持久属性。
+- Runtime 表示单场战斗临时状态，战斗结束即丢弃。
+- 定义不得被运行逻辑修改；实例之间不得共享可变属性集。
+- 战斗不得直接修改对局实例，只能通过 `BattleResult.PermanentChanges` 回写。
 
-- 所有 `AbilityBase` 子类必须能安全地替代 `AbilityBase` 使用。
-- `CanActivate` 的覆写不能改变默认契约：基类检查能量，子类扩展条件但不能绕过能量检查。
-- `Execute` 的覆写必须完成能力应做的事，不能有副作用破坏调用方预期。
-- `Clone` 返回的对象必须与原对象行为一致（深拷贝、独立属性集）。
+## 4. 聚合根维护不变量
 
-### 4. 接口隔离原则（ISP — Interface Segregation Principle）
+- 对局操作通过 `MatchSession` 或对应应用用例进入。
+- 棋盘卡牌必须存在于本局卡池，同一实例只能位于一个区域。
+- 购买、出售、获得卡牌和跨区移动必须是原子操作。
+- 失败操作不得留下扣钱成功但卡牌未加入、源棋盘已移除但目标棋盘未放入等中间状态。
+- 集合不得向 UI 暴露可变引用；外部读取使用 Snapshot 或只读 ViewModel。
 
-> 不应强迫客户端依赖它不使用的接口。
+## 5. Command、Result 和 Domain Event 各司其职
 
-- `IEntity` 只定义 `Clone`，不强制所有实体实现不需要的方法。
-- `IAbility` 和 `IEffect` 分离，能力不持有效果引用，效果不持有能力引用。
-- 未来扩展接口（如 `IBoardQueryable`）按需实现，不强制所有实体实现。
+- **Command** 表示执行意图，例如 BuyCard、MoveCard、StartBattle。
+- **Result** 表示同步成功、失败原因和必要输出。
+- **Domain Event** 表示已经发生的事实，例如 CardPurchased、DamageDealt。
+- 有返回值、可能失败的操作不得伪装成事件。
+- Match Event 与 Combat Event 强类型隔离，不跨总线传播。
+- 应用层可以直接调用明确的领域入口；不要求所有模块通信都绕经事件总线。
 
-### 5. 依赖倒置原则（DIP — Dependency Inversion Principle）
+## 6. 组合优于专属继承
 
-> 高层模块不应依赖低层模块，两者都应依赖抽象。
+- 卡牌由通用 AbilityDefinition 和 EffectDefinition 组合而成。
+- 禁止为单张卡牌创建专属能力类。
+- 仅当现有组合无法表达、且行为可被多种内容复用时，才增加新能力执行器。
+- 能力不感知卡牌等级，只读取已经计算出的属性。
+- 目标选择、激活条件和效果执行分开，使它们可以独立复用和测试。
 
-- 战斗解析器依赖 `IAbility` / `IEffect` 接口，不依赖具体能力子类。
-- 事件总线泛型约束为 `EventBase`，不依赖具体事件类型。
-- 管理器间通过事件通信，不直接互调具体类。
+内容定义可以使用需求指定的定义子类，但运行行为优先通过组合表达。
 
-## 二、其他设计原则
+## 7. 上下文保持明确且只读
 
-### 组合优于继承（Composition over Inheritance）
+- `AbilityContext` 只提供本次执行确实需要的战斗访问能力。
+- 不把所有管理器、服务或可变集合塞入 Context。
+- 新需求需要更多信息时，优先增加窄接口或预先计算的查询结果。
+- Context 不提供绕过 Resolver 直接提交任意状态修改的后门。
 
-- 一张卡由多个已有能力组合而成，通过参数差异化；不为单张卡写专属能力类。
-- 能力复用约定：只有当现有能力组合无法表达所需逻辑时，才新建能力类。
-- 效果通过能力产生，能力不持有效果列表；效果的组合与编排由战斗解析器负责。
+## 8. 确定性优先
 
-### 参数对象模式（Parameter Object）
+- 规则时间使用整数 Tick，不使用渲染帧 delta 决定结算结果。
+- 所有随机行为来自显式注入、可保存 seed 的随机源。
+- 同一逻辑步内使用稳定排序和 FIFO 队列。
+- 不依赖 Dictionary / HashSet 的遍历顺序决定结果。
+- 相同 BattleSetup、配置和 seed 必须产生相同 BattleResult 与事件日志。
+- 新增规则必须同时说明它在同 Tick 内的执行顺序。
 
-- 能力执行上下文（`AbilityContext`）封装施法者/目标/战场等信息，避免参数列表膨胀。
-- 新增上下文字段不改接口签名，已实现的能力不受影响。
+## 9. Modifier 必须可追踪
 
-### 最小知识原则（Principle of Least Knowledge / 迪米特法则）
+- 每个 Modifier 具有唯一 ID、来源、目标属性和贡献值。
+- Apply 累加，Remove 按 ID 精确移除。
+- 效果到期只移除自身贡献，不清零整个属性。
+- 基础值和外部 Modifier 分开计算。
+- 禁止通过读取其他卡牌最终值形成循环依赖。
 
-- 能力不直接操作棋盘，通过 context 间接查询。
-- UI 只读管理器状态、订阅事件刷新，不直接改模型。
-- 管理器间通过事件通信，避免互相直调。
+## 10. 纯函数优先处理复杂决策
 
-### 好莱坞原则（Hollywood Principle / 控制反转）
+适合纯函数的规则包括棋盘推挤评估、卡牌价值公式、遭遇过滤与权重、状态衰减和战斗结束判定。纯函数接收完整输入并返回结果或计划，不读取隐藏全局状态；写入由上层验证成功后一次性提交。
 
-> Don't call us, we'll call you.
+## 11. UI 使用单向数据流
 
-- 能力不主动调用战斗解析器，被动能力由事件触发被动调用。
-- UI 不主动轮询状态，订阅事件被动刷新。
-- 棋盘数据不主动通知 UI，通过事件总线广播变更。
+```text
+玩家输入 → Command → Application Use Case → Domain → Result / Snapshot → UI 刷新
+```
 
-## 三、本项目扩展点速查
+- UI 不直接修改 MatchSession、BoardState 或 BattleRuntime。
+- 拖拽预览使用 PlacementPlan，不预先写入棋盘。
+- 战斗动画消费 BattleEventLog，不反向驱动战斗规则。
+- 表现资源由 UI 按实体 key 映射，领域实体不感知自身视觉。
 
-| 扩展需求 | 扩展方式 | 参见 |
+## 12. 最小抽象与渐进扩展
+
+- 只为当前已确认需求建立抽象。
+- 不因为“以后可能需要”提前创建万能基类、服务定位器或多层包装。
+- 当至少出现两个真实复用场景或明确扩展点时再抽取公共行为。
+- OCP 是降低稳定模块修改频率，不是禁止修改已有代码。
+- 发现领域模型错误时应直接修正，并由测试保护迁移。
+
+## 13. 接口设计
+
+- 接口应小而聚焦，调用方只依赖所需能力。
+- 领域层依赖抽象；Godot、存储和网络适配实现这些抽象。
+- 返回值应表达失败原因，避免以 null、异常或日志代替正常业务失败。
+- 公共接口优先使用不可变参数和结果。
+- 命名使用 `docs/GLOSSARY.md` 中的统一术语。
+
+## 14. 测试原则
+
+- 先测试不变量和边界，再测试常规路径。
+- 纯逻辑使用单元测试；Godot 层只保留必要集成测试。
+- 每个 bug 先添加可复现测试，再修复并登记 `docs/BUG_LOG.md`。
+- 确定性测试必须比较结果和事件顺序。
+- 架构迁移不得以删除测试换取通过。
+
+## 15. 扩展点速查
+
+| 扩展需求 | 推荐方式 | 禁止方式 |
 |---|---|---|
-| 新增能力类型 | 继承 `AbilityBase`，override `Execute` | ARCHITECTURE.md「四、能力系统」 |
-| 新增效果类型 | 继承 `EffectBase`，override `Apply` | ARCHITECTURE.md「四、能力系统」 |
-| 能力需要棋盘信息 | 在 `AbilityContext` 加 `Board` 属性 | ARCHITECTURE.md「四、能力系统」 |
-| 能力监听战斗事件 | `AbilityContext` 加 `Event` 属性 | ARCHITECTURE.md「四、能力系统」 |
-| 新增战斗事件 | 继承 `CombatEvent`，发布到 `CombatEventBus` | ARCHITECTURE.md「二、分层与管理器」 |
-| 新增对局事件 | 继承 `MatchEvent`，发布到 `MatchEventBus` | ARCHITECTURE.md「二、分层与管理器」 |
-| 新增英雄子类 | 继承 `HeroBase`，反射模板池自动收集 | ARCHITECTURE.md「三、实体与状态」 |
-| 新增卡牌子类 | 继承 `CardBase`，反射模板池自动收集 | ARCHITECTURE.md「三、实体与状态」 |
-| 新增战斗结束原因 | 扩展 `BattleEndReason` 枚举 | ARCHITECTURE.md「五、战斗系统」 |
-| 新增遭遇类型 | 继承 `EncounterBase`，反射模板池自动收集 | ARCHITECTURE.md「三、实体与状态」 |
+| 新增英雄/卡牌/遭遇 | 新增 Definition 子类并由 Registry 收集 | 修改中央 switch 注册内容 |
+| 创建运行实体 | 通过 EntityFactory 从定义创建独立实例 | 复用定义对象充当实例 |
+| 新增卡牌行为 | 组合通用能力、条件、目标选择和效果 | 创建单卡专属能力类 |
+| 新增战斗效果 | 增加可复用 EffectDefinition / Executor | 在卡牌类中直接修改目标状态 |
+| 新增玩家操作 | 增加 Application Use Case、Command 和 Result | 让 UI 直接写领域集合 |
+| 新增战斗通知 | 增加强类型 Combat Event | 把有失败返回的操作放进事件总线 |
+| 新增遭遇类型 | 新增 EncounterDefinition 和执行策略 | 在 MatchSession 中堆叠类型判断 |
+| 新增随机规则 | 使用注入的 SeededRandom | 调用全局随机或系统时间 |
+| 新增战斗状态 | 扩展 BattleRuntime 和固定结算顺序 | 写回对局实例作为临时存储 |
+| 新增展示 | 扩展 ViewModel / Adapter | 让领域对象加载贴图或场景 |
+
+## 16. 代码审查清单
+
+1. 可变状态是否只有一个明确所有者？
+2. 是否跨越了 Match 与 Battle 生命周期边界？
+3. 失败路径是否保持事务原子性？
+4. 是否引入隐式时间、随机或不稳定遍历顺序？
+5. 是否把 Command、Result 和 Event 混为一谈？
+6. 新能力能否被多张卡复用？
+7. UI 是否只通过应用层操作模型？
+8. 纯逻辑是否有覆盖关键边界的测试？
+9. 名称是否与术语表一致？
+10. 是否只实现当前步骤已经确认的范围？

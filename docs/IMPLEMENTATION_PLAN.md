@@ -1,6 +1,6 @@
 # Project_Star 实施计划
 
-本计划依据 `AGENTS.md` 的需求和 `docs/ARCHITECTURE.md` 的边界实施。术语定义见 `docs/GLOSSARY.md`。
+本计划依据 `docs/GAME_DESIGN.md` 的需求和 `docs/ARCHITECTURE.md` 的边界实施。`AGENTS.md` 是项目导航入口，术语定义见 `docs/GLOSSARY.md`。
 
 ## 1. 实施原则
 
@@ -21,7 +21,7 @@ flowchart LR
     S4 --> S5["5. 棋盘系统"]
     S5 --> S6["6. 最小战斗闭环"]
     S6 --> S7["7. 完整能力与状态"]
-    S7 --> S8["8. 事件排程与回合"]
+    S7 --> S8["8. 遭遇排程与回合"]
     S8 --> S9["9. 完整对局闭环"]
     S9 --> S10["10. Godot 表现层"]
 ```
@@ -56,7 +56,7 @@ flowchart LR
 - 建立只读身份、对局持久和基础战斗属性分区。
 - 实现带唯一 ID 和来源的 ApplyModifier / RemoveModifier。
 - 实现 `TagSet`、`GameTags`、中文显示名和尺寸标签推导。
-- 建立 `HeroDefinition`、`CardDefinition`、`EventDefinition` 抽象基类。
+- 建立 `HeroDefinition`、`CardDefinition`、`EncounterDefinition` 抽象基类。
 - 建立少量测试定义验证继承、身份和属性隔离。
 - 标签进入模型；发动、回响、任务由后续能力系统表达。
 
@@ -80,7 +80,7 @@ flowchart LR
 - 实现反射 `DefinitionRegistry`。
 - 验证重复 key、空展示名、非法归属、尺寸和轮次范围。
 - 实现 `EntityFactory`，创建独立 HeroInstance / CardInstance。
-- 建立 MatchSession、MatchProgress、PlayerState、CardInventory、空 BoardState、EventScheduleState 和 MatchRandomState。
+- 建立 MatchSession、MatchProgress、PlayerState、CardInventory、空 BoardState、EncounterScheduleState 和 MatchRandomState。
 - 新对局创建全新 Session；全局对象不保存本局资源。
 
 ### 实施前确认
@@ -208,17 +208,17 @@ flowchart LR
 - 同归于尽和寂灭按规则判玩家胜利。
 - 永久摧毁只生成变化记录，不直接删除对局卡牌。
 
-## 10. 第 8 步：事件排程、商店事件与轮次推进
+## 10. 第 8 步：遭遇排程、商店遭遇与轮次推进
 
 ### 实施内容
 
-- 实现 EventScheduler 和可替换策略。
+- 实现 EncounterScheduler 和可替换策略。
 - 实现轮次过滤、基础权重和未出现倍率。
 - 默认回合三选一且至少一个商店。
-- 第 4 回合三个怪物事件，第 8 回合固定 PvP。
+- 第 4 回合三个怪物遭遇，第 8 回合固定 PvP 遭遇。
 - 跟踪本局已出现 key，新对局清空。
 - 实现强类型 IMatchEvent。
-- 串联商店、普通事件和战斗入口。
+- 串联商店、普通遭遇和战斗入口。
 
 ### 实施前确认
 
@@ -226,7 +226,7 @@ flowchart LR
 - 同一候选组能否重复 key。
 - 候选池不足三个的降级规则。
 - 未出现倍率默认值。
-- 第 4/8 回合是否忽略普通事件的范围和权重。
+- 第 4/8 回合是否忽略普通遭遇的范围和权重。
 - PvP 敌方阵容接口；本阶段可先用测试提供者。
 
 ### 测试与验收
@@ -261,14 +261,14 @@ flowchart LR
 - 怪物战不错误触发声望失败。
 - PvP 失败扣声望，十胜和声望归零分别正确结束对局。
 - 临时战斗状态丢弃，永久摧毁仅移除指定实例。
-- 新对局无上局卡池、棋盘和事件历史。
+- 新对局无上局卡池、棋盘和遭遇历史。
 - 可在测试驱动器中从选角运行到胜利或失败。
 
 ## 12. 第 10 步：Godot 表现层与最小可玩版本
 
 ### 实施内容
 
-- 实现 HeroSelectionUI、InMatchHeroUI、事件、商店和进度界面。
+- 实现 HeroSelectionUI、InMatchHeroUI、遭遇、商店和进度界面。
 - 实现棋盘像素布局、拖拽预览和失败反馈。
 - UI 通过 Command 调应用层，通过 Snapshot 刷新。
 - 实现消费 BattleEventLog 的战斗表现。
@@ -279,12 +279,12 @@ flowchart LR
 
 - 首个版本采用 2D、3D 还是混合表现。
 - 战斗实时播放、加速播放还是先结算后回放。
-- 首批英雄、卡牌、怪物和普通事件范围。
+- 首批英雄、卡牌、怪物和普通遭遇范围。
 - 视觉资源缺失时的占位策略。
 
 ### 验收
 
-- 玩家可完成选英雄、选事件、买卖、摆放、怪物战和 PvP。
+- 玩家可完成选英雄、选择遭遇、买卖、摆放、怪物战和 PvP。
 - UI 不直接修改领域对象。
 - 关闭一局再开新局无状态残留。
 - build 和领域测试全部通过，达到最小可玩版本。
