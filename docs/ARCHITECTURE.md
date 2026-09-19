@@ -71,7 +71,7 @@ flowchart LR
         MS["MatchSession"]
         MP["MatchProgress"]
         PS["PlayerState"]
-        CI["CardInventory"]
+        CI["OwnedCards（内部归属记录，不是放置区域）"]
         BS["BoardState"]
         ES["EncounterScheduleState"]
         MR["MatchRandomState"]
@@ -122,7 +122,7 @@ flowchart LR
 
 - `HeroDefinition`、`CardDefinition`、`EncounterDefinition` 是抽象基类。
 - 每个具体内容是非抽象子类，在构造函数中声明身份、初始属性、标签和能力组合。
-- `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、轮次范围和能力引用。
+- `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
 - 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
 
 ### 4.2 运行实例
@@ -136,12 +136,20 @@ flowchart LR
 
 ```text
 EntityAttributes
-├── IdentityAttributes     只读：key、展示名、归属、尺寸
+├── IdentityAttributes     只读：key、展示名、归属、尺寸、ElementKeys
 ├── PersistentAttributes   对局内：等级、价值、金钱、声望等
 └── BaseCombatAttributes   派生战斗初始值的基础数值
 ```
 
 身份字段仍位于实体属性集中，但属于只读分区。战斗状态单独存储在 `HeroBattleState` / `CardBattleState`，不写回实体本体。
+
+卡牌的 `ElementKeys` 使用只读集合表达：
+
+- 必须包含 1～2 个不重复的 `StringName`；
+- 合法值为 `General`、`Fire`、`Water`、`Wind`、`Earth`、`Lightning`、`Wood`、`Ice`、`Light`、`Dark`；
+- `General` 是普通属性值，不作为 null、空集合或默认哨兵；
+- 双属性无主次，比较和确定性序列化时使用固定规范顺序；
+- 当前只参与分类、筛选和能力条件，不参与克制计算。
 
 ### 4.4 Modifier
 
@@ -149,7 +157,7 @@ EntityAttributes
 
 - Apply 按 ID 添加贡献，Remove 按 ID 精确移除。
 - 效果到期只移除自身贡献，不能清零整个属性。
-- 超频与麻痹按最终属性值判断抵消。
+- 疾速与迟缓按最终属性值判断抵消。
 
 ## 5. 标签与词条
 
@@ -178,7 +186,8 @@ flowchart LR
     Buy -->|"按初始价值扣款"| Pay["扣 Wealth"]
     Acquire --> Create["创建 CardInstance"]
     Create --> Half["Value = InitialValue × 0.5"]
-    Half --> Inventory["加入 CardInventory"]
+    Half --> Owned["登记卡牌归属"]
+    Owned --> AutoPlace["优先放入战场区，否则放入备战区"]
 ```
 
 - 所有获得来源统一进入 `AcquireCard`。
@@ -210,7 +219,7 @@ flowchart TD
     Others --> Choices
 ```
 
-`EncounterScheduler` 输入当前进度、遭遇定义、已出现 key 和显式随机源，输出候选组。遭遇何时记为“已出现”必须在实施前确认。
+`EncounterScheduler` 输入当前进度、遭遇定义、已出现 key 和显式随机源，输出不重复候选组。候选进入列表时立即记为“已出现”；未出现权重乘数为 2。普通回合三选一且至少一个商店，第 4 回合固定三个不同怪物遭遇，第 8 回合固定 PvP 遭遇。
 
 ## 10. 战斗边界
 
@@ -232,8 +241,8 @@ Runtime 拥有时钟、双方战斗状态、能力队列、战斗事件分发器
 
 ```mermaid
 flowchart TD
-    Tick["逻辑步开始"] --> Collapse["1. 坍缩检查"]
-    Collapse --> Extinction["2. 寂灭检查"]
+    Tick["逻辑步开始"] --> Eclipse["1. 日蚀检查"]
+    Eclipse --> Extinction["2. 寂灭检查"]
     Extinction -->|"到期"| Timeout["强制结束"]
     Extinction -->|"未到期"| Cooldown["3. 冷却递减"]
     Cooldown --> Active["4. 主动能力入队"]
@@ -247,9 +256,9 @@ flowchart TD
 
 ## 12. 能力、效果与 Resolver
 
-`AbilityDefinition` 由 ActivationRule、TargetSelector、EnergyCost、Cooldown 和 EffectDefinition 列表组成。卡牌组合通用能力，能力只读取已计算属性，不感知等级。
+`AbilityDefinition` 由 ActivationRule、TargetSelector、ManaCost、Cooldown 和 EffectDefinition 列表组成。卡牌组合通用能力，能力只读取已计算属性，不感知等级。
 
-主动和被动统一转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源、CanActivate 和能量；通过后扣能量、执行效果、发布事件并匹配被动。连锁深度和“被主动触发过的被动不能再触发另一个被动”由独立 `ChainPolicy` 管理。
+主动和被动统一转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源、CanActivate 和魔法；通过后扣除魔法、执行效果并发布事件。`ChainPolicy` 允许非回响事件触发一层回响；回响产生的事件带有来源标记，不再匹配任何回响。
 
 ## 13. 数值刷新
 
@@ -282,15 +291,13 @@ scripts/
 ├── Infrastructure/     # Reflection / Persistence / Godot
 ├── Presentation/       # HeroSelection / InMatch / Board / Combat
 └── Content/            # Heroes / Cards / Encounters
-tests/
-└── Project_Star.Tests/
 ```
 
 目录表达依赖边界，不要求为每个概念创建空目录或单文件。
 
 ## 16. 测试边界
 
-纯逻辑测试至少覆盖定义反射与实例隔离、标签、Modifier、经济事务、棋盘推挤与回滚、遭遇排程、能力队列与连锁、状态周期、坍缩寂灭、对局胜负、永久变化和确定性复算。Godot 层只保留必要的场景集成测试。
+验证统一通过 Godot 内的手动测试入口执行，至少覆盖定义反射与实例隔离、标签、Modifier、经济事务、棋盘推挤与回滚、遭遇排程、能力队列与连锁、状态周期、日蚀与寂灭、对局胜负、永久变化和确定性复算。
 
 ## 17. 关键不变量
 

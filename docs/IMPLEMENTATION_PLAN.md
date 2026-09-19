@@ -6,7 +6,7 @@
 
 - 每一步开始前必须与用户确认范围、规则疑问、接口边界和验收方式。
 - 未经确认不进入下一步，不顺带实现后续功能。
-- 每一步完成后运行 `dotnet build`；纯逻辑必须有单元测试。
+- 每一步完成后运行 `dotnet build`；需要运行验证时提供 Godot 内的手动测试入口和验收步骤。
 - 优先形成可运行的纵向闭环，再扩展完整规则。
 - 领域层使用普通 C#，不得依赖 Godot 场景树。
 - 不直接修改 `.godot/`，不提交 `export_presets.cfg`。
@@ -31,7 +31,6 @@ flowchart LR
 ### 实施内容
 
 - 建立 Domain、Application、Infrastructure、Presentation、Content 目录边界。
-- 建立 `Project_Star.Tests` 测试项目。
 - 定义 `EntityId`、`SideId`、`BattleTick`、通用 Result / Failure。
 - 标识性 key 统一使用 `StringName`。
 - 定义可注入的 seed 随机接口和实现。
@@ -41,11 +40,11 @@ flowchart LR
 
 - 伤害、属性和价值分别使用何种数值类型。
 - 默认逻辑步长及 0.2 秒周期的 tick 换算。
-- 是否从本步建立独立测试项目。
+- Godot 内手动测试入口采用场景还是临时调试入口。
 
 ### 验收
 
-- 主项目和测试项目 build 通过。
+- 主项目 build 通过。
 - 相同 seed 输出相同随机序列。
 - 领域代码不引用 Node 或场景树；`StringName` 除外。
 
@@ -56,6 +55,7 @@ flowchart LR
 - 建立只读身份、对局持久和基础战斗属性分区。
 - 实现带唯一 ID 和来源的 ApplyModifier / RemoveModifier。
 - 实现 `TagSet`、`GameTags`、中文显示名和尺寸标签推导。
+- 实现卡牌只读 `ElementKeys`：十种合法属性、1～2 个、不重复、双属性无序。
 - 建立 `HeroDefinition`、`CardDefinition`、`EncounterDefinition` 抽象基类。
 - 建立少量测试定义验证继承、身份和属性隔离。
 - 标签进入模型；发动、回响、任务由后续能力系统表达。
@@ -65,12 +65,15 @@ flowchart LR
 - 身份字段在属性集中的只读访问形式。
 - Modifier 只支持加法，还是同时预留乘法和优先级。
 - 卡牌尺寸枚举和占格数映射。
+- 双属性在存储、比较和序列化时采用的固定规范顺序。
 
 ### 测试与验收
 
 - 身份字段不可修改。
 - 多来源自然累加，移除一个 Modifier 不影响其他来源。
 - 尺寸正确生成型号标签，未知标签显示原始 key。
+- `ElementKeys` 拒绝空集合、超过两个、重复值和未知值；`General` 按普通属性接受。
+- 相同双属性以不同输入顺序创建时，得到相同的规范结果。
 - build 和本步测试全部通过。
 
 ## 5. 第 3 步：定义注册、实例工厂与 MatchSession 骨架
@@ -80,7 +83,7 @@ flowchart LR
 - 实现反射 `DefinitionRegistry`。
 - 验证重复 key、空展示名、非法归属、尺寸和轮次范围。
 - 实现 `EntityFactory`，创建独立 HeroInstance / CardInstance。
-- 建立 MatchSession、MatchProgress、PlayerState、CardInventory、空 BoardState、EncounterScheduleState 和 MatchRandomState。
+- 建立 MatchSession、MatchProgress、PlayerState、卡牌归属集合、空 BoardState、EncounterScheduleState 和 MatchRandomState。归属集合仅供内部定位实例，不作为玩法中的库存区域。
 - 新对局创建全新 Session；全局对象不保存本局资源。
 
 ### 实施前确认
@@ -97,7 +100,7 @@ flowchart LR
 - 两个 MatchSession 无状态共享。
 - 无 Godot 场景即可创建一局、选择英雄和生成卡牌。
 
-## 6. 第 4 步：卡牌经济与库存事务
+## 6. 第 4 步：卡牌经济与归属事务
 
 ### 实施内容
 
@@ -182,29 +185,28 @@ flowchart LR
 - 完成 AbilityDefinition、ActivationRule、TargetSelector、EffectDefinition 和 AbilityContext。
 - 主动、被动统一转换为 PendingAbility。
 - 实现需求列出的强类型战斗事件。
-- 实现 CanActivate、能量扣除和 ChainPolicy。
+- 实现 CanActivate、魔法扣除和 ChainPolicy。
 - 实现伤害、治疗、护甲即时效果。
-- 实现辐射、腐蚀、生命/能量再生、超频、麻痹和禁锢。
+- 实现灼伤、中毒、生命/魔法再生、疾速、迟缓和禁锢。
 - 实现状态累加、到期精确扣除和不清零。
-- 实现坍缩、寂灭、A/B 超时和永久变化收集。
+- 实现日蚀、寂灭、A/B 超时和永久变化收集。
 
 ### 实施前确认
 
-- “被主动触发过的被动，不能再触发另一个被动”的准确语义。
-- 最大连锁深度及超限日志行为。
-- 辐射伤害与衰减的先后顺序。
-- 腐蚀固定衰减值。
-- 坍缩首次伤害时机和默认曲线。
+- 回响来源标记的传播范围（已确认：回响产生的事件不能触发其他回响）。
+- 灼伤伤害与衰减的先后顺序（已确认：先伤害，每 0.2 秒减 1）。
+- 中毒衰减方式（已确认：无视护甲伤害后向下减半）。
+- 日蚀首次伤害时机和默认曲线。
 - A/B 超时对应范围及其与寂灭的关系。
 - 备战区被动的允许范围。
 
 ### 测试与验收
 
-- 能量不足不扣能量、不执行。
+- 魔法不足不扣魔法、不执行。
 - 主被动共用队列，顺序和连锁限制稳定。
 - 多来源状态到期只移除自身贡献。
 - 冷却倍率、抵消和周期边界正确。
-- 辐射无视护甲，腐蚀优先扣护甲。
+- 灼伤优先扣护甲，中毒无视护甲。
 - 同归于尽和寂灭按规则判玩家胜利。
 - 永久摧毁只生成变化记录，不直接删除对局卡牌。
 
@@ -305,7 +307,7 @@ flowchart LR
 
 1. 已确认范围全部实现，未夹带下一步功能。
 2. `dotnet build` 通过。
-3. 本步纯逻辑测试通过。
+3. 已提供所需的 Godot 内手动测试入口和验收步骤。
 4. 新增公共接口有注释或架构说明。
 5. 未直接修改 `.godot/`。
 6. `bin/`、`obj/` 未进入版本控制。

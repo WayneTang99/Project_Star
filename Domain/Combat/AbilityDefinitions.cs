@@ -1,0 +1,94 @@
+using System;
+using System.Collections.Generic;
+using Godot;
+
+namespace Project_Star.Domain.Combat;
+
+public enum AbilityActivation
+{
+    Active = 0,
+    EchoOnAbilityActivated = 1,
+    EchoOnDamageDealt = 2,
+}
+
+public enum AbilityTarget
+{
+    EnemyHero = 0,
+    AlliedHero = 1,
+    SelfCard = 2,
+}
+
+public enum BattleStatus
+{
+    Burn = 0,
+    Poison = 1,
+    HealthRegen = 2,
+    ManaRegen = 3,
+    HasteDuration = 4,
+    SlowDuration = 5,
+    ImmobilizeDuration = 6,
+}
+
+public abstract record EffectDefinition;
+
+public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
+
+public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
+
+public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
+
+public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+
+public sealed record DestroyCardEffectDefinition(bool Permanent) : EffectDefinition;
+
+public sealed class AbilityDefinition
+{
+    public AbilityDefinition(
+        StringName key,
+        AbilityActivation activation,
+        AbilityTarget target,
+        int manaCost,
+        int cooldownTicks,
+        IReadOnlyList<EffectDefinition> effects,
+        bool allowsBench = false)
+    {
+        ArgumentNullException.ThrowIfNull(effects);
+        if (key.IsEmpty || manaCost < 0 || cooldownTicks < 0 || effects.Count == 0)
+        {
+            throw new ArgumentException("Ability configuration is invalid.");
+        }
+
+        if (activation == AbilityActivation.Active && cooldownTicks < 1)
+        {
+            throw new ArgumentException("An active ability must have a positive cooldown.");
+        }
+
+        Key = key;
+        Activation = activation;
+        Target = target;
+        ManaCost = manaCost;
+        CooldownTicks = cooldownTicks;
+        foreach (var effect in effects)
+        {
+            var amount = effect switch
+            {
+                DamageEffectDefinition value => value.Amount,
+                HealEffectDefinition value => value.Amount,
+                ArmorEffectDefinition value => value.Amount,
+                ApplyStatusEffectDefinition value => value.Amount,
+                _ => 0,
+            };
+            if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
+        }
+        Effects = new List<EffectDefinition>(effects).AsReadOnly();
+        AllowsBench = allowsBench;
+    }
+
+    public StringName Key { get; }
+    public AbilityActivation Activation { get; }
+    public AbilityTarget Target { get; }
+    public int ManaCost { get; }
+    public int CooldownTicks { get; }
+    public IReadOnlyList<EffectDefinition> Effects { get; }
+    public bool AllowsBench { get; }
+}

@@ -1,0 +1,233 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Presentation/MinimalPlaytest.cs" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="OuterStyle"]
+bg_color = Color(0.055, 0.063, 0.078, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.9, 0.92, 0.96, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+bg_color = Color(0.075, 0.086, 0.106, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.82, 0.85, 0.9, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="MinimalPlaytest" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.025, 0.029, 0.037, 1)
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="Frame" type="PanelContainer" parent="Margin"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("OuterStyle")
+
+[node name="Margin" type="MarginContainer" parent="Margin/Frame"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 14
+
+[node name="Content" type="VBoxContainer" parent="Margin/Frame/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="State" type="Label" parent="Margin/Frame/Margin/Content"]
+layout_mode = 2
+horizontal_alignment = 1
+text = "尚未开始对局"
+
+[node name="Header" type="CenterContainer" parent="Margin/Frame/Margin/Content"]
+layout_mode = 2
+
+[node name="HeaderPanel" type="PanelContainer" parent="Margin/Frame/Margin/Content/Header"]
+custom_minimum_size = Vector2(320, 70)
+layout_mode = 2
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="Margin/Frame/Margin/Content/Header/HeaderPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="Title" type="Label" parent="Margin/Frame/Margin/Content/Header/HeaderPanel/Margin"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "遭遇 / 敌方"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MainPanel" type="PanelContainer" parent="Margin/Frame/Margin/Content"]
+custom_minimum_size = Vector2(0, 210)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="Margin/Frame/Margin/Content/MainPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="MainContent" type="VBoxContainer" parent="Margin/Frame/Margin/Content/MainPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Log" type="RichTextLabel" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/normal_font_size = 16
+text = "等待操作……"
+scroll_active = true
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="Create" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+layout_mode = 2
+text = "选择：漫游者"
+
+[node name="Buy" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+layout_mode = 2
+text = "购买铁剑"
+
+[node name="Battle" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+layout_mode = 2
+text = "开始战斗"
+
+[node name="EncounterActions" type="HBoxContainer" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent"]
+layout_mode = 2
+alignment = 1
+
+[node name="Generate" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/EncounterActions"]
+layout_mode = 2
+text = "继续"
+
+[node name="Choices" type="HBoxContainer" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="Choice1" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Choices"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "候选 1"
+
+[node name="Choice2" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Choices"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "候选 2"
+
+[node name="Choice3" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Choices"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "候选 3"
+
+[node name="BattlefieldPanel" type="PanelContainer" parent="Margin/Frame/Margin/Content"]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="Margin/Frame/Margin/Content/BattlefieldPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Area" type="VBoxContainer" parent="Margin/Frame/Margin/Content/BattlefieldPanel/Margin"]
+layout_mode = 2
+
+[node name="BattlefieldLabel" type="Label" parent="Margin/Frame/Margin/Content/BattlefieldPanel/Margin/Area"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "战场区"
+horizontal_alignment = 1
+
+[node name="BattlefieldSlots" type="GridContainer" parent="Margin/Frame/Margin/Content/BattlefieldPanel/Margin/Area"]
+layout_mode = 2
+columns = 10
+
+[node name="BenchPanel" type="PanelContainer" parent="Margin/Frame/Margin/Content"]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="Margin/Frame/Margin/Content/BenchPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Area" type="VBoxContainer" parent="Margin/Frame/Margin/Content/BenchPanel/Margin"]
+layout_mode = 2
+
+[node name="BenchLabel" type="Label" parent="Margin/Frame/Margin/Content/BenchPanel/Margin/Area"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "备战区"
+horizontal_alignment = 1
+
+[node name="BenchSlots" type="GridContainer" parent="Margin/Frame/Margin/Content/BenchPanel/Margin/Area"]
+layout_mode = 2
+columns = 10
+
+[node name="Footer" type="HBoxContainer" parent="Margin/Frame/Margin/Content"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 8
+
+[node name="Reset" type="Button" parent="Margin/Frame/Margin/Content/Footer"]
+layout_mode = 2
+text = "重新开始"
+
+[node name="Verification" type="Button" parent="Margin/Frame/Margin/Content/Footer"]
+layout_mode = 2
+text = "规则验证"

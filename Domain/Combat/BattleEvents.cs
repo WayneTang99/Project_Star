@@ -1,0 +1,35 @@
+using Project_Star.Domain.Common;
+
+namespace Project_Star.Domain.Combat;
+
+public abstract record BattleEvent(BattleTick Tick);
+
+public sealed record BattleStartedEvent(BattleTick Tick) : BattleEvent(Tick);
+
+public sealed record AbilityQueuedEvent(
+    BattleTick Tick,
+    EntityId SourceCardId,
+    SideId SourceSide) : BattleEvent(Tick);
+
+public sealed record AbilityActivatedEvent(
+    BattleTick Tick,
+    EntityId SourceCardId,
+    SideId SourceSide,
+    bool IsEcho) : BattleEvent(Tick);
+
+public sealed record ManaChangedEvent(BattleTick Tick, SideId Side, int Amount, int CurrentMana) : BattleEvent(Tick);
+
+public sealed record StatusChangedEvent(BattleTick Tick, BattleStatus Status, int Amount) : BattleEvent(Tick);
+
+public sealed record DamageDealtEvent(
+    BattleTick Tick,
+    EntityId SourceCardId,
+    SideId TargetSide,
+    int RawDamage,
+    int ArmorAbsorbed,
+    int HealthDamage,
+    int RemainingHealth) : BattleEvent(Tick);
+
+public sealed record HeroDefeatedEvent(BattleTick Tick, SideId Side) : BattleEvent(Tick);
+
+public sealed record BattleEndedEvent(BattleTick Tick, BattleEndReason Reason) : BattleEvent(Tick);
