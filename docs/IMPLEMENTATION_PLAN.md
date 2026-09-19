@@ -30,7 +30,7 @@ flowchart LR
 
 ### 实施内容
 
-- 建立 Domain、Application、Infrastructure、Presentation、Content 目录边界。
+- 在 `scripts/` 下建立 `Domain`、`Application`、`Infrastructure`、`Presentation`、`Content` 目录边界；所有 C# 源文件及对应 `.cs.uid` 均放入 `scripts/`。
 - 定义 `EntityId`、`SideId`、`BattleTick`、通用 Result / Failure。
 - 标识性 key 统一使用 `StringName`。
 - 定义可注入的 seed 随机接口和实现。

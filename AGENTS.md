@@ -20,6 +20,7 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 
 每次写代码都必须遵守：
 
+- **代码统一放入 `scripts/`**：所有 C# 源文件及对应 `.cs.uid` 必须位于项目根目录的 `scripts/` 下，并按 `Domain`、`Application`、`Infrastructure`、`Presentation`、`Content` 分层；项目根目录不得再建立并列的代码目录。
 - **Key 统一用 `StringName`**：所有标识性 key 一律用 `Godot.StringName`，展示文本保持 `string`。
 - **身份字段放属性集**：身份字段（key / 展示名 / 归属 / 尺寸 / 元素属性）放进实体属性集的只读身份分区，不放实体 Node 上。
 - **能力必须可复用**：能力是通用动作单元，一张卡由多个已有能力组合而成。禁止为单张卡写专属能力类（如 `FrostSwordAbility`）。新能力只有当现有能力组合无法表达所需逻辑时才新建，且必须能被多张卡复用。

@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://Presentation/MinimalPlaytest.cs" id="1_script"]
+[ext_resource type="Script" path="res://scripts/Presentation/MinimalPlaytest.cs" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="OuterStyle"]
 bg_color = Color(0.055, 0.063, 0.078, 1)

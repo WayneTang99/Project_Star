@@ -278,7 +278,7 @@ flowchart TD
 - 视觉资源由表现层按 key 加载。
 - 战斗动画消费 `BattleEventLog`，不得反向驱动规则。
 
-## 15. 推荐目录
+## 15. 代码目录（强制）
 
 ```text
 scripts/
@@ -293,7 +293,7 @@ scripts/
 └── Content/            # Heroes / Cards / Encounters
 ```
 
-目录表达依赖边界，不要求为每个概念创建空目录或单文件。
+所有 C# 源文件及对应 `.cs.uid` 必须位于项目根目录的 `scripts/` 下。目录表达依赖边界，不要求为每个概念创建空目录或单文件；不得在项目根目录建立与 `scripts/Domain`、`scripts/Application` 等并列的代码目录。
 
 ## 16. 测试边界
 

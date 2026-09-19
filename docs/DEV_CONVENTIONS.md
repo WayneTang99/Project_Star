@@ -29,6 +29,8 @@ Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时
 
 ## 项目约束
 
+- ✅ 所有 C# 源文件及对应 `.cs.uid` 统一放在项目根目录的 `scripts/` 下，并按 `Domain`、`Application`、`Infrastructure`、`Presentation`、`Content` 分层
+- ❌ 不得在项目根目录建立与 `scripts/` 内分层并列的代码目录
 - ❌ 不要直接修改 `.godot/` 文件夹内容
 - ❌ 不要提交 `export_presets.cfg` 到仓库（除非需要）
 - ❌ `ref/` 是参考区，仅允许新增、修改、删除、移动和重命名文档文件；不得修改其他类型的文件
