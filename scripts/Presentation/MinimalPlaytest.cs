@@ -24,6 +24,7 @@ public sealed partial class MinimalPlaytest : Control
     private readonly EntityFactory _factory = new();
     private readonly BoardService _board = new(new BoardPlacementSolver());
     private readonly StartBattleService _battle = new(new BattleSetupFactory(), new CombatSimulator());
+    private readonly ShopCardPoolService _shopCardPool = new();
     private readonly Button[] _choices = new Button[3];
     private DefinitionRegistry _registry = null!;
     private CardEconomyService _economy = null!;
@@ -56,7 +57,7 @@ public sealed partial class MinimalPlaytest : Control
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
         _matches = new CreateMatchService(_factory);
-        _encounters = new EncounterScheduler(_registry);
+        _encounters = new EncounterScheduler(_registry, allowIncompleteMonsterChoices: true);
         _matchResults = new MatchResultService(_board);
         const string root = "Margin/Frame/Margin/Content";
         _title = GetNode<Label>($"{root}/Header/HeaderPanel/Margin/Title");
@@ -142,20 +143,22 @@ public sealed partial class MinimalPlaytest : Control
         HideAllActions();
         switch (choice.Kind)
         {
-            case EncounterKind.Shop: ShowShop(choice.DisplayName); break;
+            case EncounterKind.Shop: ShowShop(choice); break;
             case EncounterKind.Monster:
             case EncounterKind.Pvp: ShowPreparation(choice); break;
             default: ShowEvent(choice.DisplayName); break;
         }
     }
 
-    private void ShowShop(string name)
+    private void ShowShop(EncounterChoice choice)
     {
-        _screen = Screen.Shop; _title.Text = name;
-        var card = _registry.Cards.Values
-            .OrderBy(definition => definition.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
-            .FirstOrDefault();
-        _currentOffer = card is null ? null : ShopOffer.Create(card);
+        _screen = Screen.Shop;
+        var shop = _registry.Encounters[choice.Key] as ShopEncounterDefinition;
+        _title.Text = shop is null ? choice.DisplayName : $"{choice.DisplayName} · {shop.Level}级";
+        _currentOffer = shop is null || _player is null
+            ? null
+            : _shopCardPool.CreateOffer(_player, shop, _registry.Cards.Values);
+        var card = _currentOffer?.Definition;
         _log.Text = _currentOffer is null
             ? "尚未配置正式卡牌内容。"
             : $"{card!.Attributes.Identity.DisplayName}　价格 {_currentOffer.Price}　购买后价值 {_currentOffer.Price / 2}\n本次商店只有这一件商品。";
@@ -212,7 +215,10 @@ public sealed partial class MinimalPlaytest : Control
     {
         if (_player is null) return;
         _screen = Screen.Preparation; _title.Text = choice.Kind == EncounterKind.Pvp ? "PvP 战斗准备" : $"迎战：{choice.DisplayName}";
-        _enemy = new LocalTestOpponentProvider(_registry).CreateOpponent(_player.Random.State);
+        var opponents = new LocalTestOpponentProvider(_registry);
+        _enemy = choice.Kind == EncounterKind.Monster
+            ? opponents.CreateMonsterOpponent(_player.Random.State, _registry.Monsters[choice.Key])
+            : opponents.CreateOpponent(_player.Random.State);
         _battleKind = choice.Kind == EncounterKind.Pvp ? MatchBattleKind.Pvp : MatchBattleKind.Monster;
         _log.Text = _player.Board.Battlefield.Count == 0
             ? "你没有卡牌。仍可开始战斗，但几乎无法获胜。"

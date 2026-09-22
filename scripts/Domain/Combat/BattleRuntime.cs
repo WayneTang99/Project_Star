@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
@@ -40,6 +41,9 @@ internal sealed class CardBattleState
     public CardBattleState(CardBattleSetup setup, SideId side)
     {
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
+        Tags = setup.Tags ?? new TagSet();
+        CombatAttributes[GameAttributeKeys.AttackDamage] = setup.AttackDamage;
+        CombatAttributes[GameAttributeKeys.Multicast] = setup.Multicast;
         var definitions = setup.Abilities is { Count: > 0 }
             ? setup.Abilities
             : setup.UseLegacyAttack
@@ -47,19 +51,45 @@ internal sealed class CardBattleState
                     AbilityTarget.EnemyHero, 0, setup.CooldownTicks, [new DamageEffectDefinition(setup.AttackDamage)])]
                 : Array.Empty<AbilityDefinition>();
         foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition));
+        foreach (var definition in definitions)
+        foreach (var effect in definition.Effects)
+            if (effect is AttributeDamageEffectDefinition attributeDamage)
+                SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
+        if (definitions.Count > 0) SupportedCombatAttributes.Add(GameAttributeKeys.Multicast);
     }
     public EntityId EntityId { get; }
     public SideId Side { get; }
     public int BoardStart { get; }
     public bool IsOnBench { get; }
+    public TagSet Tags { get; }
     public bool Destroyed { get; set; }
+    public int ActivationCount { get; set; }
+    public int CooldownBonusTicks { get; set; }
     public int HasteDuration { get; set; }
     public int SlowDuration { get; set; }
     public int ImmobilizeDuration { get; set; }
     public List<BattleAbilityState> Abilities { get; } = [];
+    public Dictionary<StringName, int> CombatAttributes { get; } = [];
+    public HashSet<StringName> SupportedCombatAttributes { get; } = [];
+
+    public bool SupportsCombatAttribute(StringName key) => SupportedCombatAttributes.Contains(key);
+
+    public int GetCombatAttribute(StringName key) => CombatAttributes.TryGetValue(key, out var value) ? value : 0;
+
+    public int AddCombatAttribute(StringName key, int amount)
+    {
+        var value = checked(GetCombatAttribute(key) + amount);
+        CombatAttributes[key] = value;
+        return value;
+    }
 }
 
-internal sealed record PendingAbility(CardBattleState Source, BattleAbilityState Ability, bool IsEcho, BattleTick EnqueuedAt);
+internal sealed record PendingAbility(
+    CardBattleState Source,
+    BattleAbilityState Ability,
+    bool IsEcho,
+    bool IsMulticast,
+    BattleTick EnqueuedAt);
 
 internal sealed class AbilityQueue
 {

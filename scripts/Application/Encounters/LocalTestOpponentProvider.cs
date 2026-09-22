@@ -11,6 +11,7 @@ using Project_Star.Infrastructure.Definitions;
 
 namespace Project_Star.Application.Encounters;
 
+// 使用正式内容注册表创建本地试玩对手（应用层）。
 public sealed class LocalTestOpponentProvider : IOpponentProvider
 {
     private readonly DefinitionRegistry _registry;
@@ -18,6 +19,7 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
 
     public LocalTestOpponentProvider(DefinitionRegistry registry) => _registry = registry;
 
+    // 创建本地 PvP 测试对手。
     public MatchSession CreateOpponent(ulong seed)
     {
         var hero = _registry.Heroes.Values
@@ -36,6 +38,29 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
             cardDefinition.InitialLevel,
             CardAcquisitionSource.Reward).Value!;
         _ = new BoardService(new BoardPlacementSolver()).PlaceCard(session, card.Id, BoardZone.Battlefield, 0);
+        return session;
+    }
+
+    // 按怪物固定属性与卡组创建独立对手实例。
+    public MatchSession CreateMonsterOpponent(ulong seed, MonsterDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var session = new MatchSession(seed);
+        session.Player.SelectHero(_factory.CreateMonsterCombatant(definition));
+        var economy = new CardEconomyService(_factory);
+        var board = new BoardService(new BoardPlacementSolver());
+        foreach (var entry in definition.Cards)
+        {
+            var cardDefinition = _registry.Cards[entry.CardKey];
+            var card = economy.AcquireCard(
+                session,
+                cardDefinition,
+                entry.Level,
+                CardAcquisitionSource.Reward).Value!;
+            var placement = board.PlaceCard(session, card.Id, BoardZone.Battlefield, entry.BoardStart);
+            if (placement.IsFailure)
+                throw new InvalidOperationException(placement.Failure!.Message);
+        }
         return session;
     }
 }

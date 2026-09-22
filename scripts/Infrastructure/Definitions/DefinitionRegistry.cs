@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Godot;
 using Project_Star.Domain.Definitions;
+using Project_Star.Domain.Match;
 
 namespace Project_Star.Infrastructure.Definitions;
 
@@ -12,11 +13,13 @@ public sealed class DefinitionRegistry
     private DefinitionRegistry(
         Dictionary<StringName, HeroDefinition> heroes,
         Dictionary<StringName, CardDefinition> cards,
-        Dictionary<StringName, EncounterDefinition> encounters)
+        Dictionary<StringName, EncounterDefinition> encounters,
+        Dictionary<StringName, MonsterDefinition> monsters)
     {
         Heroes = heroes;
         Cards = cards;
         Encounters = encounters;
+        Monsters = monsters;
     }
 
     public IReadOnlyDictionary<StringName, HeroDefinition> Heroes { get; }
@@ -24,6 +27,8 @@ public sealed class DefinitionRegistry
     public IReadOnlyDictionary<StringName, CardDefinition> Cards { get; }
 
     public IReadOnlyDictionary<StringName, EncounterDefinition> Encounters { get; }
+
+    public IReadOnlyDictionary<StringName, MonsterDefinition> Monsters { get; }
 
     public static DefinitionRegistry Scan(Assembly assembly)
     {
@@ -61,6 +66,7 @@ public sealed class DefinitionRegistry
         var heroes = new Dictionary<StringName, HeroDefinition>();
         var cards = new Dictionary<StringName, CardDefinition>();
         var encounters = new Dictionary<StringName, EncounterDefinition>();
+        var monsters = new Dictionary<StringName, MonsterDefinition>();
 
         foreach (var definition in definitions)
         {
@@ -76,19 +82,54 @@ public sealed class DefinitionRegistry
                     ValidateEncounter(encounter);
                     AddUnique(encounters, encounter.Attributes.Identity.Key, encounter, "encounter");
                     break;
+                case MonsterDefinition monster:
+                    AddUnique(monsters, monster.Attributes.Identity.Key, monster, "monster");
+                    break;
                 default:
                     throw new DefinitionValidationException($"Unsupported definition type '{definition?.GetType().FullName ?? "null"}'.");
             }
         }
 
         ValidateCardFactions(heroes, cards);
-        return new DefinitionRegistry(heroes, cards, encounters);
+        ValidateMonsterCards(monsters, cards);
+        return new DefinitionRegistry(heroes, cards, encounters, monsters);
     }
 
     private static bool IsDefinitionType(Type type) =>
         typeof(HeroDefinition).IsAssignableFrom(type)
         || typeof(CardDefinition).IsAssignableFrom(type)
-        || typeof(EncounterDefinition).IsAssignableFrom(type);
+        || typeof(EncounterDefinition).IsAssignableFrom(type)
+        || typeof(MonsterDefinition).IsAssignableFrom(type);
+
+    private static void ValidateMonsterCards(
+        IReadOnlyDictionary<StringName, MonsterDefinition> monsters,
+        IReadOnlyDictionary<StringName, CardDefinition> cards)
+    {
+        foreach (var monster in monsters.Values)
+        {
+            var occupied = new bool[BoardState.DefaultCapacity];
+            foreach (var entry in monster.Cards)
+            {
+                if (!cards.TryGetValue(entry.CardKey, out var card))
+                    throw new DefinitionValidationException(
+                        $"Monster '{monster.Attributes.Identity.Key}' references unknown card '{entry.CardKey}'.");
+                if (!card.SupportsLevel(entry.Level))
+                    throw new DefinitionValidationException(
+                        $"Monster '{monster.Attributes.Identity.Key}' references unsupported level {entry.Level} "
+                        + $"for card '{entry.CardKey}'.");
+                if (entry.BoardStart < 0 || entry.BoardStart + card.Attributes.Identity.OccupiedSlots > BoardState.DefaultCapacity)
+                    throw new DefinitionValidationException(
+                        $"Monster '{monster.Attributes.Identity.Key}' has an invalid board position for card '{entry.CardKey}'.");
+                for (var slot = entry.BoardStart; slot < entry.BoardStart + card.Attributes.Identity.OccupiedSlots; slot++)
+                {
+                    if (occupied[slot])
+                        throw new DefinitionValidationException(
+                            $"Monster '{monster.Attributes.Identity.Key}' has overlapping cards at board slot {slot}.");
+                    occupied[slot] = true;
+                }
+            }
+        }
+    }
 
     private static void AddUnique<T>(Dictionary<StringName, T> target, StringName key, T value, string category)
     {

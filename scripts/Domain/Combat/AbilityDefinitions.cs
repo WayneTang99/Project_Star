@@ -35,13 +35,26 @@ public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false
 
 public sealed record MaxHealthPercentDamageEffectDefinition(int Percent, bool BypassArmor = false) : EffectDefinition;
 
+public sealed record AttributeDamageEffectDefinition(StringName AttributeKey, bool BypassArmor = false)
+    : EffectDefinition;
+
 public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
 
+public sealed record GainSourceHeroArmorEffectDefinition(int Amount) : EffectDefinition;
+
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
 public sealed record DestroyCardEffectDefinition(bool Permanent) : EffectDefinition;
+
+public sealed record IncreaseSourceCooldownEffectDefinition(int AmountTicks, bool FirstActivationOnly = false)
+    : EffectDefinition;
+
+public sealed record ModifyTaggedAlliedCardsAttributeEffectDefinition(
+    StringName RequiredTag,
+    StringName AttributeKey,
+    int Amount) : EffectDefinition;
 
 public sealed class AbilityDefinition
 {
@@ -76,8 +89,11 @@ public sealed class AbilityDefinition
             {
                 DamageEffectDefinition value => value.Amount,
                 MaxHealthPercentDamageEffectDefinition value => value.Percent,
+                IncreaseSourceCooldownEffectDefinition value => value.AmountTicks,
+                ModifyTaggedAlliedCardsAttributeEffectDefinition value => value.Amount,
                 HealEffectDefinition value => value.Amount,
                 ArmorEffectDefinition value => value.Amount,
+                GainSourceHeroArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,
                 _ => 0,
             };
@@ -87,6 +103,11 @@ public sealed class AbilityDefinition
             {
                 throw new ArgumentException("Max health damage percent must be between 1 and 100.", nameof(effects));
             }
+            if (effect is AttributeDamageEffectDefinition attributeDamage && attributeDamage.AttributeKey.IsEmpty)
+                throw new ArgumentException("Attribute damage key cannot be empty.", nameof(effects));
+            if (effect is ModifyTaggedAlliedCardsAttributeEffectDefinition modifier
+                && (modifier.RequiredTag.IsEmpty || modifier.AttributeKey.IsEmpty))
+                throw new ArgumentException("Tagged card attribute modifier keys cannot be empty.", nameof(effects));
         }
         Effects = new List<EffectDefinition>(effects).AsReadOnly();
         AllowsBench = allowsBench;

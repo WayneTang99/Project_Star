@@ -14,6 +14,19 @@ public sealed class EntityFactory
         return new HeroInstance(EntityId.New(), Copy(definition.Attributes));
     }
 
+    // 从怪物定义创建复用英雄战斗模型的独立实例。
+    public HeroInstance CreateMonsterCombatant(MonsterDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var attributes = new EntityAttributes<HeroIdentityAttributes>(
+            new HeroIdentityAttributes(
+                definition.Attributes.Identity.Key,
+                definition.Attributes.Identity.DisplayName,
+                new Godot.StringName("monster")),
+            baseCombat: definition.Attributes.BaseCombat.CreateMutableCopy());
+        return new HeroInstance(EntityId.New(), attributes);
+    }
+
     public CardInstance CreateCard(CardDefinition definition, int? level = null)
     {
         ArgumentNullException.ThrowIfNull(definition);

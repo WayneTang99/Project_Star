@@ -73,3 +73,11 @@ public sealed class EncounterIdentityAttributes : IdentityAttributes
     {
     }
 }
+
+// 怪物只读身份字段（领域定义层）。
+public sealed class MonsterIdentityAttributes : IdentityAttributes
+{
+    public MonsterIdentityAttributes(StringName key, string displayName) : base(key, displayName)
+    {
+    }
+}

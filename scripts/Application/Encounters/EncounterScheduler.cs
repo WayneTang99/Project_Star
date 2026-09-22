@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Project_Star.Application.Common;
+using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
@@ -18,10 +19,12 @@ public sealed class EncounterScheduler
     private static readonly StringName InvalidChoice = new("encounter.invalid_choice");
 
     private readonly DefinitionRegistry _registry;
+    private readonly bool _allowIncompleteMonsterChoices;
 
-    public EncounterScheduler(DefinitionRegistry registry)
+    public EncounterScheduler(DefinitionRegistry registry, bool allowIncompleteMonsterChoices = false)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _allowIncompleteMonsterChoices = allowIncompleteMonsterChoices;
     }
 
     public Result<IReadOnlyList<EncounterChoice>> Generate(MatchSession session)
@@ -34,6 +37,7 @@ public sealed class EncounterScheduler
             .OrderBy(value => value.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList();
         var allDefinitions = _registry.Encounters.Values
+            .Concat(_registry.Monsters.Values.Select(monster => new RegisteredMonsterEncounterDefinition(monster)))
             .OrderBy(value => value.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList();
         List<EncounterDefinition> selected;
@@ -41,7 +45,8 @@ public sealed class EncounterScheduler
         if (session.Progress.Turn == 4)
         {
             selected = SelectMany(allDefinitions.Where(value => value.Kind == EncounterKind.Monster).ToList(), 3, session, random);
-            if (selected.Count < 3) return Fail(MissingSpecial, "Turn four requires three different monster encounters.");
+            if (selected.Count < 3 && (!_allowIncompleteMonsterChoices || selected.Count == 0))
+                return Fail(MissingSpecial, "Turn four requires three different monster encounters.");
         }
         else if (session.Progress.Turn == 8)
         {
@@ -126,6 +131,21 @@ public sealed class EncounterScheduler
 
     private static EncounterChoice ToChoice(EncounterDefinition definition) =>
         new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind);
+
+    private sealed class RegisteredMonsterEncounterDefinition : EncounterDefinition
+    {
+        public RegisteredMonsterEncounterDefinition(MonsterDefinition monster)
+            : base(
+                new EntityAttributes<EncounterIdentityAttributes>(
+                    new EncounterIdentityAttributes(
+                        monster.Attributes.Identity.Key,
+                        monster.Attributes.Identity.DisplayName)),
+                1,
+                99,
+                EncounterKind.Monster)
+        {
+        }
+    }
 
     private static Result<IReadOnlyList<EncounterChoice>> Fail(StringName code, string message) =>
         Result<IReadOnlyList<EncounterChoice>>.Fail(new Failure(code, message));

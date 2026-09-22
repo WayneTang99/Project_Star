@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
@@ -22,7 +23,9 @@ public sealed record CardBattleSetup(
     int CooldownTicks,
     IReadOnlyList<AbilityDefinition>? Abilities = null,
     bool IsOnBench = false,
-    bool UseLegacyAttack = true);
+    bool UseLegacyAttack = true,
+    TagSet? Tags = null,
+    int Multicast = 0);
 
 public sealed class BattleSideSetup
 {

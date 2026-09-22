@@ -1,3 +1,4 @@
+using Godot;
 using Project_Star.Domain.Common;
 
 namespace Project_Star.Domain.Combat;
@@ -20,6 +21,13 @@ public sealed record AbilityActivatedEvent(
 public sealed record ManaChangedEvent(BattleTick Tick, SideId Side, int Amount, int CurrentMana) : BattleEvent(Tick);
 
 public sealed record StatusChangedEvent(BattleTick Tick, BattleStatus Status, int Amount) : BattleEvent(Tick);
+
+public sealed record CardAttributeChangedEvent(
+    BattleTick Tick,
+    EntityId CardId,
+    StringName AttributeKey,
+    int Amount,
+    int CurrentValue) : BattleEvent(Tick);
 
 public sealed record DamageDealtEvent(
     BattleTick Tick,

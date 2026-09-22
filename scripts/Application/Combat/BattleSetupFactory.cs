@@ -51,7 +51,8 @@ public sealed class BattleSetupFactory
                 ?? throw new InvalidOperationException($"Battlefield card '{placement.CardId}' is not owned by the player.");
             var damage = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage);
             var cooldown = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks);
-            if (damage < 0 || cooldown < 1)
+            var multicast = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast);
+            if (damage < 0 || cooldown < 1 || multicast < 0)
             {
                 throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             }
@@ -62,13 +63,18 @@ public sealed class BattleSetupFactory
                 damage,
                 cooldown,
                 card.Abilities,
-                UseLegacyAttack: false));
+                UseLegacyAttack: false,
+                Tags: card.Tags,
+                Multicast: multicast));
         }
 
         foreach (var placement in session.Board.Bench.Placements)
         {
             var card = session.Player.Inventory.Find(placement.CardId)
                 ?? throw new InvalidOperationException($"Bench card '{placement.CardId}' is not owned by the player.");
+            var multicast = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast);
+            if (multicast < 0)
+                throw new InvalidOperationException($"Card '{placement.CardId}' has invalid multicast.");
             cards.Add(new CardBattleSetup(
                 card.Id,
                 placement.Start,
@@ -76,7 +82,9 @@ public sealed class BattleSetupFactory
                 1,
                 card.Abilities,
                 IsOnBench: true,
-                UseLegacyAttack: false));
+                UseLegacyAttack: false,
+                Tags: card.Tags,
+                Multicast: multicast));
         }
 
         return new BattleSideSetup(

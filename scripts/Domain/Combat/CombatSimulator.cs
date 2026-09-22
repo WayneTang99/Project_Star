@@ -58,9 +58,14 @@ public sealed class CombatSimulator
         }
     }
 
-    private static void Enqueue(BattleRuntime runtime, CardBattleState card, BattleAbilityState ability, bool echo)
+    private static void Enqueue(
+        BattleRuntime runtime,
+        CardBattleState card,
+        BattleAbilityState ability,
+        bool echo,
+        bool multicast = false)
     {
-        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, runtime.Tick));
+        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick));
         runtime.Events.Add(new AbilityQueuedEvent(runtime.Tick, card.EntityId, card.Side));
     }
 
@@ -72,13 +77,18 @@ public sealed class CombatSimulator
             if (pending.Source.Destroyed) continue;
             var hero = runtime.GetHero(pending.Source.Side);
             var definition = pending.Ability.Definition;
-            if (hero.Mana < definition.ManaCost) continue;
-            hero.Mana -= definition.ManaCost;
-            if (definition.ManaCost > 0)
+            if (!pending.IsMulticast && hero.Mana < definition.ManaCost) continue;
+            if (!pending.IsMulticast) hero.Mana -= definition.ManaCost;
+            if (definition.ManaCost > 0 && !pending.IsMulticast)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
-            if (!pending.IsEcho) pending.Ability.RemainingCooldownUnits = definition.CooldownTicks * 2;
+            if (!pending.IsEcho && !pending.IsMulticast)
+                pending.Ability.RemainingCooldownUnits = (definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2;
             runtime.Events.Add(new AbilityActivatedEvent(runtime.Tick, pending.Source.EntityId, pending.Source.Side, pending.IsEcho));
+            if (!pending.IsEcho && !pending.IsMulticast)
+                for (var repeat = 0; repeat < pending.Source.GetCombatAttribute(GameAttributeKeys.Multicast); repeat++)
+                    Enqueue(runtime, pending.Source, pending.Ability, false, true);
             foreach (var effect in definition.Effects) ApplyEffect(runtime, pending, effect);
+            if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
         }
     }
@@ -111,11 +121,25 @@ public sealed class CombatSimulator
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
+            case AttributeDamageEffectDefinition attributeDamage:
+                ApplyDamage(
+                    runtime,
+                    pending.Source.EntityId,
+                    targetSide,
+                    hero,
+                    pending.Source.GetCombatAttribute(attributeDamage.AttributeKey),
+                    attributeDamage.BypassArmor);
+                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
+                break;
             case HealEffectDefinition heal:
                 hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
                 break;
             case ArmorEffectDefinition armor:
                 hero.Armor = checked(hero.Armor + armor.Amount);
+                break;
+            case GainSourceHeroArmorEffectDefinition sourceArmor:
+                var alliedHero = runtime.GetHero(pending.Source.Side);
+                alliedHero.Armor = checked(alliedHero.Armor + sourceArmor.Amount);
                 break;
             case ApplyStatusEffectDefinition status:
                 ApplyStatus(pending.Source, hero, status);
@@ -124,6 +148,37 @@ public sealed class CombatSimulator
             case DestroyCardEffectDefinition destroy:
                 pending.Source.Destroyed = true;
                 if (destroy.Permanent) runtime.PermanentChanges.Add(new PermanentChange(pending.Source.EntityId, "Destroy"));
+                break;
+            case IncreaseSourceCooldownEffectDefinition cooldown:
+                if (!cooldown.FirstActivationOnly || pending.Source.ActivationCount == 0)
+                {
+                    pending.Source.CooldownBonusTicks = checked(
+                        pending.Source.CooldownBonusTicks + cooldown.AmountTicks);
+                    foreach (var ability in pending.Source.Abilities)
+                    {
+                        if (ability.Definition.Activation == AbilityActivation.Active)
+                            ability.RemainingCooldownUnits = checked(
+                                ability.RemainingCooldownUnits + cooldown.AmountTicks * 2);
+                    }
+                }
+                break;
+            case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
+                foreach (var card in runtime.Cards)
+                {
+                    if (card.Side != pending.Source.Side || card.Destroyed || card.IsOnBench
+                        || !card.Tags.Contains(modifier.RequiredTag)
+                        || !card.SupportsCombatAttribute(modifier.AttributeKey))
+                    {
+                        continue;
+                    }
+                    var currentValue = card.AddCombatAttribute(modifier.AttributeKey, modifier.Amount);
+                    runtime.Events.Add(new CardAttributeChangedEvent(
+                        runtime.Tick,
+                        card.EntityId,
+                        modifier.AttributeKey,
+                        modifier.Amount,
+                        currentValue));
+                }
                 break;
         }
     }
