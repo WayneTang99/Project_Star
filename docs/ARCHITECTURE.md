@@ -121,13 +121,14 @@ flowchart LR
 ### 4.1 静态定义
 
 - `HeroDefinition`、`CardDefinition`、`EncounterDefinition` 是抽象基类。
-- 每个具体内容是非抽象子类，在构造函数中声明身份、初始属性、标签和能力组合。
+- 每个具体内容是非抽象子类。英雄声明身份与初始属性；卡牌声明身份、初始属性、标签和能力组合；遭遇声明身份与排程配置。
 - `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
 - 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
 
 ### 4.2 运行实例
 
 - `HeroInstance` 和 `CardInstance` 具有唯一 `EntityId`。
+- 英雄不持有 `TagSet`；标签只用于卡牌分类。
 - 选择、购买、掉落和奖励均通过 `EntityFactory` 创建独立实例及属性集。
 - 定义不可变，实例变化不得回写定义。
 - 怪物与玩家使用同一种英雄和卡牌模型。
