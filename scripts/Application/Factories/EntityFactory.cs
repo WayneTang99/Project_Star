@@ -11,7 +11,10 @@ public sealed class EntityFactory
     public HeroInstance CreateHero(HeroDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        return new HeroInstance(EntityId.New(), Copy(definition.Attributes));
+        var attributes = Copy(definition.Attributes);
+        if (attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) < 1)
+            attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 1);
+        return new HeroInstance(EntityId.New(), attributes);
     }
 
     // 从怪物定义创建复用英雄战斗模型的独立实例。

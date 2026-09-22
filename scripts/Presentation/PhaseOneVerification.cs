@@ -59,6 +59,8 @@ public sealed partial class PhaseOneVerification : Control
         ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
         ("型号商店只提供当前英雄归属的对应尺寸卡牌", CheckSizeShopCardPools),
         ("野猪使用默认属性并拥有两张1级兽皮", CheckBoarMonsterDefinition),
+        ("体能训练按英雄等级结算可扩展选项", CheckPhysicalTraining),
+        ("垃圾填埋场生成固定与加权选项并结算奖励", CheckLandfill),
         ("购买按报价扣款并登记卡牌归属", CheckPurchase),
         ("余额不足时交易无任何修改", CheckInsufficientWealth),
         ("出售按现值回补且只能一次", CheckSale),
@@ -483,6 +485,143 @@ public sealed partial class PhaseOneVerification : Control
             && opponent.Board.Battlefield.Count == 2
             && opponent.Player.Inventory.Cards[0].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
             && opponent.Player.Inventory.Cards[1].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1;
+    }
+
+    private static bool CheckPhysicalTraining()
+    {
+        var definition = new PhysicalTrainingEncounterDefinition();
+        var registry = DefinitionRegistry.Create([new PaladinHeroDefinition(), definition]);
+        var factory = new EntityFactory();
+        var matches = new CreateMatchService(factory);
+        var resolver = new ResolveEncounterOptionService(factory, CreateBoardService(), Array.Empty<CardDefinition>());
+        var heroDefinition = new PaladinHeroDefinition();
+
+        var healthSession = matches.Create(1, 0, heroDefinition);
+        healthSession.Player.Hero!.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 3);
+        var healthOptions = resolver.CreateOptionSet(healthSession, definition);
+        var healthResult = resolver.Resolve(healthSession, healthOptions, definition.Options[0].Key);
+        var healthOpponent = matches.Create(2, 0, heroDefinition);
+        var healthSetup = new BattleSetupFactory().Create(healthSession, healthOpponent, 1, new BattleTick(1));
+
+        var regenSession = matches.Create(3, 0, heroDefinition);
+        regenSession.Player.Hero!.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 3);
+        var regenOptions = resolver.CreateOptionSet(regenSession, definition);
+        var regenResult = resolver.Resolve(regenSession, regenOptions, definition.Options[1].Key);
+        var regenOpponent = matches.Create(4, 0, heroDefinition);
+        var regenSetup = new BattleSetupFactory().Create(regenSession, regenOpponent, 1, new BattleTick(1));
+        var invalidResult = resolver.Resolve(
+            regenSession,
+            regenOptions,
+            new StringName("encounter.physical_training.unknown"));
+
+        return registry.Encounters.ContainsKey(new StringName("encounter.physical_training"))
+            && definition.Kind == EncounterKind.Other
+            && definition.MinimumRound == 1
+            && definition.MaximumRound == 99
+            && definition.Options.Count == 2
+            && definition.Options[0].Key == new StringName("encounter.physical_training.max_health")
+            && definition.Options[1].Key == new StringName("encounter.physical_training.health_regen")
+            && healthSession.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 3
+            && healthResult.IsSuccess
+            && healthResult.Value!.Changes.Count == 1
+            && healthResult.Value.Changes[0].Amount == 30
+            && healthSetup.Player.Hero.MaxHealth == 130
+            && regenResult.IsSuccess
+            && regenResult.Value!.Changes.Count == 1
+            && regenResult.Value.Changes[0].Amount == 3
+            && regenSetup.Player.Hero.HealthRegen == 3
+            && invalidResult.IsFailure
+            && regenSession.Player.Hero.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.HealthRegen) == 3;
+    }
+
+    private static bool CheckLandfill()
+    {
+        var definition = new LandfillEncounterDefinition();
+        var heroDefinition = new PaladinHeroDefinition();
+        CardDefinition[] cards = [new ArmguardCardDefinition(), new MilitaryBootsCardDefinition(), new BeastHideCardDefinition()];
+        var registryItems = new List<object> { heroDefinition, definition };
+        registryItems.AddRange(cards.Cast<object>());
+        var registry = DefinitionRegistry.Create(registryItems);
+        var factory = new EntityFactory();
+        var matches = new CreateMatchService(factory);
+        var board = CreateBoardService();
+        var resolver = new ResolveEncounterOptionService(factory, board, cards);
+        var wealthKey = new StringName("encounter.landfill.wealth");
+        var factionKey = new StringName("encounter.landfill.faction_small_card");
+        var materialKey = new StringName("encounter.landfill.material_small_card");
+
+        var deterministicA = resolver.CreateOptionSet(matches.Create(77, 0, heroDefinition), definition);
+        var deterministicB = resolver.CreateOptionSet(matches.Create(77, 0, heroDefinition), definition);
+        if (deterministicA.Options.Count != 2
+            || deterministicA.Options[0].Key != wealthKey
+            || deterministicA.Options[1].Key != deterministicB.Options[1].Key)
+        {
+            return false;
+        }
+
+        MatchSession? factionSession = null;
+        EncounterOptionSet? factionOptions = null;
+        MatchSession? materialSession = null;
+        EncounterOptionSet? materialOptions = null;
+        for (ulong seed = 1; seed <= 1000 && (factionSession is null || materialSession is null); seed++)
+        {
+            var session = matches.Create(seed, 0, heroDefinition);
+            var options = resolver.CreateOptionSet(session, definition);
+            if (options.Options[1].Key == factionKey && factionSession is null)
+                (factionSession, factionOptions) = (session, options);
+            if (options.Options[1].Key == materialKey && materialSession is null)
+                (materialSession, materialOptions) = (session, options);
+        }
+        if (factionSession is null || factionOptions is null || materialSession is null || materialOptions is null)
+            return false;
+
+        var wealthSession = matches.Create(88, 0, heroDefinition);
+        var wealthOptions = resolver.CreateOptionSet(wealthSession, definition);
+        var wealthResult = resolver.Resolve(wealthSession, wealthOptions, wealthKey);
+        var repeatedResult = resolver.Resolve(wealthSession, wealthOptions, wealthKey);
+        var factionResult = resolver.Resolve(factionSession, factionOptions, factionKey);
+        var materialResult = resolver.Resolve(materialSession, materialOptions, materialKey);
+
+        var fullSession = matches.Create(99, 0, heroDefinition);
+        var economy = new CardEconomyService(factory);
+        for (var index = 0; index < 20; index++)
+        {
+            var blocker = economy.AcquireCard(fullSession, cards[2], 1, CardAcquisitionSource.Reward).Value!;
+            var zone = index < 10 ? BoardZone.Battlefield : BoardZone.Bench;
+            _ = board.PlaceCard(fullSession, blocker.Id, zone, index % 10);
+        }
+        EncounterOptionSet? fullCardOptions = null;
+        for (var attempts = 0; attempts < 1000; attempts++)
+        {
+            var options = resolver.CreateOptionSet(fullSession, definition);
+            if (options.Options[1].Key == factionKey)
+            {
+                fullCardOptions = options;
+                break;
+            }
+        }
+        if (fullCardOptions is null) return false;
+        var inventoryBefore = fullSession.Player.Inventory.Cards.Count;
+        var fullResult = resolver.Resolve(fullSession, fullCardOptions, factionKey);
+
+        return registry.Encounters.ContainsKey(new StringName("encounter.landfill"))
+            && definition.Level == 1
+            && definition.Options.Count == 3
+            && definition.OptionSlots.Count == 2
+            && definition.OptionSlots[1].Candidates[0].Weight == 60
+            && definition.OptionSlots[1].Candidates[1].Weight == 40
+            && wealthResult.IsSuccess
+            && wealthResult.Value!.WealthGained == 2
+            && wealthSession.Player.Wealth == 2
+            && repeatedResult.IsFailure
+            && factionResult.Value?.GrantedCard?.Attributes.Identity.FactionKey == new StringName("paladin")
+            && factionResult.Value.GrantedCard.Attributes.Identity.Size == CardSize.Small
+            && materialResult.Value?.GrantedCard?.Tags.Contains(GameTags.Material) == true
+            && materialResult.Value.GrantedCard.Attributes.Identity.Size == CardSize.Small
+            && fullResult.IsSuccess
+            && fullResult.Value!.CardRewardSkipped
+            && fullResult.Value.GrantedCard is null
+            && fullSession.Player.Inventory.Cards.Count == inventoryBefore;
     }
 
     private static bool CheckSpecialValueCoefficient()

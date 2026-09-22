@@ -25,6 +25,7 @@ public sealed partial class MinimalPlaytest : Control
     private readonly BoardService _board = new(new BoardPlacementSolver());
     private readonly StartBattleService _battle = new(new BattleSetupFactory(), new CombatSimulator());
     private readonly ShopCardPoolService _shopCardPool = new();
+    private ResolveEncounterOptionService _encounterOptions = null!;
     private readonly Button[] _choices = new Button[3];
     private DefinitionRegistry _registry = null!;
     private CardEconomyService _economy = null!;
@@ -44,6 +45,7 @@ public sealed partial class MinimalPlaytest : Control
     private Button _refreshShop = null!;
     private Button _battleButton = null!;
     private Button _continue = null!;
+    private VBoxContainer _eventOptionButtons = null!;
     private Control _battlefieldPanel = null!;
     private Control _benchPanel = null!;
     private Control _enemyBattlefieldPanel = null!;
@@ -55,11 +57,13 @@ public sealed partial class MinimalPlaytest : Control
     private readonly Button[] _enemyBattlefieldSlots = new Button[10];
     private EntityId? _selectedCardId;
     private ShopStock? _currentStock;
+    private EncounterOptionSet? _currentEncounterOptions;
 
     public override void _Ready()
     {
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
+        _encounterOptions = new ResolveEncounterOptionService(_factory, _board, _registry.Cards.Values);
         _matches = new CreateMatchService(_factory);
         _encounters = new EncounterScheduler(_registry, allowIncompleteMonsterChoices: true);
         _matchResults = new MatchResultService(_board);
@@ -77,6 +81,7 @@ public sealed partial class MinimalPlaytest : Control
         _refreshShop = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Refresh");
         _battleButton = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Battle");
         _continue = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/EncounterActions/Generate");
+        _eventOptionButtons = GetNode<VBoxContainer>($"{root}/MainPanel/Margin/MainContent/EventOptions");
         _battlefieldPanel = GetNode<Control>($"{root}/BattlefieldPanel");
         _benchPanel = GetNode<Control>($"{root}/BenchPanel");
         _enemyBattlefieldPanel = GetNode<Control>($"{root}/EnemyBattlefieldPanel");
@@ -159,7 +164,7 @@ public sealed partial class MinimalPlaytest : Control
             case EncounterKind.Shop: ShowShop(choice); break;
             case EncounterKind.Monster:
             case EncounterKind.Pvp: ShowPreparation(choice); break;
-            default: ShowEvent(choice.DisplayName); break;
+            default: ShowEvent(choice); break;
         }
     }
 
@@ -251,11 +256,54 @@ public sealed partial class MinimalPlaytest : Control
                 : "不可刷新";
     }
 
-    private void ShowEvent(string name)
+    private void ShowEvent(EncounterChoice choice)
     {
-        _screen = Screen.Event; _title.Text = name;
-        _log.Text = "你沿着林间道路继续前进。本次事件没有额外奖励。";
-        _continue.Text = "继续旅程"; _continue.Visible = true;
+        _screen = Screen.Event;
+        var definition = _registry.Encounters[choice.Key] as ChoiceEncounterDefinition;
+        _title.Text = definition is null ? choice.DisplayName : $"{choice.DisplayName} · {definition.Level}级";
+        if (definition is null)
+        {
+            _log.Text = "你沿着林间道路继续前进。本次事件没有额外奖励。";
+            _continue.Text = "继续旅程"; _continue.Visible = true;
+            UpdateState();
+            return;
+        }
+
+        _log.Text = "选择一项训练。";
+        _currentEncounterOptions = _encounterOptions.CreateOptionSet(_player!, definition);
+        _eventOptionButtons.Visible = true;
+        foreach (var option in _currentEncounterOptions.Options)
+        {
+            var captured = option;
+            var button = new Button { Text = option.DisplayName };
+            button.Pressed += () => ResolveEventOption(definition, captured);
+            _eventOptionButtons.AddChild(button);
+        }
+        UpdateState();
+    }
+
+    private void ResolveEventOption(ChoiceEncounterDefinition encounter, EncounterOptionDefinition option)
+    {
+        if (_player is null) return;
+        if (_currentEncounterOptions is null || _currentEncounterOptions.Encounter != encounter) return;
+        var result = _encounterOptions.Resolve(_player, _currentEncounterOptions, option.Key);
+        if (result.IsFailure)
+        {
+            _log.Text = result.Failure!.Message;
+            return;
+        }
+
+        _eventOptionButtons.Visible = false;
+        var changes = new List<string>();
+        foreach (var change in result.Value!.Changes)
+            changes.Add($"{change.AttributeKey} +{change.Amount}（当前 {change.CurrentValue}）");
+        if (result.Value.WealthGained > 0) changes.Add($"金币 +{result.Value.WealthGained}");
+        if (result.Value.GrantedCard is not null)
+            changes.Add($"获得 {result.Value.GrantedCard.Attributes.Identity.DisplayName}");
+        if (result.Value.CardRewardSkipped) changes.Add("双棋盘已满，未生成卡牌");
+        _log.Text = $"{option.DisplayName}完成：{string.Join("，", changes)}。";
+        _continue.Text = "继续旅程";
+        _continue.Visible = true;
         UpdateState();
     }
 
@@ -385,6 +433,9 @@ public sealed partial class MinimalPlaytest : Control
     private void HideAllActions()
     {
         _currentStock = null;
+        _currentEncounterOptions = null;
+        foreach (var child in _eventOptionButtons.GetChildren()) child.QueueFree();
+        _eventOptionButtons.Visible = false;
         _hero.Visible = _battleButton.Visible = _continue.Visible = _refreshShop.Visible = false;
         foreach (var button in _buyButtons) if (button is not null) button.Visible = false;
         _battlefieldPanel.Visible = _player is not null;

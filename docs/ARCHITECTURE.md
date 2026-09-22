@@ -123,6 +123,7 @@ flowchart LR
 - `HeroDefinition`、`CardDefinition`、`EncounterDefinition`、`MonsterDefinition` 是抽象基类。
 - 每个具体内容是非抽象子类。英雄声明身份与初始属性；卡牌声明身份、初始属性、标签和能力组合；遭遇声明身份与排程配置；怪物声明固定战斗属性与卡组。
 - `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
+- `ChoiceEncounterDefinition` 使用只读选项列表和固定/加权展示槽组合通用遭遇效果，并显式声明遭遇等级；`ResolveEncounterOptionService` 使用对局随机状态生成本次选项、校验一次性选择并结算通用奖励。表现层动态读取选项，不按具体遭遇 key 分支。
 - 卡牌归属 key 必须对应已有英雄阵营或统一的 `neutral`；归属用于内容池筛选，不作为运行时使用权限。
 - 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
 

@@ -169,6 +169,48 @@ public sealed class DefinitionRegistry
                 $"Encounter '{encounter.Attributes.Identity.Key}' has invalid round range "
                 + $"{encounter.MinimumRound}..{encounter.MaximumRound}.");
         }
+        if (encounter is not ChoiceEncounterDefinition choiceEncounter) return;
+        var optionKeys = new HashSet<StringName>();
+        foreach (var option in choiceEncounter.Options)
+        {
+            if (!optionKeys.Add(option.Key))
+                throw new DefinitionValidationException(
+                    $"Encounter '{encounter.Attributes.Identity.Key}' has duplicate option '{option.Key}'.");
+            foreach (var effect in option.Effects)
+            {
+                var invalid = effect switch
+                {
+                    ModifyHeroCombatAttributeByLevelEffectDefinition modifier =>
+                        modifier.AttributeKey.IsEmpty || modifier.AmountPerLevel < 1,
+                    GainWealthEncounterOptionEffectDefinition gain => gain.Amount < 1,
+                    GrantRandomFactionCardEncounterOptionEffectDefinition reward =>
+                        !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
+                    GrantRandomTaggedCardEncounterOptionEffectDefinition reward =>
+                        reward.RequiredTag.IsEmpty || !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
+                    _ => true,
+                };
+                if (invalid)
+                {
+                    throw new DefinitionValidationException(
+                        $"Encounter option '{option.Key}' has an invalid effect.");
+                }
+            }
+        }
+        var slottedKeys = new HashSet<StringName>();
+        foreach (var slot in choiceEncounter.OptionSlots)
+        foreach (var candidate in slot.Candidates)
+        {
+            if (candidate.Weight < 1 || !optionKeys.Contains(candidate.OptionKey) || !slottedKeys.Add(candidate.OptionKey))
+            {
+                throw new DefinitionValidationException(
+                    $"Encounter '{encounter.Attributes.Identity.Key}' has an invalid option slot candidate.");
+            }
+        }
+        if (slottedKeys.Count != optionKeys.Count)
+        {
+            throw new DefinitionValidationException(
+                $"Encounter '{encounter.Attributes.Identity.Key}' has an option that is not assigned to a slot.");
+        }
     }
 }
 
