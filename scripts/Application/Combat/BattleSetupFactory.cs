@@ -52,7 +52,7 @@ public sealed class BattleSetupFactory
             var damage = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage);
             var cooldown = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks);
             var multicast = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast);
-            if (damage < 0 || cooldown < 1 || multicast < 0)
+            if (damage < 0 || cooldown < 0 || multicast < 0)
             {
                 throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             }

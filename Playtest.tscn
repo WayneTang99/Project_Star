@@ -169,6 +169,31 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "候选 3"
 
+[node name="EnemyBattlefieldPanel" type="PanelContainer" parent="Margin/Frame/Margin/Content"]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="Margin/Frame/Margin/Content/EnemyBattlefieldPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Area" type="VBoxContainer" parent="Margin/Frame/Margin/Content/EnemyBattlefieldPanel/Margin"]
+layout_mode = 2
+
+[node name="EnemyBattlefieldLabel" type="Label" parent="Margin/Frame/Margin/Content/EnemyBattlefieldPanel/Margin/Area"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "敌方战场区"
+horizontal_alignment = 1
+
+[node name="EnemyBattlefieldSlots" type="GridContainer" parent="Margin/Frame/Margin/Content/EnemyBattlefieldPanel/Margin/Area"]
+layout_mode = 2
+columns = 10
+
 [node name="BattlefieldPanel" type="PanelContainer" parent="Margin/Frame/Margin/Content"]
 custom_minimum_size = Vector2(0, 92)
 layout_mode = 2
@@ -187,7 +212,7 @@ layout_mode = 2
 [node name="BattlefieldLabel" type="Label" parent="Margin/Frame/Margin/Content/BattlefieldPanel/Margin/Area"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "战场区"
+text = "我方战场区"
 horizontal_alignment = 1
 
 [node name="BattlefieldSlots" type="GridContainer" parent="Margin/Frame/Margin/Content/BattlefieldPanel/Margin/Area"]

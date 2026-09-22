@@ -218,8 +218,8 @@ public sealed class CombatSimulator
     {
         if (runtime.Tick.Value % 10 == 0)
         {
-            if (hero.Burn > 0) ApplyDamage(runtime, hero.EntityId, side, hero, hero.Burn, false);
-            if (hero.Poison > 0) ApplyDamage(runtime, hero.EntityId, side, hero, hero.Poison, true);
+            if (hero.Burn > 0) ApplyDamage(runtime, hero.EntityId, side, hero, hero.Burn, false, DamageSourceKind.Status);
+            if (hero.Poison > 0) ApplyDamage(runtime, hero.EntityId, side, hero, hero.Poison, true, DamageSourceKind.Status);
             hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + hero.HealthRegen));
             hero.Mana = Math.Min(hero.MaxMana, checked(hero.Mana + hero.ManaRegen));
             hero.Poison /= 2;
@@ -232,17 +232,32 @@ public sealed class CombatSimulator
         if (runtime.Tick.Value < setup.EclipseTime.Value || runtime.Tick.Value % 10 != 0) return;
         var seconds = (runtime.Tick.Value - setup.EclipseTime.Value) / 10;
         var damage = 1 << (int)Math.Min(seconds, 30);
-        ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero, damage, true);
-        ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero, damage, true);
+        ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero, damage, true, DamageSourceKind.Eclipse);
+        ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero, damage, true, DamageSourceKind.Eclipse);
     }
 
-    private static void ApplyDamage(BattleRuntime runtime, EntityId source, SideId targetSide, HeroBattleState target, int amount, bool bypassArmor)
+    private static void ApplyDamage(
+        BattleRuntime runtime,
+        EntityId source,
+        SideId targetSide,
+        HeroBattleState target,
+        int amount,
+        bool bypassArmor,
+        DamageSourceKind sourceKind = DamageSourceKind.Card)
     {
         var absorbed = bypassArmor ? 0 : Math.Min(target.Armor, amount);
         target.Armor -= absorbed;
         var healthDamage = amount - absorbed;
         target.Health = Math.Max(0, target.Health - healthDamage);
-        runtime.Events.Add(new DamageDealtEvent(runtime.Tick, source, targetSide, amount, absorbed, healthDamage, target.Health));
+        runtime.Events.Add(new DamageDealtEvent(
+            runtime.Tick,
+            source,
+            targetSide,
+            amount,
+            absorbed,
+            healthDamage,
+            target.Health,
+            sourceKind));
     }
 
     private static BattleResult? TryCreateDefeatResult(BattleRuntime runtime)

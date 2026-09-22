@@ -45,10 +45,13 @@ public sealed partial class MinimalPlaytest : Control
     private Button _continue = null!;
     private Control _battlefieldPanel = null!;
     private Control _benchPanel = null!;
+    private Control _enemyBattlefieldPanel = null!;
     private GridContainer _battlefieldGrid = null!;
     private GridContainer _benchGrid = null!;
+    private GridContainer _enemyBattlefieldGrid = null!;
     private readonly Button[] _battlefieldSlots = new Button[10];
     private readonly Button[] _benchSlots = new Button[10];
+    private readonly Button[] _enemyBattlefieldSlots = new Button[10];
     private EntityId? _selectedCardId;
     private ShopOffer? _currentOffer;
 
@@ -69,8 +72,10 @@ public sealed partial class MinimalPlaytest : Control
         _continue = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/EncounterActions/Generate");
         _battlefieldPanel = GetNode<Control>($"{root}/BattlefieldPanel");
         _benchPanel = GetNode<Control>($"{root}/BenchPanel");
+        _enemyBattlefieldPanel = GetNode<Control>($"{root}/EnemyBattlefieldPanel");
         _battlefieldGrid = GetNode<GridContainer>($"{root}/BattlefieldPanel/Margin/Area/BattlefieldSlots");
         _benchGrid = GetNode<GridContainer>($"{root}/BenchPanel/Margin/Area/BenchSlots");
+        _enemyBattlefieldGrid = GetNode<GridContainer>($"{root}/EnemyBattlefieldPanel/Margin/Area/EnemyBattlefieldSlots");
         BuildBoardSlots();
         for (var index = 0; index < _choices.Length; index++)
         {
@@ -119,6 +124,7 @@ public sealed partial class MinimalPlaytest : Control
     private void ShowEncounterChoices()
     {
         if (_player is null) return;
+        _enemy = null;
         _screen = Screen.EncounterChoice; HideAllActions();
         var generated = _encounters.Generate(_player);
         _title.Text = $"第 {_player.Progress.Round} 轮 · 第 {_player.Progress.Turn} 回合";
@@ -240,6 +246,13 @@ public sealed partial class MinimalPlaytest : Control
             _benchSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(64, 48) };
             _benchSlots[index].Pressed += () => OnBoardSlot(BoardZone.Bench, slot);
             _benchGrid.AddChild(_benchSlots[index]);
+            _enemyBattlefieldSlots[index] = new Button
+            {
+                Text = "·",
+                CustomMinimumSize = new Vector2(64, 48),
+                Disabled = true,
+            };
+            _enemyBattlefieldGrid.AddChild(_enemyBattlefieldSlots[index]);
         }
     }
 
@@ -272,6 +285,19 @@ public sealed partial class MinimalPlaytest : Control
         if (_player is null) return;
         RefreshZone(_player.Board.Battlefield, _battlefieldSlots);
         RefreshZone(_player.Board.Bench, _benchSlots);
+        RefreshEnemyBattlefield();
+    }
+
+    private void RefreshEnemyBattlefield()
+    {
+        for (var slot = 0; slot < _enemyBattlefieldSlots.Length; slot++)
+        {
+            var placement = _enemy is null ? null : FindAt(_enemy.Board.Battlefield, slot);
+            _enemyBattlefieldSlots[slot].Text = placement is null ? $"{slot + 1}\n·"
+                : placement.Start == slot
+                    ? $"{slot + 1}\n{_enemy!.Player.Inventory.Find(placement.CardId)!.Attributes.Identity.DisplayName}"
+                    : $"{slot + 1}\n■";
+        }
     }
 
     private void RefreshZone(BoardZoneState zone, IReadOnlyList<Button> buttons)
@@ -320,6 +346,7 @@ public sealed partial class MinimalPlaytest : Control
         _hero.Visible = _buy.Visible = _battleButton.Visible = _continue.Visible = false;
         _battlefieldPanel.Visible = _player is not null;
         _benchPanel.Visible = _player is not null;
+        _enemyBattlefieldPanel.Visible = _enemy is not null;
         if (_player is not null) RefreshBoard();
         foreach (var choice in _choices) if (choice is not null) choice.Visible = false;
     }
@@ -337,7 +364,15 @@ public sealed partial class MinimalPlaytest : Control
         var lines = new List<string>();
         foreach (var battleEvent in result.Events)
             if (battleEvent is DamageDealtEvent damage)
-                lines.Add($"{damage.Tick.ToSeconds(),4:0.0}s　{(damage.TargetSide == SideId.Player ? "玩家" : "敌方")}受到 {damage.HealthDamage} 点伤害，生命 {damage.RemainingHealth}");
+            {
+                var source = damage.SourceKind switch
+                {
+                    DamageSourceKind.Eclipse => "日蚀",
+                    DamageSourceKind.Status => "状态",
+                    _ => "卡牌",
+                };
+                lines.Add($"{damage.Tick.ToSeconds(),4:0.0}s　{source}：{(damage.TargetSide == SideId.Player ? "玩家" : "敌方")}受到 {damage.HealthDamage} 点伤害，生命 {damage.RemainingHealth}");
+            }
         var outcome = result.Outcome == BattleOutcome.PlayerVictory ? "玩家胜利"
             : result.Outcome == BattleOutcome.OpponentVictory ? "战斗失败" : "平局";
         lines.Add($"\n结果：{outcome}　耗时 {result.EndedAt.ToSeconds():0.0}s");

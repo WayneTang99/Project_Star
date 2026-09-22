@@ -575,6 +575,8 @@ public sealed partial class PhaseOneVerification : Control
         var fullSession = new MatchSession(12, boardCapacity: 1);
         var blocker = economy.AcquireCard(fullSession, beastHideDefinition, 1, CardAcquisitionSource.Reward).Value!;
         _ = board.PlaceCard(fullSession, blocker.Id, BoardZone.Battlefield, 0);
+        var benchBlocker = economy.AcquireCard(fullSession, beastHideDefinition, 1, CardAcquisitionSource.Reward).Value!;
+        _ = board.PlaceCard(fullSession, benchBlocker.Id, BoardZone.Bench, 0);
         var fullBag = economy.AcquireCard(fullSession, bagDefinition, 2, CardAcquisitionSource.Reward).Value!;
         var fullSale = economy.SellCard(fullSession, fullBag.Id);
         var canRewardDiamondAtLevelFour = false;
@@ -610,8 +612,9 @@ public sealed partial class PhaseOneVerification : Control
             && session.Board.Bench.Count == 0
             && fullSale.IsSuccess
             && fullSession.Player.Wealth == 2
-            && fullSession.Player.Inventory.Cards.Count == 1
-            && fullSession.Player.Inventory.Cards[0].Id == blocker.Id
+            && fullSession.Player.Inventory.Cards.Count == 2
+            && fullSession.Player.Inventory.Find(blocker.Id) is not null
+            && fullSession.Player.Inventory.Find(benchBlocker.Id) is not null
             && canRewardDiamondAtLevelFour;
     }
 
@@ -1367,8 +1370,22 @@ public sealed partial class PhaseOneVerification : Control
                         "验证之剑",
                         new StringName("verification.faction"),
                         CardSize.Small,
-                        [GameElements.General])),
-                new TagSet([GameTags.Equipment]))
+                        [GameElements.General]),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.AttackDamage] = 25,
+                        [GameAttributeKeys.CooldownTicks] = 10,
+                    })),
+                new TagSet([GameTags.Equipment]),
+                [
+                    new AbilityDefinition(
+                        new StringName("verification.basic_attack"),
+                        AbilityActivation.Active,
+                        AbilityTarget.EnemyHero,
+                        0,
+                        10,
+                        [new DamageEffectDefinition(25)]),
+                ])
         {
         }
     }

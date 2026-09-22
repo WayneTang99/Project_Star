@@ -29,6 +29,13 @@ public sealed record CardAttributeChangedEvent(
     int Amount,
     int CurrentValue) : BattleEvent(Tick);
 
+public enum DamageSourceKind
+{
+    Card = 0,
+    Status = 1,
+    Eclipse = 2,
+}
+
 public sealed record DamageDealtEvent(
     BattleTick Tick,
     EntityId SourceCardId,
@@ -36,7 +43,8 @@ public sealed record DamageDealtEvent(
     int RawDamage,
     int ArmorAbsorbed,
     int HealthDamage,
-    int RemainingHealth) : BattleEvent(Tick);
+    int RemainingHealth,
+    DamageSourceKind SourceKind = DamageSourceKind.Card) : BattleEvent(Tick);
 
 public sealed record HeroDefeatedEvent(BattleTick Tick, SideId Side) : BattleEvent(Tick);
 
