@@ -44,7 +44,9 @@ internal sealed class CardBattleState
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
         OccupiedSlots = setup.OccupiedSlots;
         Tags = setup.Tags ?? new TagSet();
+        ElementKeys = setup.ElementKeys is null ? [] : new HashSet<StringName>(setup.ElementKeys);
         CombatAttributes[GameAttributeKeys.AttackDamage] = setup.AttackDamage;
+        CombatAttributes[GameAttributeKeys.Armor] = setup.ArmorAmount;
         CombatAttributes[GameAttributeKeys.Multicast] = setup.Multicast;
         var definitions = setup.Abilities is { Count: > 0 }
             ? setup.Abilities
@@ -55,8 +57,15 @@ internal sealed class CardBattleState
         foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition));
         foreach (var definition in definitions)
         foreach (var effect in definition.Effects)
-            if (effect is AttributeDamageEffectDefinition attributeDamage)
-                SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
+            switch (effect)
+            {
+                case AttributeDamageEffectDefinition attributeDamage:
+                    SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
+                    break;
+                case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
+                    SupportedCombatAttributes.Add(attributeArmor.AttributeKey);
+                    break;
+            }
         if (definitions.Count > 0) SupportedCombatAttributes.Add(GameAttributeKeys.Multicast);
     }
     public EntityId EntityId { get; }
@@ -65,6 +74,7 @@ internal sealed class CardBattleState
     public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
     public TagSet Tags { get; }
+    public IReadOnlySet<StringName> ElementKeys { get; }
     public bool Destroyed { get; set; }
     public int ActivationCount { get; set; }
     public int CooldownBonusTicks { get; set; }

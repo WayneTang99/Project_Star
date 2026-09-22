@@ -77,24 +77,47 @@ public sealed class CombatSimulator
             if (pending.Source.Destroyed) continue;
             var hero = runtime.GetHero(pending.Source.Side);
             var definition = pending.Ability.Definition;
-            if (!pending.IsMulticast && hero.Mana < definition.ManaCost) continue;
-            if (!pending.IsMulticast)
+            var paysMana = definition.Activation == AbilityActivation.Active && !pending.IsMulticast;
+            if (paysMana && hero.Mana < definition.ManaCost) continue;
+            if (paysMana)
             {
                 hero.Mana -= definition.ManaCost;
                 hero.ManaSpent = checked(hero.ManaSpent + definition.ManaCost);
             }
-            if (definition.ManaCost > 0 && !pending.IsMulticast)
+            if (definition.ManaCost > 0 && paysMana)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
             if (!pending.IsEcho && !pending.IsMulticast)
                 pending.Ability.RemainingCooldownUnits = (definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2;
             runtime.Events.Add(new AbilityActivatedEvent(runtime.Tick, pending.Source.EntityId, pending.Source.Side, pending.IsEcho));
             if (!pending.IsEcho && !pending.IsMulticast)
-                for (var repeat = 0; repeat < pending.Source.GetCombatAttribute(GameAttributeKeys.Multicast); repeat++)
+                for (var repeat = 0; repeat < GetEffectiveMulticast(runtime, pending.Source); repeat++)
                     Enqueue(runtime, pending.Source, pending.Ability, false, true);
             foreach (var effect in definition.Effects) ApplyEffect(runtime, pending, effect);
             if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
         }
+    }
+
+    private static int GetEffectiveMulticast(BattleRuntime runtime, CardBattleState card)
+    {
+        var multicast = card.GetCombatAttribute(GameAttributeKeys.Multicast);
+        foreach (var source in runtime.Cards)
+        {
+            if (source.Side != card.Side || source.Destroyed || source.IsOnBench) continue;
+            foreach (var ability in source.Abilities)
+            {
+                if (ability.Definition.Activation != AbilityActivation.PassiveAura) continue;
+                foreach (var effect in ability.Definition.Effects)
+                {
+                    if (effect is GrantMulticastToAlliedElementCardsEffectDefinition aura
+                        && card.ElementKeys.Contains(aura.ElementKey))
+                    {
+                        multicast = checked(multicast + aura.Amount);
+                    }
+                }
+            }
+        }
+        return multicast;
     }
 
     private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin)
@@ -144,6 +167,11 @@ public sealed class CombatSimulator
             case GainSourceHeroArmorEffectDefinition sourceArmor:
                 var alliedHero = runtime.GetHero(pending.Source.Side);
                 alliedHero.Armor = checked(alliedHero.Armor + sourceArmor.Amount);
+                break;
+            case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
+                var armorTarget = runtime.GetHero(pending.Source.Side);
+                armorTarget.Armor = checked(
+                    armorTarget.Armor + pending.Source.GetCombatAttribute(attributeArmor.AttributeKey));
                 break;
             case GainArmorEqualToManaSpentEffectDefinition:
                 var sourceHero = runtime.GetHero(pending.Source.Side);

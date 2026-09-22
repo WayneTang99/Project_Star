@@ -21,6 +21,7 @@ public sealed class ArcaneShieldCardDefinition : CardDefinition
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,
+                    [GameAttributeKeys.Armor] = 0,
                     [GameAttributeKeys.CooldownTicks] = 80,
                 })),
             new TagSet([GameTags.Equipment]),
@@ -48,6 +49,9 @@ public sealed class ArcaneShieldCardDefinition : CardDefinition
                     AbilityTarget.AlliedHero,
                     manaCost,
                     cooldownTicks,
-                    [new GainArmorEqualToManaSpentEffectDefinition()]),
+                    [
+                        new GainArmorEqualToManaSpentEffectDefinition(),
+                        new GainSourceHeroArmorFromAttributeEffectDefinition(GameAttributeKeys.Armor),
+                    ]),
             ]);
 }

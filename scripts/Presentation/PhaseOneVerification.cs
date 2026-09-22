@@ -81,6 +81,8 @@ public sealed partial class PhaseOneVerification : Control
         ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
         ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
         ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
+        ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
+        ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
         ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
         ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
         ("回响产生的事件不会触发其他回响", CheckEchoDoesNotChain),
@@ -1058,7 +1060,8 @@ public sealed partial class PhaseOneVerification : Control
                     level.Abilities,
                     UseLegacyAttack: false,
                     Tags: definition.Tags,
-                    Multicast: 1)]),
+                    Multicast: 1,
+                    ArmorAmount: level.BaseCombatValues[GameAttributeKeys.Armor])]),
             new BattleSideSetup(
                 new HeroBattleSetup(EntityId.New(), 100, 0),
                 [new CardBattleSetup(opponentCardId, 0, 20, 51, [opponentAttack], UseLegacyAttack: false)]),
@@ -1251,6 +1254,217 @@ public sealed partial class PhaseOneVerification : Control
         }
 
         return humanTick == 65 && generalTick == 70 && distantTick == 80;
+    }
+
+    private static bool CheckCathedral()
+    {
+        var definition = new CathedralCardDefinition();
+        var level = definition.GetLevel(4)!;
+        var aura = level.Abilities[0];
+        var auraEffect = aura.Effects[0] as GrantMulticastToAlliedElementCardsEffectDefinition;
+        if (definition.InitialLevel != 4
+            || definition.SupportsLevel(1)
+            || definition.SupportsLevel(2)
+            || definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Large
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || !definition.Tags.Contains(GameTags.Location)
+            || aura.Activation != AbilityActivation.PassiveAura
+            || aura.ManaCost != 0
+            || aura.CooldownTicks != 0
+            || auraEffect is null
+            || auraEffect.ElementKey != GameElements.Light
+            || auraEffect.Amount != 1)
+        {
+            return false;
+        }
+
+        var firstCathedralId = EntityId.New();
+        var secondCathedralId = EntityId.New();
+        var benchCathedralId = EntityId.New();
+        var lightCardId = EntityId.New();
+        var generalCardId = EntityId.New();
+        var attack = new AbilityDefinition(
+            new StringName("test.cathedral_attack"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            1,
+            [new DamageEffectDefinition(1)]);
+        var stackedSetup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(firstCathedralId, 0, 0, 0, level.Abilities,
+                        UseLegacyAttack: false, OccupiedSlots: 3, ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(secondCathedralId, 3, 0, 0, level.Abilities,
+                        UseLegacyAttack: false, OccupiedSlots: 3, ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(benchCathedralId, 0, 0, 0, level.Abilities,
+                        IsOnBench: true, UseLegacyAttack: false, OccupiedSlots: 3, ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(lightCardId, 6, 1, 1, [attack],
+                        UseLegacyAttack: false, ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(generalCardId, 7, 1, 1, [attack],
+                        UseLegacyAttack: false, ElementKeys: [GameElements.General]),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                Array.Empty<CardBattleSetup>()),
+            1,
+            new BattleTick(1),
+            new BattleTick(1000));
+        var stackedResult = new CombatSimulator().Simulate(stackedSetup);
+        var lightDamageCount = stackedResult.Events.Count(value =>
+            value is DamageDealtEvent damage && damage.SourceCardId == lightCardId);
+        var generalDamageCount = stackedResult.Events.Count(value =>
+            value is DamageDealtEvent damage && damage.SourceCardId == generalCardId);
+
+        var temporaryCathedralId = EntityId.New();
+        var repeatedLightCardId = EntityId.New();
+        var destroySelf = new AbilityDefinition(
+            new StringName("test.cathedral_destroy_self"),
+            AbilityActivation.EchoOnAbilityActivated,
+            AbilityTarget.SelfCard,
+            0,
+            0,
+            [new DestroyCardEffectDefinition(false)]);
+        var removableSetup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(repeatedLightCardId, 0, 1, 1, [attack],
+                        UseLegacyAttack: false, ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(temporaryCathedralId, 1, 0, 0, [aura, destroySelf],
+                        UseLegacyAttack: false, OccupiedSlots: 3, ElementKeys: [GameElements.Light]),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                Array.Empty<CardBattleSetup>()),
+            1,
+            new BattleTick(2),
+            new BattleTick(1000));
+        var removableResult = new CombatSimulator().Simulate(removableSetup);
+        var firstTickDamage = removableResult.Events.Count(value =>
+            value is DamageDealtEvent damage
+            && damage.SourceCardId == repeatedLightCardId
+            && damage.Tick.Value == 1);
+        var secondTickDamage = removableResult.Events.Count(value =>
+            value is DamageDealtEvent damage
+            && damage.SourceCardId == repeatedLightCardId
+            && damage.Tick.Value == 2);
+
+        return lightDamageCount == 3
+            && generalDamageCount == 1
+            && firstTickDamage == 2
+            && secondTickDamage == 1;
+    }
+
+    private static bool CheckBlacksmith()
+    {
+        var definition = new BlacksmithCardDefinition();
+        var levelTwo = definition.GetLevel(2)!;
+        var levelThree = definition.GetLevel(3)!;
+        var levelFour = definition.GetLevel(4)!;
+        var attackModifier = levelTwo.Abilities[0].Effects[0]
+            as ModifyTaggedAlliedCardsAttributeEffectDefinition;
+        var armorModifier = levelTwo.Abilities[0].Effects[1]
+            as ModifyTaggedAlliedCardsAttributeEffectDefinition;
+        if (definition.InitialLevel != 2
+            || definition.SupportsLevel(1)
+            || !definition.SupportsLevel(2)
+            || !definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Medium
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
+            || !definition.Tags.Contains(GameTags.Location)
+            || levelTwo.Abilities[0].ManaCost != 0
+            || levelTwo.Abilities[0].CooldownTicks != 60
+            || attackModifier is null
+            || attackModifier.RequiredTag != GameTags.Equipment
+            || attackModifier.AttributeKey != GameAttributeKeys.AttackDamage
+            || attackModifier.Amount != 10
+            || armorModifier is null
+            || armorModifier.RequiredTag != GameTags.Equipment
+            || armorModifier.AttributeKey != GameAttributeKeys.Armor
+            || armorModifier.Amount != 10
+            || ((ModifyTaggedAlliedCardsAttributeEffectDefinition)levelThree.Abilities[0].Effects[0]).Amount != 20
+            || ((ModifyTaggedAlliedCardsAttributeEffectDefinition)levelFour.Abilities[0].Effects[0]).Amount != 40)
+        {
+            return false;
+        }
+
+        var blacksmithId = EntityId.New();
+        var attributeEquipmentId = EntityId.New();
+        var fixedEquipmentId = EntityId.New();
+        var shieldId = EntityId.New();
+        var enemyAttackerId = EntityId.New();
+        var attributeEquipmentAbility = new AbilityDefinition(
+            new StringName("test.blacksmith_attribute_equipment"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            61,
+            [
+                new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage),
+                new GainSourceHeroArmorFromAttributeEffectDefinition(GameAttributeKeys.Armor),
+            ]);
+        var fixedEquipmentAbility = new AbilityDefinition(
+            new StringName("test.blacksmith_fixed_equipment"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            61,
+            [new DamageEffectDefinition(1)]);
+        var enemyAttack = new AbilityDefinition(
+            new StringName("test.blacksmith_enemy_attack"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            81,
+            [new DamageEffectDefinition(100)]);
+        var shieldDefinition = new ArcaneShieldCardDefinition();
+        var shieldLevel = shieldDefinition.GetLevel(2)!;
+        var equipmentTags = new TagSet([GameTags.Equipment]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, InitialMana: 100, ManaRegen: 0),
+                [
+                    new CardBattleSetup(blacksmithId, 0, 0, 60, levelTwo.Abilities, UseLegacyAttack: false),
+                    new CardBattleSetup(attributeEquipmentId, 2, 5, 61, [attributeEquipmentAbility],
+                        UseLegacyAttack: false, Tags: equipmentTags, ArmorAmount: 5),
+                    new CardBattleSetup(fixedEquipmentId, 3, 99, 61, [fixedEquipmentAbility],
+                        UseLegacyAttack: false, Tags: equipmentTags, ArmorAmount: 99),
+                    new CardBattleSetup(shieldId, 4, 0, 80, shieldLevel.Abilities,
+                        UseLegacyAttack: false, Tags: shieldDefinition.Tags,
+                        ElementKeys: [GameElements.Light], ArmorAmount: 0),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                [new CardBattleSetup(enemyAttackerId, 0, 100, 81, [enemyAttack], UseLegacyAttack: false)]),
+            1,
+            new BattleTick(82),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var attributeDamage = -1;
+        var fixedDamage = -1;
+        var absorbedArmor = -1;
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is not DamageDealtEvent damage) continue;
+            if (damage.SourceCardId == attributeEquipmentId) attributeDamage = damage.RawDamage;
+            if (damage.SourceCardId == fixedEquipmentId) fixedDamage = damage.RawDamage;
+            if (damage.SourceCardId == enemyAttackerId) absorbedArmor = damage.ArmorAbsorbed;
+        }
+
+        return attributeDamage == 15
+            && fixedDamage == 1
+            && absorbedArmor == 45;
     }
 
     private static bool CheckBattleTimeout()

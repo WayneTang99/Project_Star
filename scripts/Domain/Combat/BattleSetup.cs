@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 
@@ -26,7 +27,9 @@ public sealed record CardBattleSetup(
     bool UseLegacyAttack = true,
     TagSet? Tags = null,
     int Multicast = 0,
-    int OccupiedSlots = 1);
+    int OccupiedSlots = 1,
+    IReadOnlyList<StringName>? ElementKeys = null,
+    int ArmorAmount = 0);
 
 public sealed class BattleSideSetup
 {

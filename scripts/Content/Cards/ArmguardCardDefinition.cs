@@ -21,6 +21,7 @@ public sealed class ArmguardCardDefinition : CardDefinition
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 5,
+                    [GameAttributeKeys.Armor] = 5,
                     [GameAttributeKeys.CooldownTicks] = 50,
                     [GameAttributeKeys.Multicast] = 1,
                 })),
@@ -42,6 +43,7 @@ public sealed class ArmguardCardDefinition : CardDefinition
             new Dictionary<StringName, int>
             {
                 [GameAttributeKeys.AttackDamage] = amount,
+                [GameAttributeKeys.Armor] = amount,
             },
             [
                 new AbilityDefinition(
@@ -52,7 +54,7 @@ public sealed class ArmguardCardDefinition : CardDefinition
                     50,
                     [
                         new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage),
-                        new GainSourceHeroArmorEffectDefinition(amount),
+                        new GainSourceHeroArmorFromAttributeEffectDefinition(GameAttributeKeys.Armor),
                     ]),
             ]);
 }

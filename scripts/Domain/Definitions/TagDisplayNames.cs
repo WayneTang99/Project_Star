@@ -15,6 +15,7 @@ public static class TagDisplayNames
         [GameTags.Consumable] = "消耗品",
         [GameTags.Human] = "人类",
         [GameTags.Mechanical] = "机械",
+        [GameTags.Location] = "地域",
     };
 
     public static string Get(StringName tag) => Names.TryGetValue(tag, out var name) ? name : tag.ToString();

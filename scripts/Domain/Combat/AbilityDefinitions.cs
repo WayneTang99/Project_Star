@@ -9,6 +9,7 @@ public enum AbilityActivation
     Active = 0,
     EchoOnAbilityActivated = 1,
     EchoOnDamageDealt = 2,
+    PassiveAura = 3,
 }
 
 public enum AbilityTarget
@@ -44,7 +45,13 @@ public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record GainSourceHeroArmorEffectDefinition(int Amount) : EffectDefinition;
 
+public sealed record GainSourceHeroArmorFromAttributeEffectDefinition(StringName AttributeKey)
+    : EffectDefinition;
+
 public sealed record GainArmorEqualToManaSpentEffectDefinition : EffectDefinition;
+
+public sealed record GrantMulticastToAlliedElementCardsEffectDefinition(StringName ElementKey, int Amount)
+    : EffectDefinition;
 
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
@@ -85,6 +92,10 @@ public sealed class AbilityDefinition
         {
             throw new ArgumentException("An active ability must have a positive cooldown.");
         }
+        if (activation != AbilityActivation.Active && manaCost != 0)
+            throw new ArgumentException("Only active abilities can consume mana.", nameof(manaCost));
+        if (activation == AbilityActivation.PassiveAura && cooldownTicks != 0)
+            throw new ArgumentException("A passive aura cannot have a cooldown.", nameof(cooldownTicks));
 
         Key = key;
         Activation = activation;
@@ -104,6 +115,7 @@ public sealed class AbilityDefinition
                 GainSourceHeroArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
+                GrantMulticastToAlliedElementCardsEffectDefinition value => value.Amount,
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
@@ -114,6 +126,11 @@ public sealed class AbilityDefinition
             }
             if (effect is AttributeDamageEffectDefinition attributeDamage && attributeDamage.AttributeKey.IsEmpty)
                 throw new ArgumentException("Attribute damage key cannot be empty.", nameof(effects));
+            if (effect is GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor
+                && attributeArmor.AttributeKey.IsEmpty)
+            {
+                throw new ArgumentException("Attribute armor key cannot be empty.", nameof(effects));
+            }
             if (effect is ModifyTaggedAlliedCardsAttributeEffectDefinition modifier
                 && (modifier.RequiredTag.IsEmpty || modifier.AttributeKey.IsEmpty))
                 throw new ArgumentException("Tagged card attribute modifier keys cannot be empty.", nameof(effects));
@@ -125,6 +142,11 @@ public sealed class AbilityDefinition
                     || adjacent.BonusMultiplier < 1))
             {
                 throw new ArgumentException("Adjacent card status configuration is invalid.", nameof(effects));
+            }
+            if (effect is GrantMulticastToAlliedElementCardsEffectDefinition multicastAura
+                && multicastAura.ElementKey.IsEmpty)
+            {
+                throw new ArgumentException("Multicast aura element key cannot be empty.", nameof(effects));
             }
         }
         Effects = new List<EffectDefinition>(effects).AsReadOnly();

@@ -52,7 +52,8 @@ public sealed class BattleSetupFactory
             var damage = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage);
             var cooldown = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks);
             var multicast = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast);
-            if (damage < 0 || cooldown < 0 || multicast < 0)
+            var armorAmount = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Armor);
+            if (damage < 0 || cooldown < 0 || multicast < 0 || armorAmount < 0)
             {
                 throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             }
@@ -66,7 +67,9 @@ public sealed class BattleSetupFactory
                 UseLegacyAttack: false,
                 Tags: card.Tags,
                 Multicast: multicast,
-                OccupiedSlots: card.Attributes.Identity.OccupiedSlots));
+                OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
+                ElementKeys: card.Attributes.Identity.ElementKeys,
+                ArmorAmount: armorAmount));
         }
 
         foreach (var placement in session.Board.Bench.Placements)
@@ -74,8 +77,9 @@ public sealed class BattleSetupFactory
             var card = session.Player.Inventory.Find(placement.CardId)
                 ?? throw new InvalidOperationException($"Bench card '{placement.CardId}' is not owned by the player.");
             var multicast = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast);
-            if (multicast < 0)
-                throw new InvalidOperationException($"Card '{placement.CardId}' has invalid multicast.");
+            var armorAmount = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Armor);
+            if (multicast < 0 || armorAmount < 0)
+                throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             cards.Add(new CardBattleSetup(
                 card.Id,
                 placement.Start,
@@ -86,7 +90,9 @@ public sealed class BattleSetupFactory
                 UseLegacyAttack: false,
                 Tags: card.Tags,
                 Multicast: multicast,
-                OccupiedSlots: card.Attributes.Identity.OccupiedSlots));
+                OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
+                ElementKeys: card.Attributes.Identity.ElementKeys,
+                ArmorAmount: armorAmount));
         }
 
         return new BattleSideSetup(
