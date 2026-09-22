@@ -23,9 +23,15 @@ public sealed class ShopOffer
 
     internal void MarkSold() => IsSold = true;
 
-    public static ShopOffer Create(CardDefinition definition, int level = 1)
+    public static ShopOffer Create(CardDefinition definition, int? level = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        return new ShopOffer(definition, level, CardValueCalculator.CalculateInitialValue(definition, level));
+        var selectedLevel = level ?? definition.InitialLevel;
+        if (!definition.SupportsLevel(selectedLevel))
+            throw new ArgumentOutOfRangeException(nameof(level), $"Card does not provide level {selectedLevel}.");
+        return new ShopOffer(
+            definition,
+            selectedLevel,
+            CardValueCalculator.CalculateInitialValue(definition, selectedLevel));
     }
 }

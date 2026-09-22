@@ -33,6 +33,8 @@ public abstract record EffectDefinition;
 
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
 
+public sealed record MaxHealthPercentDamageEffectDefinition(int Percent, bool BypassArmor = false) : EffectDefinition;
+
 public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
@@ -73,12 +75,18 @@ public sealed class AbilityDefinition
             var amount = effect switch
             {
                 DamageEffectDefinition value => value.Amount,
+                MaxHealthPercentDamageEffectDefinition value => value.Percent,
                 HealEffectDefinition value => value.Amount,
                 ArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
+            if (effect is MaxHealthPercentDamageEffectDefinition percentDamage
+                && percentDamage.Percent is < 1 or > 100)
+            {
+                throw new ArgumentException("Max health damage percent must be between 1 and 100.", nameof(effects));
+            }
         }
         Effects = new List<EffectDefinition>(effects).AsReadOnly();
         AllowsBench = allowsBench;

@@ -106,6 +106,11 @@ public sealed class CombatSimulator
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
+            case MaxHealthPercentDamageEffectDefinition percentDamage:
+                var amount = checked((int)((long)hero.MaxHealth * percentDamage.Percent / 100));
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor);
+                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
+                break;
             case HealEffectDefinition heal:
                 hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
                 break;

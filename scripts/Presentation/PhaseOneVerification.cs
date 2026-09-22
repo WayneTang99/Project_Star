@@ -8,7 +8,7 @@ using Project_Star.Application.Economy;
 using Project_Star.Application.Encounters;
 using Project_Star.Application.Factories;
 using Project_Star.Application.Match;
-using Project_Star.Content;
+using Project_Star.Content.Cards;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Definitions;
@@ -38,7 +38,7 @@ public sealed partial class PhaseOneVerification : Control
         ("尺寸自动生成型号标签和占格数", CheckSizeTag),
         ("未知标签显示原始 Key", CheckUnknownTagDisplay),
         ("卡牌定义组合身份、属性与标签", CheckCardDefinition),
-        ("注册表发现公开具体定义", CheckDefinitionDiscovery),
+        ("注册表登记英雄、卡牌与遭遇定义", CheckDefinitionDiscovery),
         ("注册表拒绝同类型重复 Key", CheckDuplicateDefinition),
         ("定义中的初始属性不可修改", CheckFrozenDefinition),
         ("工厂创建完全独立的卡牌实例", CheckIndependentInstances),
@@ -49,6 +49,7 @@ public sealed partial class PhaseOneVerification : Control
         ("获得卡牌统一设置半价现值", CheckAcquisitionSources),
         ("半价出现小数时向下取整", CheckAcquiredValueRounding),
         ("等级变化不会重算当前价值", CheckLevelDoesNotRecalculateValue),
+        ("卡牌可以限制等级并应用分级配置", CheckCardLevelDefinitions),
         ("购买按报价扣款并登记卡牌归属", CheckPurchase),
         ("余额不足时交易无任何修改", CheckInsufficientWealth),
         ("出售按现值回补且只能一次", CheckSale),
@@ -66,6 +67,7 @@ public sealed partial class PhaseOneVerification : Control
         ("首次攻击在完整冷却后发动", CheckFirstActivationTiming),
         ("同 Tick 按玩家方优先进入 FIFO", CheckStableFifoOrder),
         ("伤害先扣护甲再扣生命", CheckArmorDamage),
+        ("最大生命百分比伤害向下取整并先扣护甲", CheckMaxHealthPercentDamage),
         ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
         ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
         ("回响产生的事件不会触发其他回响", CheckEchoDoesNotChain),
@@ -223,8 +225,8 @@ public sealed partial class PhaseOneVerification : Control
     private static bool CheckSizeTag()
     {
         var identity = CreateCardIdentity([GameElements.Ice], CardSize.Large);
-        var tags = TagSet.ForCard(identity.Size, [GameTags.Weapon]);
-        return identity.OccupiedSlots == 3 && tags.Contains(GameTags.Large) && tags.Contains(GameTags.Weapon);
+        var tags = TagSet.ForCard(identity.Size, [GameTags.Equipment]);
+        return identity.OccupiedSlots == 3 && tags.Contains(GameTags.Large) && tags.Contains(GameTags.Equipment);
     }
 
     private static bool CheckUnknownTagDisplay()
@@ -239,23 +241,23 @@ public sealed partial class PhaseOneVerification : Control
         return definition.Attributes.Identity.DisplayName == "验证之剑"
             && definition.Attributes.Identity.ElementKeys[0] == GameElements.General
             && definition.Tags.Contains(GameTags.Small)
-            && definition.Tags.Contains(GameTags.Weapon);
+            && definition.Tags.Contains(GameTags.Equipment);
     }
 
     private static bool CheckDefinitionDiscovery()
     {
-        var registry = DefinitionRegistry.Scan(typeof(WayfarerHeroDefinition).Assembly);
+        var registry = CreateVerificationRegistry();
         return registry.Heroes.Count == 1
             && registry.Cards.Count == 1
             && registry.Encounters.Count == 7
-            && registry.Cards.ContainsKey(new StringName("card.iron_sword"));
+            && registry.Cards.ContainsKey(new StringName("verification.sword"));
     }
 
     private static bool CheckDuplicateDefinition()
     {
         try
         {
-            _ = DefinitionRegistry.Create([new IronSwordCardDefinition(), new IronSwordCardDefinition()]);
+            _ = DefinitionRegistry.Create([new VerificationCardDefinition(), new VerificationCardDefinition()]);
             return false;
         }
         catch (DefinitionValidationException exception)
@@ -266,7 +268,7 @@ public sealed partial class PhaseOneVerification : Control
 
     private static bool CheckFrozenDefinition()
     {
-        var definition = new IronSwordCardDefinition();
+        var definition = new VerificationCardDefinition();
         try
         {
             definition.Attributes.Persistent.SetBaseValue(new StringName("Value"), 10);
@@ -281,7 +283,7 @@ public sealed partial class PhaseOneVerification : Control
     private static bool CheckIndependentInstances()
     {
         var factory = new EntityFactory();
-        var definition = new IronSwordCardDefinition();
+        var definition = new VerificationCardDefinition();
         var first = factory.CreateCard(definition);
         var second = factory.CreateCard(definition);
         var value = new StringName("Value");
@@ -296,8 +298,8 @@ public sealed partial class PhaseOneVerification : Control
     {
         var factory = new EntityFactory();
         var session = new MatchSession(42);
-        session.Player.SelectHero(factory.CreateHero(new WayfarerHeroDefinition()));
-        session.Player.Inventory.Add(factory.CreateCard(new IronSwordCardDefinition()));
+        session.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        session.Player.Inventory.Add(factory.CreateCard(new VerificationCardDefinition()));
 
         return session.Player.Hero is not null
             && session.Player.Inventory.Cards.Count == 1
@@ -311,7 +313,7 @@ public sealed partial class PhaseOneVerification : Control
         var factory = new EntityFactory();
         var first = new MatchSession(1);
         var second = new MatchSession(1);
-        first.Player.Inventory.Add(factory.CreateCard(new IronSwordCardDefinition()));
+        first.Player.Inventory.Add(factory.CreateCard(new VerificationCardDefinition()));
 
         return first.Id != second.Id
             && first.Player.Inventory.Cards.Count == 1
@@ -359,9 +361,32 @@ public sealed partial class PhaseOneVerification : Control
             1,
             CardAcquisitionSource.Reward).Value!;
 
-        card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 5);
-        return card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 5
+        card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 4);
+        return card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 4
             && card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 1;
+    }
+
+    private static bool CheckCardLevelDefinitions()
+    {
+        var definition = new JudgmentHammerCardDefinition();
+        var factory = new EntityFactory();
+        var levelThree = factory.CreateCard(definition);
+        var levelFour = factory.CreateCard(definition, 4);
+        return definition.InitialLevel == 3
+            && !definition.SupportsLevel(1)
+            && !definition.SupportsLevel(2)
+            && definition.SupportsLevel(3)
+            && definition.SupportsLevel(4)
+            && !definition.SupportsLevel(5)
+            && levelThree.Attributes.Identity.Size == CardSize.Large
+            && levelThree.Attributes.Identity.ElementKeys[0] == GameElements.Light
+            && levelThree.Tags.Contains(GameTags.Equipment)
+            && levelThree.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 3
+            && levelThree.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.CooldownTicks) == 60
+            && levelThree.Abilities[0].CooldownTicks == 60
+            && levelFour.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 4
+            && levelFour.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.CooldownTicks) == 50
+            && levelFour.Abilities[0].CooldownTicks == 50;
     }
 
     private static bool CheckPurchase()
@@ -615,6 +640,31 @@ public sealed partial class PhaseOneVerification : Control
         return false;
     }
 
+    private static bool CheckMaxHealthPercentDamage()
+    {
+        var ability = new AbilityDefinition(
+            new StringName("test.percent_damage"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            1,
+            [new MaxHealthPercentDamageEffectDefinition(20)]);
+        var result = SimulateAbilities([ability], timeout: 1, opponentArmor: 10, opponentMaxHealth: 103);
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is DamageDealtEvent damage
+                && damage.TargetSide == SideId.Opponent
+                && damage.RawDamage == 20)
+            {
+                return damage.ArmorAbsorbed == 10
+                    && damage.HealthDamage == 10
+                    && damage.RemainingHealth == 93;
+            }
+        }
+
+        return false;
+    }
+
     private static bool CheckBattleTimeout()
     {
         var (player, opponent) = CreateBattlePair(false, false);
@@ -749,8 +799,7 @@ public sealed partial class PhaseOneVerification : Control
         return first.EncounterSchedule.SeenKeys.Count > 0 && second.EncounterSchedule.SeenKeys.Count == 0;
     }
 
-    private static EncounterScheduler CreateEncounterScheduler() =>
-        new(DefinitionRegistry.Scan(typeof(WayfarerHeroDefinition).Assembly));
+    private static EncounterScheduler CreateEncounterScheduler() => new(CreateVerificationRegistry());
 
     private static bool CheckMonsterLoss()
     {
@@ -820,10 +869,11 @@ public sealed partial class PhaseOneVerification : Control
     private static BattleResult SimulateAbilities(
         IReadOnlyList<AbilityDefinition> abilities,
         int timeout,
-        int opponentArmor = 0)
+        int opponentArmor = 0,
+        int opponentMaxHealth = 100)
     {
         var playerHero = new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0);
-        var opponentHero = new HeroBattleSetup(EntityId.New(), 100, opponentArmor, ManaRegen: 0);
+        var opponentHero = new HeroBattleSetup(EntityId.New(), opponentMaxHealth, opponentArmor, ManaRegen: 0);
         var card = new CardBattleSetup(EntityId.New(), 0, 0, 1, abilities);
         return new CombatSimulator().Simulate(new BattleSetup(
             new BattleSideSetup(playerHero, [card]),
@@ -840,8 +890,8 @@ public sealed partial class PhaseOneVerification : Control
         var factory = new EntityFactory();
         var player = new MatchSession(1);
         var opponent = new MatchSession(2);
-        player.Player.SelectHero(factory.CreateHero(new WayfarerHeroDefinition()));
-        opponent.Player.SelectHero(factory.CreateHero(new WayfarerHeroDefinition()));
+        player.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
         AddBattleCardIfNeeded(player, playerHasCard);
         AddBattleCardIfNeeded(opponent, opponentHasCard);
         return (player, opponent);
@@ -857,7 +907,7 @@ public sealed partial class PhaseOneVerification : Control
         var economy = new CardEconomyService(new EntityFactory());
         var card = economy.AcquireCard(
             session,
-            new IronSwordCardDefinition(),
+            new VerificationCardDefinition(),
             1,
             CardAcquisitionSource.Reward).Value!;
         _ = CreateBoardService().PlaceCard(session, card.Id, BoardZone.Battlefield, 0);
@@ -893,6 +943,57 @@ public sealed partial class PhaseOneVerification : Control
         }
     }
 
+    private static DefinitionRegistry CreateVerificationRegistry() => DefinitionRegistry.Create(
+    [
+        new VerificationHeroDefinition(),
+        new VerificationCardDefinition(),
+        new VerificationEncounterDefinition("verification.event", EncounterKind.Other),
+        new VerificationEncounterDefinition("verification.shop.primary", EncounterKind.Shop, 2),
+        new VerificationEncounterDefinition("verification.shop.secondary", EncounterKind.Shop),
+        new VerificationEncounterDefinition("verification.monster.one", EncounterKind.Monster),
+        new VerificationEncounterDefinition("verification.monster.two", EncounterKind.Monster),
+        new VerificationEncounterDefinition("verification.monster.three", EncounterKind.Monster),
+        new VerificationEncounterDefinition("verification.pvp", EncounterKind.Pvp),
+    ]);
+
+    // 验证专用英雄定义（表现层验证模块）。
+    private sealed class VerificationHeroDefinition : HeroDefinition
+    {
+        public VerificationHeroDefinition()
+            : base(
+                new EntityAttributes<HeroIdentityAttributes>(
+                    new HeroIdentityAttributes(
+                        new StringName("verification.hero"),
+                        "验证英雄",
+                        new StringName("verification.faction")),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.MaxHealth] = 100,
+                        [GameAttributeKeys.Armor] = 0,
+                        [GameAttributeKeys.MaxMana] = 100,
+                        [GameAttributeKeys.Mana] = 0,
+                        [GameAttributeKeys.ManaRegen] = 10,
+                    })))
+        {
+        }
+    }
+
+    // 验证专用遭遇定义（表现层验证模块）。
+    private sealed class VerificationEncounterDefinition : EncounterDefinition
+    {
+        public VerificationEncounterDefinition(string key, EncounterKind kind, int baseWeight = 1)
+            : base(
+                new EntityAttributes<EncounterIdentityAttributes>(
+                    new EncounterIdentityAttributes(new StringName(key), "验证遭遇")),
+                1,
+                99,
+                kind,
+                baseWeight)
+        {
+        }
+    }
+
+    // 验证专用卡牌定义（表现层验证模块）。
     private sealed class VerificationCardDefinition : CardDefinition
     {
         public VerificationCardDefinition()
@@ -904,7 +1005,7 @@ public sealed partial class PhaseOneVerification : Control
                         new StringName("verification.faction"),
                         CardSize.Small,
                         [GameElements.General])),
-                new TagSet([GameTags.Weapon]))
+                new TagSet([GameTags.Equipment]))
         {
         }
     }

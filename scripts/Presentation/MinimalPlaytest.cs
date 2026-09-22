@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Application.Board;
 using Project_Star.Application.Combat;
@@ -91,18 +92,28 @@ public sealed partial class MinimalPlaytest : Control
         _player = null; _enemy = null; _screen = Screen.HeroSelection;
         _selectedCardId = null;
         _title.Text = "选择英雄";
-        _log.Text = "选择英雄后，对局会从第 1 轮第 1 回合正式开始。";
         HideAllActions();
-        _hero.Text = "选择：漫游者"; _hero.Visible = true;
+        var hero = FirstHero();
+        _log.Text = hero is null
+            ? "尚未配置正式英雄内容。"
+            : "选择英雄后，对局会从第 1 轮第 1 回合正式开始。";
+        _hero.Text = hero is null ? "暂无可选英雄" : $"选择：{hero.Attributes.Identity.DisplayName}";
+        _hero.Disabled = hero is null;
+        _hero.Visible = true;
         UpdateState();
     }
 
     private void SelectHero()
     {
-        var hero = _registry.Heroes[new StringName("hero.wayfarer")];
+        var hero = FirstHero();
+        if (hero is null) return;
         _player = _matches.Create(42, 10, hero);
         ShowEncounterChoices();
     }
+
+    private HeroDefinition? FirstHero() => _registry.Heroes.Values
+        .OrderBy(definition => definition.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
+        .FirstOrDefault();
 
     private void ShowEncounterChoices()
     {
@@ -141,9 +152,16 @@ public sealed partial class MinimalPlaytest : Control
     private void ShowShop(string name)
     {
         _screen = Screen.Shop; _title.Text = name;
-        _currentOffer = ShopOffer.Create(_registry.Cards[new StringName("card.iron_sword")]);
-        _log.Text = $"铁剑　价格 {_currentOffer.Price}　购买后价值 {_currentOffer.Price / 2}\n本次商店只有这一件商品。";
-        _buy.Text = "购买铁剑"; _buy.Visible = true;
+        var card = _registry.Cards.Values
+            .OrderBy(definition => definition.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
+            .FirstOrDefault();
+        _currentOffer = card is null ? null : ShopOffer.Create(card);
+        _log.Text = _currentOffer is null
+            ? "尚未配置正式卡牌内容。"
+            : $"{card!.Attributes.Identity.DisplayName}　价格 {_currentOffer.Price}　购买后价值 {_currentOffer.Price / 2}\n本次商店只有这一件商品。";
+        _buy.Text = _currentOffer is null ? "暂无商品" : $"购买{card!.Attributes.Identity.DisplayName}";
+        _buy.Disabled = _currentOffer is null;
+        _buy.Visible = true;
         _continue.Text = "离开商店"; _continue.Visible = true;
         UpdateState();
     }
@@ -164,6 +182,7 @@ public sealed partial class MinimalPlaytest : Control
         var result = _economy.BuyCard(_player, _currentOffer);
         if (result.IsSuccess)
         {
+            var displayName = _currentOffer.Definition.Attributes.Identity.DisplayName;
             var placement = _board.PlaceCard(_player, result.Value!.Id, target.Zone, target.Start);
             if (placement.IsFailure)
             {
@@ -173,8 +192,8 @@ public sealed partial class MinimalPlaytest : Control
 
             _buy.Visible = false;
             _log.Text = target.Zone == BoardZone.Battlefield
-                ? "购买成功，铁剑已自动放入战场区。"
-                : "战场区空间不足，铁剑已自动放入备战区。";
+                ? $"购买成功，{displayName}已自动放入战场区。"
+                : $"战场区空间不足，{displayName}已自动放入备战区。";
         }
         else _log.Text = result.Failure!.Message;
         RefreshBoard();

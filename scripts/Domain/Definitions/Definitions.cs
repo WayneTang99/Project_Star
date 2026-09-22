@@ -8,16 +8,13 @@ namespace Project_Star.Domain.Definitions;
 
 public abstract class HeroDefinition
 {
-    protected HeroDefinition(EntityAttributes<HeroIdentityAttributes> attributes, TagSet tags)
+    protected HeroDefinition(EntityAttributes<HeroIdentityAttributes> attributes)
     {
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
-        Tags = tags ?? throw new ArgumentNullException(nameof(tags));
         DefinitionFreezer.Freeze(attributes);
     }
 
     public EntityAttributes<HeroIdentityAttributes> Attributes { get; }
-
-    public TagSet Tags { get; }
 }
 
 public abstract class CardDefinition
@@ -25,13 +22,28 @@ public abstract class CardDefinition
     protected CardDefinition(
         EntityAttributes<CardIdentityAttributes> attributes,
         TagSet tags,
-        IReadOnlyList<AbilityDefinition>? abilities = null)
+        IReadOnlyList<AbilityDefinition>? abilities = null,
+        int initialLevel = 1,
+        IReadOnlyList<CardLevelDefinition>? levels = null)
     {
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         Tags = TagSet.ForCard(attributes.Identity.Size, tags);
         Abilities = abilities is null
             ? Array.Empty<AbilityDefinition>()
             : new List<AbilityDefinition>(abilities).AsReadOnly();
+        InitialLevel = initialLevel;
+        var configuredLevels = new Dictionary<int, CardLevelDefinition>();
+        if (levels is not null)
+        {
+            foreach (var level in levels)
+            {
+                if (!configuredLevels.TryAdd(level.Level, level))
+                    throw new ArgumentException($"Duplicate card level configuration '{level.Level}'.", nameof(levels));
+            }
+        }
+        if (initialLevel is < 1 or > 5 || (configuredLevels.Count > 0 && !configuredLevels.ContainsKey(initialLevel)))
+            throw new ArgumentOutOfRangeException(nameof(initialLevel), "Initial level must have a card level configuration.");
+        Levels = configuredLevels;
         DefinitionFreezer.Freeze(attributes);
     }
 
@@ -41,8 +53,40 @@ public abstract class CardDefinition
 
     public IReadOnlyList<AbilityDefinition> Abilities { get; }
 
+    public int InitialLevel { get; }
+
+    public IReadOnlyDictionary<int, CardLevelDefinition> Levels { get; }
+
+    public bool SupportsLevel(int level) => Levels.Count == 0 ? level is >= 1 and <= 4 : Levels.ContainsKey(level);
+
+    public CardLevelDefinition? GetLevel(int level) => Levels.TryGetValue(level, out var value) ? value : null;
+
     public virtual int ValueCoefficient => 2;
 
+}
+
+// 单个卡牌等级的数值与能力配置（领域定义层）。
+public sealed class CardLevelDefinition
+{
+    public CardLevelDefinition(
+        int level,
+        IReadOnlyDictionary<StringName, int>? baseCombatValues,
+        IReadOnlyList<AbilityDefinition> abilities)
+    {
+        if (level is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(level));
+        ArgumentNullException.ThrowIfNull(abilities);
+        Level = level;
+        BaseCombatValues = baseCombatValues is null
+            ? new Dictionary<StringName, int>()
+            : new Dictionary<StringName, int>(baseCombatValues);
+        Abilities = new List<AbilityDefinition>(abilities).AsReadOnly();
+    }
+
+    public int Level { get; }
+
+    public IReadOnlyDictionary<StringName, int> BaseCombatValues { get; }
+
+    public IReadOnlyList<AbilityDefinition> Abilities { get; }
 }
 
 public abstract class EncounterDefinition

@@ -8,18 +8,15 @@ namespace Project_Star.Domain.Match;
 
 public sealed class HeroInstance
 {
-    public HeroInstance(EntityId id, EntityAttributes<HeroIdentityAttributes> attributes, TagSet tags)
+    public HeroInstance(EntityId id, EntityAttributes<HeroIdentityAttributes> attributes)
     {
         Id = id;
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
-        Tags = tags ?? throw new ArgumentNullException(nameof(tags));
     }
 
     public EntityId Id { get; }
 
     public EntityAttributes<HeroIdentityAttributes> Attributes { get; }
-
-    public TagSet Tags { get; }
 }
 
 public sealed class CardInstance

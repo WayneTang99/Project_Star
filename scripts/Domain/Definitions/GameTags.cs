@@ -7,8 +7,7 @@ public static class GameTags
     public static readonly StringName Small = new("Small");
     public static readonly StringName Medium = new("Medium");
     public static readonly StringName Large = new("Large");
-    public static readonly StringName Weapon = new("Weapon");
-    public static readonly StringName Clothing = new("Clothing");
+    public static readonly StringName Equipment = new("Equipment");
     public static readonly StringName Consumable = new("Consumable");
     public static readonly StringName Human = new("Human");
     public static readonly StringName Mechanical = new("Mechanical");

@@ -11,20 +11,31 @@ public sealed class EntityFactory
     public HeroInstance CreateHero(HeroDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        return new HeroInstance(EntityId.New(), Copy(definition.Attributes), definition.Tags);
+        return new HeroInstance(EntityId.New(), Copy(definition.Attributes));
     }
 
-    public CardInstance CreateCard(CardDefinition definition, int level = 1)
+    public CardInstance CreateCard(CardDefinition definition, int? level = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        if (level < 1)
+        var selectedLevel = level ?? definition.InitialLevel;
+        if (!definition.SupportsLevel(selectedLevel))
         {
-            throw new ArgumentOutOfRangeException(nameof(level), "Card level must be at least one.");
+            throw new ArgumentOutOfRangeException(nameof(level), $"Card does not provide level {selectedLevel}.");
         }
 
         var attributes = Copy(definition.Attributes);
-        attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
-        return new CardInstance(EntityId.New(), attributes, definition.Tags, definition.Abilities);
+        attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, selectedLevel);
+        var levelDefinition = definition.GetLevel(selectedLevel);
+        if (levelDefinition is not null)
+        {
+            foreach (var (key, value) in levelDefinition.BaseCombatValues)
+                attributes.BaseCombat.SetBaseValue(key, value);
+        }
+        return new CardInstance(
+            EntityId.New(),
+            attributes,
+            definition.Tags,
+            levelDefinition?.Abilities ?? definition.Abilities);
     }
 
     private static EntityAttributes<TIdentity> Copy<TIdentity>(EntityAttributes<TIdentity> source)
