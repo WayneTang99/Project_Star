@@ -123,6 +123,7 @@ flowchart LR
 - `HeroDefinition`、`CardDefinition`、`EncounterDefinition` 是抽象基类。
 - 每个具体内容是非抽象子类。英雄声明身份与初始属性；卡牌声明身份、初始属性、标签和能力组合；遭遇声明身份与排程配置。
 - `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
+- 卡牌归属 key 必须对应已有英雄阵营或统一的 `neutral`；归属用于内容池筛选，不作为运行时使用权限。
 - 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
 
 ### 4.2 运行实例
@@ -187,12 +188,14 @@ flowchart LR
     Buy -->|"按初始价值扣款"| Pay["扣 Wealth"]
     Acquire --> Create["创建 CardInstance"]
     Create --> Half["Value = InitialValue × 0.5"]
-    Half --> Owned["登记卡牌归属"]
+    Half --> Bonus["累加该等级的获得时价值加成"]
+    Bonus --> Owned["登记卡牌归属"]
     Owned --> AutoPlace["优先放入战场区，否则放入备战区"]
 ```
 
 - 所有获得来源统一进入 `AcquireCard`。
 - 购买按初始价值全额扣款；出售按当前价值全额回补。
+- 等级配置可以声明获得时价值加成；该加成在统一折半后累加，不改变商店初始价格。
 - 交易是原子事务，失败不得留下部分修改。
 
 ## 8. 棋盘系统
