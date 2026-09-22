@@ -46,7 +46,7 @@ public sealed class LightCavalryCardDefinition : CardDefinition
                 new AbilityDefinition(
                     new StringName("ability.light_cavalry_support"),
                     AbilityActivation.Active,
-                    AbilityTarget.AlliedHero,
+                    AbilityTarget.EnemyHero,
                     0,
                     30,
                     [

@@ -20,6 +20,7 @@ internal sealed class HeroBattleState
     public int Armor { get; set; }
     public int MaxMana { get; }
     public int Mana { get; set; }
+    public int ManaSpent { get; set; }
     public int Burn { get; set; }
     public int Poison { get; set; }
     public int HealthRegen { get; set; }
@@ -41,6 +42,7 @@ internal sealed class CardBattleState
     public CardBattleState(CardBattleSetup setup, SideId side)
     {
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
+        OccupiedSlots = setup.OccupiedSlots;
         Tags = setup.Tags ?? new TagSet();
         CombatAttributes[GameAttributeKeys.AttackDamage] = setup.AttackDamage;
         CombatAttributes[GameAttributeKeys.Multicast] = setup.Multicast;
@@ -60,6 +62,7 @@ internal sealed class CardBattleState
     public EntityId EntityId { get; }
     public SideId Side { get; }
     public int BoardStart { get; }
+    public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
     public TagSet Tags { get; }
     public bool Destroyed { get; set; }

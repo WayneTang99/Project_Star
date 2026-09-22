@@ -65,7 +65,8 @@ public sealed class BattleSetupFactory
                 card.Abilities,
                 UseLegacyAttack: false,
                 Tags: card.Tags,
-                Multicast: multicast));
+                Multicast: multicast,
+                OccupiedSlots: card.Attributes.Identity.OccupiedSlots));
         }
 
         foreach (var placement in session.Board.Bench.Placements)
@@ -84,7 +85,8 @@ public sealed class BattleSetupFactory
                 IsOnBench: true,
                 UseLegacyAttack: false,
                 Tags: card.Tags,
-                Multicast: multicast));
+                Multicast: multicast,
+                OccupiedSlots: card.Attributes.Identity.OccupiedSlots));
         }
 
         return new BattleSideSetup(

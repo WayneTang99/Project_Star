@@ -78,7 +78,11 @@ public sealed class CombatSimulator
             var hero = runtime.GetHero(pending.Source.Side);
             var definition = pending.Ability.Definition;
             if (!pending.IsMulticast && hero.Mana < definition.ManaCost) continue;
-            if (!pending.IsMulticast) hero.Mana -= definition.ManaCost;
+            if (!pending.IsMulticast)
+            {
+                hero.Mana -= definition.ManaCost;
+                hero.ManaSpent = checked(hero.ManaSpent + definition.ManaCost);
+            }
             if (definition.ManaCost > 0 && !pending.IsMulticast)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
             if (!pending.IsEcho && !pending.IsMulticast)
@@ -141,9 +145,16 @@ public sealed class CombatSimulator
                 var alliedHero = runtime.GetHero(pending.Source.Side);
                 alliedHero.Armor = checked(alliedHero.Armor + sourceArmor.Amount);
                 break;
+            case GainArmorEqualToManaSpentEffectDefinition:
+                var sourceHero = runtime.GetHero(pending.Source.Side);
+                sourceHero.Armor = checked(sourceHero.Armor + sourceHero.ManaSpent);
+                break;
             case ApplyStatusEffectDefinition status:
                 ApplyStatus(pending.Source, hero, status);
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, status.Amount));
+                break;
+            case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
+                ApplyStatusToAdjacentAlliedCards(runtime, pending.Source, adjacent);
                 break;
             case DestroyCardEffectDefinition destroy:
                 pending.Source.Destroyed = true;
@@ -194,6 +205,27 @@ public sealed class CombatSimulator
             case BattleStatus.HasteDuration: card.HasteDuration = checked(card.HasteDuration + effect.Amount); break;
             case BattleStatus.SlowDuration: card.SlowDuration = checked(card.SlowDuration + effect.Amount); break;
             case BattleStatus.ImmobilizeDuration: card.ImmobilizeDuration = checked(card.ImmobilizeDuration + effect.Amount); break;
+        }
+    }
+
+    private static void ApplyStatusToAdjacentAlliedCards(
+        BattleRuntime runtime,
+        CardBattleState source,
+        ApplyStatusToAdjacentAlliedCardsEffectDefinition effect)
+    {
+        var sourceEnd = source.BoardStart + source.OccupiedSlots;
+        foreach (var card in runtime.Cards)
+        {
+            if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench)
+                continue;
+            var cardEnd = card.BoardStart + card.OccupiedSlots;
+            if (cardEnd != source.BoardStart && card.BoardStart != sourceEnd)
+                continue;
+            var amount = card.Tags.Contains(effect.BonusTag)
+                ? checked(effect.Amount * effect.BonusMultiplier)
+                : effect.Amount;
+            ApplyStatus(card, runtime.GetHero(card.Side), new ApplyStatusEffectDefinition(effect.Status, amount));
+            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, amount));
         }
     }
 

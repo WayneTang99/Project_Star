@@ -25,7 +25,8 @@ public sealed record CardBattleSetup(
     bool IsOnBench = false,
     bool UseLegacyAttack = true,
     TagSet? Tags = null,
-    int Multicast = 0);
+    int Multicast = 0,
+    int OccupiedSlots = 1);
 
 public sealed class BattleSideSetup
 {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Application.Board;
 using Project_Star.Application.Combat;
@@ -78,6 +79,8 @@ public sealed partial class PhaseOneVerification : Control
         ("最大生命百分比伤害向下取整并先扣护甲", CheckMaxHealthPercentDamage),
         ("轻骑兵伤害、成长冷却与人类攻击强化正确结算", CheckLightCavalry),
         ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
+        ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
+        ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
         ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
         ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
         ("回响产生的事件不会触发其他回响", CheckEchoDoesNotChain),
@@ -365,6 +368,8 @@ public sealed partial class PhaseOneVerification : Control
         [
             new BeastHideCardDefinition(),
             new LightCavalryCardDefinition(),
+            new ArcaneShieldCardDefinition(),
+            new MilitaryBootsCardDefinition(),
             new JudgmentHammerCardDefinition(),
             new ShopVerificationCardDefinition(CardSize.Small, new StringName("paladin")),
             new ShopVerificationCardDefinition(CardSize.Medium, new StringName("other")),
@@ -377,6 +382,36 @@ public sealed partial class PhaseOneVerification : Control
         var medium = service.GetEligibleCards(session, mediumShop, cards);
         var large = service.GetEligibleCards(session, largeShop, cards);
 
+        var refreshSession = new MatchSession(2, 10);
+        refreshSession.Player.SelectHero(new EntityFactory().CreateHero(new PaladinHeroDefinition()));
+        CardDefinition[] refreshCards =
+        [
+            new ShopVerificationCardDefinition(CardSize.Small, new StringName("paladin"), "one"),
+            new ShopVerificationCardDefinition(CardSize.Small, new StringName("paladin"), "two"),
+            new ShopVerificationCardDefinition(CardSize.Small, new StringName("paladin"), "three"),
+            new ShopVerificationCardDefinition(CardSize.Small, new StringName("paladin"), "four"),
+        ];
+        var stock = service.CreateStock(refreshSession, smallShop, refreshCards);
+        var initialUnique = stock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key).Distinct().Count() == 3;
+        var refreshed = service.Refresh(refreshSession, stock);
+        var refreshedUnique = stock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key).Distinct().Count() == 3;
+        var repeatedRefresh = service.Refresh(refreshSession, stock);
+
+        var limitedSession = new MatchSession(3, 10);
+        limitedSession.Player.SelectHero(new EntityFactory().CreateHero(new PaladinHeroDefinition()));
+        var limitedStock = service.CreateStock(limitedSession, mediumShop,
+        [
+            new ShopVerificationCardDefinition(CardSize.Medium, new StringName("paladin"), "one"),
+            new ShopVerificationCardDefinition(CardSize.Medium, new StringName("paladin"), "two"),
+        ]);
+        var limitedRefresh = service.Refresh(limitedSession, limitedStock);
+
+        var poorSession = new MatchSession(4, 1);
+        poorSession.Player.SelectHero(new EntityFactory().CreateHero(new PaladinHeroDefinition()));
+        var poorStock = service.CreateStock(poorSession, smallShop, refreshCards);
+        var poorKeys = string.Join("|", poorStock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key));
+        var poorRefresh = service.Refresh(poorSession, poorStock);
+
         return smallShop.Kind == EncounterKind.Shop
             && smallShop.CardSize == CardSize.Small
             && smallShop.Level == 1
@@ -384,13 +419,35 @@ public sealed partial class PhaseOneVerification : Control
             && mediumShop.Level == 1
             && largeShop.CardSize == CardSize.Large
             && largeShop.Level == 2
-            && small.Count == 1
-            && small[0].Attributes.Identity.FactionKey == new StringName("paladin")
-            && small[0].Attributes.Identity.Size == CardSize.Small
-            && medium.Count == 1
-            && medium[0].Attributes.Identity.Key == new StringName("card.light_cavalry")
+            && small.Count == 2
+            && small.All(card => card.Attributes.Identity.FactionKey == new StringName("paladin")
+                && card.Attributes.Identity.Size == CardSize.Small)
+            && small.Any(card => card.Attributes.Identity.Key == new StringName("card.military_boots"))
+            && medium.Count == 2
+            && medium.Any(card => card.Attributes.Identity.Key == new StringName("card.light_cavalry"))
+            && medium.Any(card => card.Attributes.Identity.Key == new StringName("card.arcane_shield"))
             && large.Count == 1
-            && large[0].Attributes.Identity.Key == new StringName("card.judgment_hammer");
+            && large[0].Attributes.Identity.Key == new StringName("card.judgment_hammer")
+            && stock.Offers.Count == 3
+            && initialUnique
+            && refreshed.IsSuccess
+            && refreshedUnique
+            && stock.HasRefreshed
+            && !stock.CanRefresh
+            && refreshSession.Player.Wealth == 8
+            && repeatedRefresh.IsFailure
+            && limitedStock.Offers.Count == 2
+            && !limitedStock.CanRefresh
+            && limitedRefresh.IsFailure
+            && limitedSession.Player.Wealth == 10
+            && poorRefresh.IsFailure
+            && poorSession.Player.Wealth == 1
+            && !poorStock.HasRefreshed
+            && poorKeys == string.Join("|", poorStock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key))
+            && ShopCardPoolService.GetRefreshCost(1) == 2
+            && ShopCardPoolService.GetRefreshCost(2) == 4
+            && ShopCardPoolService.GetRefreshCost(3) == 6
+            && ShopCardPoolService.GetRefreshCost(4) == 8;
     }
 
     private static bool CheckBoarMonsterDefinition()
@@ -938,6 +995,7 @@ public sealed partial class PhaseOneVerification : Control
         var result = new CombatSimulator().Simulate(setup);
         var cavalryActivationTicks = new List<long>();
         var cavalryDamage = new List<int>();
+        var cavalryTargetsCorrect = true;
         var attackerDamage = new List<int>();
         var changedCards = new List<EntityId>();
 
@@ -946,7 +1004,10 @@ public sealed partial class PhaseOneVerification : Control
             if (battleEvent is AbilityActivatedEvent activation && activation.SourceCardId == cavalryId)
                 cavalryActivationTicks.Add(activation.Tick.Value);
             if (battleEvent is DamageDealtEvent damage && damage.SourceCardId == cavalryId)
+            {
                 cavalryDamage.Add(damage.RawDamage);
+                cavalryTargetsCorrect &= damage.TargetSide == SideId.Opponent;
+            }
             if (battleEvent is DamageDealtEvent damageByAttacker && damageByAttacker.SourceCardId == attackerId)
                 attackerDamage.Add(damageByAttacker.RawDamage);
             if (battleEvent is CardAttributeChangedEvent changed)
@@ -955,6 +1016,7 @@ public sealed partial class PhaseOneVerification : Control
 
         return string.Join(",", cavalryActivationTicks) == "30,80"
             && string.Join(",", cavalryDamage) == "10,20"
+            && cavalryTargetsCorrect
             && string.Join(",", attackerDamage) == "15,25"
             && changedCards.Count == 4
             && !changedCards.Contains(inertHumanId);
@@ -1029,6 +1091,166 @@ public sealed partial class PhaseOneVerification : Control
             && armguardDamage == 10
             && absorbed == 10
             && healthDamage == 10;
+    }
+
+    private static bool CheckArcaneShield()
+    {
+        var definition = new ArcaneShieldCardDefinition();
+        var levelTwo = definition.GetLevel(2)!;
+        var levelThree = definition.GetLevel(3)!;
+        var levelFour = definition.GetLevel(4)!;
+        if (definition.InitialLevel != 2
+            || definition.SupportsLevel(1)
+            || !definition.SupportsLevel(2)
+            || !definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Medium
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || !definition.Tags.Contains(GameTags.Equipment)
+            || levelTwo.Abilities[0].CooldownTicks != 80
+            || levelThree.Abilities[0].CooldownTicks != 70
+            || levelFour.Abilities[0].CooldownTicks != 60
+            || levelTwo.Abilities[0].ManaCost != 20
+            || levelThree.Abilities[0].ManaCost != 40
+            || levelFour.Abilities[0].ManaCost != 80)
+        {
+            return false;
+        }
+
+        var spenderId = EntityId.New();
+        var shieldId = EntityId.New();
+        var attackerId = EntityId.New();
+        var spender = new AbilityDefinition(
+            new StringName("test.mana_spender"),
+            AbilityActivation.Active,
+            AbilityTarget.SelfCard,
+            10,
+            1,
+            [new DestroyCardEffectDefinition(false)]);
+        var attack = new AbilityDefinition(
+            new StringName("test.arcane_shield_target"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            81,
+            [new DamageEffectDefinition(100)]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, InitialMana: 100, ManaRegen: 0),
+                [
+                    new CardBattleSetup(spenderId, 0, 0, 1, [spender], UseLegacyAttack: false),
+                    new CardBattleSetup(shieldId, 1, 0, 80, levelTwo.Abilities, UseLegacyAttack: false),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                [new CardBattleSetup(attackerId, 0, 100, 81, [attack], UseLegacyAttack: false)]),
+            1,
+            new BattleTick(82),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var manaSpent = 0;
+        var shieldActivatedAtExpectedTick = false;
+        var absorbedExpectedArmor = false;
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is ManaChangedEvent mana && mana.Side == SideId.Player)
+                manaSpent -= mana.Amount;
+            if (battleEvent is AbilityActivatedEvent activation
+                && activation.SourceCardId == shieldId
+                && activation.Tick.Value == 80)
+            {
+                shieldActivatedAtExpectedTick = true;
+            }
+            if (battleEvent is DamageDealtEvent damage && damage.SourceCardId == attackerId)
+                absorbedExpectedArmor = damage.ArmorAbsorbed == 30 && damage.HealthDamage == 70;
+        }
+
+        return manaSpent == 30 && shieldActivatedAtExpectedTick && absorbedExpectedArmor;
+    }
+
+    private static bool CheckMilitaryBoots()
+    {
+        var definition = new MilitaryBootsCardDefinition();
+        var levelOne = definition.GetLevel(1)!;
+        var levelTwo = definition.GetLevel(2)!;
+        var levelThree = definition.GetLevel(3)!;
+        var levelFour = definition.GetLevel(4)!;
+        var levelOneEffect = levelOne.Abilities[0].Effects[0]
+            as ApplyStatusToAdjacentAlliedCardsEffectDefinition;
+        if (definition.InitialLevel != 1
+            || !definition.SupportsLevel(1)
+            || !definition.SupportsLevel(2)
+            || !definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Small
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
+            || !definition.Tags.Contains(GameTags.Equipment)
+            || levelOne.Abilities[0].ManaCost != 0
+            || levelOne.Abilities[0].CooldownTicks != 50
+            || levelOneEffect is null
+            || levelOneEffect.Amount != 10
+            || levelOneEffect.BonusTag != GameTags.Human
+            || levelOneEffect.BonusMultiplier != 2
+            || ((ApplyStatusToAdjacentAlliedCardsEffectDefinition)levelTwo.Abilities[0].Effects[0]).Amount != 20
+            || ((ApplyStatusToAdjacentAlliedCardsEffectDefinition)levelThree.Abilities[0].Effects[0]).Amount != 30
+            || ((ApplyStatusToAdjacentAlliedCardsEffectDefinition)levelFour.Abilities[0].Effects[0]).Amount != 40)
+        {
+            return false;
+        }
+
+        var humanId = EntityId.New();
+        var bootsId = EntityId.New();
+        var generalId = EntityId.New();
+        var distantId = EntityId.New();
+        var marker = new AbilityDefinition(
+            new StringName("test.haste_marker"),
+            AbilityActivation.Active,
+            AbilityTarget.AlliedHero,
+            0,
+            80,
+            [new ArmorEffectDefinition(0)]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(
+                        humanId,
+                        0,
+                        0,
+                        80,
+                        [marker],
+                        UseLegacyAttack: false,
+                        Tags: new TagSet([GameTags.Human]),
+                        OccupiedSlots: 2),
+                    new CardBattleSetup(bootsId, 2, 0, 50, levelOne.Abilities, UseLegacyAttack: false),
+                    new CardBattleSetup(generalId, 3, 0, 80, [marker], UseLegacyAttack: false),
+                    new CardBattleSetup(distantId, 5, 0, 80, [marker], UseLegacyAttack: false),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                Array.Empty<CardBattleSetup>()),
+            1,
+            new BattleTick(81),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var humanTick = -1L;
+        var generalTick = -1L;
+        var distantTick = -1L;
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is not AbilityActivatedEvent activation) continue;
+            if (activation.SourceCardId == humanId) humanTick = activation.Tick.Value;
+            if (activation.SourceCardId == generalId) generalTick = activation.Tick.Value;
+            if (activation.SourceCardId == distantId) distantTick = activation.Tick.Value;
+        }
+
+        return humanTick == 65 && generalTick == 70 && distantTick == 80;
     }
 
     private static bool CheckBattleTimeout()
@@ -1413,11 +1635,11 @@ public sealed partial class PhaseOneVerification : Control
 
     private sealed class ShopVerificationCardDefinition : CardDefinition
     {
-        public ShopVerificationCardDefinition(CardSize size, StringName factionKey)
+        public ShopVerificationCardDefinition(CardSize size, StringName factionKey, string suffix = "default")
             : base(
                 new EntityAttributes<CardIdentityAttributes>(
                     new CardIdentityAttributes(
-                        new StringName($"verification.shop_card.{factionKey}.{size}"),
+                        new StringName($"verification.shop_card.{factionKey}.{size}.{suffix}"),
                         "商店验证卡牌",
                         factionKey,
                         size,

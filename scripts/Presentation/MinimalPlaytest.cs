@@ -40,7 +40,8 @@ public sealed partial class MinimalPlaytest : Control
     private Label _state = null!;
     private RichTextLabel _log = null!;
     private Button _hero = null!;
-    private Button _buy = null!;
+    private readonly Button[] _buyButtons = new Button[ShopCardPoolService.OfferCount];
+    private Button _refreshShop = null!;
     private Button _battleButton = null!;
     private Button _continue = null!;
     private Control _battlefieldPanel = null!;
@@ -53,7 +54,7 @@ public sealed partial class MinimalPlaytest : Control
     private readonly Button[] _benchSlots = new Button[10];
     private readonly Button[] _enemyBattlefieldSlots = new Button[10];
     private EntityId? _selectedCardId;
-    private ShopOffer? _currentOffer;
+    private ShopStock? _currentStock;
 
     public override void _Ready()
     {
@@ -67,7 +68,13 @@ public sealed partial class MinimalPlaytest : Control
         _state = GetNode<Label>($"{root}/State");
         _log = GetNode<RichTextLabel>($"{root}/MainPanel/Margin/MainContent/Log");
         _hero = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Create");
-        _buy = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Buy");
+        for (var index = 0; index < _buyButtons.Length; index++)
+        {
+            var captured = index;
+            _buyButtons[index] = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Buy{index + 1}");
+            _buyButtons[index].Pressed += () => BuyCard(captured);
+        }
+        _refreshShop = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Refresh");
         _battleButton = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Battle");
         _continue = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/EncounterActions/Generate");
         _battlefieldPanel = GetNode<Control>($"{root}/BattlefieldPanel");
@@ -84,7 +91,7 @@ public sealed partial class MinimalPlaytest : Control
             _choices[index].Pressed += () => ChooseEncounter(captured);
         }
         _hero.Pressed += SelectHero;
-        _buy.Pressed += BuyCard;
+        _refreshShop.Pressed += RefreshShop;
         _battleButton.Pressed += StartBattle;
         _continue.Pressed += ContinueMatch;
         GetNode<Button>($"{root}/Footer/Reset").Pressed += ShowHeroSelection;
@@ -161,37 +168,35 @@ public sealed partial class MinimalPlaytest : Control
         _screen = Screen.Shop;
         var shop = _registry.Encounters[choice.Key] as ShopEncounterDefinition;
         _title.Text = shop is null ? choice.DisplayName : $"{choice.DisplayName} · {shop.Level}级";
-        _currentOffer = shop is null || _player is null
+        _currentStock = shop is null || _player is null
             ? null
-            : _shopCardPool.CreateOffer(_player, shop, _registry.Cards.Values);
-        var card = _currentOffer?.Definition;
-        _log.Text = _currentOffer is null
+            : _shopCardPool.CreateStock(_player, shop, _registry.Cards.Values);
+        _log.Text = _currentStock is null || _currentStock.Offers.Count == 0
             ? "尚未配置正式卡牌内容。"
-            : $"{card!.Attributes.Identity.DisplayName}　价格 {_currentOffer.Price}　购买后价值 {_currentOffer.Price / 2}\n本次商店只有这一件商品。";
-        _buy.Text = _currentOffer is null ? "暂无商品" : $"购买{card!.Attributes.Identity.DisplayName}";
-        _buy.Disabled = _currentOffer is null;
-        _buy.Visible = true;
+            : "本次商店提供以下商品；每件商品只能购买一次。";
+        RefreshShopButtons();
         _continue.Text = "离开商店"; _continue.Visible = true;
         UpdateState();
     }
 
-    private void BuyCard()
+    private void BuyCard(int index)
     {
         if (_player is null) return;
-        if (_currentOffer is null) return;
+        if (_currentStock is null || index >= _currentStock.Offers.Count) return;
+        var offer = _currentStock.Offers[index];
         var target = _board.FindFirstAvailableTarget(
             _player,
-            _currentOffer.Definition.Attributes.Identity.OccupiedSlots);
+            offer.Definition.Attributes.Identity.OccupiedSlots);
         if (target is null)
         {
             _log.Text = "战场区和备战区都没有足够空间，无法购买。";
             return;
         }
 
-        var result = _economy.BuyCard(_player, _currentOffer);
+        var result = _economy.BuyCard(_player, offer);
         if (result.IsSuccess)
         {
-            var displayName = _currentOffer.Definition.Attributes.Identity.DisplayName;
+            var displayName = offer.Definition.Attributes.Identity.DisplayName;
             var placement = _board.PlaceCard(_player, result.Value!.Id, target.Zone, target.Start);
             if (placement.IsFailure)
             {
@@ -199,14 +204,51 @@ public sealed partial class MinimalPlaytest : Control
                 return;
             }
 
-            _buy.Visible = false;
+            _buyButtons[index].Visible = false;
             _log.Text = target.Zone == BoardZone.Battlefield
                 ? $"购买成功，{displayName}已自动放入战场区。"
                 : $"战场区空间不足，{displayName}已自动放入备战区。";
         }
         else _log.Text = result.Failure!.Message;
         RefreshBoard();
+        RefreshShopButtons();
         UpdateState();
+    }
+
+    private void RefreshShop()
+    {
+        if (_player is null || _currentStock is null) return;
+        var result = _shopCardPool.Refresh(_player, _currentStock);
+        _log.Text = result.IsSuccess
+            ? $"商店刷新成功，花费 {_currentStock.RefreshCost} 金钱。"
+            : result.Failure!.Message;
+        RefreshShopButtons();
+        UpdateState();
+    }
+
+    private void RefreshShopButtons()
+    {
+        for (var index = 0; index < _buyButtons.Length; index++)
+        {
+            var button = _buyButtons[index];
+            var offer = _currentStock is not null && index < _currentStock.Offers.Count
+                ? _currentStock.Offers[index]
+                : null;
+            button.Visible = offer is not null && !offer.IsSold;
+            button.Disabled = offer is null;
+            if (offer is not null)
+            {
+                var card = offer.Definition;
+                button.Text = $"{card.Attributes.Identity.DisplayName}\n价格 {offer.Price}";
+            }
+        }
+        _refreshShop.Visible = _currentStock is not null;
+        _refreshShop.Disabled = _currentStock is null || !_currentStock.CanRefresh;
+        _refreshShop.Text = _currentStock is null
+            ? "刷新"
+            : _currentStock.CanRefresh
+                ? $"刷新一次（{_currentStock.RefreshCost}）"
+                : "不可刷新";
     }
 
     private void ShowEvent(string name)
@@ -342,8 +384,9 @@ public sealed partial class MinimalPlaytest : Control
 
     private void HideAllActions()
     {
-        _currentOffer = null;
-        _hero.Visible = _buy.Visible = _battleButton.Visible = _continue.Visible = false;
+        _currentStock = null;
+        _hero.Visible = _battleButton.Visible = _continue.Visible = _refreshShop.Visible = false;
+        foreach (var button in _buyButtons) if (button is not null) button.Visible = false;
         _battlefieldPanel.Visible = _player is not null;
         _benchPanel.Visible = _player is not null;
         _enemyBattlefieldPanel.Visible = _enemy is not null;

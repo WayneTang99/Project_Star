@@ -133,9 +133,21 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = "选择：漫游者"
 
-[node name="Buy" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+[node name="Buy1" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
 layout_mode = 2
-text = "购买铁剑"
+text = "商品 1"
+
+[node name="Buy2" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+layout_mode = 2
+text = "商品 2"
+
+[node name="Buy3" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+layout_mode = 2
+text = "商品 3"
+
+[node name="Refresh" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
+layout_mode = 2
+text = "刷新"
 
 [node name="Battle" type="Button" parent="Margin/Frame/Margin/Content/MainPanel/Margin/MainContent/Actions"]
 layout_mode = 2

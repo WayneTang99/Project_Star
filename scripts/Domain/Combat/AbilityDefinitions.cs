@@ -44,7 +44,15 @@ public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record GainSourceHeroArmorEffectDefinition(int Amount) : EffectDefinition;
 
+public sealed record GainArmorEqualToManaSpentEffectDefinition : EffectDefinition;
+
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+
+public sealed record ApplyStatusToAdjacentAlliedCardsEffectDefinition(
+    BattleStatus Status,
+    int Amount,
+    StringName BonusTag,
+    int BonusMultiplier = 2) : EffectDefinition;
 
 public sealed record DestroyCardEffectDefinition(bool Permanent) : EffectDefinition;
 
@@ -95,6 +103,7 @@ public sealed class AbilityDefinition
                 ArmorEffectDefinition value => value.Amount,
                 GainSourceHeroArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,
+                ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
@@ -108,6 +117,15 @@ public sealed class AbilityDefinition
             if (effect is ModifyTaggedAlliedCardsAttributeEffectDefinition modifier
                 && (modifier.RequiredTag.IsEmpty || modifier.AttributeKey.IsEmpty))
                 throw new ArgumentException("Tagged card attribute modifier keys cannot be empty.", nameof(effects));
+            if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent
+                && (adjacent.Status is not BattleStatus.HasteDuration
+                    and not BattleStatus.SlowDuration
+                    and not BattleStatus.ImmobilizeDuration
+                    || adjacent.BonusTag.IsEmpty
+                    || adjacent.BonusMultiplier < 1))
+            {
+                throw new ArgumentException("Adjacent card status configuration is invalid.", nameof(effects));
+            }
         }
         Effects = new List<EffectDefinition>(effects).AsReadOnly();
         AllowsBench = allowsBench;
