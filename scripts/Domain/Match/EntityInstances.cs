@@ -25,12 +25,14 @@ public sealed class CardInstance
         EntityId id,
         EntityAttributes<CardIdentityAttributes> attributes,
         TagSet tags,
-        IReadOnlyList<AbilityDefinition> abilities)
+        IReadOnlyList<AbilityDefinition> abilities,
+        CardOnSellRewardDefinition? onSellReward)
     {
         Id = id;
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         Tags = tags ?? throw new ArgumentNullException(nameof(tags));
         Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
+        OnSellReward = onSellReward;
     }
 
     public EntityId Id { get; }
@@ -40,4 +42,6 @@ public sealed class CardInstance
     public TagSet Tags { get; }
 
     public IReadOnlyList<AbilityDefinition> Abilities { get; }
+
+    public CardOnSellRewardDefinition? OnSellReward { get; }
 }

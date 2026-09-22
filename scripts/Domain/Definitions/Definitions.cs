@@ -24,7 +24,8 @@ public abstract class CardDefinition
         TagSet tags,
         IReadOnlyList<AbilityDefinition>? abilities = null,
         int initialLevel = 1,
-        IReadOnlyList<CardLevelDefinition>? levels = null)
+        IReadOnlyList<CardLevelDefinition>? levels = null,
+        CardOnSellRewardDefinition? onSellReward = null)
     {
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         Tags = TagSet.ForCard(attributes.Identity.Size, tags);
@@ -44,6 +45,7 @@ public abstract class CardDefinition
         if (initialLevel is < 1 or > 5 || (configuredLevels.Count > 0 && !configuredLevels.ContainsKey(initialLevel)))
             throw new ArgumentOutOfRangeException(nameof(initialLevel), "Initial level must have a card level configuration.");
         Levels = configuredLevels;
+        OnSellReward = onSellReward;
         DefinitionFreezer.Freeze(attributes);
     }
 
@@ -57,6 +59,8 @@ public abstract class CardDefinition
 
     public IReadOnlyDictionary<int, CardLevelDefinition> Levels { get; }
 
+    public CardOnSellRewardDefinition? OnSellReward { get; }
+
     public bool SupportsLevel(int level) => Levels.Count == 0 ? level is >= 1 and <= 4 : Levels.ContainsKey(level);
 
     public CardLevelDefinition? GetLevel(int level) => Levels.TryGetValue(level, out var value) ? value : null;
@@ -64,6 +68,12 @@ public abstract class CardDefinition
     public virtual int ValueCoefficient => 2;
 
 }
+
+public abstract record CardOnSellRewardDefinition;
+
+// 出售时按标签随机获得卡牌的通用奖励定义（领域定义层）。
+public sealed record RandomTaggedCardOnSellDefinition(StringName RequiredTag, bool SameLevel = true)
+    : CardOnSellRewardDefinition;
 
 // 单个卡牌等级的数值与能力配置（领域定义层）。
 public sealed class CardLevelDefinition

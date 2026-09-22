@@ -51,6 +51,8 @@ public sealed partial class PhaseOneVerification : Control
         ("等级变化不会重算当前价值", CheckLevelDoesNotRecalculateValue),
         ("卡牌可以限制等级并应用分级配置", CheckCardLevelDefinitions),
         ("无阵营无属性卡牌支持分级价值且没有能力", CheckBeastHideDefinition),
+        ("钻石固定为4级且获得后价值增加20", CheckDiamondDefinition),
+        ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
         ("购买按报价扣款并登记卡牌归属", CheckPurchase),
         ("余额不足时交易无任何修改", CheckInsufficientWealth),
         ("出售按现值回补且只能一次", CheckSale),
@@ -445,6 +447,96 @@ public sealed partial class PhaseOneVerification : Control
             && levelTwo.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 6
             && levelThree.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 12
             && levelFour.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 24;
+    }
+
+    private static bool CheckDiamondDefinition()
+    {
+        var definition = new DiamondCardDefinition();
+        var session = new MatchSession(7);
+        var card = new CardEconomyService(new EntityFactory()).AcquireCard(
+            session,
+            definition,
+            definition.InitialLevel,
+            CardAcquisitionSource.Reward).Value!;
+        return definition.InitialLevel == 4
+            && !definition.SupportsLevel(1)
+            && !definition.SupportsLevel(2)
+            && !definition.SupportsLevel(3)
+            && definition.SupportsLevel(4)
+            && !definition.SupportsLevel(5)
+            && definition.Attributes.Identity.FactionKey == GameFactions.Neutral
+            && definition.Attributes.Identity.Size == CardSize.Small
+            && definition.Attributes.Identity.ElementKeys.Count == 1
+            && definition.Attributes.Identity.ElementKeys[0] == GameElements.General
+            && definition.Tags.Contains(GameTags.Small)
+            && definition.Tags.Contains(GameTags.Material)
+            && card.Abilities.Count == 0
+            && CardValueCalculator.CalculateInitialValue(definition, 4) == 16
+            && card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 28;
+    }
+
+    private static bool CheckJewelryBagSaleReward()
+    {
+        var factory = new EntityFactory();
+        var board = CreateBoardService();
+        var bagDefinition = new JewelryBagCardDefinition();
+        var beastHideDefinition = new BeastHideCardDefinition();
+        var definitions = new CardDefinition[]
+        {
+            bagDefinition,
+            beastHideDefinition,
+            new DiamondCardDefinition(),
+        };
+        var economy = new CardEconomyService(factory, board, definitions);
+
+        var session = new MatchSession(11);
+        var bag = economy.AcquireCard(session, bagDefinition, 2, CardAcquisitionSource.Reward).Value!;
+        var sale = economy.SellCard(session, bag.Id);
+        var rewarded = session.Player.Inventory.Cards.Count == 1
+            ? session.Player.Inventory.Cards[0]
+            : null;
+
+        var fullSession = new MatchSession(12, boardCapacity: 1);
+        var blocker = economy.AcquireCard(fullSession, beastHideDefinition, 1, CardAcquisitionSource.Reward).Value!;
+        _ = board.PlaceCard(fullSession, blocker.Id, BoardZone.Battlefield, 0);
+        var fullBag = economy.AcquireCard(fullSession, bagDefinition, 2, CardAcquisitionSource.Reward).Value!;
+        var fullSale = economy.SellCard(fullSession, fullBag.Id);
+        var canRewardDiamondAtLevelFour = false;
+        for (ulong seed = 1; seed <= 32 && !canRewardDiamondAtLevelFour; seed++)
+        {
+            var levelFourSession = new MatchSession(seed);
+            var levelFourBag = economy.AcquireCard(
+                levelFourSession,
+                bagDefinition,
+                4,
+                CardAcquisitionSource.Reward).Value!;
+            _ = economy.SellCard(levelFourSession, levelFourBag.Id);
+            canRewardDiamondAtLevelFour = levelFourSession.Player.Inventory.Cards.Count == 1
+                && levelFourSession.Player.Inventory.Cards[0].Attributes.Identity.Key
+                    == new StringName("card.diamond");
+        }
+
+        return bagDefinition.InitialLevel == 2
+            && !bagDefinition.SupportsLevel(1)
+            && bagDefinition.SupportsLevel(2)
+            && bagDefinition.SupportsLevel(3)
+            && bagDefinition.SupportsLevel(4)
+            && !bagDefinition.SupportsLevel(5)
+            && bagDefinition.Tags.Count == 1
+            && bagDefinition.Tags.Contains(GameTags.Small)
+            && bagDefinition.OnSellReward is RandomTaggedCardOnSellDefinition
+            && sale.IsSuccess
+            && session.Player.Wealth == 2
+            && rewarded is not null
+            && rewarded.Attributes.Identity.Key == new StringName("card.beast_hide")
+            && rewarded.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 2
+            && session.Board.Battlefield.Count == 1
+            && session.Board.Bench.Count == 0
+            && fullSale.IsSuccess
+            && fullSession.Player.Wealth == 2
+            && fullSession.Player.Inventory.Cards.Count == 1
+            && fullSession.Player.Inventory.Cards[0].Id == blocker.Id
+            && canRewardDiamondAtLevelFour;
     }
 
     private static bool CheckPurchase()

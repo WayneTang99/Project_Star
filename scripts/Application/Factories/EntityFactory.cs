@@ -35,7 +35,8 @@ public sealed class EntityFactory
             EntityId.New(),
             attributes,
             definition.Tags,
-            levelDefinition?.Abilities ?? definition.Abilities);
+            levelDefinition?.Abilities ?? definition.Abilities,
+            definition.OnSellReward);
     }
 
     private static EntityAttributes<TIdentity> Copy<TIdentity>(EntityAttributes<TIdentity> source)

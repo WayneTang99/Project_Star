@@ -54,7 +54,7 @@ public sealed partial class MinimalPlaytest : Control
     public override void _Ready()
     {
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
-        _economy = new CardEconomyService(_factory);
+        _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
         _matches = new CreateMatchService(_factory);
         _encounters = new EncounterScheduler(_registry);
         _matchResults = new MatchResultService(_board);
