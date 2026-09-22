@@ -182,10 +182,12 @@ EntityAttributes
 
 ```mermaid
 flowchart LR
-    Buy["购买"] --> Acquire["AcquireCard"]
-    Drop["掉落"] --> Acquire
-    Reward["奖励"] --> Acquire
-    Buy -->|"按初始价值扣款"| Pay["扣 Wealth"]
+    Buy["点击购买"] --> Claim["交互领取"]
+    Reward["点击奖励"] --> Claim
+    Auto["出售触发 / 事件即时生成"] --> Capacity["检查双棋盘空间"]
+    Claim --> Capacity
+    Capacity --> Acquire["AcquireCard"]
+    Acquire -->|"购买成功时按初始价值"| Pay["扣 Wealth"]
     Acquire --> Create["创建 CardInstance"]
     Create --> Half["Value = InitialValue × 0.5"]
     Half --> Bonus["累加该等级的获得时价值加成"]
@@ -194,8 +196,11 @@ flowchart LR
 ```
 
 - 所有获得来源统一进入 `AcquireCard`。
+- 购买与奖励由玩家点击领取；其他自动获得在产生时立即尝试获取。
+- 获取前先检查双棋盘空间；战场区优先、备战区其次，无空间则不创建实例。
 - 购买按初始价值全额扣款；出售按当前价值全额回补。
 - 等级配置可以声明获得时价值加成；该加成在统一折半后累加，不改变商店初始价格。
+- 出售奖励由卡牌携带通用奖励定义；随机卡牌奖励按标签和等级筛选，并使用对局随机状态确定性抽取。
 - 交易是原子事务，失败不得留下部分修改。
 
 ## 8. 棋盘系统
