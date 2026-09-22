@@ -44,12 +44,13 @@ public sealed partial class PhaseOneVerification : Control
         ("工厂创建完全独立的卡牌实例", CheckIndependentInstances),
         ("新对局可以选择英雄并生成卡牌", CheckMatchCreation),
         ("不同对局之间不共享状态", CheckSessionIsolation),
-        ("三种尺寸按公式计算初始价值", CheckInitialValues),
+        ("尺寸与等级按翻倍表计算初始价值", CheckInitialValues),
         ("特殊卡牌可以覆写价值系数", CheckSpecialValueCoefficient),
         ("获得卡牌统一设置半价现值", CheckAcquisitionSources),
         ("半价出现小数时向下取整", CheckAcquiredValueRounding),
         ("等级变化不会重算当前价值", CheckLevelDoesNotRecalculateValue),
         ("卡牌可以限制等级并应用分级配置", CheckCardLevelDefinitions),
+        ("无阵营无属性卡牌支持分级价值且没有能力", CheckBeastHideDefinition),
         ("购买按报价扣款并登记卡牌归属", CheckPurchase),
         ("余额不足时交易无任何修改", CheckInsufficientWealth),
         ("出售按现值回补且只能一次", CheckSale),
@@ -324,14 +325,32 @@ public sealed partial class PhaseOneVerification : Control
 
     private static bool CheckInitialValues()
     {
-        return CardValueCalculator.CalculateInitialValue(new EconomyCardDefinition(CardSize.Small), 2) == 4
-            && CardValueCalculator.CalculateInitialValue(new EconomyCardDefinition(CardSize.Medium), 2) == 8
-            && CardValueCalculator.CalculateInitialValue(new EconomyCardDefinition(CardSize.Large), 2) == 12;
+        var small = new EconomyCardDefinition(CardSize.Small);
+        var medium = new EconomyCardDefinition(CardSize.Medium);
+        var large = new EconomyCardDefinition(CardSize.Large);
+        var levelFiveSmall = new FiveLevelEconomyCardDefinition(CardSize.Small);
+        var levelFiveMedium = new FiveLevelEconomyCardDefinition(CardSize.Medium);
+        var levelFiveLarge = new FiveLevelEconomyCardDefinition(CardSize.Large);
+        return CardValueCalculator.CalculateInitialValue(small, 1) == 2
+            && CardValueCalculator.CalculateInitialValue(small, 2) == 4
+            && CardValueCalculator.CalculateInitialValue(small, 3) == 8
+            && CardValueCalculator.CalculateInitialValue(small, 4) == 16
+            && CardValueCalculator.CalculateInitialValue(levelFiveSmall, 5) == 16
+            && CardValueCalculator.CalculateInitialValue(medium, 1) == 4
+            && CardValueCalculator.CalculateInitialValue(medium, 2) == 8
+            && CardValueCalculator.CalculateInitialValue(medium, 3) == 16
+            && CardValueCalculator.CalculateInitialValue(medium, 4) == 32
+            && CardValueCalculator.CalculateInitialValue(levelFiveMedium, 5) == 32
+            && CardValueCalculator.CalculateInitialValue(large, 1) == 6
+            && CardValueCalculator.CalculateInitialValue(large, 2) == 12
+            && CardValueCalculator.CalculateInitialValue(large, 3) == 24
+            && CardValueCalculator.CalculateInitialValue(large, 4) == 48
+            && CardValueCalculator.CalculateInitialValue(levelFiveLarge, 5) == 48;
     }
 
     private static bool CheckSpecialValueCoefficient()
     {
-        return CardValueCalculator.CalculateInitialValue(new EconomyCardDefinition(CardSize.Medium, 4), 3) == 24;
+        return CardValueCalculator.CalculateInitialValue(new EconomyCardDefinition(CardSize.Medium, 4), 3) == 32;
     }
 
     private static bool CheckAcquisitionSources()
@@ -387,6 +406,45 @@ public sealed partial class PhaseOneVerification : Control
             && levelFour.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 4
             && levelFour.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.CooldownTicks) == 50
             && levelFour.Abilities[0].CooldownTicks == 50;
+    }
+
+    private static bool CheckBeastHideDefinition()
+    {
+        var definition = new BeastHideCardDefinition();
+        var factory = new EntityFactory();
+        var card = factory.CreateCard(definition);
+        var registry = DefinitionRegistry.Create([new VerificationHeroDefinition(), definition]);
+        var player = new MatchSession(1);
+        var opponent = new MatchSession(2);
+        player.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        player.Player.Inventory.Add(card);
+        _ = CreateBoardService().PlaceCard(player, card.Id, BoardZone.Battlefield, 0);
+        var battleSetup = new BattleSetupFactory().Create(player, opponent, 1, new BattleTick(10));
+        var economy = new CardEconomyService(factory);
+        var levelOne = economy.AcquireCard(new MatchSession(3), definition, 1, CardAcquisitionSource.Reward).Value!;
+        var levelTwo = economy.AcquireCard(new MatchSession(4), definition, 2, CardAcquisitionSource.Reward).Value!;
+        var levelThree = economy.AcquireCard(new MatchSession(5), definition, 3, CardAcquisitionSource.Reward).Value!;
+        var levelFour = economy.AcquireCard(new MatchSession(6), definition, 4, CardAcquisitionSource.Reward).Value!;
+        return registry.Cards.ContainsKey(new StringName("card.beast_hide"))
+            && definition.Attributes.Identity.FactionKey == GameFactions.Neutral
+            && definition.Attributes.Identity.ElementKeys.Count == 1
+            && definition.Attributes.Identity.ElementKeys[0] == GameElements.General
+            && definition.Attributes.Identity.Size == CardSize.Small
+            && card.Tags.Contains(GameTags.Small)
+            && card.Tags.Contains(GameTags.Material)
+            && card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
+            && card.Abilities.Count == 0
+            && battleSetup.Player.Cards.Count == 1
+            && !battleSetup.Player.Cards[0].UseLegacyAttack
+            && CardValueCalculator.CalculateInitialValue(definition, 1) == 2
+            && CardValueCalculator.CalculateInitialValue(definition, 2) == 4
+            && CardValueCalculator.CalculateInitialValue(definition, 3) == 8
+            && CardValueCalculator.CalculateInitialValue(definition, 4) == 16
+            && levelOne.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 3
+            && levelTwo.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 6
+            && levelThree.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 12
+            && levelFour.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 24;
     }
 
     private static bool CheckPurchase()
@@ -1029,5 +1087,30 @@ public sealed partial class PhaseOneVerification : Control
         }
 
         public override int ValueCoefficient => _valueCoefficient;
+    }
+
+    // 5级默认价值验证卡牌定义（表现层验证模块）。
+    private sealed class FiveLevelEconomyCardDefinition : CardDefinition
+    {
+        public FiveLevelEconomyCardDefinition(CardSize size)
+            : base(
+                new EntityAttributes<CardIdentityAttributes>(
+                    new CardIdentityAttributes(
+                        new StringName($"verification.economy.level_five.{size}"),
+                        "5级经济验证卡牌",
+                        new StringName("verification.faction"),
+                        size,
+                        [GameElements.General])),
+                new TagSet(),
+                levels:
+                [
+                    new CardLevelDefinition(1, null, Array.Empty<AbilityDefinition>()),
+                    new CardLevelDefinition(2, null, Array.Empty<AbilityDefinition>()),
+                    new CardLevelDefinition(3, null, Array.Empty<AbilityDefinition>()),
+                    new CardLevelDefinition(4, null, Array.Empty<AbilityDefinition>()),
+                    new CardLevelDefinition(5, null, Array.Empty<AbilityDefinition>()),
+                ])
+        {
+        }
     }
 }

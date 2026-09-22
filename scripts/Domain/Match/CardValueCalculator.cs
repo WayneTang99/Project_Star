@@ -8,17 +8,22 @@ public static class CardValueCalculator
     public static int CalculateInitialValue(CardDefinition definition, int level)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        if (level < 1)
+        if (!definition.SupportsLevel(level))
         {
-            throw new ArgumentOutOfRangeException(nameof(level));
+            throw new ArgumentOutOfRangeException(nameof(level), $"Card does not provide level {level}.");
         }
+
+        var configuredValue = definition.GetLevel(level)?.InitialValue;
+        if (configuredValue.HasValue) return configuredValue.Value;
 
         if (definition.ValueCoefficient < 1)
         {
             throw new InvalidOperationException("Card value coefficient must be positive.");
         }
 
-        return checked(definition.ValueCoefficient * level * definition.Attributes.Identity.OccupiedSlots);
+        var valueLevel = Math.Min(level, 4);
+        var levelMultiplier = 1 << (valueLevel - 1);
+        return checked(definition.ValueCoefficient * levelMultiplier * definition.Attributes.Identity.OccupiedSlots);
     }
 
     public static int CalculateAcquiredValue(int initialValue)

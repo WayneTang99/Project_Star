@@ -40,9 +40,12 @@ internal sealed class CardBattleState
     public CardBattleState(CardBattleSetup setup, SideId side)
     {
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
-        var definitions = setup.Abilities is { Count: > 0 } ? setup.Abilities :
-        [new AbilityDefinition(new StringName("ability.legacy_attack"), AbilityActivation.Active,
-            AbilityTarget.EnemyHero, 0, setup.CooldownTicks, [new DamageEffectDefinition(setup.AttackDamage)])];
+        var definitions = setup.Abilities is { Count: > 0 }
+            ? setup.Abilities
+            : setup.UseLegacyAttack
+                ? [new AbilityDefinition(new StringName("ability.legacy_attack"), AbilityActivation.Active,
+                    AbilityTarget.EnemyHero, 0, setup.CooldownTicks, [new DamageEffectDefinition(setup.AttackDamage)])]
+                : Array.Empty<AbilityDefinition>();
         foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition));
     }
     public EntityId EntityId { get; }

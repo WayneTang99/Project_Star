@@ -71,15 +71,21 @@ public sealed class CardLevelDefinition
     public CardLevelDefinition(
         int level,
         IReadOnlyDictionary<StringName, int>? baseCombatValues,
-        IReadOnlyList<AbilityDefinition> abilities)
+        IReadOnlyList<AbilityDefinition> abilities,
+        int? initialValue = null,
+        int acquiredValueBonus = 0)
     {
         if (level is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(level));
         ArgumentNullException.ThrowIfNull(abilities);
+        if (initialValue < 0) throw new ArgumentOutOfRangeException(nameof(initialValue));
+        ArgumentOutOfRangeException.ThrowIfNegative(acquiredValueBonus);
         Level = level;
         BaseCombatValues = baseCombatValues is null
             ? new Dictionary<StringName, int>()
             : new Dictionary<StringName, int>(baseCombatValues);
         Abilities = new List<AbilityDefinition>(abilities).AsReadOnly();
+        InitialValue = initialValue;
+        AcquiredValueBonus = acquiredValueBonus;
     }
 
     public int Level { get; }
@@ -87,6 +93,10 @@ public sealed class CardLevelDefinition
     public IReadOnlyDictionary<StringName, int> BaseCombatValues { get; }
 
     public IReadOnlyList<AbilityDefinition> Abilities { get; }
+
+    public int? InitialValue { get; }
+
+    public int AcquiredValueBonus { get; }
 }
 
 public abstract class EncounterDefinition

@@ -114,9 +114,10 @@ public sealed class CardEconomyService
     {
         var initialValue = CardValueCalculator.CalculateInitialValue(definition, level);
         var card = _entityFactory.CreateCard(definition, level);
+        var valueBonus = definition.GetLevel(level)?.AcquiredValueBonus ?? 0;
         card.Attributes.Persistent.SetBaseValue(
             GameAttributeKeys.Value,
-            CardValueCalculator.CalculateAcquiredValue(initialValue));
+            checked(CardValueCalculator.CalculateAcquiredValue(initialValue) + valueBonus));
         return card;
     }
 }

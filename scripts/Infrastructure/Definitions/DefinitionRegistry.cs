@@ -110,7 +110,8 @@ public sealed class DefinitionRegistry
 
         foreach (var card in cards.Values)
         {
-            if (!factions.Contains(card.Attributes.Identity.FactionKey))
+            if (card.Attributes.Identity.FactionKey != GameFactions.Neutral
+                && !factions.Contains(card.Attributes.Identity.FactionKey))
             {
                 throw new DefinitionValidationException(
                     $"Card '{card.Attributes.Identity.Key}' references unknown faction '{card.Attributes.Identity.FactionKey}'.");

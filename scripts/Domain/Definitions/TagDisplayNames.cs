@@ -11,6 +11,7 @@ public static class TagDisplayNames
         [GameTags.Medium] = "中型",
         [GameTags.Large] = "大型",
         [GameTags.Equipment] = "装备",
+        [GameTags.Material] = "材料",
         [GameTags.Consumable] = "消耗品",
         [GameTags.Human] = "人类",
         [GameTags.Mechanical] = "机械",

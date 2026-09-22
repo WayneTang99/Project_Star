@@ -56,14 +56,27 @@ public sealed class BattleSetupFactory
                 throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             }
 
-            cards.Add(new CardBattleSetup(card.Id, placement.Start, damage, cooldown, card.Abilities));
+            cards.Add(new CardBattleSetup(
+                card.Id,
+                placement.Start,
+                damage,
+                cooldown,
+                card.Abilities,
+                UseLegacyAttack: false));
         }
 
         foreach (var placement in session.Board.Bench.Placements)
         {
             var card = session.Player.Inventory.Find(placement.CardId)
                 ?? throw new InvalidOperationException($"Bench card '{placement.CardId}' is not owned by the player.");
-            cards.Add(new CardBattleSetup(card.Id, placement.Start, 0, 1, card.Abilities, true));
+            cards.Add(new CardBattleSetup(
+                card.Id,
+                placement.Start,
+                0,
+                1,
+                card.Abilities,
+                IsOnBench: true,
+                UseLegacyAttack: false));
         }
 
         return new BattleSideSetup(

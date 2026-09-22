@@ -21,7 +21,8 @@ public sealed record CardBattleSetup(
     int AttackDamage,
     int CooldownTicks,
     IReadOnlyList<AbilityDefinition>? Abilities = null,
-    bool IsOnBench = false);
+    bool IsOnBench = false,
+    bool UseLegacyAttack = true);
 
 public sealed class BattleSideSetup
 {
