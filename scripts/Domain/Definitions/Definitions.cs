@@ -47,6 +47,9 @@ public abstract class CardDefinition
         if (initialLevel is < 1 or > 5 || (configuredLevels.Count > 0 && !configuredLevels.ContainsKey(initialLevel)))
             throw new ArgumentOutOfRangeException(nameof(initialLevel), "Initial level must have a card level configuration.");
         Levels = configuredLevels;
+        if (onSellReward is RandomTaggedCardOnSellDefinition randomReward
+            && (randomReward.RequiredTag.IsEmpty || randomReward.Count < 1))
+            throw new ArgumentException("Random on-sell reward configuration is invalid.", nameof(onSellReward));
         OnSellReward = onSellReward;
         DefinitionFreezer.Freeze(attributes);
     }
@@ -73,8 +76,12 @@ public abstract class CardDefinition
 
 public abstract record CardOnSellRewardDefinition;
 
-// 出售时按标签随机获得卡牌的通用奖励定义（领域定义层）。
-public sealed record RandomTaggedCardOnSellDefinition(StringName RequiredTag, bool SameLevel = true)
+// 出售时按标签、尺寸和数量随机获得卡牌的通用奖励定义（领域定义层）。
+public sealed record RandomTaggedCardOnSellDefinition(
+    StringName RequiredTag,
+    bool SameLevel = true,
+    int Count = 1,
+    CardSize? RequiredSize = null)
     : CardOnSellRewardDefinition;
 
 // 单个卡牌等级的数值与能力配置（领域定义层）。

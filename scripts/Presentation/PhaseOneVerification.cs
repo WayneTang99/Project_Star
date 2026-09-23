@@ -59,6 +59,7 @@ public sealed partial class PhaseOneVerification : Control
         ("无阵营无属性卡牌支持分级价值且没有能力", CheckBeastHideDefinition),
         ("钻石固定为4级且获得后价值增加20", CheckDiamondDefinition),
         ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
+        ("百宝箱出售后获得三件同级小型材料", CheckTreasureChestSaleReward),
         ("型号商店只提供当前英雄归属的对应尺寸卡牌", CheckSizeShopCardPools),
         ("野猪使用默认属性并拥有两张1级兽皮", CheckBoarMonsterDefinition),
         ("体能训练按英雄等级结算可扩展选项", CheckPhysicalTraining),
@@ -868,6 +869,43 @@ public sealed partial class PhaseOneVerification : Control
             && fullSession.Player.Inventory.Find(blocker.Id) is not null
             && fullSession.Player.Inventory.Find(benchBlocker.Id) is not null
             && canRewardDiamondAtLevelFour;
+    }
+
+    private static bool CheckTreasureChestSaleReward()
+    {
+        var factory = new EntityFactory();
+        var board = CreateBoardService();
+        var chestDefinition = new TreasureChestCardDefinition();
+        CardDefinition[] definitions =
+        [
+            chestDefinition,
+            new BeastHideCardDefinition(),
+            new DiamondCardDefinition(),
+        ];
+        var economy = new CardEconomyService(factory, board, definitions);
+        var session = new MatchSession(21);
+        var chest = economy.AcquireCard(session, chestDefinition, 4, CardAcquisitionSource.Reward).Value!;
+        var sale = economy.SellCard(session, chest.Id);
+        var reward = chestDefinition.OnSellReward as RandomTaggedCardOnSellDefinition;
+
+        return chestDefinition.InitialLevel == 3
+            && !chestDefinition.SupportsLevel(2)
+            && chestDefinition.SupportsLevel(3)
+            && chestDefinition.SupportsLevel(4)
+            && !chestDefinition.SupportsLevel(5)
+            && chestDefinition.Attributes.Identity.FactionKey == GameFactions.Neutral
+            && chestDefinition.Attributes.Identity.Size == CardSize.Medium
+            && chestDefinition.Attributes.Identity.ElementKeys[0] == GameElements.General
+            && reward?.Count == 3
+            && reward.RequiredSize == CardSize.Small
+            && reward.SameLevel
+            && sale.IsSuccess
+            && session.Player.Inventory.Cards.Count == 3
+            && session.Player.Inventory.Cards.All(card =>
+                card.Tags.Contains(GameTags.Material)
+                && card.Attributes.Identity.Size == CardSize.Small
+                && card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 4)
+            && session.Board.Battlefield.Count == 3;
     }
 
     private static bool CheckPurchase()

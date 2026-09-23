@@ -166,24 +166,29 @@ public sealed class CardEconomyService
         foreach (var definition in _cardDefinitions)
         {
             if (!definition.Tags.Contains(reward.RequiredTag)) continue;
+            if (reward.RequiredSize is not null
+                && definition.Attributes.Identity.Size != reward.RequiredSize.Value) continue;
             if (reward.SameLevel && !definition.SupportsLevel(soldLevel)) continue;
             candidates.Add(definition);
         }
         if (candidates.Count == 0) return;
 
         var random = new SeededRandom(session.Random.State);
-        var selected = candidates[random.NextInt(0, candidates.Count)];
+        for (var rewardIndex = 0; rewardIndex < reward.Count; rewardIndex++)
+        {
+            var selected = candidates[random.NextInt(0, candidates.Count)];
+            var level = reward.SameLevel ? soldLevel : selected.InitialLevel;
+            var mergeTarget = FindMergeTarget(session, selected, level);
+            var target = mergeTarget is null
+                ? _boardService.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
+                : null;
+            if (mergeTarget is null && target is null) continue;
+            var acquired = AcquireOrMerge(session, selected, level, BuildMergePlan(session, selected, level));
+            if (!acquired.WasCreated) continue;
+            var placement = _boardService.PlaceCard(session, acquired.Card.Id, target!.Zone, target.Start);
+            if (placement.IsFailure) _ = session.Player.Inventory.Remove(acquired.Card.Id);
+        }
         session.Random.State = random.State;
-        var level = reward.SameLevel ? soldLevel : selected.InitialLevel;
-        var mergeTarget = FindMergeTarget(session, selected, level);
-        var target = mergeTarget is null
-            ? _boardService.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
-            : null;
-        if (mergeTarget is null && target is null) return;
-        var acquired = AcquireOrMerge(session, selected, level, BuildMergePlan(session, selected, level));
-        if (!acquired.WasCreated) return;
-        var placement = _boardService.PlaceCard(session, acquired.Card.Id, target!.Zone, target.Start);
-        if (placement.IsFailure) _ = session.Player.Inventory.Remove(acquired.Card.Id);
     }
 
     // 判断本次获得是否可以直接合并而无需新棋盘位置。
