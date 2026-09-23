@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 至圣斩刃帕拉帝恩卡牌内容定义（内容层）。
+// 黎明之剑帕拉帝恩卡牌内容定义（内容层）。
 public sealed class HolySlashingBladeCardDefinition : CardDefinition
 {
     public HolySlashingBladeCardDefinition()
@@ -14,7 +14,7 @@ public sealed class HolySlashingBladeCardDefinition : CardDefinition
             new EntityAttributes<CardIdentityAttributes>(
                 new CardIdentityAttributes(
                     new StringName("card.holy_slashing_blade"),
-                    "至圣斩刃",
+                    "黎明之剑",
                     new StringName("paladin"),
                     CardSize.Large,
                     [GameElements.Light]),

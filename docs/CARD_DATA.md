@@ -31,7 +31,7 @@
 | `card.cathedral` | 大教堂 | `paladin` | Large | Light | Location | 4 | 无冷却；被动光环：己方战场区光属性卡牌获得多重1；来源被摧毁后失效，多张可叠加 |
 | `card.blacksmith` | 铁匠铺 | `paladin` | Medium | General | Location | 2 | 冷却6秒，魔法消耗0；己方战场区装备卡牌已有的攻击与护甲数值分别增加10/20/40，不会赋予原本不存在的攻击或护甲能力 |
 | `card.treasure_chest` | 百宝箱 | `neutral` | Medium | General | — | 3 | 出售时获得3件与该卡牌同等级的随机小型材料；每件奖励独立结算自动放置与合并，无法创建时跳过该件 |
-| `card.holy_slashing_blade` | 至圣斩刃 | `paladin` | Large | Light | Equipment | 4 | 冷却10秒；造成200伤害，并随机摧毁敌方一件小型或中型恶魔或亡灵卡牌；被动：本场战斗双方每有一件恶魔或亡灵卡牌被摧毁，此卡牌攻击翻倍；本次发动摧毁的卡牌立即计数 |
+| `card.holy_slashing_blade` | 黎明之剑 | `paladin` | Large | Light | Equipment | 4 | 冷却10秒；造成200伤害，并随机摧毁敌方一件小型或中型恶魔或亡灵卡牌；被动：本场战斗双方每有一件恶魔或亡灵卡牌被摧毁，此卡牌攻击翻倍；本次发动摧毁的卡牌立即计数 |
 | `card.order_crusader` | 教团远征军 | `paladin` | Large | Light | Human | 2 | 冷却8秒；发动时造成40/80/120伤害；被动：敌方小型卡牌在战斗中视为恶魔；敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害+10/20/40；来源被摧毁后赋予的恶魔标签立即失效 |
 
 ## 3. 通用价值表

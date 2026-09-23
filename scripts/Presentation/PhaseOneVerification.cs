@@ -88,7 +88,7 @@ public sealed partial class PhaseOneVerification : Control
         ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
         ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
         ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
-        ("至圣斩刃随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
+        ("黎明之剑随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
         ("教团远征军赋予临时恶魔标签并按存活恶魔增加伤害", CheckOrderCrusader),
         ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
         ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
