@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 魔能盾圣骑士卡牌内容定义（内容层）。
+// 魔能盾帕拉帝恩卡牌内容定义（内容层）。
 public sealed class ArcaneShieldCardDefinition : CardDefinition
 {
     public ArcaneShieldCardDefinition()

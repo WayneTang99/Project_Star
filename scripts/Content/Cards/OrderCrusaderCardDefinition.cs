@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 教团远征军圣骑士卡牌内容定义（内容层）。
+// 教团远征军帕拉帝恩卡牌内容定义（内容层）。
 public sealed class OrderCrusaderCardDefinition : CardDefinition
 {
     public OrderCrusaderCardDefinition()

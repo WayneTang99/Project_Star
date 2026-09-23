@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 军靴圣骑士卡牌内容定义（内容层）。
+// 军靴帕拉帝恩卡牌内容定义（内容层）。
 public sealed class MilitaryBootsCardDefinition : CardDefinition
 {
     public MilitaryBootsCardDefinition()

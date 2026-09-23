@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 轻骑兵圣骑士卡牌内容定义（内容层）。
+// 轻骑兵帕拉帝恩卡牌内容定义（内容层）。
 public sealed class LightCavalryCardDefinition : CardDefinition
 {
     public LightCavalryCardDefinition()

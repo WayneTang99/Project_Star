@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 大教堂圣骑士卡牌内容定义（内容层）。
+// 大教堂帕拉帝恩卡牌内容定义（内容层）。
 public sealed class CathedralCardDefinition : CardDefinition
 {
     public CathedralCardDefinition()

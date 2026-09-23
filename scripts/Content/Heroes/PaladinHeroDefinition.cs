@@ -5,7 +5,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Heroes;
 
-// 圣骑士英雄内容定义（内容层）。
+// 帕拉帝恩英雄内容定义（内容层）。
 public sealed class PaladinHeroDefinition : HeroDefinition
 {
     public PaladinHeroDefinition()
@@ -13,7 +13,7 @@ public sealed class PaladinHeroDefinition : HeroDefinition
             new EntityAttributes<HeroIdentityAttributes>(
                 new HeroIdentityAttributes(
                     new StringName("hero.paladin"),
-                    "圣骑士",
+                    "帕拉帝恩",
                     new StringName("paladin")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
