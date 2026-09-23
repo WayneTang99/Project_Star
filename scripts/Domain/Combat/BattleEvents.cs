@@ -29,6 +29,12 @@ public sealed record CardAttributeChangedEvent(
     int Amount,
     int CurrentValue) : BattleEvent(Tick);
 
+public sealed record CardDestroyedEvent(
+    BattleTick Tick,
+    EntityId CardId,
+    SideId Side,
+    EntityId SourceCardId) : BattleEvent(Tick);
+
 public enum DamageSourceKind
 {
     Card = 0,

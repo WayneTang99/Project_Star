@@ -12,26 +12,27 @@
 | 元素 | 1～2 个元素属性；`General` 表示无属性，不表示空值 |
 | 额外标签 | 尺寸标签以外的卡牌标签 |
 | 初始等级 | 默认创建、商店报价和普通获得时使用的等级 |
-| 初始价值 | 商店购买价格及折半前价值 |
 | 描述 | 卡牌的具体功能；数值按等级顺序书写 |
 
 斜杠分隔的数值从初始等级开始，依次对应到4级，不再重复标注等级。例如初始2级卡牌的 `8/7/6秒` 对应2/3/4级；初始3级卡牌的 `6/5秒` 对应3/4级。5级卡牌只记录5级数值。`—` 表示没有该项。
 
 ## 2. 卡牌总表
 
-| CardKey | 名称 | 归属 | 尺寸 | 元素 | 额外标签 | 初始等级 | 初始价值 | 描述 |
-|---|---|---|---|---|---|---:|---|---|
-| `card.judgment_hammer` | 审判之锤 | `paladin` | Large | Light | Equipment | 3 | 24/48 | 冷却6/5秒；对敌方英雄造成其最大生命20%的普通伤害，小数向下取整，先扣护甲 |
-| `card.beast_hide` | 兽皮 | `neutral` | Small | General | Material | 1 | 2/4/8/16 | 该卡牌价值+2/4/8/16 |
-| `card.diamond` | 钻石 | `neutral` | Small | General | Material | 4 | 16 | 该卡牌价值+20 |
-| `card.jewelry_bag` | 珠宝袋 | `neutral` | Small | General | — | 2 | 4/8/16 | 出售时随机获得一张与该卡牌同等级的材料卡；双棋盘已满时不获得 |
-| `card.light_cavalry` | 轻骑兵 | `paladin` | Medium | General | Human | 1 | 4/8/16/32 | 冷却3秒；发动时造成10/20/40/60伤害；首次发动后，此卡牌冷却+2秒；发动后，己方战场区具备攻击能力的人类卡牌攻击+10/20/40/60（包括自身，可累计） |
-| `card.armguard` | 臂铠 | `paladin` | Small | General | Equipment | 1 | 2/4/8/16 | 冷却5秒；多重1（每层多重额外发动一次）；每次发动造成5/10/15/20伤害，并获得5/10/15/20护甲 |
-| `card.arcane_shield` | 魔能盾 | `paladin` | Medium | Light | Equipment | 2 | 8/16/32 | 冷却8/7/6秒；消耗20/40/80魔法；发动时获得等同于己方英雄本场战斗累计魔法消耗的护甲（包含本次消耗），并可叠加装备护甲数值加成 |
-| `card.military_boots` | 军靴 | `paladin` | Small | General | Equipment | 1 | 2/4/8/16 | 冷却5秒，魔法消耗0；使左右直接相邻的战场卡牌获得1/2/3/4秒疾速；相邻卡牌具有人类标签时持续时间翻倍 |
-| `card.cathedral` | 大教堂 | `paladin` | Large | Light | Location | 4 | 48 | 无冷却；被动光环：己方战场区光属性卡牌获得多重1；来源被摧毁后失效，多张可叠加 |
-| `card.blacksmith` | 铁匠铺 | `paladin` | Medium | General | Location | 2 | 8/16/32 | 冷却6秒，魔法消耗0；己方战场区装备卡牌已有的攻击与护甲数值分别增加10/20/40，不会赋予原本不存在的攻击或护甲能力 |
-| `card.treasure_chest` | 百宝箱 | `neutral` | Medium | General | — | 3 | 16/32 | 出售时获得3件与该卡牌同等级的随机小型材料；每件奖励独立结算自动放置与合并，无法创建时跳过该件 |
+| CardKey | 名称 | 归属 | 尺寸 | 元素 | 额外标签 | 初始等级 | 描述 |
+|---|---|---|---|---|---|---:|---|
+| `card.judgment_hammer` | 审判之锤 | `paladin` | Large | Light | Equipment | 3 | 冷却6/5秒；对敌方英雄造成其最大生命20%的普通伤害，小数向下取整，先扣护甲 |
+| `card.beast_hide` | 兽皮 | `neutral` | Small | General | Material | 1 | 该卡牌价值+2/4/8/16 |
+| `card.diamond` | 钻石 | `neutral` | Small | General | Material | 4 | 该卡牌价值+20 |
+| `card.jewelry_bag` | 珠宝袋 | `neutral` | Small | General | — | 2 | 出售时随机获得一张与该卡牌同等级的材料卡；双棋盘已满时不获得 |
+| `card.light_cavalry` | 轻骑兵 | `paladin` | Medium | General | Human | 1 | 冷却3秒；发动时造成10/20/40/60伤害；首次发动后，此卡牌冷却+2秒；发动后，己方战场区具备攻击能力的人类卡牌攻击+10/20/40/60（包括自身，可累计） |
+| `card.armguard` | 臂铠 | `paladin` | Small | General | Equipment | 1 | 冷却5秒；多重1（每层多重额外发动一次）；每次发动造成5/10/15/20伤害，并获得5/10/15/20护甲 |
+| `card.arcane_shield` | 魔能盾 | `paladin` | Medium | Light | Equipment | 2 | 冷却8/7/6秒；消耗20/40/80魔法；发动时获得等同于己方英雄本场战斗累计魔法消耗的护甲（包含本次消耗），并可叠加装备护甲数值加成 |
+| `card.military_boots` | 军靴 | `paladin` | Small | General | Equipment | 1 | 冷却5秒，魔法消耗0；使左右直接相邻的战场卡牌获得1/2/3/4秒疾速；相邻卡牌具有人类标签时持续时间翻倍 |
+| `card.cathedral` | 大教堂 | `paladin` | Large | Light | Location | 4 | 无冷却；被动光环：己方战场区光属性卡牌获得多重1；来源被摧毁后失效，多张可叠加 |
+| `card.blacksmith` | 铁匠铺 | `paladin` | Medium | General | Location | 2 | 冷却6秒，魔法消耗0；己方战场区装备卡牌已有的攻击与护甲数值分别增加10/20/40，不会赋予原本不存在的攻击或护甲能力 |
+| `card.treasure_chest` | 百宝箱 | `neutral` | Medium | General | — | 3 | 出售时获得3件与该卡牌同等级的随机小型材料；每件奖励独立结算自动放置与合并，无法创建时跳过该件 |
+| `card.holy_slashing_blade` | 至圣斩刃 | `paladin` | Large | Light | Equipment | 4 | 冷却10秒；造成200伤害，并随机摧毁敌方一件小型或中型恶魔或亡灵卡牌；被动：本场战斗双方每有一件恶魔或亡灵卡牌被摧毁，此卡牌攻击翻倍；本次发动摧毁的卡牌立即计数 |
+| `card.order_crusader` | 教团远征军 | `paladin` | Large | Light | Human | 2 | 冷却8秒；发动时造成40/80/120伤害；被动：敌方小型卡牌在战斗中视为恶魔；敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害+10/20/40；来源被摧毁后赋予的恶魔标签立即失效 |
 
 ## 3. 通用价值表
 

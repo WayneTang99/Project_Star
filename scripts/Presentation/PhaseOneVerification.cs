@@ -88,6 +88,8 @@ public sealed partial class PhaseOneVerification : Control
         ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
         ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
         ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
+        ("至圣斩刃随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
+        ("教团远征军赋予临时恶魔标签并按存活恶魔增加伤害", CheckOrderCrusader),
         ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
         ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
         ("回响产生的事件不会触发其他回响", CheckEchoDoesNotChain),
@@ -1261,7 +1263,7 @@ public sealed partial class PhaseOneVerification : Control
         var level = definition.GetLevel(1)!;
         if (definition.Attributes.Identity.FactionKey != new StringName("paladin")
             || definition.Attributes.Identity.Size != CardSize.Small
-            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
             || !definition.Tags.Contains(GameTags.Equipment)
             || definition.InitialLevel != 1
             || !definition.SupportsLevel(4)
@@ -1696,6 +1698,191 @@ public sealed partial class PhaseOneVerification : Control
         return attributeDamage == 15
             && fixedDamage == 1
             && absorbedArmor == 45;
+    }
+
+    private static bool CheckHolySlashingBlade()
+    {
+        var definition = new HolySlashingBladeCardDefinition();
+        var level = definition.GetLevel(4)!;
+        var active = level.Abilities[0];
+        var passive = level.Abilities[1];
+        if (definition.InitialLevel != 4
+            || definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Large
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || !definition.Tags.Contains(GameTags.Equipment)
+            || definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.AttackDamage) != 200
+            || active.CooldownTicks != 100
+            || active.Effects[1] is not DestroyRandomEnemyCardEffectDefinition
+            || passive.Activation != AbilityActivation.PassiveAura
+            || passive.Effects[0] is not MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition)
+        {
+            return false;
+        }
+
+        var bladeId = EntityId.New();
+        var alliedUndeadId = EntityId.New();
+        var enemySmallDemonId = EntityId.New();
+        var enemyMediumUndeadId = EntityId.New();
+        var enemyLargeDemonId = EntityId.New();
+        var alliedSelfDestroy = new AbilityDefinition(
+            new StringName("test.allied_undead_self_destroy"),
+            AbilityActivation.Active,
+            AbilityTarget.SelfCard,
+            0,
+            1,
+            [new DestroyCardEffectDefinition(false)]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 5000, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(bladeId, 0, 200, 100, level.Abilities,
+                        UseLegacyAttack: false, OccupiedSlots: 3, ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(alliedUndeadId, 3, 0, 1, [alliedSelfDestroy],
+                        UseLegacyAttack: false, Tags: new TagSet([GameTags.Undead])),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 5000, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(enemySmallDemonId, 0, 0, 0, Array.Empty<AbilityDefinition>(),
+                        UseLegacyAttack: false, Tags: new TagSet([GameTags.Demon])),
+                    new CardBattleSetup(enemyMediumUndeadId, 1, 0, 0, Array.Empty<AbilityDefinition>(),
+                        UseLegacyAttack: false, Tags: new TagSet([GameTags.Undead]), OccupiedSlots: 2),
+                    new CardBattleSetup(enemyLargeDemonId, 3, 0, 0, Array.Empty<AbilityDefinition>(),
+                        UseLegacyAttack: false, Tags: new TagSet([GameTags.Demon]), OccupiedSlots: 3),
+                ]),
+            17,
+            new BattleTick(200),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var repeated = new CombatSimulator().Simulate(setup);
+        var bladeDamage = result.Events
+            .OfType<DamageDealtEvent>()
+            .Where(value => value.SourceCardId == bladeId)
+            .Select(value => value.RawDamage)
+            .ToArray();
+        var enemyDestroyed = result.Events
+            .OfType<CardDestroyedEvent>()
+            .Where(value => value.Side == SideId.Opponent)
+            .Select(value => value.CardId)
+            .ToArray();
+        var repeatedDestroyed = repeated.Events
+            .OfType<CardDestroyedEvent>()
+            .Where(value => value.Side == SideId.Opponent)
+            .Select(value => value.CardId)
+            .ToArray();
+
+        return bladeDamage.SequenceEqual([400, 800])
+            && enemyDestroyed.Length == 2
+            && enemyDestroyed.All(value => value == enemySmallDemonId || value == enemyMediumUndeadId)
+            && !enemyDestroyed.Contains(enemyLargeDemonId)
+            && enemyDestroyed.SequenceEqual(repeatedDestroyed);
+    }
+
+    private static bool CheckOrderCrusader()
+    {
+        var definition = new OrderCrusaderCardDefinition();
+        var level = definition.GetLevel(2)!;
+        if (definition.InitialLevel != 2
+            || definition.SupportsLevel(1)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Large
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
+            || !definition.Tags.Contains(GameTags.Human)
+            || level.BaseCombatValues[GameAttributeKeys.AttackDamage] != 40
+            || level.Abilities[0].CooldownTicks != 80
+            || level.Abilities[1].Effects[0] is not GrantTagToEnemySizeCardsEffectDefinition
+            || level.Abilities[1].Effects[1]
+                is not IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition increase
+            || increase.Amount != 10)
+        {
+            return false;
+        }
+
+        var crusaderId = EntityId.New();
+        var destroyedSmallId = EntityId.New();
+        var selfDestroy = new AbilityDefinition(
+            new StringName("test.order_crusader_enemy_self_destroy"),
+            AbilityActivation.Active,
+            AbilityTarget.SelfCard,
+            0,
+            1,
+            [new DestroyCardEffectDefinition(false)]);
+        var countSetup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                [new CardBattleSetup(crusaderId, 0, 40, 80, level.Abilities,
+                    UseLegacyAttack: false, Tags: definition.Tags, OccupiedSlots: 3)]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(destroyedSmallId, 0, 0, 1, [selfDestroy], UseLegacyAttack: false),
+                    new CardBattleSetup(EntityId.New(), 1, 0, 0, Array.Empty<AbilityDefinition>(), UseLegacyAttack: false),
+                    new CardBattleSetup(EntityId.New(), 2, 0, 0, Array.Empty<AbilityDefinition>(),
+                        UseLegacyAttack: false, Tags: new TagSet([GameTags.Demon]), OccupiedSlots: 2),
+                    new CardBattleSetup(EntityId.New(), 4, 0, 0, Array.Empty<AbilityDefinition>(),
+                        UseLegacyAttack: false, Tags: new TagSet([GameTags.Demon]), OccupiedSlots: 3),
+                ]),
+            1,
+            new BattleTick(80),
+            new BattleTick(1000));
+        var countResult = new CombatSimulator().Simulate(countSetup);
+        var damage = countResult.Events
+            .OfType<DamageDealtEvent>()
+            .Single(value => value.SourceCardId == crusaderId)
+            .RawDamage;
+
+        var trigger = new AbilityDefinition(
+            new StringName("test.order_crusader_aura_removal_trigger"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            1,
+            [new DamageEffectDefinition(1)]);
+        var destroyCrusader = new AbilityDefinition(
+            new StringName("test.order_crusader_destroy_aura_source"),
+            AbilityActivation.EchoOnAbilityActivated,
+            AbilityTarget.SelfCard,
+            0,
+            0,
+            [new DestroyCardEffectDefinition(false)]);
+        var destroyDemon = new AbilityDefinition(
+            new StringName("test.order_crusader_destroy_demon"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            2,
+            [new DestroyRandomEnemyCardEffectDefinition([GameTags.Demon], [CardSize.Small])]);
+        var expiringCrusaderAbilities = level.Abilities.Concat([destroyCrusader]).ToArray();
+        var neutralSmallId = EntityId.New();
+        var expirySetup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(EntityId.New(), 0, 1, 1, [trigger], UseLegacyAttack: false),
+                    new CardBattleSetup(EntityId.New(), 1, 0, 2, [destroyDemon], UseLegacyAttack: false),
+                    new CardBattleSetup(EntityId.New(), 2, 40, 80, expiringCrusaderAbilities,
+                        UseLegacyAttack: false, Tags: definition.Tags, OccupiedSlots: 3),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
+                [new CardBattleSetup(neutralSmallId, 0, 0, 0, Array.Empty<AbilityDefinition>(), UseLegacyAttack: false)]),
+            1,
+            new BattleTick(2),
+            new BattleTick(1000));
+        var expiryResult = new CombatSimulator().Simulate(expirySetup);
+
+        return damage == 70
+            && countResult.Events.OfType<CardDestroyedEvent>()
+                .Any(value => value.CardId == destroyedSmallId)
+            && !expiryResult.Events.OfType<CardDestroyedEvent>()
+                .Any(value => value.CardId == neutralSmallId);
     }
 
     private static bool CheckBattleTimeout()

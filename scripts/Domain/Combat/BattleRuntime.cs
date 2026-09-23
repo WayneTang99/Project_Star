@@ -74,6 +74,7 @@ internal sealed class CardBattleState
     public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
     public TagSet Tags { get; }
+    public HashSet<StringName> DestroyedTags { get; } = [];
     public IReadOnlySet<StringName> ElementKeys { get; }
     public bool Destroyed { get; set; }
     public int ActivationCount { get; set; }
@@ -116,6 +117,7 @@ internal sealed class BattleRuntime
 {
     public BattleRuntime(BattleSetup setup)
     {
+        RandomState = setup.Seed;
         PlayerHero = new HeroBattleState(setup.Player.Hero); OpponentHero = new HeroBattleState(setup.Opponent.Hero);
         AddCards(setup.Player.Cards, SideId.Player); AddCards(setup.Opponent.Cards, SideId.Opponent); Cards.Sort(CompareCards);
     }
@@ -126,7 +128,18 @@ internal sealed class BattleRuntime
     public AbilityQueue Queue { get; } = new();
     public List<BattleEvent> Events { get; } = [];
     public List<PermanentChange> PermanentChanges { get; } = [];
+    private ulong RandomState { get; set; }
     public HeroBattleState GetHero(SideId side) => side == SideId.Player ? PlayerHero : OpponentHero;
+    public int NextRandomIndex(int count)
+    {
+        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
+        RandomState += 0x9E3779B97F4A7C15UL;
+        var value = RandomState;
+        value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL;
+        value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL;
+        value ^= value >> 31;
+        return (int)(value % (ulong)count);
+    }
     private void AddCards(IReadOnlyList<CardBattleSetup> cards, SideId side) { foreach (var card in cards) Cards.Add(new(card, side)); }
     private static int CompareCards(CardBattleState left, CardBattleState right)
     {

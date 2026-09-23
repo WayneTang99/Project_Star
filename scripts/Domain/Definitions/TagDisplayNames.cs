@@ -15,6 +15,8 @@ public static class TagDisplayNames
         [GameTags.Consumable] = "消耗品",
         [GameTags.Human] = "人类",
         [GameTags.Mechanical] = "机械",
+        [GameTags.Demon] = "恶魔",
+        [GameTags.Undead] = "亡灵",
         [GameTags.Location] = "地域",
     };
 

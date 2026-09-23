@@ -133,7 +133,7 @@ Project_Star 游戏设计规则。本文档记录游戏侧的设计需求，与 
 ## 七、标签系统
 
 - **标签容器**：轻量级通用标签容器（`HashSet<StringName>`），无元数据，只存 key。
-- **标签常量**：定义所有游戏标签（`Small`/`Medium`/`Large`/`Equipment`/`Material`/`Human`/`Mechanical`/`Consumable`）。
+- **标签常量**：定义所有游戏标签（`Small`/`Medium`/`Large`/`Equipment`/`Material`/`Human`/`Mechanical`/`Demon`/`Undead`/`Consumable`）。
 - **显示名映射**：返回中文显示名（如 `Equipment` → `"装备"`），未知标签返回原始 key。
 - **标签由卡牌挂载**：如型号标签（由尺寸自动推导）+ 词条标签。
 

@@ -1,5 +1,8 @@
 using System;
+using System.Linq;
+using Godot;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
@@ -154,7 +157,7 @@ public sealed class CombatSimulator
                     pending.Source.EntityId,
                     targetSide,
                     hero,
-                    pending.Source.GetCombatAttribute(attributeDamage.AttributeKey),
+                    GetEffectiveCombatAttribute(runtime, pending.Source, attributeDamage.AttributeKey),
                     attributeDamage.BypassArmor);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
@@ -185,8 +188,10 @@ public sealed class CombatSimulator
                 ApplyStatusToAdjacentAlliedCards(runtime, pending.Source, adjacent);
                 break;
             case DestroyCardEffectDefinition destroy:
-                pending.Source.Destroyed = true;
-                if (destroy.Permanent) runtime.PermanentChanges.Add(new PermanentChange(pending.Source.EntityId, "Destroy"));
+                DestroyCard(runtime, pending.Source, pending.Source.EntityId, destroy.Permanent);
+                break;
+            case DestroyRandomEnemyCardEffectDefinition randomDestroy:
+                DestroyRandomEnemyCard(runtime, pending.Source, randomDestroy);
                 break;
             case IncreaseSourceCooldownEffectDefinition cooldown:
                 if (!cooldown.FirstActivationOnly || pending.Source.ActivationCount == 0)
@@ -220,6 +225,127 @@ public sealed class CombatSimulator
                 }
                 break;
         }
+    }
+
+    private static int GetEffectiveCombatAttribute(BattleRuntime runtime, CardBattleState source, StringName key)
+    {
+        var value = source.GetCombatAttribute(key);
+        foreach (var ability in source.Abilities)
+        foreach (var effect in ability.Definition.Effects)
+        {
+            if (ability.Definition.Activation != AbilityActivation.PassiveAura
+                || effect is not MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition multiplier
+                || multiplier.AttributeKey != key)
+            {
+                continue;
+            }
+            foreach (var card in runtime.Cards)
+            {
+                if (card.Destroyed && ContainsAnyTag(card, multiplier.RequiredAnyTags))
+                    value = checked(value * multiplier.Multiplier);
+            }
+        }
+        foreach (var ability in source.Abilities)
+        foreach (var effect in ability.Definition.Effects)
+        {
+            if (ability.Definition.Activation != AbilityActivation.PassiveAura
+                || effect is not IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition increase
+                || increase.AttributeKey != key)
+            {
+                continue;
+            }
+            foreach (var card in runtime.Cards)
+            {
+                if (card.Side != source.Side && !card.Destroyed && !card.IsOnBench
+                    && HasEffectiveTag(runtime, card, increase.RequiredTag))
+                {
+                    value = checked(value + increase.Amount);
+                }
+            }
+        }
+        return value;
+    }
+
+    private static void DestroyRandomEnemyCard(
+        BattleRuntime runtime,
+        CardBattleState source,
+        DestroyRandomEnemyCardEffectDefinition effect)
+    {
+        var candidates = new System.Collections.Generic.List<CardBattleState>();
+        foreach (var card in runtime.Cards)
+        {
+            if (card.Side == source.Side || card.Destroyed || card.IsOnBench
+                || !effect.AllowedSizes.Contains((CardSize)card.OccupiedSlots)
+                || !ContainsAnyEffectiveTag(runtime, card, effect.RequiredAnyTags))
+            {
+                continue;
+            }
+            candidates.Add(card);
+        }
+        if (candidates.Count == 0) return;
+        DestroyCard(runtime, candidates[runtime.NextRandomIndex(candidates.Count)], source.EntityId, effect.Permanent);
+    }
+
+    private static bool ContainsAnyTag(CardBattleState card, System.Collections.Generic.IReadOnlyList<StringName> tags)
+    {
+        foreach (var tag in tags)
+            if (card.Destroyed ? card.DestroyedTags.Contains(tag) : card.Tags.Contains(tag)) return true;
+        return false;
+    }
+
+    private static bool ContainsAnyEffectiveTag(
+        BattleRuntime runtime,
+        CardBattleState card,
+        System.Collections.Generic.IReadOnlyList<StringName> tags)
+    {
+        foreach (var tag in tags)
+            if (HasEffectiveTag(runtime, card, tag)) return true;
+        return false;
+    }
+
+    private static bool HasEffectiveTag(BattleRuntime runtime, CardBattleState card, StringName tag)
+    {
+        if (card.Destroyed) return card.DestroyedTags.Contains(tag);
+        if (card.Tags.Contains(tag)) return true;
+        foreach (var source in runtime.Cards)
+        {
+            if (source.Side == card.Side || source.Destroyed || source.IsOnBench) continue;
+            foreach (var ability in source.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+            {
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is GrantTagToEnemySizeCardsEffectDefinition aura
+                    && aura.Tag == tag
+                    && (int)aura.Size == card.OccupiedSlots)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent)
+    {
+        if (target.Destroyed) return;
+        foreach (var tag in target.Tags) target.DestroyedTags.Add(tag);
+        foreach (var source in runtime.Cards)
+        {
+            if (source.Side == target.Side || source.Destroyed || source.IsOnBench) continue;
+            foreach (var ability in source.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+            {
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is GrantTagToEnemySizeCardsEffectDefinition aura
+                    && (int)aura.Size == target.OccupiedSlots)
+                {
+                    target.DestroyedTags.Add(aura.Tag);
+                }
+            }
+        }
+        target.Destroyed = true;
+        runtime.Events.Add(new CardDestroyedEvent(runtime.Tick, target.EntityId, target.Side, sourceId));
+        if (permanent) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
     }
 
     private static void ApplyStatus(CardBattleState card, HeroBattleState hero, ApplyStatusEffectDefinition effect)

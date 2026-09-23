@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
@@ -53,6 +54,16 @@ public sealed record GainArmorEqualToManaSpentEffectDefinition : EffectDefinitio
 public sealed record GrantMulticastToAlliedElementCardsEffectDefinition(StringName ElementKey, int Amount)
     : EffectDefinition;
 
+// 使敌方指定尺寸卡牌在战斗中获得标签（领域战斗层）。
+public sealed record GrantTagToEnemySizeCardsEffectDefinition(CardSize Size, StringName Tag)
+    : EffectDefinition;
+
+// 按敌方存活的指定标签卡牌数量增加来源属性（领域战斗层）。
+public sealed record IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition(
+    StringName AttributeKey,
+    StringName RequiredTag,
+    int Amount) : EffectDefinition;
+
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
 public sealed record ApplyStatusToAdjacentAlliedCardsEffectDefinition(
@@ -62,6 +73,18 @@ public sealed record ApplyStatusToAdjacentAlliedCardsEffectDefinition(
     int BonusMultiplier = 2) : EffectDefinition;
 
 public sealed record DestroyCardEffectDefinition(bool Permanent) : EffectDefinition;
+
+// 随机摧毁符合尺寸及任一标签条件的敌方卡牌（领域战斗层）。
+public sealed record DestroyRandomEnemyCardEffectDefinition(
+    IReadOnlyList<StringName> RequiredAnyTags,
+    IReadOnlyList<CardSize> AllowedSizes,
+    bool Permanent = false) : EffectDefinition;
+
+// 按本场已摧毁的指定标签卡牌数量倍增来源属性（领域战斗层）。
+public sealed record MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition(
+    StringName AttributeKey,
+    IReadOnlyList<StringName> RequiredAnyTags,
+    int Multiplier = 2) : EffectDefinition;
 
 public sealed record IncreaseSourceCooldownEffectDefinition(int AmountTicks, bool FirstActivationOnly = false)
     : EffectDefinition;
@@ -116,6 +139,7 @@ public sealed class AbilityDefinition
                 ApplyStatusEffectDefinition value => value.Amount,
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
                 GrantMulticastToAlliedElementCardsEffectDefinition value => value.Amount,
+                IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => value.Amount,
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
@@ -148,6 +172,31 @@ public sealed class AbilityDefinition
             {
                 throw new ArgumentException("Multicast aura element key cannot be empty.", nameof(effects));
             }
+            if (effect is GrantTagToEnemySizeCardsEffectDefinition tagAura
+                && (!Enum.IsDefined(tagAura.Size) || tagAura.Tag.IsEmpty))
+            {
+                throw new ArgumentException("Enemy card tag aura configuration is invalid.", nameof(effects));
+            }
+            if (effect is IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition taggedIncrease
+                && (taggedIncrease.AttributeKey.IsEmpty || taggedIncrease.RequiredTag.IsEmpty))
+            {
+                throw new ArgumentException("Enemy tagged card attribute increase keys cannot be empty.", nameof(effects));
+            }
+            if (effect is DestroyRandomEnemyCardEffectDefinition randomDestroy
+                && (randomDestroy.RequiredAnyTags.Count == 0
+                    || randomDestroy.AllowedSizes.Count == 0
+                    || HasEmptyKey(randomDestroy.RequiredAnyTags)))
+            {
+                throw new ArgumentException("Random card destruction filters cannot be empty.", nameof(effects));
+            }
+            if (effect is MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition multiplier
+                && (multiplier.AttributeKey.IsEmpty
+                    || multiplier.RequiredAnyTags.Count == 0
+                    || HasEmptyKey(multiplier.RequiredAnyTags)
+                    || multiplier.Multiplier < 1))
+            {
+                throw new ArgumentException("Destroyed card attribute multiplier is invalid.", nameof(effects));
+            }
         }
         Effects = new List<EffectDefinition>(effects).AsReadOnly();
         AllowsBench = allowsBench;
@@ -160,4 +209,11 @@ public sealed class AbilityDefinition
     public int CooldownTicks { get; }
     public IReadOnlyList<EffectDefinition> Effects { get; }
     public bool AllowsBench { get; }
+
+    private static bool HasEmptyKey(IReadOnlyList<StringName> keys)
+    {
+        foreach (var key in keys)
+            if (key.IsEmpty) return true;
+        return false;
+    }
 }
