@@ -69,9 +69,12 @@ public sealed class CardIdentityAttributes : IdentityAttributes
 
 public sealed class SkillIdentityAttributes : IdentityAttributes
 {
-    public SkillIdentityAttributes(StringName key, string displayName) : base(key, displayName)
+    public SkillIdentityAttributes(StringName key, string displayName, StringName factionKey) : base(key, displayName)
     {
+        FactionKey = factionKey;
     }
+
+    public StringName FactionKey { get; }
 }
 
 public sealed class EncounterIdentityAttributes : IdentityAttributes

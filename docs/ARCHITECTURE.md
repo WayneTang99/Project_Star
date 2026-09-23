@@ -275,7 +275,7 @@ flowchart TD
 
 `AbilityDefinition` 由 ActivationRule、TargetSelector、ManaCost、Cooldown 和 EffectDefinition 列表组成。卡牌组合通用能力，能力只读取已计算属性，不感知等级。
 
-卡牌与技能通过通用能力来源进入同一战斗处理流程。主动能力和回响转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源是否仍有效、主动能力的魔法是否充足；通过后扣除魔法、执行效果并发布事件。被动光环按当前战斗状态求值；卡牌光环来源离开战场或被摧毁后立即失效，技能来源不依赖棋盘位置。`PendingAbility.IsEcho` 标记回响来源；回响产生的事件不再触发其他回响。事件记录来源类型与实例 ID。
+卡牌与技能通过通用能力来源进入同一战斗处理流程。发布战斗开始事件后，0 tick 的战斗开始被动能力按稳定来源顺序入队并结算，然后才进入首个逻辑 tick。主动能力和回响也转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源是否仍有效、主动能力的魔法是否充足；通过后扣除魔法、执行效果并发布事件。被动光环按当前战斗状态求值；卡牌光环来源离开战场或被摧毁后立即失效，技能来源不依赖棋盘位置。`PendingAbility.IsEcho` 标记回响来源；回响产生的事件不再触发其他回响。事件记录来源类型与实例 ID。
 
 ## 13. 数值刷新
 

@@ -2258,7 +2258,10 @@ public sealed partial class PhaseOneVerification : Control
         public VerificationSkillDefinition()
             : base(
                 new EntityAttributes<SkillIdentityAttributes>(
-                    new SkillIdentityAttributes(new StringName("verification.skill"), "验证回击")),
+                    new SkillIdentityAttributes(
+                        new StringName("verification.skill"),
+                        "验证回击",
+                        GameFactions.Neutral)),
                 initialLevel: 1,
                 levels:
                 [

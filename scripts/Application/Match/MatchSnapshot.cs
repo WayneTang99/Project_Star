@@ -20,7 +20,12 @@ public sealed record CardSnapshot(
 
 public sealed record BoardPlacementSnapshot(EntityId CardId, BoardZone Zone, int Start, int EndExclusive);
 
-public sealed record SkillSnapshot(EntityId Id, StringName Key, string DisplayName, int Level);
+public sealed record SkillSnapshot(
+    EntityId Id,
+    StringName Key,
+    string DisplayName,
+    int Level,
+    StringName FactionKey);
 
 public sealed record MatchSnapshot(
     Guid MatchId,
@@ -63,7 +68,8 @@ public sealed record MatchSnapshot(
                 skill.Id,
                 skill.Attributes.Identity.Key,
                 skill.Attributes.Identity.DisplayName,
-                skill.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level)));
+                skill.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level),
+                skill.Attributes.Identity.FactionKey));
         AddPlacements(session.Board.Battlefield, BoardZone.Battlefield, placements);
         AddPlacements(session.Board.Bench, BoardZone.Bench, placements);
         return new MatchSnapshot(session.Id, session.Status, session.Progress.Round, session.Progress.Turn,

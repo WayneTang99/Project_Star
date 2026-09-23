@@ -11,6 +11,7 @@ public enum AbilityActivation
     EchoOnAbilityActivated = 1,
     EchoOnDamageDealt = 2,
     PassiveAura = 3,
+    PassiveOnBattleStart = 4,
 }
 
 public enum AbilityTarget
@@ -117,8 +118,9 @@ public sealed class AbilityDefinition
         }
         if (activation != AbilityActivation.Active && manaCost != 0)
             throw new ArgumentException("Only active abilities can consume mana.", nameof(manaCost));
-        if (activation == AbilityActivation.PassiveAura && cooldownTicks != 0)
-            throw new ArgumentException("A passive aura cannot have a cooldown.", nameof(cooldownTicks));
+        if ((activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveOnBattleStart)
+            && cooldownTicks != 0)
+            throw new ArgumentException("A passive ability cannot have a cooldown.", nameof(cooldownTicks));
 
         Key = key;
         Activation = activation;

@@ -98,7 +98,7 @@ public sealed class DefinitionRegistry
             }
         }
 
-        ValidateCardFactions(heroes, cards);
+        ValidateContentFactions(heroes, cards, skills);
         ValidateMonsterCards(monsters, cards);
         return new DefinitionRegistry(heroes, cards, skills, encounters, monsters);
     }
@@ -148,9 +148,10 @@ public sealed class DefinitionRegistry
         }
     }
 
-    private static void ValidateCardFactions(
+    private static void ValidateContentFactions(
         IReadOnlyDictionary<StringName, HeroDefinition> heroes,
-        IReadOnlyDictionary<StringName, CardDefinition> cards)
+        IReadOnlyDictionary<StringName, CardDefinition> cards,
+        IReadOnlyDictionary<StringName, SkillDefinition> skills)
     {
         var factions = new HashSet<StringName>();
         foreach (var hero in heroes.Values)
@@ -165,6 +166,16 @@ public sealed class DefinitionRegistry
             {
                 throw new DefinitionValidationException(
                     $"Card '{card.Attributes.Identity.Key}' references unknown faction '{card.Attributes.Identity.FactionKey}'.");
+            }
+        }
+        foreach (var skill in skills.Values)
+        {
+            if (skill.Attributes.Identity.FactionKey != GameFactions.Neutral
+                && !factions.Contains(skill.Attributes.Identity.FactionKey))
+            {
+                throw new DefinitionValidationException(
+                    $"Skill '{skill.Attributes.Identity.Key}' references unknown faction "
+                    + $"'{skill.Attributes.Identity.FactionKey}'.");
             }
         }
     }

@@ -14,6 +14,10 @@ public sealed class CombatSimulator
         ArgumentNullException.ThrowIfNull(setup);
         var runtime = new BattleRuntime(setup);
         runtime.Events.Add(new BattleStartedEvent(runtime.Tick));
+        EnqueueBattleStartAbilities(runtime);
+        ResolveQueue(runtime);
+        var openingResult = TryCreateDefeatResult(runtime);
+        if (openingResult is not null) return openingResult;
         while (runtime.Tick.Value < setup.Timeout.Value)
         {
             runtime.Tick += new BattleTick(1);
@@ -29,6 +33,17 @@ public sealed class CombatSimulator
         runtime.PlayerHero.Health = 0;
         runtime.OpponentHero.Health = 0;
         return CreateResult(runtime, BattleOutcome.PlayerVictory, BattleEndReason.Extinction);
+    }
+
+    private static void EnqueueBattleStartAbilities(BattleRuntime runtime)
+    {
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
+        {
+            if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
+            if (ability.Definition.Activation == AbilityActivation.PassiveOnBattleStart)
+                Enqueue(runtime, source, ability, false);
+        }
     }
 
     private static void AdvanceCooldowns(BattleRuntime runtime)
