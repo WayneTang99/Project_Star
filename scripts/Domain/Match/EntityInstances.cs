@@ -41,7 +41,10 @@ public sealed class CardInstance
 
     public TagSet Tags { get; }
 
-    public IReadOnlyList<AbilityDefinition> Abilities { get; }
+    public IReadOnlyList<AbilityDefinition> Abilities { get; private set; }
 
     public CardOnSellRewardDefinition? OnSellReward { get; }
+
+    internal void ReplaceAbilities(IReadOnlyList<AbilityDefinition> abilities) =>
+        Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
 }

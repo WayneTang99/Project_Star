@@ -55,6 +55,22 @@ public sealed class EntityFactory
             definition.OnSellReward);
     }
 
+    // 将已有卡牌实例刷新为定义中的指定等级，同时保留实例身份与 Modifier。
+    public void ApplyCardLevel(CardInstance card, CardDefinition definition, int level)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        ArgumentNullException.ThrowIfNull(definition);
+        if (!definition.SupportsLevel(level))
+            throw new ArgumentOutOfRangeException(nameof(level), $"Card does not provide level {level}.");
+        var baseCombat = definition.Attributes.BaseCombat.CreateMutableCopy();
+        var levelDefinition = definition.GetLevel(level);
+        if (levelDefinition is not null)
+            foreach (var (key, value) in levelDefinition.BaseCombatValues) baseCombat.SetBaseValue(key, value);
+        card.Attributes.BaseCombat.ReplaceBaseValues(baseCombat);
+        card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
+        card.ReplaceAbilities(levelDefinition?.Abilities ?? definition.Abilities);
+    }
+
     private static EntityAttributes<TIdentity> Copy<TIdentity>(EntityAttributes<TIdentity> source)
         where TIdentity : class =>
         new(source.Identity, source.Persistent.CreateMutableCopy(), source.BaseCombat.CreateMutableCopy());

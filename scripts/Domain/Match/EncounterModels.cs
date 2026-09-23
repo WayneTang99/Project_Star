@@ -13,4 +13,6 @@ public sealed record EncounterSelectedEvent(StringName EncounterKey, EncounterKi
 
 public sealed record TurnAdvancedEvent(int Round, int Turn) : IMatchEvent;
 
+public sealed record IncomeGrantedEvent(int Round, int Amount, int CurrentWealth) : IMatchEvent;
+
 public sealed record EncounterSelectionResult(EncounterChoice Choice, bool RequiresBattle);

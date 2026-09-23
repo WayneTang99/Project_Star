@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Project_Star.Application.Common;
+using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
@@ -30,6 +31,11 @@ public sealed class EncounterScheduler
     public Result<IReadOnlyList<EncounterChoice>> Generate(MatchSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
+        if (session.Player.Hero is not null)
+        {
+            var income = new RoundIncomeService().SettleCurrentRound(session);
+            if (income.IsFailure) return Fail(income.Failure!.Code, income.Failure.Message);
+        }
         var random = new SeededRandom(session.Random.State);
         var available = _registry.Encounters.Values
             .Where(value => value.MinimumRound <= session.Progress.Round

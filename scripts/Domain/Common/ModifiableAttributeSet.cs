@@ -19,6 +19,8 @@ public sealed class ModifiableAttributeSet
     public int GetBaseValue(StringName attributeKey) =>
         _baseValues.TryGetValue(attributeKey, out var value) ? value : 0;
 
+    public bool HasBaseValue(StringName attributeKey) => _baseValues.ContainsKey(attributeKey);
+
     public int GetFinalValue(StringName attributeKey)
     {
         var value = GetBaseValue(attributeKey);
@@ -58,6 +60,14 @@ public sealed class ModifiableAttributeSet
     public void Freeze() => _isReadOnly = true;
 
     public ModifiableAttributeSet CreateMutableCopy() => new(_baseValues);
+
+    public void ReplaceBaseValues(ModifiableAttributeSet source)
+    {
+        EnsureMutable();
+        ArgumentNullException.ThrowIfNull(source);
+        _baseValues.Clear();
+        foreach (var (key, value) in source._baseValues) _baseValues[key] = value;
+    }
 
     private void EnsureMutable()
     {

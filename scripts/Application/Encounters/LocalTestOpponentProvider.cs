@@ -47,16 +47,12 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
         ArgumentNullException.ThrowIfNull(definition);
         var session = new MatchSession(seed);
         session.Player.SelectHero(_factory.CreateMonsterCombatant(definition));
-        var economy = new CardEconomyService(_factory);
         var board = new BoardService(new BoardPlacementSolver());
         foreach (var entry in definition.Cards)
         {
             var cardDefinition = _registry.Cards[entry.CardKey];
-            var card = economy.AcquireCard(
-                session,
-                cardDefinition,
-                entry.Level,
-                CardAcquisitionSource.Reward).Value!;
+            var card = _factory.CreateCard(cardDefinition, entry.Level);
+            session.Player.Inventory.Add(card);
             var placement = board.PlaceCard(session, card.Id, BoardZone.Battlefield, entry.BoardStart);
             if (placement.IsFailure)
                 throw new InvalidOperationException(placement.Failure!.Message);

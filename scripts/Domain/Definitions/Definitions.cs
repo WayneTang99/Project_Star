@@ -11,6 +11,8 @@ public abstract class HeroDefinition
     protected HeroDefinition(EntityAttributes<HeroIdentityAttributes> attributes)
     {
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
+        if (!attributes.Persistent.HasBaseValue(GameAttributeKeys.Income))
+            attributes.Persistent.SetBaseValue(GameAttributeKeys.Income, 5);
         DefinitionFreezer.Freeze(attributes);
     }
 

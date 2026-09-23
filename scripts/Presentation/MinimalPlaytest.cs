@@ -189,10 +189,11 @@ public sealed partial class MinimalPlaytest : Control
         if (_player is null) return;
         if (_currentStock is null || index >= _currentStock.Offers.Count) return;
         var offer = _currentStock.Offers[index];
-        var target = _board.FindFirstAvailableTarget(
-            _player,
-            offer.Definition.Attributes.Identity.OccupiedSlots);
-        if (target is null)
+        var mergeTarget = _economy.FindMergeTarget(_player, offer.Definition, offer.Level);
+        var target = mergeTarget is null
+            ? _board.FindFirstAvailableTarget(_player, offer.Definition.Attributes.Identity.OccupiedSlots)
+            : null;
+        if (mergeTarget is null && target is null)
         {
             _log.Text = "战场区和备战区都没有足够空间，无法购买。";
             return;
@@ -202,17 +203,22 @@ public sealed partial class MinimalPlaytest : Control
         if (result.IsSuccess)
         {
             var displayName = offer.Definition.Attributes.Identity.DisplayName;
-            var placement = _board.PlaceCard(_player, result.Value!.Id, target.Zone, target.Start);
-            if (placement.IsFailure)
+            if (result.Value!.WasCreated)
             {
-                _log.Text = placement.Failure!.Message;
-                return;
+                var placement = _board.PlaceCard(_player, result.Value.Card.Id, target!.Zone, target.Start);
+                if (placement.IsFailure)
+                {
+                    _log.Text = placement.Failure!.Message;
+                    return;
+                }
             }
 
             _buyButtons[index].Visible = false;
-            _log.Text = target.Zone == BoardZone.Battlefield
-                ? $"购买成功，{displayName}已自动放入战场区。"
-                : $"战场区空间不足，{displayName}已自动放入备战区。";
+            _log.Text = result.Value.WasUpgraded
+                ? $"购买成功，{displayName}已合并升级至{result.Value.CurrentLevel}级。"
+                : target!.Zone == BoardZone.Battlefield
+                    ? $"购买成功，{displayName}已自动放入战场区。"
+                    : $"战场区空间不足，{displayName}已自动放入备战区。";
         }
         else _log.Text = result.Failure!.Message;
         RefreshBoard();
@@ -448,7 +454,7 @@ public sealed partial class MinimalPlaytest : Control
     private void UpdateState()
     {
         if (_player is null) { _state.Text = "尚未开始对局"; return; }
-        _state.Text = $"轮次 {_player.Progress.Round}-{_player.Progress.Turn}　财富 {_player.Player.Wealth}　"
+        _state.Text = $"轮次 {_player.Progress.Round}-{_player.Progress.Turn}　财富 {_player.Player.Wealth}　收入 {_player.Player.Income}　"
             + $"声望 {_player.Player.Reputation}　PvP胜场 {_player.Progress.PvpWins}/10　"
             + $"战场 {_player.Board.Battlefield.Count}/10　备战 {_player.Board.Bench.Count}/10";
     }

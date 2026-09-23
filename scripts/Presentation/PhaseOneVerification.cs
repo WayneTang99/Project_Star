@@ -48,11 +48,13 @@ public sealed partial class PhaseOneVerification : Control
         ("工厂创建完全独立的卡牌实例", CheckIndependentInstances),
         ("新对局可以选择英雄并生成卡牌", CheckMatchCreation),
         ("不同对局之间不共享状态", CheckSessionIsolation),
+        ("每轮开始按英雄收入幂等发放金钱", CheckRoundIncome),
         ("尺寸与等级按翻倍表计算初始价值", CheckInitialValues),
         ("特殊卡牌可以覆写价值系数", CheckSpecialValueCoefficient),
         ("获得卡牌统一设置半价现值", CheckAcquisitionSources),
         ("半价出现小数时向下取整", CheckAcquiredValueRounding),
         ("等级变化不会重算当前价值", CheckLevelDoesNotRecalculateValue),
+        ("同名同级卡牌连续合并且保留目标实例", CheckCardMergeUpgrade),
         ("卡牌可以限制等级并应用分级配置", CheckCardLevelDefinitions),
         ("无阵营无属性卡牌支持分级价值且没有能力", CheckBeastHideDefinition),
         ("钻石固定为4级且获得后价值增加20", CheckDiamondDefinition),
@@ -339,6 +341,26 @@ public sealed partial class PhaseOneVerification : Control
             && !ReferenceEquals(first.EncounterSchedule, second.EncounterSchedule);
     }
 
+    private static bool CheckRoundIncome()
+    {
+        var session = new CreateMatchService(new EntityFactory()).Create(
+            1,
+            10,
+            new VerificationHeroDefinition());
+        var service = new RoundIncomeService();
+        var repeated = service.SettleCurrentRound(session);
+        session.Progress.Round = 2;
+        var nextRound = service.SettleCurrentRound(session);
+        var snapshot = MatchSnapshot.From(session);
+        return session.Player.Income == 5
+            && repeated.Value == 0
+            && nextRound.Value == 5
+            && session.Player.Wealth == 20
+            && session.Progress.IncomeSettledThroughRound == 2
+            && snapshot.Income == 5
+            && session.Events.Count(value => value is IncomeGrantedEvent) == 2;
+    }
+
     private static bool CheckInitialValues()
     {
         var small = new EconomyCardDefinition(CardSize.Small);
@@ -586,7 +608,7 @@ public sealed partial class PhaseOneVerification : Control
         var economy = new CardEconomyService(factory);
         for (var index = 0; index < 20; index++)
         {
-            var blocker = economy.AcquireCard(fullSession, cards[2], 1, CardAcquisitionSource.Reward).Value!;
+            var blocker = economy.AcquireCard(fullSession, cards[2], 4, CardAcquisitionSource.Reward).Value!;
             var zone = index < 10 ? BoardZone.Battlefield : BoardZone.Bench;
             _ = board.PlaceCard(fullSession, blocker.Id, zone, index % 10);
         }
@@ -612,7 +634,7 @@ public sealed partial class PhaseOneVerification : Control
             && definition.OptionSlots[1].Candidates[1].Weight == 40
             && wealthResult.IsSuccess
             && wealthResult.Value!.WealthGained == 2
-            && wealthSession.Player.Wealth == 2
+            && wealthSession.Player.Wealth == 7
             && repeatedResult.IsFailure
             && factionResult.Value?.GrantedCard?.Attributes.Identity.FactionKey == new StringName("paladin")
             && factionResult.Value.GrantedCard.Attributes.Identity.Size == CardSize.Small
@@ -659,6 +681,38 @@ public sealed partial class PhaseOneVerification : Control
         card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 4);
         return card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 4
             && card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 1;
+    }
+
+    private static bool CheckCardMergeUpgrade()
+    {
+        var factory = new EntityFactory();
+        var board = CreateBoardService();
+        var economy = new CardEconomyService(factory, board);
+        var definition = new LightCavalryCardDefinition();
+        var session = new MatchSession(1);
+        var first = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!;
+        _ = board.PlaceCard(session, first.Card.Id, BoardZone.Battlefield, 0);
+        var existingLevelTwo = factory.CreateCard(definition, 2);
+        session.Player.Inventory.Add(existingLevelTwo);
+        _ = board.PlaceCard(session, existingLevelTwo.Id, BoardZone.Battlefield, 2);
+        var merged = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!;
+        var location = session.Board.Locate(first.Card.Id);
+        var firstLevelFour = economy.AcquireCard(session, definition, 4, CardAcquisitionSource.Reward).Value!;
+        var secondLevelFour = economy.AcquireCard(session, definition, 4, CardAcquisitionSource.Reward).Value!;
+
+        return merged.WasUpgraded
+            && merged.Card.Id == first.Card.Id
+            && merged.PreviousLevel == 1
+            && merged.CurrentLevel == 3
+            && merged.Card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 3
+            && merged.Card.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.AttackDamage) == 40
+            && merged.Card.Abilities[0].CooldownTicks == 30
+            && location?.Zone == BoardZone.Battlefield
+            && location?.Placement.Start == 0
+            && session.Player.Inventory.Find(existingLevelTwo.Id) is null
+            && firstLevelFour.WasCreated
+            && secondLevelFour.WasCreated
+            && firstLevelFour.Card.Id != secondLevelFour.Card.Id;
     }
 
     private static bool CheckCardLevelDefinitions()
@@ -773,7 +827,7 @@ public sealed partial class PhaseOneVerification : Control
         var fullSession = new MatchSession(12, boardCapacity: 1);
         var blocker = economy.AcquireCard(fullSession, beastHideDefinition, 1, CardAcquisitionSource.Reward).Value!;
         _ = board.PlaceCard(fullSession, blocker.Id, BoardZone.Battlefield, 0);
-        var benchBlocker = economy.AcquireCard(fullSession, beastHideDefinition, 1, CardAcquisitionSource.Reward).Value!;
+        var benchBlocker = economy.AcquireCard(fullSession, new ArmguardCardDefinition(), 1, CardAcquisitionSource.Reward).Value!;
         _ = board.PlaceCard(fullSession, benchBlocker.Id, BoardZone.Bench, 0);
         var fullBag = economy.AcquireCard(fullSession, bagDefinition, 2, CardAcquisitionSource.Reward).Value!;
         var fullSale = economy.SellCard(fullSession, fullBag.Id);
@@ -1858,12 +1912,9 @@ public sealed partial class PhaseOneVerification : Control
 
     private static CardInstance AcquireBoardCard(MatchSession session, CardSize size)
     {
-        var economy = new CardEconomyService(new EntityFactory());
-        return economy.AcquireCard(
-            session,
-            new EconomyCardDefinition(size),
-            1,
-            CardAcquisitionSource.Reward).Value!;
+        var card = new EntityFactory().CreateCard(new EconomyCardDefinition(size), 1);
+        session.Player.Inventory.Add(card);
+        return card;
     }
 
     private static CardIdentityAttributes CreateCardIdentity(

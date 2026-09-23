@@ -19,6 +19,16 @@ public enum CardAcquisitionSource
     Reward = 2,
 }
 
+// 一次获得卡牌后的创建或合并结果（应用层经济模块）。
+public sealed record CardAcquisitionResult(CardInstance Card, bool WasCreated, int PreviousLevel, int CurrentLevel)
+{
+    public bool WasUpgraded => !WasCreated;
+    public EntityId Id => Card.Id;
+    public EntityAttributes<CardIdentityAttributes> Attributes => Card.Attributes;
+    public IReadOnlyList<Project_Star.Domain.Combat.AbilityDefinition> Abilities => Card.Abilities;
+    public static implicit operator CardInstance(CardAcquisitionResult result) => result.Card;
+}
+
 /// <summary>Executes atomic card acquisition, purchase, and sale operations.</summary>
 public sealed class CardEconomyService
 {
@@ -28,6 +38,7 @@ public sealed class CardEconomyService
     private static readonly StringName InvalidValue = new("economy.invalid_value");
     private static readonly StringName OfferSold = new("economy.offer_sold");
     private static readonly StringName SaleRewardUnavailable = new("economy.sale_reward_unavailable");
+    private static readonly StringName MergeBoardUnavailable = new("economy.merge_board_unavailable");
 
     private readonly EntityFactory _entityFactory;
     private readonly BoardService? _boardService;
@@ -47,7 +58,7 @@ public sealed class CardEconomyService
                 .ToArray();
     }
 
-    public Result<CardInstance> AcquireCard(
+    public Result<CardAcquisitionResult> AcquireCard(
         MatchSession session,
         CardDefinition definition,
         int level,
@@ -57,35 +68,43 @@ public sealed class CardEconomyService
         ArgumentNullException.ThrowIfNull(definition);
         _ = source;
 
-        var card = CreateAcquiredCard(definition, level);
-        session.Player.Inventory.Add(card);
-        return Result<CardInstance>.Success(card);
+        var plan = BuildMergePlan(session, definition, level);
+        if (!CanApplyMergePlan(session, plan))
+            return Result<CardAcquisitionResult>.Fail(new Failure(
+                MergeBoardUnavailable,
+                "Merging placed cards requires configured board operations."));
+        return Result<CardAcquisitionResult>.Success(AcquireOrMerge(session, definition, level, plan));
     }
 
-    public Result<CardInstance> BuyCard(MatchSession session, ShopOffer offer)
+    public Result<CardAcquisitionResult> BuyCard(MatchSession session, ShopOffer offer)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(offer);
 
         if (offer.IsSold)
         {
-            return Result<CardInstance>.Fail(new Failure(OfferSold, "This shop offer has already been purchased."));
+            return Result<CardAcquisitionResult>.Fail(new Failure(OfferSold, "This shop offer has already been purchased."));
         }
 
         if (session.Player.Wealth < offer.Price)
         {
-            return Result<CardInstance>.Fail(new Failure(InsufficientWealth, "Not enough wealth to buy this card."));
+            return Result<CardAcquisitionResult>.Fail(new Failure(InsufficientWealth, "Not enough wealth to buy this card."));
         }
 
-        var card = CreateAcquiredCard(offer.Definition, offer.Level);
+        var plan = BuildMergePlan(session, offer.Definition, offer.Level);
+        if (!CanApplyMergePlan(session, plan))
+            return Result<CardAcquisitionResult>.Fail(new Failure(
+                MergeBoardUnavailable,
+                "Merging placed cards requires configured board operations."));
+
         if (!session.Player.TrySpendWealth(offer.Price))
         {
-            return Result<CardInstance>.Fail(new Failure(InsufficientWealth, "Not enough wealth to buy this card."));
+            return Result<CardAcquisitionResult>.Fail(new Failure(InsufficientWealth, "Not enough wealth to buy this card."));
         }
 
-        session.Player.Inventory.Add(card);
+        var result = AcquireOrMerge(session, offer.Definition, offer.Level, plan);
         offer.MarkSold();
-        return Result<CardInstance>.Success(card);
+        return Result<CardAcquisitionResult>.Success(result);
     }
 
     public Result<int> SellCard(MatchSession session, EntityId cardId)
@@ -156,17 +175,83 @@ public sealed class CardEconomyService
         var selected = candidates[random.NextInt(0, candidates.Count)];
         session.Random.State = random.State;
         var level = reward.SameLevel ? soldLevel : selected.InitialLevel;
-        var target = _boardService.FindFirstAvailableTarget(
-            session,
-            selected.Attributes.Identity.OccupiedSlots);
-        if (target is null) return;
-
-        var acquired = CreateAcquiredCard(selected, level);
-        session.Player.Inventory.Add(acquired);
-        var placement = _boardService.PlaceCard(session, acquired.Id, target.Zone, target.Start);
-        if (placement.IsFailure)
-            _ = session.Player.Inventory.Remove(acquired.Id);
+        var mergeTarget = FindMergeTarget(session, selected, level);
+        var target = mergeTarget is null
+            ? _boardService.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
+            : null;
+        if (mergeTarget is null && target is null) return;
+        var acquired = AcquireOrMerge(session, selected, level, BuildMergePlan(session, selected, level));
+        if (!acquired.WasCreated) return;
+        var placement = _boardService.PlaceCard(session, acquired.Card.Id, target!.Zone, target.Start);
+        if (placement.IsFailure) _ = session.Player.Inventory.Remove(acquired.Card.Id);
     }
+
+    // 判断本次获得是否可以直接合并而无需新棋盘位置。
+    public EntityId? FindMergeTarget(MatchSession session, CardDefinition definition, int level) =>
+        BuildMergePlan(session, definition, level).TargetId;
+
+    private CardAcquisitionResult AcquireOrMerge(
+        MatchSession session,
+        CardDefinition definition,
+        int level,
+        MergePlan plan)
+    {
+        if (plan.TargetId is null)
+        {
+            var created = CreateAcquiredCard(definition, level);
+            session.Player.Inventory.Add(created);
+            return new CardAcquisitionResult(created, true, level, level);
+        }
+
+        foreach (var consumedId in plan.ConsumedIds)
+        {
+            if (session.Board.Contains(consumedId))
+            {
+                var removed = _boardService!.RemoveFromBoard(session, consumedId);
+                if (removed.IsFailure) throw new InvalidOperationException(removed.Failure!.Message);
+            }
+            _ = session.Player.Inventory.Remove(consumedId);
+        }
+        var target = session.Player.Inventory.Find(plan.TargetId.Value)
+            ?? throw new InvalidOperationException("Merge target is not owned by the player.");
+        _entityFactory.ApplyCardLevel(target, definition, plan.FinalLevel);
+        return new CardAcquisitionResult(target, false, level, plan.FinalLevel);
+    }
+
+    private bool CanApplyMergePlan(MatchSession session, MergePlan plan) =>
+        _boardService is not null || plan.ConsumedIds.All(id => !session.Board.Contains(id));
+
+    private MergePlan BuildMergePlan(MatchSession session, CardDefinition definition, int level)
+    {
+        var candidates = session.Player.Inventory.Cards
+            .Select(card => new CardMergeCandidate(
+                card.Id,
+                card.Attributes.Identity.Key,
+                card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level)))
+            .ToArray();
+        var targetId = definition.SupportsLevel(level + 1)
+            ? CardMergeDecision.FindTarget(definition.Attributes.Identity.Key, level, candidates)
+            : null;
+        if (targetId is null) return new MergePlan(null, level, Array.Empty<EntityId>());
+        var excluded = new HashSet<EntityId> { targetId.Value };
+        var consumed = new List<EntityId>();
+        var currentLevel = level + 1;
+        while (currentLevel < CardMergeDecision.MaximumMergeLevel && definition.SupportsLevel(currentLevel + 1))
+        {
+            var next = CardMergeDecision.FindTarget(
+                definition.Attributes.Identity.Key,
+                currentLevel,
+                candidates,
+                excluded);
+            if (next is null) break;
+            consumed.Add(next.Value);
+            excluded.Add(next.Value);
+            currentLevel++;
+        }
+        return new MergePlan(targetId, currentLevel, consumed.AsReadOnly());
+    }
+
+    private sealed record MergePlan(EntityId? TargetId, int FinalLevel, IReadOnlyList<EntityId> ConsumedIds);
 
     private CardInstance CreateAcquiredCard(CardDefinition definition, int level)
     {

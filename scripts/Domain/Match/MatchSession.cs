@@ -49,6 +49,8 @@ public sealed class MatchProgress
     public int Turn { get; internal set; } = 1;
 
     public int PvpWins { get; internal set; }
+
+    public int IncomeSettledThroughRound { get; internal set; }
 }
 
 public sealed class PlayerState
@@ -68,6 +70,8 @@ public sealed class PlayerState
     public int Wealth => Resources.GetBaseValue(GameAttributeKeys.Wealth);
 
     public int Reputation => Resources.GetBaseValue(GameAttributeKeys.Reputation);
+
+    public int Income => Hero?.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Income) ?? 0;
 
     public void SelectHero(HeroInstance hero) => Hero = hero ?? throw new ArgumentNullException(nameof(hero));
 

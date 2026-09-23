@@ -13,6 +13,7 @@ public sealed record MatchSnapshot(
     int Round,
     int Turn,
     int Wealth,
+    int Income,
     int Reputation,
     int PvpWins,
     IReadOnlyList<CardSnapshot> Cards,
@@ -25,6 +26,6 @@ public sealed record MatchSnapshot(
             cards.Add(new CardSnapshot(card.Id, card.Attributes.Identity.DisplayName,
                 card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value)));
         return new MatchSnapshot(session.Id, session.Status, session.Progress.Round, session.Progress.Turn,
-            session.Player.Wealth, session.Player.Reputation, session.Progress.PvpWins, cards.AsReadOnly(), session.Summary);
+            session.Player.Wealth, session.Player.Income, session.Player.Reputation, session.Progress.PvpWins, cards.AsReadOnly(), session.Summary);
     }
 }

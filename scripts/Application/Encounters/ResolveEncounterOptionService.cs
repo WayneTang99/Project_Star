@@ -161,16 +161,23 @@ public sealed class ResolveEncounterOptionService
         var random = new SeededRandom(session.Random.State);
         var selected = candidates[random.NextInt(0, candidates.Count)];
         session.Random.State = random.State;
-        var target = _board.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots);
-        if (target is null) return Result<CardInstance?>.Success(null);
-        var acquired = new CardEconomyService(_factory).AcquireCard(
+        var economy = new CardEconomyService(_factory, _board);
+        var mergeTarget = economy.FindMergeTarget(session, selected, level);
+        var target = mergeTarget is null
+            ? _board.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
+            : null;
+        if (mergeTarget is null && target is null) return Result<CardInstance?>.Success(null);
+        var acquired = economy.AcquireCard(
             session,
             selected,
             level,
             CardAcquisitionSource.Reward);
         if (acquired.IsFailure) return Result<CardInstance?>.Fail(acquired.Failure!);
-        var placement = _board.PlaceCard(session, acquired.Value!.Id, target.Zone, target.Start);
-        if (placement.IsFailure) throw new InvalidOperationException(placement.Failure!.Message);
-        return Result<CardInstance?>.Success(acquired.Value);
+        if (acquired.Value!.WasCreated)
+        {
+            var placement = _board.PlaceCard(session, acquired.Value.Card.Id, target!.Zone, target.Start);
+            if (placement.IsFailure) throw new InvalidOperationException(placement.Failure!.Message);
+        }
+        return Result<CardInstance?>.Success(acquired.Value.Card);
     }
 }
