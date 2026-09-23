@@ -10,13 +10,21 @@ public sealed record BattleStartedEvent(BattleTick Tick) : BattleEvent(Tick);
 public sealed record AbilityQueuedEvent(
     BattleTick Tick,
     EntityId SourceCardId,
-    SideId SourceSide) : BattleEvent(Tick);
+    SideId SourceSide,
+    AbilitySourceKind SourceKind = AbilitySourceKind.Card) : BattleEvent(Tick);
+
+public enum AbilitySourceKind
+{
+    Card = 0,
+    Skill = 1,
+}
 
 public sealed record AbilityActivatedEvent(
     BattleTick Tick,
     EntityId SourceCardId,
     SideId SourceSide,
-    bool IsEcho) : BattleEvent(Tick);
+    bool IsEcho,
+    AbilitySourceKind SourceKind = AbilitySourceKind.Card) : BattleEvent(Tick);
 
 public sealed record ManaChangedEvent(BattleTick Tick, SideId Side, int Amount, int CurrentMana) : BattleEvent(Tick);
 
@@ -40,6 +48,7 @@ public enum DamageSourceKind
     Card = 0,
     Status = 1,
     Eclipse = 2,
+    Skill = 3,
 }
 
 public sealed record DamageDealtEvent(

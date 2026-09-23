@@ -67,6 +67,13 @@ public sealed class CardIdentityAttributes : IdentityAttributes
     public IReadOnlyList<StringName> ElementKeys { get; }
 }
 
+public sealed class SkillIdentityAttributes : IdentityAttributes
+{
+    public SkillIdentityAttributes(StringName key, string displayName) : base(key, displayName)
+    {
+    }
+}
+
 public sealed class EncounterIdentityAttributes : IdentityAttributes
 {
     public EncounterIdentityAttributes(StringName key, string displayName) : base(key, displayName)

@@ -108,6 +108,8 @@ public sealed partial class PhaseOneVerification : Control
         ("胜利与声望归零同时满足时胜利优先", CheckVictoryPriority),
         ("永久摧毁同时移除归属记录和棋盘实例", CheckPermanentChangeApplication),
         ("对局快照保留只读结算数据", CheckMatchSnapshot),
+        ("技能使用独立实例并按同级规则合并", CheckSkillMerge),
+        ("空战场的被动技能可触发且回响不会连锁", CheckSkillBattle),
     ];
 
     public override void _Ready()
@@ -271,6 +273,7 @@ public sealed partial class PhaseOneVerification : Control
         var registry = CreateVerificationRegistry();
         return registry.Heroes.Count == 1
             && registry.Cards.Count == 1
+            && registry.Skills.Count == 1
             && registry.Encounters.Count == 7
             && registry.Cards.ContainsKey(new StringName("verification.sword"));
     }
@@ -1263,7 +1266,7 @@ public sealed partial class PhaseOneVerification : Control
         var level = definition.GetLevel(1)!;
         if (definition.Attributes.Identity.FactionKey != new StringName("paladin")
             || definition.Attributes.Identity.Size != CardSize.Small
-            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
             || !definition.Tags.Contains(GameTags.Equipment)
             || definition.InitialLevel != 1
             || !definition.SupportsLevel(4)
@@ -1793,7 +1796,7 @@ public sealed partial class PhaseOneVerification : Control
             || definition.SupportsLevel(5)
             || definition.Attributes.Identity.FactionKey != new StringName("paladin")
             || definition.Attributes.Identity.Size != CardSize.Large
-            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
             || !definition.Tags.Contains(GameTags.Human)
             || level.BaseCombatValues[GameAttributeKeys.AttackDamage] != 40
             || level.Abilities[0].CooldownTicks != 80
@@ -2160,10 +2163,65 @@ public sealed partial class PhaseOneVerification : Control
         }
     }
 
+    private static bool CheckSkillMerge()
+    {
+        var definition = new VerificationSkillDefinition();
+        var session = new MatchSession(1);
+        var service = new SkillAcquisitionService(new EntityFactory());
+        var first = service.AcquireSkill(session, definition, 1).Value!;
+        var id = first.Skill.Id;
+        var levelTwo = service.AcquireSkill(session, definition, 1).Value!;
+        var levelThree = service.AcquireSkill(session, definition, 2).Value!;
+        var levelFour = service.AcquireSkill(session, definition, 3).Value!;
+        var extraFour = service.AcquireSkill(session, definition, 4).Value!;
+        var directFive = service.AcquireSkill(session, definition, 5).Value!;
+        var snapshot = MatchSnapshot.From(session);
+        var chainSession = new MatchSession(2);
+        var chainThree = service.AcquireSkill(chainSession, definition, 3).Value!;
+        _ = service.AcquireSkill(chainSession, definition, 2);
+        _ = service.AcquireSkill(chainSession, definition, 1);
+        var chain = service.AcquireSkill(chainSession, definition, 1).Value!;
+        return first.WasCreated
+            && !levelTwo.WasCreated && !levelThree.WasCreated && !levelFour.WasCreated
+            && levelFour.Skill.Id == id && levelFour.CurrentLevel == 4
+            && extraFour.WasCreated && directFive.WasCreated
+            && session.Player.Skills.Items.Count == 3
+            && snapshot.Skills.Count == 3
+            && levelFour.Skill.Abilities[0].Effects[0] is DamageEffectDefinition { Amount: 20 }
+            && chain.CurrentLevel == 4 && chainSession.Player.Skills.Items.Count == 1
+            && chainSession.Player.Skills.Items[0].Id == chain.Skill.Id
+            && chainSession.Player.Skills.Items[0].Id != chainThree.Skill.Id;
+    }
+
+    private static bool CheckSkillBattle()
+    {
+        var factory = new EntityFactory();
+        var matches = new CreateMatchService(factory);
+        var hero = new VerificationHeroDefinition();
+        var player = matches.Create(1, 0, hero);
+        var opponent = matches.Create(2, 0, hero);
+        var skill = new SkillAcquisitionService(factory)
+            .AcquireSkill(player, new VerificationSkillDefinition(), 1).Value!.Skill;
+        var attacker = factory.CreateCard(new VerificationCardDefinition());
+        opponent.Player.Inventory.Add(attacker);
+        _ = CreateBoardService().PlaceCard(opponent, attacker.Id, BoardZone.Battlefield, 0);
+        var setup = new BattleSetupFactory().Create(player, opponent, 99, new BattleTick(12), new BattleTick(300));
+        var result = new CombatSimulator().Simulate(setup);
+        return player.Board.Battlefield.Count == 0
+            && result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)
+            && result.Events.OfType<AbilityActivatedEvent>().Any(value =>
+                value.SourceCardId == skill.Id && value.SourceKind == AbilitySourceKind.Skill && value.IsEcho)
+            && result.Events.OfType<DamageDealtEvent>().Any(value =>
+                value.SourceCardId == skill.Id && value.SourceKind == DamageSourceKind.Skill
+                && value.TargetSide == SideId.Opponent && value.RawDamage == 5)
+            && result.Events.OfType<AbilityActivatedEvent>().Count(value => value.SourceCardId == skill.Id) == 1;
+    }
+
     private static DefinitionRegistry CreateVerificationRegistry() => DefinitionRegistry.Create(
     [
         new VerificationHeroDefinition(),
         new VerificationCardDefinition(),
+        new VerificationSkillDefinition(),
         new VerificationEncounterDefinition("verification.event", EncounterKind.Other),
         new VerificationEncounterDefinition("verification.shop.primary", EncounterKind.Shop, 2),
         new VerificationEncounterDefinition("verification.shop.secondary", EncounterKind.Shop),
@@ -2193,6 +2251,36 @@ public sealed partial class PhaseOneVerification : Control
                     })))
         {
         }
+    }
+
+    private sealed class VerificationSkillDefinition : SkillDefinition
+    {
+        public VerificationSkillDefinition()
+            : base(
+                new EntityAttributes<SkillIdentityAttributes>(
+                    new SkillIdentityAttributes(new StringName("verification.skill"), "验证回击")),
+                initialLevel: 1,
+                levels:
+                [
+                    CreateLevel(1, 5),
+                    CreateLevel(2, 10),
+                    CreateLevel(3, 15),
+                    CreateLevel(4, 20),
+                    CreateLevel(5, 25),
+                ])
+        {
+        }
+
+        private static SkillLevelDefinition CreateLevel(int level, int damage) => new(
+            level,
+            null,
+            [new AbilityDefinition(
+                new StringName("verification.skill.damage"),
+                AbilityActivation.EchoOnDamageDealt,
+                AbilityTarget.EnemyHero,
+                0,
+                0,
+                [new DamageEffectDefinition(damage)])]);
     }
 
     // 验证专用遭遇定义（表现层验证模块）。

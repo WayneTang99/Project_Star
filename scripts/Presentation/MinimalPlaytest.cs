@@ -23,15 +23,12 @@ public sealed partial class MinimalPlaytest : Control
 
     private readonly EntityFactory _factory = new();
     private readonly BoardService _board = new(new BoardPlacementSolver());
-    private readonly StartBattleService _battle = new(new BattleSetupFactory(), new CombatSimulator());
     private readonly ShopCardPoolService _shopCardPool = new();
     private ResolveEncounterOptionService _encounterOptions = null!;
     private readonly Button[] _choices = new Button[3];
     private DefinitionRegistry _registry = null!;
     private CardEconomyService _economy = null!;
-    private CreateMatchService _matches = null!;
-    private EncounterScheduler _encounters = null!;
-    private MatchResultService _matchResults = null!;
+    private GameCoordinator _game = null!;
     private MatchSession? _player;
     private MatchSession? _enemy;
     private Screen _screen;
@@ -64,9 +61,11 @@ public sealed partial class MinimalPlaytest : Control
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
         _encounterOptions = new ResolveEncounterOptionService(_factory, _board, _registry.Cards.Values);
-        _matches = new CreateMatchService(_factory);
-        _encounters = new EncounterScheduler(_registry, allowIncompleteMonsterChoices: true);
-        _matchResults = new MatchResultService(_board);
+        _game = new GameCoordinator(
+            new CreateMatchService(_factory),
+            new EncounterScheduler(_registry, allowIncompleteMonsterChoices: true),
+            new StartBattleService(new BattleSetupFactory(), new CombatSimulator()),
+            new MatchResultService(_board));
         const string root = "Margin/Frame/Margin/Content";
         _title = GetNode<Label>($"{root}/Header/HeaderPanel/Margin/Title");
         _state = GetNode<Label>($"{root}/State");
@@ -125,7 +124,11 @@ public sealed partial class MinimalPlaytest : Control
     {
         var hero = FirstHero();
         if (hero is null) return;
-        _player = _matches.Create(42, 10, hero);
+        const int testInitialWealth = 999;
+        _player = _game.CreateMatch(
+            42,
+            testInitialWealth - hero.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Income),
+            hero);
         ShowEncounterChoices();
     }
 
@@ -138,8 +141,9 @@ public sealed partial class MinimalPlaytest : Control
         if (_player is null) return;
         _enemy = null;
         _screen = Screen.EncounterChoice; HideAllActions();
-        var generated = _encounters.Generate(_player);
-        _title.Text = $"第 {_player.Progress.Round} 轮 · 第 {_player.Progress.Turn} 回合";
+        var generated = _game.GenerateEncounterChoices(_player);
+        var snapshot = _game.GetSnapshot(_player);
+        _title.Text = $"第 {snapshot.Round} 轮 · 第 {snapshot.Turn} 回合";
         if (generated.IsFailure) { _log.Text = generated.Failure!.Message; return; }
         _log.Text = "选择本回合要进入的遭遇。";
         for (var index = 0; index < generated.Value!.Count; index++)
@@ -153,10 +157,12 @@ public sealed partial class MinimalPlaytest : Control
 
     private void ChooseEncounter(int index)
     {
-        if (_player is null || index >= _player.EncounterSchedule.CurrentChoices.Count) return;
-        var choice = _player.EncounterSchedule.CurrentChoices[index];
-        _battleRound = _player.Progress.Round;
-        var selected = _encounters.Select(_player, choice.Key);
+        if (_player is null) return;
+        var snapshot = _game.GetSnapshot(_player);
+        if (index >= snapshot.EncounterChoices.Count) return;
+        var choice = snapshot.EncounterChoices[index];
+        _battleRound = snapshot.Round;
+        var selected = _game.SelectEncounter(_player, choice.Key);
         if (selected.IsFailure) { _log.Text = selected.Failure!.Message; return; }
         HideAllActions();
         switch (choice.Kind)
@@ -250,7 +256,7 @@ public sealed partial class MinimalPlaytest : Control
             if (offer is not null)
             {
                 var card = offer.Definition;
-                button.Text = $"{card.Attributes.Identity.DisplayName}\n价格 {offer.Price}";
+                button.Text = $"{FormatCardFace(card.Attributes.Identity, offer.Level)}\n价格 {offer.Price}";
             }
         }
         _refreshShop.Visible = _currentStock is not null;
@@ -319,10 +325,10 @@ public sealed partial class MinimalPlaytest : Control
         _screen = Screen.Preparation; _title.Text = choice.Kind == EncounterKind.Pvp ? "PvP 战斗准备" : $"迎战：{choice.DisplayName}";
         var opponents = new LocalTestOpponentProvider(_registry);
         _enemy = choice.Kind == EncounterKind.Monster
-            ? opponents.CreateMonsterOpponent(_player.Random.State, _registry.Monsters[choice.Key])
-            : opponents.CreateOpponent(_player.Random.State);
+            ? opponents.CreateMonsterOpponent(_player, _registry.Monsters[choice.Key])
+            : opponents.CreateOpponent(_player);
         _battleKind = choice.Kind == EncounterKind.Pvp ? MatchBattleKind.Pvp : MatchBattleKind.Monster;
-        _log.Text = _player.Board.Battlefield.Count == 0
+        _log.Text = _game.GetSnapshot(_player).BattlefieldCount == 0
             ? "你没有卡牌。仍可开始战斗，但几乎无法获胜。"
             : "你可以继续调整战场区与备战区，然后开始战斗。";
         _battleButton.Text = "开始战斗"; _battleButton.Visible = true;
@@ -336,16 +342,16 @@ public sealed partial class MinimalPlaytest : Control
         for (var index = 0; index < 10; index++)
         {
             var slot = index;
-            _battlefieldSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(64, 48) };
+            _battlefieldSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(110, 96) };
             _battlefieldSlots[index].Pressed += () => OnBoardSlot(BoardZone.Battlefield, slot);
             _battlefieldGrid.AddChild(_battlefieldSlots[index]);
-            _benchSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(64, 48) };
+            _benchSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(110, 96) };
             _benchSlots[index].Pressed += () => OnBoardSlot(BoardZone.Bench, slot);
             _benchGrid.AddChild(_benchSlots[index]);
             _enemyBattlefieldSlots[index] = new Button
             {
                 Text = "·",
-                CustomMinimumSize = new Vector2(64, 48),
+                CustomMinimumSize = new Vector2(110, 96),
                 Disabled = true,
             };
             _enemyBattlefieldGrid.AddChild(_enemyBattlefieldSlots[index]);
@@ -355,8 +361,8 @@ public sealed partial class MinimalPlaytest : Control
     private void OnBoardSlot(BoardZone zone, int slot)
     {
         if (_player is null) return;
-        var zoneState = _player.Board.GetZone(zone);
-        var occupying = FindAt(zoneState, slot);
+        var snapshot = _game.GetSnapshot(_player);
+        var occupying = FindAt(snapshot.BoardPlacements, zone, slot);
         if (_selectedCardId is null)
         {
             if (occupying is not null)
@@ -379,60 +385,105 @@ public sealed partial class MinimalPlaytest : Control
     private void RefreshBoard()
     {
         if (_player is null) return;
-        RefreshZone(_player.Board.Battlefield, _battlefieldSlots);
-        RefreshZone(_player.Board.Bench, _benchSlots);
-        RefreshEnemyBattlefield();
+        var snapshot = _game.GetSnapshot(_player);
+        RefreshZone(snapshot, BoardZone.Battlefield, _battlefieldSlots);
+        RefreshZone(snapshot, BoardZone.Bench, _benchSlots);
+        RefreshEnemyBattlefield(_enemy is null ? null : _game.GetSnapshot(_enemy));
     }
 
-    private void RefreshEnemyBattlefield()
+    private void RefreshEnemyBattlefield(MatchSnapshot? snapshot)
     {
         for (var slot = 0; slot < _enemyBattlefieldSlots.Length; slot++)
         {
-            var placement = _enemy is null ? null : FindAt(_enemy.Board.Battlefield, slot);
+            var placement = snapshot is null ? null : FindAt(snapshot.BoardPlacements, BoardZone.Battlefield, slot);
             _enemyBattlefieldSlots[slot].Text = placement is null ? $"{slot + 1}\n·"
                 : placement.Start == slot
-                    ? $"{slot + 1}\n{_enemy!.Player.Inventory.Find(placement.CardId)!.Attributes.Identity.DisplayName}"
+                    ? $"{slot + 1}\n{FormatCardFace(snapshot!.Cards.First(card => card.Id == placement.CardId))}"
                     : $"{slot + 1}\n■";
         }
     }
 
-    private void RefreshZone(BoardZoneState zone, IReadOnlyList<Button> buttons)
+    private void RefreshZone(MatchSnapshot snapshot, BoardZone zone, IReadOnlyList<Button> buttons)
     {
         for (var slot = 0; slot < buttons.Count; slot++)
         {
-            var placement = FindAt(zone, slot);
+            var placement = FindAt(snapshot.BoardPlacements, zone, slot);
             buttons[slot].Text = placement is null ? $"{slot + 1}\n·"
-                : placement.Start == slot ? $"{slot + 1}\n{_player!.Player.Inventory.Find(placement.CardId)!.Attributes.Identity.DisplayName}"
+                : placement.Start == slot
+                    ? $"{slot + 1}\n{FormatCardFace(snapshot.Cards.First(card => card.Id == placement.CardId))}"
                 : $"{slot + 1}\n■";
             buttons[slot].Modulate = placement?.CardId == _selectedCardId ? new Color("75d69c") : Colors.White;
         }
     }
 
-    private static BoardPlacement? FindAt(BoardZoneState zone, int slot)
+    private static BoardPlacementSnapshot? FindAt(
+        IReadOnlyList<BoardPlacementSnapshot> placements,
+        BoardZone zone,
+        int slot)
     {
-        foreach (var placement in zone.Placements)
-            if (placement.Start <= slot && slot < placement.EndExclusive) return placement;
+        foreach (var placement in placements)
+            if (placement.Zone == zone && placement.Start <= slot && slot < placement.EndExclusive) return placement;
         return null;
+    }
+
+    private static string FormatCardFace(CardSnapshot card) =>
+        FormatCardFace(card.DisplayName, card.Level, card.Size, card.FactionKey, card.ElementKeys);
+
+    private static string FormatCardFace(CardIdentityAttributes identity, int level)
+        => FormatCardFace(identity.DisplayName, level, identity.Size, identity.FactionKey, identity.ElementKeys);
+
+    private static string FormatCardFace(
+        string displayName,
+        int level,
+        CardSize cardSize,
+        StringName factionKey,
+        IReadOnlyList<StringName> elementKeys)
+    {
+        var size = cardSize switch
+        {
+            CardSize.Small => "小型",
+            CardSize.Medium => "中型",
+            CardSize.Large => "大型",
+            _ => cardSize.ToString(),
+        };
+        var faction = factionKey == GameFactions.Neutral
+            ? "无阵营"
+            : factionKey == new StringName("paladin") ? "帕拉帝恩" : factionKey.ToString();
+        var elements = string.Join("、", elementKeys.Select(element => element switch
+        {
+            var key when key == GameElements.General => "通用",
+            var key when key == GameElements.Fire => "火",
+            var key when key == GameElements.Water => "水",
+            var key when key == GameElements.Wind => "风",
+            var key when key == GameElements.Earth => "土",
+            var key when key == GameElements.Lightning => "雷",
+            var key when key == GameElements.Wood => "木",
+            var key when key == GameElements.Ice => "冰",
+            var key when key == GameElements.Light => "光",
+            var key when key == GameElements.Dark => "暗",
+            _ => element.ToString(),
+        }));
+        return $"{level}级 {displayName}\n{size} · {faction}\n{elements}";
     }
 
     private void StartBattle()
     {
         if (_player is null || _enemy is null) return;
-        var result = _battle.StartBattle(_player, _enemy, _player.Random.State);
+        var result = _game.ResolveBattle(_player, _enemy, _battleKind, _battleRound);
         if (result.IsFailure) { _log.Text = result.Failure!.Message; return; }
-        _ = _matchResults.Apply(_player, result.Value!, _battleKind, _battleRound);
+        var snapshot = _game.GetSnapshot(_player);
         _screen = Screen.BattleResult; HideAllActions();
-        _title.Text = _player.Status == MatchStatus.InProgress ? "战斗结算"
-            : _player.Status == MatchStatus.Won ? "对局胜利" : "对局失败";
+        _title.Text = snapshot.Status == MatchStatus.InProgress ? "战斗结算"
+            : snapshot.Status == MatchStatus.Won ? "对局胜利" : "对局失败";
         _log.Text = FormatBattleLog(result.Value!);
-        _continue.Text = _player.Status == MatchStatus.InProgress ? "进入下一回合" : "返回英雄选择";
+        _continue.Text = snapshot.Status == MatchStatus.InProgress ? "进入下一回合" : "返回英雄选择";
         _continue.Visible = true;
         UpdateState();
     }
 
     private void ContinueMatch()
     {
-        if (_player?.Status == MatchStatus.InProgress) ShowEncounterChoices();
+        if (_player is not null && _game.GetSnapshot(_player).Status == MatchStatus.InProgress) ShowEncounterChoices();
         else ShowHeroSelection();
     }
 
@@ -454,9 +505,10 @@ public sealed partial class MinimalPlaytest : Control
     private void UpdateState()
     {
         if (_player is null) { _state.Text = "尚未开始对局"; return; }
-        _state.Text = $"轮次 {_player.Progress.Round}-{_player.Progress.Turn}　财富 {_player.Player.Wealth}　收入 {_player.Player.Income}　"
-            + $"声望 {_player.Player.Reputation}　PvP胜场 {_player.Progress.PvpWins}/10　"
-            + $"战场 {_player.Board.Battlefield.Count}/10　备战 {_player.Board.Bench.Count}/10";
+        var snapshot = _game.GetSnapshot(_player);
+        _state.Text = $"轮次 {snapshot.Round}-{snapshot.Turn}　财富 {snapshot.Wealth}　收入 {snapshot.Income}　"
+            + $"声望 {snapshot.Reputation}　PvP胜场 {snapshot.PvpWins}/10　"
+            + $"战场 {snapshot.BattlefieldCount}/10　备战 {snapshot.BenchCount}/10";
     }
 
     private static string FormatBattleLog(BattleResult result)
@@ -469,6 +521,7 @@ public sealed partial class MinimalPlaytest : Control
                 {
                     DamageSourceKind.Eclipse => "日蚀",
                     DamageSourceKind.Status => "状态",
+                    DamageSourceKind.Skill => "技能",
                     _ => "卡牌",
                 };
                 lines.Add($"{damage.Tick.ToSeconds(),4:0.0}s　{source}：{(damage.TargetSide == SideId.Player ? "玩家" : "敌方")}受到 {damage.HealthDamage} 点伤害，生命 {damage.RemainingHealth}");

@@ -13,11 +13,13 @@ public sealed class DefinitionRegistry
     private DefinitionRegistry(
         Dictionary<StringName, HeroDefinition> heroes,
         Dictionary<StringName, CardDefinition> cards,
+        Dictionary<StringName, SkillDefinition> skills,
         Dictionary<StringName, EncounterDefinition> encounters,
         Dictionary<StringName, MonsterDefinition> monsters)
     {
         Heroes = heroes;
         Cards = cards;
+        Skills = skills;
         Encounters = encounters;
         Monsters = monsters;
     }
@@ -25,6 +27,8 @@ public sealed class DefinitionRegistry
     public IReadOnlyDictionary<StringName, HeroDefinition> Heroes { get; }
 
     public IReadOnlyDictionary<StringName, CardDefinition> Cards { get; }
+
+    public IReadOnlyDictionary<StringName, SkillDefinition> Skills { get; }
 
     public IReadOnlyDictionary<StringName, EncounterDefinition> Encounters { get; }
 
@@ -65,6 +69,7 @@ public sealed class DefinitionRegistry
         ArgumentNullException.ThrowIfNull(definitions);
         var heroes = new Dictionary<StringName, HeroDefinition>();
         var cards = new Dictionary<StringName, CardDefinition>();
+        var skills = new Dictionary<StringName, SkillDefinition>();
         var encounters = new Dictionary<StringName, EncounterDefinition>();
         var monsters = new Dictionary<StringName, MonsterDefinition>();
 
@@ -77,6 +82,9 @@ public sealed class DefinitionRegistry
                     break;
                 case CardDefinition card:
                     AddUnique(cards, card.Attributes.Identity.Key, card, "card");
+                    break;
+                case SkillDefinition skill:
+                    AddUnique(skills, skill.Attributes.Identity.Key, skill, "skill");
                     break;
                 case EncounterDefinition encounter:
                     ValidateEncounter(encounter);
@@ -92,12 +100,13 @@ public sealed class DefinitionRegistry
 
         ValidateCardFactions(heroes, cards);
         ValidateMonsterCards(monsters, cards);
-        return new DefinitionRegistry(heroes, cards, encounters, monsters);
+        return new DefinitionRegistry(heroes, cards, skills, encounters, monsters);
     }
 
     private static bool IsDefinitionType(Type type) =>
         typeof(HeroDefinition).IsAssignableFrom(type)
         || typeof(CardDefinition).IsAssignableFrom(type)
+        || typeof(SkillDefinition).IsAssignableFrom(type)
         || typeof(EncounterDefinition).IsAssignableFrom(type)
         || typeof(MonsterDefinition).IsAssignableFrom(type);
 

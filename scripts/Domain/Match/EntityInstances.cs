@@ -48,3 +48,23 @@ public sealed class CardInstance
     internal void ReplaceAbilities(IReadOnlyList<AbilityDefinition> abilities) =>
         Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
 }
+
+public sealed class SkillInstance
+{
+    public SkillInstance(
+        EntityId id,
+        EntityAttributes<SkillIdentityAttributes> attributes,
+        IReadOnlyList<AbilityDefinition> abilities)
+    {
+        Id = id;
+        Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
+        Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
+    }
+
+    public EntityId Id { get; }
+    public EntityAttributes<SkillIdentityAttributes> Attributes { get; }
+    public IReadOnlyList<AbilityDefinition> Abilities { get; private set; }
+
+    internal void ReplaceAbilities(IReadOnlyList<AbilityDefinition> abilities) =>
+        Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
+}

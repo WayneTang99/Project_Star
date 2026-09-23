@@ -229,21 +229,21 @@ public sealed class CardEconomyService
     private MergePlan BuildMergePlan(MatchSession session, CardDefinition definition, int level)
     {
         var candidates = session.Player.Inventory.Cards
-            .Select(card => new CardMergeCandidate(
+            .Select(card => new MergeCandidate(
                 card.Id,
                 card.Attributes.Identity.Key,
                 card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level)))
             .ToArray();
         var targetId = definition.SupportsLevel(level + 1)
-            ? CardMergeDecision.FindTarget(definition.Attributes.Identity.Key, level, candidates)
+            ? MergeDecision.FindTarget(definition.Attributes.Identity.Key, level, candidates)
             : null;
         if (targetId is null) return new MergePlan(null, level, Array.Empty<EntityId>());
         var excluded = new HashSet<EntityId> { targetId.Value };
         var consumed = new List<EntityId>();
         var currentLevel = level + 1;
-        while (currentLevel < CardMergeDecision.MaximumMergeLevel && definition.SupportsLevel(currentLevel + 1))
+        while (currentLevel < MergeDecision.MaximumMergeLevel && definition.SupportsLevel(currentLevel + 1))
         {
-            var next = CardMergeDecision.FindTarget(
+            var next = MergeDecision.FindTarget(
                 definition.Attributes.Identity.Key,
                 currentLevel,
                 candidates,

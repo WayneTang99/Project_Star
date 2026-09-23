@@ -55,6 +55,38 @@ public sealed class EntityFactory
             definition.OnSellReward);
     }
 
+    public SkillInstance CreateSkill(SkillDefinition definition, int? level = null)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var selectedLevel = level ?? definition.InitialLevel;
+        if (!definition.SupportsLevel(selectedLevel))
+            throw new ArgumentOutOfRangeException(nameof(level), $"Skill does not provide level {selectedLevel}.");
+
+        var attributes = Copy(definition.Attributes);
+        attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, selectedLevel);
+        var levelDefinition = definition.GetLevel(selectedLevel);
+        if (levelDefinition is not null)
+            foreach (var (key, value) in levelDefinition.BaseCombatValues)
+                attributes.BaseCombat.SetBaseValue(key, value);
+        return new SkillInstance(EntityId.New(), attributes, levelDefinition?.Abilities ?? definition.Abilities);
+    }
+
+    public void ApplySkillLevel(SkillInstance skill, SkillDefinition definition, int level)
+    {
+        ArgumentNullException.ThrowIfNull(skill);
+        ArgumentNullException.ThrowIfNull(definition);
+        if (!definition.SupportsLevel(level))
+            throw new ArgumentOutOfRangeException(nameof(level), $"Skill does not provide level {level}.");
+        var baseCombat = definition.Attributes.BaseCombat.CreateMutableCopy();
+        var levelDefinition = definition.GetLevel(level);
+        if (levelDefinition is not null)
+            foreach (var (key, value) in levelDefinition.BaseCombatValues)
+                baseCombat.SetBaseValue(key, value);
+        skill.Attributes.BaseCombat.ReplaceBaseValues(baseCombat);
+        skill.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
+        skill.ReplaceAbilities(levelDefinition?.Abilities ?? definition.Abilities);
+    }
+
     // 将已有卡牌实例刷新为定义中的指定等级，同时保留实例身份与 Modifier。
     public void ApplyCardLevel(CardInstance card, CardDefinition definition, int level)
     {

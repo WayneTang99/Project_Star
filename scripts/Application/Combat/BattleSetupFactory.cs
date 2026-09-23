@@ -95,8 +95,16 @@ public sealed class BattleSetupFactory
                 ArmorAmount: armorAmount));
         }
 
+        var skills = new List<SkillBattleSetup>();
+        foreach (var skill in session.Player.Skills.Items)
+            skills.Add(new SkillBattleSetup(
+                skill.Id,
+                skill.Abilities,
+                skill.Attributes.BaseCombat.SnapshotFinalValues()));
+
         return new BattleSideSetup(
             new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison),
-            cards.AsReadOnly());
+            cards.AsReadOnly(),
+            skills.AsReadOnly());
     }
 }

@@ -31,17 +31,28 @@ public sealed record CardBattleSetup(
     IReadOnlyList<StringName>? ElementKeys = null,
     int ArmorAmount = 0);
 
+public sealed record SkillBattleSetup(
+    EntityId EntityId,
+    IReadOnlyList<AbilityDefinition> Abilities,
+    IReadOnlyDictionary<StringName, int> CombatAttributes);
+
 public sealed class BattleSideSetup
 {
-    public BattleSideSetup(HeroBattleSetup hero, IReadOnlyList<CardBattleSetup> cards)
+    public BattleSideSetup(
+        HeroBattleSetup hero,
+        IReadOnlyList<CardBattleSetup> cards,
+        IReadOnlyList<SkillBattleSetup>? skills = null)
     {
         Hero = hero ?? throw new ArgumentNullException(nameof(hero));
         Cards = cards ?? throw new ArgumentNullException(nameof(cards));
+        Skills = skills ?? Array.Empty<SkillBattleSetup>();
     }
 
     public HeroBattleSetup Hero { get; }
 
     public IReadOnlyList<CardBattleSetup> Cards { get; }
+
+    public IReadOnlyList<SkillBattleSetup> Skills { get; }
 }
 
 /// <summary>An immutable snapshot containing every input used by one battle simulation.</summary>

@@ -102,13 +102,14 @@ flowchart LR
 ### 3.1 全局
 
 - `GameCoordinator` 只协调选角、局内和结算阶段。
+- `GameCoordinator.GetSnapshot` 返回包含对局进度、资源、遭遇选择、卡牌身份、技能和双棋盘位置的只读 `MatchSnapshot`；表现层提交操作给应用用例，不直接读取聚合内部状态。
 - `DefinitionRegistry` 只保存不可变定义。
 - `EntityFactory` 根据定义创建独立实例。
 - 全局对象不得保存本局金钱、声望、卡池或棋盘。
 
 ### 3.2 对局
 
-`MatchSession` 是整局聚合根和唯一事实来源，拥有进度、玩家状态、卡池、双棋盘、遭遇历史和本局随机状态。新对局创建新 Session；对局结束整体销毁。
+`MatchSession` 是整局聚合根和唯一事实来源，拥有进度、玩家状态、卡池、独立技能集合、双棋盘、遭遇历史和本局随机状态。新对局创建新 Session；对局结束整体销毁。所有技能来源通过 `SkillAcquisitionService.AcquireSkill` 获得或合并实例。
 
 ### 3.3 战斗
 
@@ -120,7 +121,7 @@ flowchart LR
 
 ### 4.1 静态定义
 
-- `HeroDefinition`、`CardDefinition`、`EncounterDefinition`、`MonsterDefinition` 是抽象基类。
+- `HeroDefinition`、`CardDefinition`、`SkillDefinition`、`EncounterDefinition`、`MonsterDefinition` 是抽象基类。
 - 每个具体内容是非抽象子类。英雄声明身份与初始属性；卡牌声明身份、初始属性、标签和能力组合；遭遇声明身份与排程配置；怪物声明固定战斗属性与卡组。
 - `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
 - `ChoiceEncounterDefinition` 使用只读选项列表和固定/加权展示槽组合通用遭遇效果，并显式声明遭遇等级；`ResolveEncounterOptionService` 使用对局随机状态生成本次选项、校验一次性选择并结算通用奖励。表现层动态读取选项，不按具体遭遇 key 分支。
@@ -129,7 +130,7 @@ flowchart LR
 
 ### 4.2 运行实例
 
-- `HeroInstance` 和 `CardInstance` 具有唯一 `EntityId`。
+- `HeroInstance`、`CardInstance` 和 `SkillInstance` 具有唯一 `EntityId`。
 - 英雄不持有 `TagSet`；标签只用于卡牌分类。
 - 选择、购买、掉落和奖励均通过 `EntityFactory` 创建独立实例及属性集。
 - 定义不可变，实例变化不得回写定义。
@@ -241,7 +242,7 @@ flowchart TD
 
 ### 10.1 BattleSetup
 
-不可变输入包含战斗类型、双方英雄、双方战场与备战卡牌快照、战斗配置和随机种子。
+不可变输入包含战斗类型、双方英雄、双方战场与备战卡牌快照、双方技能快照、战斗配置和随机种子。
 
 ### 10.2 BattleRuntime
 
@@ -274,7 +275,7 @@ flowchart TD
 
 `AbilityDefinition` 由 ActivationRule、TargetSelector、ManaCost、Cooldown 和 EffectDefinition 列表组成。卡牌组合通用能力，能力只读取已计算属性，不感知等级。
 
-主动和被动统一转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源、CanActivate 和魔法；通过后扣除魔法、执行效果并发布事件。`ChainPolicy` 允许非回响事件触发一层回响；回响产生的事件带有来源标记，不再匹配任何回响。
+卡牌与技能通过通用能力来源进入同一战斗处理流程。主动能力和回响转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源是否仍有效、主动能力的魔法是否充足；通过后扣除魔法、执行效果并发布事件。被动光环按当前战斗状态求值；卡牌光环来源离开战场或被摧毁后立即失效，技能来源不依赖棋盘位置。`PendingAbility.IsEcho` 标记回响来源；回响产生的事件不再触发其他回响。事件记录来源类型与实例 ID。
 
 ## 13. 数值刷新
 

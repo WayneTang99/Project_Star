@@ -5,11 +5,11 @@ using Project_Star.Domain.Common;
 
 namespace Project_Star.Domain.Match;
 
-// 合并决策使用的只读卡牌实例快照（对局领域层）。
-public sealed record CardMergeCandidate(EntityId Id, StringName DefinitionKey, int Level);
+// 合并决策使用的只读实体实例快照（对局领域层）。
+public sealed record MergeCandidate(EntityId Id, StringName DefinitionKey, int Level);
 
-// 以稳定 EntityId 顺序选择同 key、同等级卡牌（对局领域层）。
-public static class CardMergeDecision
+// 以稳定 EntityId 顺序选择同 key、同等级的合并目标（对局领域层）。
+public static class MergeDecision
 {
     public const int MaximumMergeLevel = 4;
 
@@ -17,7 +17,7 @@ public static class CardMergeDecision
     public static EntityId? FindTarget(
         StringName definitionKey,
         int level,
-        IReadOnlyList<CardMergeCandidate> candidates,
+        IReadOnlyList<MergeCandidate> candidates,
         IReadOnlySet<EntityId>? excluded = null)
     {
         if (level >= MaximumMergeLevel) return null;

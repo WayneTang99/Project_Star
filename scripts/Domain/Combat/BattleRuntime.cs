@@ -37,7 +37,19 @@ internal sealed class BattleAbilityState
     public int RemainingCooldownUnits { get; set; }
 }
 
-internal sealed class CardBattleState
+internal interface IBattleAbilitySource
+{
+    EntityId EntityId { get; }
+    SideId Side { get; }
+    bool Destroyed { get; }
+    bool IsOnBench { get; }
+    int ActivationCount { get; set; }
+    int CooldownBonusTicks { get; set; }
+    List<BattleAbilityState> Abilities { get; }
+    int GetCombatAttribute(StringName key);
+}
+
+internal sealed class CardBattleState : IBattleAbilitySource
 {
     public CardBattleState(CardBattleSetup setup, SideId side)
     {
@@ -98,8 +110,32 @@ internal sealed class CardBattleState
     }
 }
 
+internal sealed class SkillBattleState : IBattleAbilitySource
+{
+    private readonly IReadOnlyDictionary<StringName, int> _combatAttributes;
+
+    public SkillBattleState(SkillBattleSetup setup, SideId side)
+    {
+        EntityId = setup.EntityId;
+        Side = side;
+        _combatAttributes = setup.CombatAttributes;
+        foreach (var definition in setup.Abilities) Abilities.Add(new BattleAbilityState(definition));
+    }
+
+    public EntityId EntityId { get; }
+    public SideId Side { get; }
+    public bool Destroyed => false;
+    public bool IsOnBench => false;
+    public int ActivationCount { get; set; }
+    public int CooldownBonusTicks { get; set; }
+    public List<BattleAbilityState> Abilities { get; } = [];
+
+    public int GetCombatAttribute(StringName key) =>
+        _combatAttributes.TryGetValue(key, out var value) ? value : 0;
+}
+
 internal sealed record PendingAbility(
-    CardBattleState Source,
+    IBattleAbilitySource Source,
     BattleAbilityState Ability,
     bool IsEcho,
     bool IsMulticast,
@@ -120,11 +156,26 @@ internal sealed class BattleRuntime
         RandomState = setup.Seed;
         PlayerHero = new HeroBattleState(setup.Player.Hero); OpponentHero = new HeroBattleState(setup.Opponent.Hero);
         AddCards(setup.Player.Cards, SideId.Player); AddCards(setup.Opponent.Cards, SideId.Opponent); Cards.Sort(CompareCards);
+        AddSkills(setup.Player.Skills, SideId.Player); AddSkills(setup.Opponent.Skills, SideId.Opponent);
     }
     public BattleTick Tick { get; set; } = BattleTick.Zero;
     public HeroBattleState PlayerHero { get; }
     public HeroBattleState OpponentHero { get; }
     public List<CardBattleState> Cards { get; } = [];
+    public List<SkillBattleState> Skills { get; } = [];
+    public IEnumerable<IBattleAbilitySource> AbilitySources
+    {
+        get
+        {
+            foreach (var side in new[] { SideId.Player, SideId.Opponent })
+            {
+                foreach (var card in Cards)
+                    if (card.Side == side) yield return card;
+                foreach (var skill in Skills)
+                    if (skill.Side == side) yield return skill;
+            }
+        }
+    }
     public AbilityQueue Queue { get; } = new();
     public List<BattleEvent> Events { get; } = [];
     public List<PermanentChange> PermanentChanges { get; } = [];
@@ -141,6 +192,13 @@ internal sealed class BattleRuntime
         return (int)(value % (ulong)count);
     }
     private void AddCards(IReadOnlyList<CardBattleSetup> cards, SideId side) { foreach (var card in cards) Cards.Add(new(card, side)); }
+    private void AddSkills(IReadOnlyList<SkillBattleSetup> skills, SideId side)
+    {
+        foreach (var skill in skills) Skills.Add(new SkillBattleState(skill, side));
+        Skills.Sort((left, right) => left.Side != right.Side
+            ? left.Side.CompareTo(right.Side)
+            : left.EntityId.Value.CompareTo(right.EntityId.Value));
+    }
     private static int CompareCards(CardBattleState left, CardBattleState right)
     {
         var side = left.Side.CompareTo(right.Side); if (side != 0) return side;

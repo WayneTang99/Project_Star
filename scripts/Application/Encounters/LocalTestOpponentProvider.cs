@@ -41,6 +41,8 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
         return session;
     }
 
+    public MatchSession CreateOpponent(MatchSession player) => CreateOpponent(player.Random.State);
+
     // 按怪物固定属性与卡组创建独立对手实例。
     public MatchSession CreateMonsterOpponent(ulong seed, MonsterDefinition definition)
     {
@@ -59,4 +61,7 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
         }
         return session;
     }
+
+    public MatchSession CreateMonsterOpponent(MatchSession player, MonsterDefinition definition) =>
+        CreateMonsterOpponent(player.Random.State, definition);
 }

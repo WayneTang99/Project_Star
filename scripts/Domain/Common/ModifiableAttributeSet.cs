@@ -35,6 +35,15 @@ public sealed class ModifiableAttributeSet
         return value;
     }
 
+    public IReadOnlyDictionary<StringName, int> SnapshotFinalValues()
+    {
+        var keys = new HashSet<StringName>(_baseValues.Keys);
+        foreach (var modifier in _modifiers.Values) keys.Add(modifier.AttributeKey);
+        var values = new Dictionary<StringName, int>();
+        foreach (var key in keys) values.Add(key, GetFinalValue(key));
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(values);
+    }
+
     public void SetBaseValue(StringName attributeKey, int value)
     {
         EnsureMutable();

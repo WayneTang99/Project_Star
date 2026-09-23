@@ -63,13 +63,17 @@ public sealed class CombatSimulator
 
     private static void Enqueue(
         BattleRuntime runtime,
-        CardBattleState card,
+        IBattleAbilitySource card,
         BattleAbilityState ability,
         bool echo,
         bool multicast = false)
     {
         runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick));
-        runtime.Events.Add(new AbilityQueuedEvent(runtime.Tick, card.EntityId, card.Side));
+        runtime.Events.Add(new AbilityQueuedEvent(
+            runtime.Tick,
+            card.EntityId,
+            card.Side,
+            card is SkillBattleState ? AbilitySourceKind.Skill : AbilitySourceKind.Card));
     }
 
     private static void ResolveQueue(BattleRuntime runtime)
@@ -91,10 +95,15 @@ public sealed class CombatSimulator
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
             if (!pending.IsEcho && !pending.IsMulticast)
                 pending.Ability.RemainingCooldownUnits = (definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2;
-            runtime.Events.Add(new AbilityActivatedEvent(runtime.Tick, pending.Source.EntityId, pending.Source.Side, pending.IsEcho));
-            if (!pending.IsEcho && !pending.IsMulticast)
-                for (var repeat = 0; repeat < GetEffectiveMulticast(runtime, pending.Source); repeat++)
-                    Enqueue(runtime, pending.Source, pending.Ability, false, true);
+            runtime.Events.Add(new AbilityActivatedEvent(
+                runtime.Tick,
+                pending.Source.EntityId,
+                pending.Source.Side,
+                pending.IsEcho,
+                pending.Source is SkillBattleState ? AbilitySourceKind.Skill : AbilitySourceKind.Card));
+            if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
+                for (var repeat = 0; repeat < GetEffectiveMulticast(runtime, cardSource); repeat++)
+                    Enqueue(runtime, cardSource, pending.Ability, false, true);
             foreach (var effect in definition.Effects) ApplyEffect(runtime, pending, effect);
             if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
@@ -104,7 +113,7 @@ public sealed class CombatSimulator
     private static int GetEffectiveMulticast(BattleRuntime runtime, CardBattleState card)
     {
         var multicast = card.GetCombatAttribute(GameAttributeKeys.Multicast);
-        foreach (var source in runtime.Cards)
+        foreach (var source in runtime.AbilitySources)
         {
             if (source.Side != card.Side || source.Destroyed || source.IsOnBench) continue;
             foreach (var ability in source.Abilities)
@@ -125,12 +134,12 @@ public sealed class CombatSimulator
 
     private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin)
     {
-        foreach (var card in runtime.Cards)
-        foreach (var ability in card.Abilities)
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
         {
-            if (card.Destroyed || (card.IsOnBench && !ability.Definition.AllowsBench)) continue;
+            if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
-                Enqueue(runtime, card, ability, true);
+                Enqueue(runtime, source, ability, true);
         }
     }
 
@@ -143,12 +152,14 @@ public sealed class CombatSimulator
         switch (effect)
         {
             case DamageEffectDefinition damage:
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor);
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor,
+                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case MaxHealthPercentDamageEffectDefinition percentDamage:
                 var amount = checked((int)((long)hero.MaxHealth * percentDamage.Percent / 100));
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor);
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor,
+                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case AttributeDamageEffectDefinition attributeDamage:
@@ -158,7 +169,8 @@ public sealed class CombatSimulator
                     targetSide,
                     hero,
                     GetEffectiveCombatAttribute(runtime, pending.Source, attributeDamage.AttributeKey),
-                    attributeDamage.BypassArmor);
+                    attributeDamage.BypassArmor,
+                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case HealEffectDefinition heal:
@@ -185,10 +197,14 @@ public sealed class CombatSimulator
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, status.Amount));
                 break;
             case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
-                ApplyStatusToAdjacentAlliedCards(runtime, pending.Source, adjacent);
+                if (pending.Source is not CardBattleState adjacentSource)
+                    throw new InvalidOperationException("Adjacent card effects require a card source.");
+                ApplyStatusToAdjacentAlliedCards(runtime, adjacentSource, adjacent);
                 break;
             case DestroyCardEffectDefinition destroy:
-                DestroyCard(runtime, pending.Source, pending.Source.EntityId, destroy.Permanent);
+                if (pending.Source is not CardBattleState destroySource)
+                    throw new InvalidOperationException("Self-destruction requires a card source.");
+                DestroyCard(runtime, destroySource, pending.Source.EntityId, destroy.Permanent);
                 break;
             case DestroyRandomEnemyCardEffectDefinition randomDestroy:
                 DestroyRandomEnemyCard(runtime, pending.Source, randomDestroy);
@@ -227,7 +243,7 @@ public sealed class CombatSimulator
         }
     }
 
-    private static int GetEffectiveCombatAttribute(BattleRuntime runtime, CardBattleState source, StringName key)
+    private static int GetEffectiveCombatAttribute(BattleRuntime runtime, IBattleAbilitySource source, StringName key)
     {
         var value = source.GetCombatAttribute(key);
         foreach (var ability in source.Abilities)
@@ -268,7 +284,7 @@ public sealed class CombatSimulator
 
     private static void DestroyRandomEnemyCard(
         BattleRuntime runtime,
-        CardBattleState source,
+        IBattleAbilitySource source,
         DestroyRandomEnemyCardEffectDefinition effect)
     {
         var candidates = new System.Collections.Generic.List<CardBattleState>();
@@ -307,7 +323,7 @@ public sealed class CombatSimulator
     {
         if (card.Destroyed) return card.DestroyedTags.Contains(tag);
         if (card.Tags.Contains(tag)) return true;
-        foreach (var source in runtime.Cards)
+        foreach (var source in runtime.AbilitySources)
         {
             if (source.Side == card.Side || source.Destroyed || source.IsOnBench) continue;
             foreach (var ability in source.Abilities)
@@ -329,7 +345,7 @@ public sealed class CombatSimulator
     {
         if (target.Destroyed) return;
         foreach (var tag in target.Tags) target.DestroyedTags.Add(tag);
-        foreach (var source in runtime.Cards)
+        foreach (var source in runtime.AbilitySources)
         {
             if (source.Side == target.Side || source.Destroyed || source.IsOnBench) continue;
             foreach (var ability in source.Abilities)
@@ -348,7 +364,7 @@ public sealed class CombatSimulator
         if (permanent) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
     }
 
-    private static void ApplyStatus(CardBattleState card, HeroBattleState hero, ApplyStatusEffectDefinition effect)
+    private static void ApplyStatus(IBattleAbilitySource source, HeroBattleState hero, ApplyStatusEffectDefinition effect)
     {
         switch (effect.Status)
         {
@@ -356,9 +372,14 @@ public sealed class CombatSimulator
             case BattleStatus.Poison: hero.Poison = checked(hero.Poison + effect.Amount); break;
             case BattleStatus.HealthRegen: hero.HealthRegen = checked(hero.HealthRegen + effect.Amount); break;
             case BattleStatus.ManaRegen: hero.ManaRegen = checked(hero.ManaRegen + effect.Amount); break;
-            case BattleStatus.HasteDuration: card.HasteDuration = checked(card.HasteDuration + effect.Amount); break;
-            case BattleStatus.SlowDuration: card.SlowDuration = checked(card.SlowDuration + effect.Amount); break;
-            case BattleStatus.ImmobilizeDuration: card.ImmobilizeDuration = checked(card.ImmobilizeDuration + effect.Amount); break;
+            case BattleStatus.HasteDuration when source is CardBattleState card:
+                card.HasteDuration = checked(card.HasteDuration + effect.Amount); break;
+            case BattleStatus.SlowDuration when source is CardBattleState card:
+                card.SlowDuration = checked(card.SlowDuration + effect.Amount); break;
+            case BattleStatus.ImmobilizeDuration when source is CardBattleState card:
+                card.ImmobilizeDuration = checked(card.ImmobilizeDuration + effect.Amount); break;
+            case BattleStatus.HasteDuration or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration:
+                throw new InvalidOperationException("Card status requires a card source.");
         }
     }
 
@@ -385,12 +406,12 @@ public sealed class CombatSimulator
 
     private static void EnqueueDamageEchoes(BattleRuntime runtime)
     {
-        foreach (var card in runtime.Cards)
-        foreach (var ability in card.Abilities)
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
         {
-            if (card.Destroyed || (card.IsOnBench && !ability.Definition.AllowsBench)) continue;
+            if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnDamageDealt)
-                Enqueue(runtime, card, ability, true);
+                Enqueue(runtime, source, ability, true);
         }
     }
 

@@ -65,6 +65,8 @@ public sealed class PlayerState
 
     public CardInventory Inventory { get; } = new();
 
+    public SkillInventory Skills { get; } = new();
+
     public ModifiableAttributeSet Resources { get; } = new();
 
     public int Wealth => Resources.GetBaseValue(GameAttributeKeys.Wealth);
@@ -124,6 +126,28 @@ public sealed class CardInventory
     {
         var card = Find(id);
         return card is not null && _cards.Remove(card);
+    }
+}
+
+public sealed class SkillInventory
+{
+    private readonly List<SkillInstance> _skills = [];
+
+    public IReadOnlyList<SkillInstance> Items => _skills;
+
+    public void Add(SkillInstance skill) => _skills.Add(skill ?? throw new ArgumentNullException(nameof(skill)));
+
+    public SkillInstance? Find(EntityId id)
+    {
+        foreach (var skill in _skills)
+            if (skill.Id == id) return skill;
+        return null;
+    }
+
+    internal bool Remove(EntityId id)
+    {
+        var skill = Find(id);
+        return skill is not null && _skills.Remove(skill);
     }
 }
 
