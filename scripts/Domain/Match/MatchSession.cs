@@ -10,6 +10,7 @@ public sealed class MatchSession
 {
     private readonly List<PendingMonsterReward> _pendingMonsterRewards = [];
     private readonly List<AppliedCardSetModifier> _appliedCardSetModifiers = [];
+    private readonly List<AppliedCardQuestModifier> _appliedCardQuestModifiers = [];
 
     public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10)
     {
@@ -44,6 +45,8 @@ public sealed class MatchSession
 
     internal List<AppliedCardSetModifier> AppliedCardSetModifiers => _appliedCardSetModifiers;
 
+    internal List<AppliedCardQuestModifier> AppliedCardQuestModifiers => _appliedCardQuestModifiers;
+
     internal void AddPendingMonsterReward(PendingMonsterReward reward) => _pendingMonsterRewards.Add(reward);
 
     internal void RemoveFirstPendingMonsterReward() => _pendingMonsterRewards.RemoveAt(0);
@@ -54,6 +57,9 @@ public sealed class MatchSession
 }
 
 internal sealed record AppliedCardSetModifier(ModifierId Id, EntityId TargetId, bool IsHero);
+
+// 一条已施加的卡牌任务数值贡献（领域对局层）。
+internal sealed record AppliedCardQuestModifier(ModifierId ModifierId, EntityId CardId);
 
 public sealed class MatchProgress
 {

@@ -4,6 +4,7 @@ using Project_Star.Application.Common;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Match;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 using Project_Star.Infrastructure.Random;
 
 namespace Project_Star.Application.Match;
@@ -18,8 +19,13 @@ public enum MatchBattleKind
 public sealed class MatchResultService
 {
     private readonly BoardService _boardService;
+    private readonly CardQuestService _quests;
 
-    public MatchResultService(BoardService boardService) => _boardService = boardService;
+    public MatchResultService(BoardService boardService)
+    {
+        _boardService = boardService ?? throw new ArgumentNullException(nameof(boardService));
+        _quests = new CardQuestService(boardService);
+    }
 
     public Result Apply(
         MatchSession session,
@@ -39,6 +45,8 @@ public sealed class MatchResultService
             return Result.Fail(new Failure(new Godot.StringName("match.invalid_monster"), "A valid monster opponent is required."));
 
         ApplyPermanentChanges(session, battle);
+        if (battle.Outcome == BattleOutcome.PlayerVictory)
+            _quests.ProcessEvent(session, new BattleWonQuestEvent());
         if (kind == MatchBattleKind.Monster)
         {
             SettleMonsterBattle(session, opponent!, battle);

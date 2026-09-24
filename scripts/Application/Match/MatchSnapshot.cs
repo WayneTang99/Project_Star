@@ -8,6 +8,9 @@ using Project_Star.Domain.Match;
 
 namespace Project_Star.Application.Match;
 
+// 单张卡牌的只读任务进度（应用快照层）。
+public sealed record QuestProgressSnapshot(StringName Key, int Progress, int RequiredCount, bool Unlocked);
+
 public sealed record CardSnapshot(
     EntityId Id,
     StringName Key,
@@ -16,7 +19,8 @@ public sealed record CardSnapshot(
     int Value,
     CardSize Size,
     StringName FactionKey,
-    IReadOnlyList<StringName> ElementKeys);
+    IReadOnlyList<StringName> ElementKeys,
+    IReadOnlyList<QuestProgressSnapshot> Quests);
 
 public sealed record BoardPlacementSnapshot(EntityId CardId, BoardZone Zone, int Start, int EndExclusive);
 
@@ -53,6 +57,10 @@ public sealed record MatchSnapshot(
         foreach (var card in session.Player.Inventory.Cards)
         {
             var identity = card.Attributes.Identity;
+            var quests = new List<QuestProgressSnapshot>();
+            foreach (var quest in card.Quests)
+                quests.Add(new QuestProgressSnapshot(
+                    quest.Key, card.GetQuestProgress(quest.Key), quest.RequiredCount, card.IsQuestUnlocked(quest)));
             cards.Add(new CardSnapshot(
                 card.Id,
                 identity.Key,
@@ -61,7 +69,8 @@ public sealed record MatchSnapshot(
                 card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value),
                 identity.Size,
                 identity.FactionKey,
-                identity.ElementKeys));
+                identity.ElementKeys,
+                quests.AsReadOnly()));
         }
         var placements = new List<BoardPlacementSnapshot>();
         var skills = new List<SkillSnapshot>();

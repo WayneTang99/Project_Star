@@ -53,7 +53,8 @@ public sealed class EntityFactory
             attributes,
             definition.Tags,
             levelDefinition?.Abilities ?? definition.Abilities,
-            definition.OnSellReward);
+            definition.OnSellReward,
+            definition.Quests);
     }
 
     public SkillInstance CreateSkill(SkillDefinition definition, int? level = null)

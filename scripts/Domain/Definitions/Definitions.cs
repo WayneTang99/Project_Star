@@ -27,7 +27,8 @@ public abstract class CardDefinition
         IReadOnlyList<AbilityDefinition>? abilities = null,
         int initialLevel = 1,
         IReadOnlyList<CardLevelDefinition>? levels = null,
-        CardOnSellRewardDefinition? onSellReward = null)
+        CardOnSellRewardDefinition? onSellReward = null,
+        IReadOnlyList<CardQuestDefinition>? quests = null)
     {
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         Tags = TagSet.ForCard(attributes.Identity.Size, tags);
@@ -51,6 +52,11 @@ public abstract class CardDefinition
             && (randomReward.RequiredTag.IsEmpty || randomReward.Count < 1))
             throw new ArgumentException("Random on-sell reward configuration is invalid.", nameof(onSellReward));
         OnSellReward = onSellReward;
+        var questKeys = new HashSet<StringName>();
+        foreach (var quest in quests ?? Array.Empty<CardQuestDefinition>())
+            if (!questKeys.Add(quest.Key))
+                throw new ArgumentException($"Duplicate card quest '{quest.Key}'.", nameof(quests));
+        Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
         DefinitionFreezer.Freeze(attributes);
     }
 
@@ -65,6 +71,8 @@ public abstract class CardDefinition
     public IReadOnlyDictionary<int, CardLevelDefinition> Levels { get; }
 
     public CardOnSellRewardDefinition? OnSellReward { get; }
+
+    public IReadOnlyList<CardQuestDefinition> Quests { get; }
 
     public bool SupportsLevel(int level) => Levels.Count == 0 ? level is >= 1 and <= 4 : Levels.ContainsKey(level);
 

@@ -133,7 +133,7 @@ public sealed class AbilityDefinition
             && cooldownTicks != 0)
             throw new ArgumentException("A passive ability cannot have a cooldown.", nameof(cooldownTicks));
         if (activation == AbilityActivation.PassiveWhileEnabled
-            && (target is not AbilityTarget.SourceGroupCards and not AbilityTarget.OtherBattlefieldCards
+            && (target is not AbilityTarget.SelfCard and not AbilityTarget.SourceGroupCards and not AbilityTarget.OtherBattlefieldCards
                 and not AbilityTarget.AllBattlefieldCards and not AbilityTarget.AlliedHero
                 || allowsBench))
             throw new ArgumentException("Persistent ability target is invalid.", nameof(target));

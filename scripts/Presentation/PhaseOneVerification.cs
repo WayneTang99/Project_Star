@@ -80,6 +80,8 @@ public sealed partial class PhaseOneVerification : Control
         ("套装按战场不同卡牌累计阈值并精确移除", CheckCardSetBonuses),
         ("显式套装目标可覆盖战场卡牌与英雄但不覆盖备战区", CheckCardSetExplicitTargets),
         ("套装战斗来源在成员摧毁后仍按快照触发", CheckCardSetBattleSource),
+        ("任务按卡牌实例累计且仅在战场区激活解锁能力", CheckCardQuestProgress),
+        ("任务解锁的战斗能力随来源卡牌摧毁而失效", CheckCardQuestBattleDestroy),
         ("移出棋盘后卡牌可以出售", CheckRemoveThenSell),
         ("战斗快照与对局实例隔离", CheckBattleSnapshotIsolation),
         ("相同输入产生相同战斗日志", CheckDeterministicBattle),
@@ -2529,6 +2531,81 @@ public sealed partial class PhaseOneVerification : Control
                 value.SourceKind == AbilitySourceKind.CardSet) == 1;
     }
 
+    private static bool CheckCardQuestProgress()
+    {
+        var definition = new VerificationQuestCardDefinition();
+        var factory = new EntityFactory();
+        var session = new MatchSession(1);
+        session.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var board = new BoardService(new BoardPlacementSolver());
+        var first = factory.CreateCard(definition);
+        var second = factory.CreateCard(definition);
+        var third = factory.CreateCard(definition);
+        session.Player.Inventory.Add(first);
+        session.Player.Inventory.Add(second);
+        if (board.PlaceCard(session, first.Id, BoardZone.Battlefield, 0).IsFailure
+            || board.PlaceCard(session, second.Id, BoardZone.Bench, 0).IsFailure)
+            return false;
+        var quest = definition.Quests[0];
+        if (first.IsQuestUnlocked(quest) || second.IsQuestUnlocked(quest)) return false;
+
+        var victory = new BattleResult(BattleOutcome.PlayerVictory, BattleEndReason.HeroDefeated,
+            BattleTick.Zero, 100, 0, []);
+        if (new MatchResultService(board).Apply(session, victory, MatchBattleKind.Pvp).IsFailure
+            || !first.IsQuestUnlocked(quest) || !second.IsQuestUnlocked(quest)
+            || first.GetQuestProgress(quest.Key) != 1 || second.GetQuestProgress(quest.Key) != 1
+            || first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 105
+            || second.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 5)
+            return false;
+
+        session.Player.Inventory.Add(third);
+        if (board.PlaceCard(session, third.Id, BoardZone.Bench, 1).IsFailure) return false;
+        var defeat = new BattleResult(BattleOutcome.OpponentVictory, BattleEndReason.HeroDefeated,
+            BattleTick.Zero, 0, 100, []);
+        if (new MatchResultService(board).Apply(session, defeat, MatchBattleKind.Pvp).IsFailure
+            || third.GetQuestProgress(quest.Key) != 0
+            || board.PlaceCard(session, first.Id, BoardZone.Bench, 2).IsFailure
+            || board.PlaceCard(session, second.Id, BoardZone.Battlefield, 0).IsFailure)
+            return false;
+
+        var opponent = new MatchSession(2);
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var frozen = new BattleSetupFactory().Create(session, opponent, 1, new BattleTick(2));
+        var snapshot = MatchSnapshot.From(session);
+        return first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 5
+            && second.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 105
+            && frozen.Player.Cards[0].AttackDamage == 105
+            && snapshot.Cards.Single(value => value.Id == first.Id).Quests[0].Unlocked
+            && !snapshot.Cards.Single(value => value.Id == third.Id).Quests[0].Unlocked
+            && new MatchResultService(board).Apply(session, victory, MatchBattleKind.Pvp).IsSuccess
+            && third.IsQuestUnlocked(quest)
+            && third.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 5;
+    }
+
+    private static bool CheckCardQuestBattleDestroy()
+    {
+        var definition = new VerificationQuestSelfDestroyCardDefinition();
+        var factory = new EntityFactory();
+        var session = new MatchSession(1);
+        var opponent = new MatchSession(2);
+        session.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var card = factory.CreateCard(definition);
+        session.Player.Inventory.Add(card);
+        var board = new BoardService(new BoardPlacementSolver());
+        if (board.PlaceCard(session, card.Id, BoardZone.Battlefield, 0).IsFailure) return false;
+        var setupFactory = new BattleSetupFactory();
+        if (setupFactory.Create(session, opponent, 1, new BattleTick(2)).Player.Cards[0].Abilities!.Count != 1)
+            return false;
+        new CardQuestService(board).ProcessEvent(session, new BattleWonQuestEvent());
+        var setup = setupFactory.Create(session, opponent, 1, new BattleTick(2));
+        if (setup.Player.Cards[0].Abilities!.Count != 2) return false;
+        var events = new CombatSimulator().Simulate(setup).Events;
+        return events.OfType<CardDestroyedEvent>().Any(value => value.CardId == card.Id)
+            && events.OfType<DamageDealtEvent>().Count(value => value.SourceCardId == card.Id) == 1
+            && !events.OfType<AbilityActivatedEvent>().Any(value => value.SourceCardId == card.Id && value.IsEcho);
+    }
+
     private static DefinitionRegistry CreateVerificationRegistry() => DefinitionRegistry.Create(
     [
         new VerificationHeroDefinition(),
@@ -2657,6 +2734,59 @@ public sealed partial class PhaseOneVerification : Control
                     new StringName("verification.self_destroying_attack"), AbilityActivation.Active,
                     AbilityTarget.EnemyHero, 0, 1,
                     [new DestroyCardEffectDefinition(false), new DamageEffectDefinition(1)])])
+        {
+        }
+    }
+
+    // 验证任务数值解锁与实例独立进度的卡牌（表现层验证模块）。
+    private sealed class VerificationQuestCardDefinition : CardDefinition
+    {
+        public VerificationQuestCardDefinition()
+            : base(
+                new EntityAttributes<CardIdentityAttributes>(
+                    new CardIdentityAttributes(
+                        new StringName("verification.quest_card"), "验证任务卡",
+                        GameFactions.Neutral, CardSize.Small, [GameElements.General]),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.AttackDamage] = 5,
+                        [GameAttributeKeys.CooldownTicks] = 1,
+                    })),
+                new TagSet(),
+                [new AbilityDefinition(new StringName("verification.quest_attack"),
+                    AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 1,
+                    [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage)])],
+                quests: [new CardQuestDefinition(
+                    new StringName("verification.win_once"), new BattleVictoryQuestConditionDefinition(), 1,
+                    [new AbilityDefinition(new StringName("verification.quest_attack_bonus"),
+                        AbilityActivation.PassiveWhileEnabled, AbilityTarget.SelfCard, 0, 0,
+                        [new ModifyAttributeEffectDefinition(GameAttributeKeys.AttackDamage, 100)])])])
+        {
+        }
+    }
+
+    // 验证任务战斗能力随卡牌摧毁失效（表现层验证模块）。
+    private sealed class VerificationQuestSelfDestroyCardDefinition : CardDefinition
+    {
+        public VerificationQuestSelfDestroyCardDefinition()
+            : base(
+                new EntityAttributes<CardIdentityAttributes>(
+                    new CardIdentityAttributes(
+                        new StringName("verification.quest_destroy_card"), "验证自毁任务卡",
+                        GameFactions.Neutral, CardSize.Small, [GameElements.General]),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.CooldownTicks] = 1,
+                    })),
+                new TagSet(),
+                [new AbilityDefinition(new StringName("verification.quest_destroy_attack"),
+                    AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 1,
+                    [new DestroyCardEffectDefinition(false), new DamageEffectDefinition(1)])],
+                quests: [new CardQuestDefinition(
+                    new StringName("verification.destroy_win_once"), new BattleVictoryQuestConditionDefinition(), 1,
+                    [new AbilityDefinition(new StringName("verification.quest_destroy_echo"),
+                        AbilityActivation.EchoOnDamageDealt, AbilityTarget.EnemyHero, 0, 0,
+                        [new DamageEffectDefinition(7)])])])
         {
         }
     }

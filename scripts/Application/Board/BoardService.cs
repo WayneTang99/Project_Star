@@ -32,6 +32,7 @@ public sealed class BoardService
 
     private readonly BoardPlacementSolver _solver;
     private readonly CardSetBonusService? _setBonuses;
+    private readonly CardQuestBonusService _questBonuses = new();
 
     public BoardService(BoardPlacementSolver solver, IReadOnlyDictionary<StringName, CardSetDefinition>? sets = null)
     {
@@ -91,6 +92,7 @@ public sealed class BoardService
             movingCardIsPushable,
             plan);
         _setBonuses?.Recalculate(session);
+        _questBonuses.Recalculate(session);
 
         return Result<BoardPlacementResult>.Success(
             new BoardPlacementResult(plan.Direction, plan.TotalDistance, plan.AffectedCards, moves));
@@ -132,8 +134,12 @@ public sealed class BoardService
 
         session.Board.GetZone(location.Value.Zone).Remove(cardId);
         _setBonuses?.Recalculate(session);
+        _questBonuses.Recalculate(session);
         return Result.Success();
     }
+
+    // 任务解锁后刷新当前战场的持续属性能力。
+    public void RefreshQuestAbilities(MatchSession session) => _questBonuses.Recalculate(session);
 
     public Result SetPushable(MatchSession session, EntityId cardId, bool isPushable)
     {
