@@ -12,6 +12,7 @@ public static class GameTags
     public static readonly StringName Consumable = new("Consumable");
     public static readonly StringName Human = new("Human");
     public static readonly StringName Beast = new("Beast");
+    public static readonly StringName Mount = new("Mount");
     public static readonly StringName Mechanical = new("Mechanical");
     public static readonly StringName Demon = new("Demon");
     public static readonly StringName Undead = new("Undead");

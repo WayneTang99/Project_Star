@@ -94,6 +94,7 @@ public sealed partial class PhaseOneVerification : Control
         ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
         ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
         ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
+        ("神圣狮鹫使相邻人类疾速并在其获得疾速时强化攻击", CheckHolyGriffin),
         ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
         ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
         ("黎明之剑随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
@@ -1590,6 +1591,115 @@ public sealed partial class PhaseOneVerification : Control
         }
 
         return humanTick == 65 && generalTick == 70 && distantTick == 80;
+    }
+
+    private static bool CheckHolyGriffin()
+    {
+        var definition = new HolyGriffinCardDefinition();
+        var levelTwo = definition.GetLevel(2)!;
+        var levelThree = definition.GetLevel(3)!;
+        var levelFour = definition.GetLevel(4)!;
+        var activeEffect = levelTwo.Abilities[0].Effects[0]
+            as ApplyStatusToAdjacentAlliedCardsEffectDefinition;
+        var passiveEffect = levelTwo.Abilities[1].Effects[0]
+            as ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition;
+        if (definition.InitialLevel != 2
+            || definition.SupportsLevel(1)
+            || !definition.SupportsLevel(2)
+            || !definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Large
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || !definition.Tags.Contains(GameTags.Beast)
+            || !definition.Tags.Contains(GameTags.Mount)
+            || levelTwo.Abilities[0].Activation != AbilityActivation.Active
+            || levelTwo.Abilities[0].CooldownTicks != 50
+            || activeEffect is null
+            || activeEffect.Status != BattleStatus.HasteDuration
+            || activeEffect.Amount != 10
+            || activeEffect.BonusTag != GameTags.Human
+            || activeEffect.BonusMultiplier != 1
+            || levelTwo.Abilities[1].Activation != AbilityActivation.PassiveAura
+            || passiveEffect is null
+            || passiveEffect.Status != BattleStatus.HasteDuration
+            || passiveEffect.RequiredTag != GameTags.Human
+            || passiveEffect.AttributeKey != GameAttributeKeys.AttackDamage
+            || passiveEffect.Amount != 10
+            || ((ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition)
+                levelThree.Abilities[1].Effects[0]).Amount != 20
+            || ((ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition)
+                levelFour.Abilities[1].Effects[0]).Amount != 30)
+        {
+            return false;
+        }
+
+        var bootsDefinition = new MilitaryBootsCardDefinition();
+        var bootsId = EntityId.New();
+        var humanId = EntityId.New();
+        var griffinId = EntityId.New();
+        var humanAttack = new AbilityDefinition(
+            new StringName("test.holy_griffin_human_attack"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            100,
+            [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage)]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                [
+                    new CardBattleSetup(
+                        bootsId,
+                        0,
+                        0,
+                        50,
+                        bootsDefinition.GetLevel(1)!.Abilities,
+                        UseLegacyAttack: false,
+                        OccupiedSlots: 1),
+                    new CardBattleSetup(
+                        humanId,
+                        1,
+                        5,
+                        100,
+                        [humanAttack],
+                        UseLegacyAttack: false,
+                        Tags: new TagSet([GameTags.Human]),
+                        OccupiedSlots: 1),
+                    new CardBattleSetup(
+                        griffinId,
+                        2,
+                        0,
+                        50,
+                        levelTwo.Abilities,
+                        UseLegacyAttack: false,
+                        Tags: definition.Tags,
+                        OccupiedSlots: 3),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                Array.Empty<CardBattleSetup>()),
+            1,
+            new BattleTick(51),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var bonusEvents = 0;
+        var finalAttack = 0;
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is not CardAttributeChangedEvent changed
+                || changed.CardId != humanId
+                || changed.AttributeKey != GameAttributeKeys.AttackDamage)
+            {
+                continue;
+            }
+            bonusEvents++;
+            finalAttack = changed.CurrentValue;
+        }
+
+        return bonusEvents == 2 && finalAttack == 25;
     }
 
     private static bool CheckCathedral()

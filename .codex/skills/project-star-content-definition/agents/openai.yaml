@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Star 内容定义"
+  short_description: "定义并实现卡牌、技能、遭遇、英雄与怪物内容"
+  default_prompt: "使用 $project-star-content-definition 定义并实现一个新的 Project Star 游戏内容。"

@@ -236,6 +236,8 @@ public sealed class CombatSimulator
             case ApplyStatusEffectDefinition status:
                 ApplyStatus(pending.Source, hero, status);
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, status.Amount));
+                if (pending.Source is CardBattleState statusCard)
+                    ApplyAdjacentStatusReactions(runtime, statusCard, status.Status);
                 break;
             case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
                 if (pending.Source is not CardBattleState adjacentSource)
@@ -456,6 +458,44 @@ public sealed class CombatSimulator
                 : effect.Amount;
             ApplyStatus(card, runtime.GetHero(card.Side), new ApplyStatusEffectDefinition(effect.Status, amount));
             runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, amount));
+            ApplyAdjacentStatusReactions(runtime, card, effect.Status);
+        }
+    }
+
+    private static void ApplyAdjacentStatusReactions(
+        BattleRuntime runtime,
+        CardBattleState target,
+        BattleStatus status)
+    {
+        foreach (var source in runtime.Cards)
+        {
+            if (source.Side != target.Side || source.EntityId == target.EntityId
+                || source.Destroyed || source.IsOnBench)
+            {
+                continue;
+            }
+            var sourceEnd = source.BoardStart + source.OccupiedSlots;
+            var targetEnd = target.BoardStart + target.OccupiedSlots;
+            if (targetEnd != source.BoardStart && target.BoardStart != sourceEnd) continue;
+            foreach (var ability in source.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+            {
+                if (ability.Definition.Activation != AbilityActivation.PassiveAura
+                    || effect is not ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition reaction
+                    || reaction.Status != status
+                    || !target.Tags.Contains(reaction.RequiredTag)
+                    || !target.SupportsCombatAttribute(reaction.AttributeKey))
+                {
+                    continue;
+                }
+                var currentValue = target.AddCombatAttribute(reaction.AttributeKey, reaction.Amount);
+                runtime.Events.Add(new CardAttributeChangedEvent(
+                    runtime.Tick,
+                    target.EntityId,
+                    reaction.AttributeKey,
+                    reaction.Amount,
+                    currentValue));
+            }
         }
     }
 

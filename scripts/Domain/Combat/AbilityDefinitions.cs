@@ -88,6 +88,13 @@ public sealed record ApplyStatusToAdjacentAlliedCardsEffectDefinition(
     StringName BonusTag,
     int BonusMultiplier = 2) : EffectDefinition;
 
+// 当相邻友方指定标签卡牌获得指定状态时，增加该目标的战斗属性。
+public sealed record ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition(
+    BattleStatus Status,
+    StringName RequiredTag,
+    StringName AttributeKey,
+    int Amount) : EffectDefinition;
+
 public sealed record DestroyCardEffectDefinition(bool Permanent) : EffectDefinition;
 
 // 随机摧毁符合尺寸及任一标签条件的敌方卡牌（领域战斗层）。
@@ -164,6 +171,7 @@ public sealed class AbilityDefinition
                 GainSourceHeroArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
+                ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => value.Amount,
                 GrantMulticastToAlliedElementCardsEffectDefinition value => value.Amount,
                 IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => value.Amount,
                 _ => 0,
@@ -198,6 +206,17 @@ public sealed class AbilityDefinition
                     || adjacent.BonusMultiplier < 1))
             {
                 throw new ArgumentException("Adjacent card status configuration is invalid.", nameof(effects));
+            }
+            if (effect is ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition statusReaction
+                && (activation != AbilityActivation.PassiveAura
+                    || statusReaction.Status is not BattleStatus.HasteDuration
+                        and not BattleStatus.SlowDuration
+                        and not BattleStatus.ImmobilizeDuration
+                    || statusReaction.RequiredTag.IsEmpty
+                    || statusReaction.AttributeKey.IsEmpty
+                    || statusReaction.Amount == 0))
+            {
+                throw new ArgumentException("Adjacent card status reaction configuration is invalid.", nameof(effects));
             }
             if (effect is GrantMulticastToAlliedElementCardsEffectDefinition multicastAura
                 && multicastAura.ElementKey.IsEmpty)
