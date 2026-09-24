@@ -1,0 +1,15 @@
+记录类型,EncounterKey,名称,类型,轮次,基础权重,等级,配置,选项Key,选项名,展示规则,选项效果
+遭遇,encounter.shop.small,小型商店,商店,1～99,1,1,只提供当前英雄归属的小型卡牌,,,,
+遭遇,encounter.shop.medium,中型商店,商店,1～99,1,1,只提供当前英雄归属的中型卡牌,,,,
+遭遇,encounter.shop.large,大型商店,商店,1～99,1,2,只提供当前英雄归属的大型卡牌,,,,
+遭遇,encounter.training_ground,校场,可选项,1～99,1,1,固定展示体能训练与对阵训练两个选项,,,,
+选项,encounter.training_ground,,,,,,,encounter.training_ground.body_training,体能训练,固定,永久增加当前英雄等级 ×10 的最大生命
+选项,encounter.training_ground,,,,,,,encounter.training_ground.sparring,对阵训练,固定,己方战场区已有攻击能力的卡牌攻击永久+5
+遭遇,encounter.landfill,垃圾场,可选项,1～99,1,1,固定展示“拾取零钱”和“变废为宝”两个选项,,,,
+选项,encounter.landfill,,,,,,,encounter.landfill.wealth,拾取零钱,固定,获得2金币
+选项,encounter.landfill,,,,,,,encounter.landfill.material_small_card,变废为宝,固定,获得随机一张1级小型材料卡牌
+遭遇,encounter.tavern,酒馆,可选项,1～3,1,1,固定展示交易与干杯两个选项,,,,
+选项,encounter.tavern,,,,,,,encounter.tavern.trade,交易,固定,花费2金币并购买随机一张其他英雄归属的1级小型卡牌
+选项,encounter.tavern,,,,,,,encounter.tavern.cheers,干杯,固定,仅下一场战斗获得当前英雄等级×10的额外最大生命
+遭遇,monster.boar,野猪,怪物战,1～99,1,1,第4回合候选；默认战斗属性；战场第1和第2格各放一张独立的1级兽皮；第3至4格放一张1级中型野猪卡；携带1级冲撞技能,,,,
+遭遇,encounter.pvp,异步对战,PvP,1～99,1,—,每轮第8回合固定出现,,,,

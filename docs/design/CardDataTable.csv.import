@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cu8d4h656hhts"
+
+[deps]
+
+files=["res://docs/design/CardDataTable.名称.translation", "res://docs/design/CardDataTable.归属.translation", "res://docs/design/CardDataTable.尺寸.translation", "res://docs/design/CardDataTable.元素.translation", "res://docs/design/CardDataTable.额外标签.translation", "res://docs/design/CardDataTable.初始等级.translation", "res://docs/design/CardDataTable.描述.translation"]
+
+source_file="res://docs/design/CardDataTable.csv"
+dest_files=["res://docs/design/CardDataTable.名称.translation", "res://docs/design/CardDataTable.归属.translation", "res://docs/design/CardDataTable.尺寸.translation", "res://docs/design/CardDataTable.元素.translation", "res://docs/design/CardDataTable.额外标签.translation", "res://docs/design/CardDataTable.初始等级.translation", "res://docs/design/CardDataTable.描述.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

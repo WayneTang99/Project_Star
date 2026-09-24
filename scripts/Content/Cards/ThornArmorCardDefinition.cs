@@ -53,7 +53,8 @@ public sealed class ThornArmorCardDefinition : CardDefinition
                     cooldownTicks,
                     [
                         new GainSourceHeroArmorFromAttributeEffectDefinition(GameAttributeKeys.Armor),
-                        new SourceHeroArmorDamageEffectDefinition(),
+                        new SourceHeroArmorDamageEffectDefinition(
+                            BonusAttributeKey: GameAttributeKeys.AttackDamage),
                     ]),
             ]);
 }

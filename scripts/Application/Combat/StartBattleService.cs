@@ -30,7 +30,10 @@ public sealed class StartBattleService
         try
         {
             var setup = _setupFactory.Create(player, opponent, seed, DefaultTimeout);
-            return Result<BattleResult>.Success(_simulator.Simulate(setup));
+            var result = _simulator.Simulate(setup);
+            _ = player.ConsumePendingBattleMaxHealthBonus();
+            if (!ReferenceEquals(player, opponent)) _ = opponent.ConsumePendingBattleMaxHealthBonus();
+            return Result<BattleResult>.Success(result);
         }
         catch (InvalidOperationException exception)
         {

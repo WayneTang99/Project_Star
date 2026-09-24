@@ -2,7 +2,7 @@
 
 ## 必读位置
 
-- 正式数据：`docs/design/SKILL_DATA.md`
+- 正式数据：`docs/design/SKILL_DATA.md`（字段与规则）和 `docs/design/SkillDataTable.csv`（数据行）
 - 玩法语义：`docs/design/GAME_DESIGN.md`
 - 能力系统：`docs/engineering/ARCHITECTURE.md`
 - 代码范式：`scripts/Content/Skills/`
@@ -14,5 +14,5 @@
 - 使用 `SkillDefinition` 和逐级 `SkillLevelDefinition`，能力 key 使用 `ability.` 前缀。
 - 触发应选择已有的 `AbilityActivation`。若缺少触发类型，新增通用事件语义并验证回响不会递归触发回响。
 - 效果优先组合已有通用效果；技能来源必须能通过战斗快照独立结算。
-- 新技能应生成 `scripts/Content/Skills/<Name>SkillDefinition.cs` 及对应 `.cs.uid`，并更新 `SKILL_DATA.md`。
+- 新技能应生成 `scripts/Content/Skills/<Name>SkillDefinition.cs` 及对应 `.cs.uid`，并更新 `SkillDataTable.csv`；字段或规则变化时更新 `SKILL_DATA.md`。
 - 验证至少覆盖逐级数值、正确触发次数、目标和最终结果。

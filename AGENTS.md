@@ -43,10 +43,10 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | 分类 | 文档 | 职责 | 何时查阅 |
 |---|---|---|---|
 | 设计 | `docs/design/GAME_DESIGN.md` | 游戏设计规则（英雄/卡牌/标签/棋盘/遭遇/胜负） | 理解游戏需求、实现游戏功能时 |
-| 设计 | `docs/design/CARD_DATA.md` | 正式卡牌数据表（等级/价值/标签/描述） | 新增、修改或核对卡牌内容时 |
-| 设计 | `docs/design/SKILL_DATA.md` | 正式技能数据表（等级/归属/效果） | 新增、修改或核对技能内容时 |
-| 设计 | `docs/design/ENCOUNTER_DATA.md` | 正式遭遇数据表（排程/商店/选项） | 新增、修改或核对遭遇内容时 |
-| 设计 | `docs/design/HERO_DATA.md` | 正式英雄数据表（归属/初始属性） | 新增、修改或核对英雄内容时 |
+| 设计 | `docs/design/CARD_DATA.md` / `docs/design/CardDataTable.csv` | 卡牌数据说明与正式 CSV 数据表（等级/价值/标签/描述） | 新增、修改或核对卡牌内容时 |
+| 设计 | `docs/design/SKILL_DATA.md` / `docs/design/SkillDataTable.csv` | 技能字段规则与正式 CSV 数据（等级/归属/效果） | 新增、修改或核对技能内容时 |
+| 设计 | `docs/design/ENCOUNTER_DATA.md` / `docs/design/EncounterDataTable.csv` | 遭遇字段规则与正式 CSV 数据（排程/商店/选项） | 新增、修改或核对遭遇内容时 |
+| 设计 | `docs/design/HERO_DATA.md` / `docs/design/HeroDataTable.csv` | 英雄字段规则与正式 CSV 数据（归属/初始属性） | 新增、修改或核对英雄内容时 |
 | 设计 | `docs/design/GLOSSARY.md` | 术语表（英文名 + 中文名 + 定义） | 提出需求、写代码前先查术语 |
 | 工程 | `docs/engineering/ARCHITECTURE.md` | 架构设计 + 战斗系统 + 能力系统实现细节 | 理解代码结构、写新系统时 |
 | 工程 | `docs/engineering/DESIGN_PRINCIPLES.md` | 软件设计原则（SOLID + 扩展模式） | 编写与审查代码时 |
@@ -55,3 +55,5 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | 计划 | `docs/planning/CONTENT_EXPANSION_PLAN.md` | 内容并行扩充 + 技能/套装/收入实施计划 | 扩充实际内容、实现新增系统时 |
 | 质量 | `docs/quality/MANUAL_ACCEPTANCE.md` | 当前试玩的人工验收步骤 | 验证试玩流程时 |
 | 质量 | `docs/quality/BUG_LOG.md` | BUG 发现与修复记录 | 发现 bug、修复 bug 时 |
+
+正式内容数据表使用 CSV 存储；新增或更新数据表时优先维护对应 CSV，Markdown 文档用于解释字段和规则，不重复维护数据行。

@@ -216,12 +216,15 @@ public sealed class CombatSimulator
                 break;
             case SourceHeroArmorDamageEffectDefinition heroArmorDamage:
                 var armorSourceHero = runtime.GetHero(pending.Source.Side);
+                var bonusDamage = heroArmorDamage.BonusAttributeKey is not { IsEmpty: false } bonusAttributeKey
+                    ? 0
+                    : GetEffectiveCombatAttribute(runtime, pending.Source, bonusAttributeKey);
                 ApplyDamage(
                     runtime,
                     pending.Source.EntityId,
                     targetSide,
                     hero,
-                    armorSourceHero.Armor,
+                    checked(armorSourceHero.Armor + bonusDamage),
                     heroArmorDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);

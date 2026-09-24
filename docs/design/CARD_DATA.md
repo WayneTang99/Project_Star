@@ -1,6 +1,6 @@
 # Project_Star 卡牌数据表
 
-本文档记录正式卡牌内容数据，供设计、实现和审查使用。玩法规则以 `docs/design/GAME_DESIGN.md` 为准，术语以 `docs/design/GLOSSARY.md` 为准；代码中的具体 `CardDefinition` 是运行时数据来源。
+本文档说明正式卡牌数据的字段和维护规则。卡牌数据行以 `docs/design/CardDataTable.csv` 为准。玩法规则以 `docs/design/GAME_DESIGN.md` 为准，术语以 `docs/design/GLOSSARY.md` 为准；代码中的具体 `CardDefinition` 是运行时数据来源。
 
 ## 1. 字段约定
 
@@ -16,29 +16,7 @@
 
 斜杠分隔的数值从初始等级开始，依次对应到4级，不再重复标注等级。例如初始2级卡牌的 `8/7/6秒` 对应2/3/4级；初始3级卡牌的 `6/5秒` 对应3/4级。5级卡牌只记录5级数值。`—` 表示没有该项。
 
-## 2. 卡牌总表
-
-| CardKey | 名称 | 归属 | 尺寸 | 元素 | 额外标签 | 初始等级 | 描述 |
-|---|---|---|---|---|---|---:|---|
-| `card.judgment_hammer` | 审判之锤 | `paladin` | Large | Light | Equipment | 3 | 冷却6/5秒；对敌方英雄造成其最大生命20%的普通伤害，小数向下取整，先扣护甲 |
-| `card.beast_hide` | 兽皮 | `neutral` | Small | General | Material | 1 | 该卡牌价值+2/4/8/16 |
-| `card.boar` | 野猪 | `neutral` | Medium | General | Beast | 1 | 冷却6秒；发动时造成20/30/50/100 × 己方英雄当前生命百分比的普通伤害，小数向下取整，先扣护甲 |
-| `card.diamond` | 钻石 | `neutral` | Small | General | Material | 4 | 该卡牌价值+20 |
-| `card.jewelry_bag` | 珠宝袋 | `neutral` | Small | General | — | 2 | 出售时随机获得一张与该卡牌同等级的材料卡；双棋盘已满时不获得 |
-| `card.light_cavalry` | 轻骑兵 | `paladin` | Medium | General | Human | 1 | 冷却3秒；发动时造成10/20/40/60伤害；首次发动后，此卡牌冷却+2秒；发动后，己方战场区具备攻击能力的人类卡牌攻击+10/20/40/60（包括自身，可累计） |
-| `card.armguard` | 臂铠 | `paladin` | Small | General | Equipment | 1 | 冷却5秒；多重1（每层多重额外发动一次）；每次发动造成5/10/15/20伤害，并获得5/10/15/20护甲 |
-| `card.arcane_shield` | 魔能盾 | `paladin` | Medium | Light | Equipment | 2 | 冷却8/7/6秒；消耗20/40/80魔法；发动时获得等同于己方英雄本场战斗累计魔法消耗的护甲（包含本次消耗），并可叠加装备护甲数值加成 |
-| `card.military_boots` | 军靴 | `paladin` | Small | General | Equipment | 1 | 冷却5秒，魔法消耗0；使左右直接相邻的战场卡牌获得1/2/3/4秒疾速；相邻卡牌具有人类标签时持续时间翻倍 |
-| `card.cathedral` | 大教堂 | `paladin` | Large | Light | Location | 4 | 无冷却；被动光环：己方战场区光属性卡牌获得多重1；来源被摧毁后失效，多张可叠加 |
-| `card.blacksmith` | 铁匠铺 | `paladin` | Medium | General | Location | 2 | 冷却6秒，魔法消耗0；己方战场区装备卡牌已有的攻击与护甲数值分别增加10/20/40，不会赋予原本不存在的攻击或护甲能力 |
-| `card.treasure_chest` | 百宝箱 | `neutral` | Medium | General | — | 3 | 出售时获得3件与该卡牌同等级的随机小型材料；每件奖励独立结算自动放置与合并，无法创建时跳过该件 |
-| `card.holy_slashing_blade` | 黎明之剑 | `paladin` | Large | Light | Equipment | 4 | 冷却10秒；造成200伤害，并随机摧毁敌方一件小型或中型恶魔或亡灵卡牌；被动：本场战斗双方每有一件恶魔或亡灵卡牌被摧毁，此卡牌攻击翻倍；本次发动摧毁的卡牌立即计数 |
-| `card.order_crusader` | 教团远征军 | `paladin` | Large | Light | Human | 2 | 冷却8秒；发动时造成40/80/120伤害；被动：敌方小型卡牌在战斗中视为恶魔；敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害+10/20/40；来源被摧毁后赋予的恶魔标签立即失效 |
-| `card.holy_griffin` | 神圣狮鹫 | `paladin` | Large | Light | Beast, Mount | 2 | 冷却5秒；发动时相邻人类获得1秒疾速；被动：当相邻人类获得疾速时，其攻击力+10/20/30 |
-| `card.nun` | 修女 | `paladin` | Small | Light | Human | 1 | 冷却6秒，魔法消耗10；发动时治疗己方英雄10/20/40/80生命，并随机充能己方另一件光属性卡牌1秒（不包括此卡牌） |
-| `card.thorn_armor` | 荆棘甲 | `paladin` | Medium | General | Equipment | 1 | 冷却8/7/6/5秒；发动时获得10/20/40/80护甲，再造成等同于己方英雄当前护甲值的普通伤害，先扣敌方护甲 |
-
-## 3. 通用价值表
+## 2. 通用价值表
 
 未显式覆写初始价值时使用下表。5级采用与4级相同的默认初始价值。
 
@@ -48,7 +26,7 @@
 | Medium | 4 | 8 | 16 | 32 | 32 |
 | Large | 6 | 12 | 24 | 48 | 48 |
 
-## 4. 内容维护约定
+## 3. 内容维护约定
 
 新增或修改正式卡牌时必须同步更新本表，并检查：
 

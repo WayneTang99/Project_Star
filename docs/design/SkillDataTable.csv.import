@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bpsle3bwki827"
+
+[deps]
+
+files=["res://docs/design/SkillDataTable.名称.translation", "res://docs/design/SkillDataTable.归属.translation", "res://docs/design/SkillDataTable.初始等级.translation", "res://docs/design/SkillDataTable.支持等级.translation", "res://docs/design/SkillDataTable.触发.translation", "res://docs/design/SkillDataTable.描述.translation"]
+
+source_file="res://docs/design/SkillDataTable.csv"
+dest_files=["res://docs/design/SkillDataTable.名称.translation", "res://docs/design/SkillDataTable.归属.translation", "res://docs/design/SkillDataTable.初始等级.translation", "res://docs/design/SkillDataTable.支持等级.translation", "res://docs/design/SkillDataTable.触发.translation", "res://docs/design/SkillDataTable.描述.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

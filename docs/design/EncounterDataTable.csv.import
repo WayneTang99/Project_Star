@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dhpcnpyq4hbxp"
+
+[deps]
+
+files=["res://docs/design/EncounterDataTable.EncounterKey.translation", "res://docs/design/EncounterDataTable.名称.translation", "res://docs/design/EncounterDataTable.类型.translation", "res://docs/design/EncounterDataTable.轮次.translation", "res://docs/design/EncounterDataTable.基础权重.translation", "res://docs/design/EncounterDataTable.等级.translation", "res://docs/design/EncounterDataTable.配置.translation", "res://docs/design/EncounterDataTable.选项Key.translation", "res://docs/design/EncounterDataTable.选项名.translation", "res://docs/design/EncounterDataTable.展示规则.translation", "res://docs/design/EncounterDataTable.选项效果.translation"]
+
+source_file="res://docs/design/EncounterDataTable.csv"
+dest_files=["res://docs/design/EncounterDataTable.EncounterKey.translation", "res://docs/design/EncounterDataTable.名称.translation", "res://docs/design/EncounterDataTable.类型.translation", "res://docs/design/EncounterDataTable.轮次.translation", "res://docs/design/EncounterDataTable.基础权重.translation", "res://docs/design/EncounterDataTable.等级.translation", "res://docs/design/EncounterDataTable.配置.translation", "res://docs/design/EncounterDataTable.选项Key.translation", "res://docs/design/EncounterDataTable.选项名.translation", "res://docs/design/EncounterDataTable.展示规则.translation", "res://docs/design/EncounterDataTable.选项效果.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

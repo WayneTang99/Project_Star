@@ -88,3 +88,12 @@ public sealed record GrantRandomFactionCardEncounterOptionEffectDefinition(CardS
 
 public sealed record GrantRandomTaggedCardEncounterOptionEffectDefinition(StringName RequiredTag, CardSize Size, int Level)
     : EncounterOptionEffectDefinition;
+
+public sealed record BuyRandomOtherFactionCardEncounterOptionEffectDefinition(CardSize Size, int Level, int Cost)
+    : EncounterOptionEffectDefinition;
+
+public sealed record GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition(int AmountPerLevel)
+    : EncounterOptionEffectDefinition;
+
+public sealed record ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition(StringName AttributeKey, int Amount)
+    : EncounterOptionEffectDefinition;

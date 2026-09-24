@@ -289,7 +289,7 @@ public sealed partial class MinimalPlaytest : Control
             return;
         }
 
-        _log.Text = "选择一项训练。";
+        _log.Text = "选择一项。";
         _currentEncounterOptions = _encounterOptions.CreateOptionSet(_player!, definition);
         _eventOptionButtons.Visible = true;
         foreach (var option in _currentEncounterOptions.Options)
@@ -317,7 +317,12 @@ public sealed partial class MinimalPlaytest : Control
         var changes = new List<string>();
         foreach (var change in result.Value!.Changes)
             changes.Add($"{change.AttributeKey} +{change.Amount}（当前 {change.CurrentValue}）");
+        foreach (var change in result.Value.CardChanges ?? Array.Empty<EncounterCardAttributeChange>())
+            changes.Add($"己方战场 {change.CardCount} 张卡牌 {change.AttributeKey} +{change.Amount}");
         if (result.Value.WealthGained > 0) changes.Add($"金币 +{result.Value.WealthGained}");
+        if (result.Value.WealthSpent > 0) changes.Add($"金币 -{result.Value.WealthSpent}");
+        if (result.Value.PendingBattleMaxHealthBonus > 0)
+            changes.Add($"下场战斗最大生命 +{result.Value.PendingBattleMaxHealthBonus}");
         if (result.Value.GrantedCard is not null)
             changes.Add($"获得 {result.Value.GrantedCard.Attributes.Identity.DisplayName}");
         if (result.Value.CardRewardSkipped) changes.Add("双棋盘已满，未生成卡牌");

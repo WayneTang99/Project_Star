@@ -83,6 +83,9 @@ internal sealed class CardBattleState : IBattleAbilitySource
                 case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
                     SupportedCombatAttributes.Add(attributeArmor.AttributeKey);
                     break;
+                case SourceHeroArmorDamageEffectDefinition { BonusAttributeKey: { IsEmpty: false } bonusAttributeKey }:
+                    SupportedCombatAttributes.Add(bonusAttributeKey);
+                    break;
             }
         if (definitions.Count > 0) SupportedCombatAttributes.Add(GameAttributeKeys.Multicast);
     }

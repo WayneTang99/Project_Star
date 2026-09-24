@@ -38,7 +38,9 @@ public sealed class BattleSetupFactory
     {
         var hero = session.Player.Hero
             ?? throw new InvalidOperationException("A hero must be selected before battle.");
-        var maxHealth = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth);
+        var maxHealth = checked(
+            hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth)
+            + session.PendingBattleMaxHealthBonus);
         var armor = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Armor);
         var maxMana = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana);
         var mana = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Mana);

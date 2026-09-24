@@ -7,6 +7,7 @@ using Project_Star.Application.Common;
 using Project_Star.Application.Economy;
 using Project_Star.Application.Factories;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Combat;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Random;
@@ -14,13 +15,17 @@ using Project_Star.Infrastructure.Random;
 namespace Project_Star.Application.Encounters;
 
 public sealed record EncounterAttributeChange(StringName AttributeKey, int Amount, int CurrentValue);
+public sealed record EncounterCardAttributeChange(StringName AttributeKey, int Amount, int CardCount);
 
 public sealed record EncounterOptionResult(
     StringName OptionKey,
     IReadOnlyList<EncounterAttributeChange> Changes,
     int WealthGained = 0,
     CardInstance? GrantedCard = null,
-    bool CardRewardSkipped = false);
+    bool CardRewardSkipped = false,
+    int WealthSpent = 0,
+    int PendingBattleMaxHealthBonus = 0,
+    IReadOnlyList<EncounterCardAttributeChange>? CardChanges = null);
 
 // 单次可选项遭遇展示状态（应用层遭遇模块）。
 public sealed class EncounterOptionSet
@@ -105,9 +110,13 @@ public sealed class ResolveEncounterOptionService
 
         var level = hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
         var changes = new List<EncounterAttributeChange>();
+        var cardChanges = new List<EncounterCardAttributeChange>();
+        var cardUpdates = new List<(CardInstance Card, StringName AttributeKey, int CurrentValue)>();
         var wealth = 0;
+        var wealthSpent = 0;
         CardInstance? grantedCard = null;
         var cardRewardSkipped = false;
+        var pendingBattleMaxHealthBonus = 0;
         foreach (var effect in selected.Effects)
         {
             switch (effect)
@@ -140,15 +149,102 @@ public sealed class ResolveEncounterOptionService
                     grantedCard = taggedReward.Value;
                     cardRewardSkipped = grantedCard is null;
                     break;
+                case BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase:
+                    var purchaseResult = BuyRandomOtherFactionCard(session, purchase, hero.Attributes.Identity.FactionKey);
+                    if (purchaseResult.IsFailure) return Result<EncounterOptionResult>.Fail(purchaseResult.Failure!);
+                    grantedCard = purchaseResult.Value;
+                    wealthSpent = purchase.Cost;
+                    break;
+                case GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition battleHealth:
+                    pendingBattleMaxHealthBonus = checked(level * battleHealth.AmountPerLevel);
+                    break;
+                case ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition battlefieldModifier:
+                    var affectedCards = 0;
+                    foreach (var placement in session.Board.Battlefield.Placements)
+                    {
+                        var card = session.Player.Inventory.Find(placement.CardId)
+                            ?? throw new InvalidOperationException("A battlefield card must exist in the player's inventory.");
+                        var attributes = card.Attributes.BaseCombat;
+                        var currentValue = attributes.GetBaseValue(battlefieldModifier.AttributeKey);
+                        var abilityUsesAttribute = card.Abilities
+                            .SelectMany(ability => ability.Effects)
+                            .OfType<SourceHeroArmorDamageEffectDefinition>()
+                            .Any(effect => effect.BonusAttributeKey == battlefieldModifier.AttributeKey);
+                        if (!attributes.HasBaseValue(battlefieldModifier.AttributeKey)
+                            || battlefieldModifier.AttributeKey == GameAttributeKeys.AttackDamage
+                                && currentValue <= 0 && !abilityUsesAttribute)
+                            continue;
+                        var cardCurrent = checked(currentValue + battlefieldModifier.Amount);
+                        cardUpdates.Add((card, battlefieldModifier.AttributeKey, cardCurrent));
+                        affectedCards++;
+                    }
+                    cardChanges.Add(new EncounterCardAttributeChange(
+                        battlefieldModifier.AttributeKey,
+                        battlefieldModifier.Amount,
+                        affectedCards));
+                    break;
             }
         }
 
         foreach (var change in changes)
             hero.Attributes.BaseCombat.SetBaseValue(change.AttributeKey, change.CurrentValue);
+        foreach (var update in cardUpdates)
+            update.Card.Attributes.BaseCombat.SetBaseValue(update.AttributeKey, update.CurrentValue);
         if (wealth > 0) session.Player.AddWealth(wealth);
+        if (pendingBattleMaxHealthBonus > 0)
+            session.AddPendingBattleMaxHealthBonus(pendingBattleMaxHealthBonus);
         optionSet.MarkResolved();
         return Result<EncounterOptionResult>.Success(
-            new EncounterOptionResult(selected.Key, changes.AsReadOnly(), wealth, grantedCard, cardRewardSkipped));
+            new EncounterOptionResult(
+                selected.Key,
+                changes.AsReadOnly(),
+                wealth,
+                grantedCard,
+                cardRewardSkipped,
+                wealthSpent,
+                pendingBattleMaxHealthBonus,
+                cardChanges.AsReadOnly()));
+    }
+
+    private Result<CardInstance> BuyRandomOtherFactionCard(
+        MatchSession session,
+        BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase,
+        StringName currentFaction)
+    {
+        if (session.Player.Wealth < purchase.Cost)
+            return Result<CardInstance>.Fail(new Failure(
+                new StringName("economy.insufficient_wealth"), "Not enough wealth to buy this card."));
+
+        var candidates = _cards.Where(card =>
+            card.Attributes.Identity.FactionKey != currentFaction
+            && card.Attributes.Identity.FactionKey != GameFactions.Neutral
+            && card.Attributes.Identity.Size == purchase.Size
+            && card.SupportsLevel(purchase.Level)).ToArray();
+        if (candidates.Length == 0)
+            return Result<CardInstance>.Fail(new Failure(RewardUnavailable, "No other-faction card matches this encounter purchase."));
+
+        var random = new SeededRandom(session.Random.State);
+        var selected = candidates[random.NextInt(0, candidates.Length)];
+        var economy = new CardEconomyService(_factory, _board);
+        var mergeTarget = economy.FindMergeTarget(session, selected, purchase.Level);
+        var target = mergeTarget is null
+            ? _board.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
+            : null;
+        if (mergeTarget is null && target is null)
+            return Result<CardInstance>.Fail(new Failure(RewardUnavailable, "There is no room for the purchased card."));
+        if (!session.Player.TrySpendWealth(purchase.Cost))
+            return Result<CardInstance>.Fail(new Failure(
+                new StringName("economy.insufficient_wealth"), "Not enough wealth to buy this card."));
+
+        var acquired = economy.AcquireCard(session, selected, purchase.Level, CardAcquisitionSource.Purchase);
+        if (acquired.IsFailure) throw new InvalidOperationException(acquired.Failure!.Message);
+        if (acquired.Value!.WasCreated)
+        {
+            var placement = _board.PlaceCard(session, acquired.Value.Card.Id, target!.Zone, target.Start);
+            if (placement.IsFailure) throw new InvalidOperationException(placement.Failure!.Message);
+        }
+        session.Random.State = random.State;
+        return Result<CardInstance>.Success(acquired.Value.Card);
     }
 
     private Result<CardInstance?> GrantRandomCard(

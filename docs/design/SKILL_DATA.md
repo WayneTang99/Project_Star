@@ -1,6 +1,6 @@
 # Project_Star 技能数据表
 
-本文档记录正式技能内容数据，供设计、实现和审查使用。技能规则以 `docs/design/GAME_DESIGN.md` 为准，术语以 `docs/design/GLOSSARY.md` 为准；代码中的 `SkillDefinition` 是运行时数据来源。
+本文档说明正式技能数据的字段和维护规则。技能数据行以 `docs/design/SkillDataTable.csv` 为准。技能规则以 `docs/design/GAME_DESIGN.md` 为准，术语以 `docs/design/GLOSSARY.md` 为准；代码中的 `SkillDefinition` 是运行时数据来源。
 
 ## 1. 字段约定
 
@@ -14,16 +14,9 @@
 
 技能独立于卡牌，不占战场区或备战区格位。首版技能只配置被动能力。`—` 表示没有该项。
 
-## 2. 技能总表
-
-| SkillKey | 名称 | 归属 | 初始等级 | 支持等级 | 触发 | 描述 |
-|---|---|---|---:|---|---|---|
-| `skill.assault` | 突袭 | `neutral` | 1 | 1～4 | 战斗开始 | 对敌方英雄造成其最大生命值 5%/10%/15%/20% 的普通伤害；小数向下取整，先扣护甲 |
-| `skill.charge` | 冲撞 | `neutral` | 1 | 1～4 | 每场战斗己方第一张卡牌发动后，仅触发一次 | 对敌方英雄造成己方英雄等级 × 当前冲撞技能等级对应系数 10/20/30/40 的普通伤害；先扣护甲 |
-
-## 3. 内容维护约定
+## 2. 内容维护约定
 
 1. SkillKey 全局唯一，使用 `StringName`；归属 key 对应已有英雄阵营或 `neutral`。
 2. 初始等级必须存在对应的等级配置；描述按支持等级顺序列出数值。
 3. 技能效果复用通用能力，不配置主动能力或要求卡牌自身作为来源的效果。
-4. 新增或修改正式技能时同步更新本表，并核对 `SkillDefinition` 和验证入口。
+4. 新增或修改正式技能时同步更新 `SkillDataTable.csv`，并核对 `SkillDefinition` 和验证入口。

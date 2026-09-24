@@ -54,18 +54,26 @@ text = "正在验证第 1～9 步……"
 
 [node name="Description" type="Label" parent="Margin/Panel/Margin/Content"]
 layout_mode = 2
-text = "此场景在 Godot 中验证基础类型、经济、棋盘、战斗状态与遭遇排程。"
+text = "按类别运行验证；全部验证用于完整检查。"
+
+[node name="Categories" type="HFlowContainer" parent="Margin/Panel/Margin/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
 
 [node name="Results" type="ScrollContainer" parent="Margin/Panel/Margin/Content"]
 layout_mode = 2
 size_flags_vertical = 3
+size_flags_horizontal = 3
 
 [node name="Output" type="Label" parent="Margin/Panel/Margin/Content/Results"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.82, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 18
-text = "等待结果……"
+autowrap_mode = 2
+text = "选择一个分类开始验证。"
 
 [node name="Back" type="Button" parent="Margin/Panel/Margin/Content"]
 layout_mode = 2

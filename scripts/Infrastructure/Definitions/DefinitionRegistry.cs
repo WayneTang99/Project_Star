@@ -245,6 +245,12 @@ public sealed class DefinitionRegistry
                         !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
                     GrantRandomTaggedCardEncounterOptionEffectDefinition reward =>
                         reward.RequiredTag.IsEmpty || !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
+                    BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase =>
+                        !Enum.IsDefined(purchase.Size) || purchase.Level is < 1 or > 5 || purchase.Cost < 1,
+                    GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition battleHealth =>
+                        battleHealth.AmountPerLevel < 1,
+                    ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition battlefieldModifier =>
+                        battlefieldModifier.AttributeKey.IsEmpty || battlefieldModifier.Amount == 0,
                     _ => true,
                 };
                 if (invalid)

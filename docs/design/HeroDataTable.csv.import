@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://crwkkuwpgcqfv"
+
+[deps]
+
+files=["res://docs/design/HeroDataTable.名称.translation", "res://docs/design/HeroDataTable.归属.translation", "res://docs/design/HeroDataTable.初始等级.translation", "res://docs/design/HeroDataTable.收入.translation", "res://docs/design/HeroDataTable.最大生命.translation", "res://docs/design/HeroDataTable.护甲.translation", "res://docs/design/HeroDataTable.最大魔法.translation", "res://docs/design/HeroDataTable.初始魔法.translation", "res://docs/design/HeroDataTable.魔法再生.translation", "res://docs/design/HeroDataTable.生命再生.translation"]
+
+source_file="res://docs/design/HeroDataTable.csv"
+dest_files=["res://docs/design/HeroDataTable.名称.translation", "res://docs/design/HeroDataTable.归属.translation", "res://docs/design/HeroDataTable.初始等级.translation", "res://docs/design/HeroDataTable.收入.translation", "res://docs/design/HeroDataTable.最大生命.translation", "res://docs/design/HeroDataTable.护甲.translation", "res://docs/design/HeroDataTable.最大魔法.translation", "res://docs/design/HeroDataTable.初始魔法.translation", "res://docs/design/HeroDataTable.魔法再生.translation", "res://docs/design/HeroDataTable.生命再生.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

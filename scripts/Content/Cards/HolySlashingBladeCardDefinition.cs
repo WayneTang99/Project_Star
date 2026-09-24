@@ -41,7 +41,7 @@ public sealed class HolySlashingBladeCardDefinition : CardDefinition
                                 new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage),
                                 new DestroyRandomEnemyCardEffectDefinition(
                                     [GameTags.Demon, GameTags.Undead],
-                                    [CardSize.Small, CardSize.Medium]),
+                                    [CardSize.Small]),
                             ]),
                         new AbilityDefinition(
                             new StringName("ability.destroyed_unholy_attack_multiplier"),

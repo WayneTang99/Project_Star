@@ -26,134 +26,180 @@ namespace Project_Star.Presentation;
 /// <summary>Provides the in-Godot manual verification entry for implementation step one.</summary>
 public sealed partial class PhaseOneVerification : Control
 {
-    private readonly List<(string Name, Func<bool> Check)> _checks =
+    private sealed record VerificationGroup(
+        string Name,
+        IReadOnlyList<(string Name, Func<bool> Check)> Checks);
+
+    private readonly List<VerificationGroup> _groups =
     [
-        ("0.2 秒等于 2 个战斗 Tick", CheckTickConversion),
-        ("非固定步长时间会被拒绝", CheckInvalidTickConversion),
-        ("相同 Seed 产生相同随机序列", CheckDeterministicRandom),
-        ("保存随机状态后可以继续序列", CheckRandomResume),
-        ("成功 Result 正确携带数据", CheckSuccessfulResult),
-        ("失败 Result 使用 StringName 错误码", CheckFailureCode),
-        ("身份字段创建后保持只读", CheckReadonlyIdentity),
-        ("General 是合法的普通属性", CheckGeneralElement),
-        ("双属性按规范顺序保存", CheckElementNormalization),
-        ("非法属性组合会被拒绝", CheckInvalidElements),
-        ("多来源 Modifier 自然累加", CheckModifierStacking),
-        ("移除 Modifier 不影响其他来源", CheckModifierRemoval),
-        ("尺寸自动生成型号标签和占格数", CheckSizeTag),
-        ("未知标签显示原始 Key", CheckUnknownTagDisplay),
-        ("卡牌定义组合身份、属性与标签", CheckCardDefinition),
-        ("注册表登记英雄、卡牌与遭遇定义", CheckDefinitionDiscovery),
-        ("注册表拒绝同类型重复 Key", CheckDuplicateDefinition),
-        ("套装注册表拒绝未知套装归属", CheckUnknownCardSet),
-        ("定义中的初始属性不可修改", CheckFrozenDefinition),
-        ("工厂创建完全独立的卡牌实例", CheckIndependentInstances),
-        ("新对局可以选择英雄并生成卡牌", CheckMatchCreation),
-        ("不同对局之间不共享状态", CheckSessionIsolation),
-        ("每轮开始按英雄收入幂等发放金钱", CheckRoundIncome),
-        ("尺寸与等级按翻倍表计算初始价值", CheckInitialValues),
-        ("特殊卡牌可以覆写价值系数", CheckSpecialValueCoefficient),
-        ("获得卡牌统一设置半价现值", CheckAcquisitionSources),
-        ("半价出现小数时向下取整", CheckAcquiredValueRounding),
-        ("等级变化不会重算当前价值", CheckLevelDoesNotRecalculateValue),
-        ("同名同级卡牌连续合并且保留目标实例", CheckCardMergeUpgrade),
-        ("卡牌可以限制等级并应用分级配置", CheckCardLevelDefinitions),
-        ("无阵营无属性卡牌支持分级价值且没有能力", CheckBeastHideDefinition),
-        ("钻石固定为4级且获得后价值增加20", CheckDiamondDefinition),
-        ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
-        ("百宝箱出售后获得三件同级小型材料", CheckTreasureChestSaleReward),
-        ("型号商店只提供当前英雄归属的对应尺寸卡牌", CheckSizeShopCardPools),
-        ("野猪使用默认属性并携带三张1级卡牌和1级冲撞", CheckBoarMonsterDefinition),
-        ("体能训练按英雄等级结算可扩展选项", CheckPhysicalTraining),
-        ("垃圾填埋场生成固定与加权选项并结算奖励", CheckLandfill),
-        ("购买按报价扣款并登记卡牌归属", CheckPurchase),
-        ("余额不足时交易无任何修改", CheckInsufficientWealth),
-        ("出售按现值回补且只能一次", CheckSale),
-        ("卡牌可以直接放入空闲格", CheckDirectPlacement),
-        ("左右方向都能形成推挤方案", CheckPushDirections),
-        ("距离和影响数相同时优先右推", CheckRightTieBreak),
-        ("不可推挤卡牌会阻止放置", CheckUnpushableCard),
-        ("同盘移动会先释放自身原位", CheckSameZoneMove),
-        ("跨区失败时两个区域均不改变", CheckCrossZoneRollback),
-        ("同一实例只存在于一个棋盘区域", CheckUniqueBoardLocation),
-        ("卡牌不能越过棋盘容量边界", CheckBoardCapacity),
-        ("套装按战场不同卡牌累计阈值并精确移除", CheckCardSetBonuses),
-        ("显式套装目标可覆盖战场卡牌与英雄但不覆盖备战区", CheckCardSetExplicitTargets),
-        ("套装战斗来源在成员摧毁后仍按快照触发", CheckCardSetBattleSource),
-        ("任务按卡牌实例累计且仅在战场区激活解锁能力", CheckCardQuestProgress),
-        ("任务解锁的战斗能力随来源卡牌摧毁而失效", CheckCardQuestBattleDestroy),
-        ("移出棋盘后卡牌可以出售", CheckRemoveThenSell),
-        ("战斗快照与对局实例隔离", CheckBattleSnapshotIsolation),
-        ("相同输入产生相同战斗日志", CheckDeterministicBattle),
-        ("首次攻击在完整冷却后发动", CheckFirstActivationTiming),
-        ("同 Tick 按玩家方优先进入 FIFO", CheckStableFifoOrder),
-        ("伤害先扣护甲再扣生命", CheckArmorDamage),
-        ("最大生命百分比伤害向下取整并先扣护甲", CheckMaxHealthPercentDamage),
-        ("野猪按己方英雄当前生命比例造成分级伤害", CheckBoarCard),
-        ("轻骑兵伤害、成长冷却与人类攻击强化正确结算", CheckLightCavalry),
-        ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
-        ("荆棘甲先获得护甲再按英雄当前护甲造成伤害", CheckThornArmor),
-        ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
-        ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
-        ("神圣狮鹫使相邻人类疾速并在其获得疾速时强化攻击", CheckHolyGriffin),
-        ("修女治疗己方英雄并充能另一件光属性卡牌", CheckNun),
-        ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
-        ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
-        ("黎明之剑随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
-        ("教团远征军赋予临时恶魔标签并按存活恶魔增加伤害", CheckOrderCrusader),
-        ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
-        ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
-        ("回响产生的事件不会触发其他回响", CheckEchoDoesNotChain),
-        ("灼伤扣护甲且中毒无视护甲", CheckBurnAndPoison),
-        ("永久摧毁只生成永久变化记录", CheckPermanentDestroy),
-        ("普通回合三选一且包含商店", CheckNormalEncounterChoices),
-        ("相同 Seed 生成相同遭遇候选", CheckDeterministicEncounters),
-        ("候选生成时立即记录为已出现", CheckEncounterSeenHistory),
-        ("第 4 回合固定三个怪物遭遇", CheckMonsterTurn),
-        ("第 8 回合固定 PvP 并推进轮次", CheckPvpTurnAdvance),
-        ("新对局不会继承遭遇历史", CheckEncounterHistoryIsolation),
-        ("怪物战失败按损失生命比例奖励金币经验且不扣声望", CheckMonsterLoss),
-        ("怪物战胜利按怪物等级奖励并抽取待领取卡牌", CheckMonsterReward),
-        ("怪物技能可作为战利品领取", CheckMonsterSkillReward),
-        ("棋盘已满时怪物卡牌奖励保持待领取", CheckMonsterRewardRetention),
-        ("PvP 失败按战斗轮数扣声望", CheckPvpReputationLoss),
-        ("十次 PvP 胜利结束对局", CheckTenPvpWins),
-        ("胜利与声望归零同时满足时胜利优先", CheckVictoryPriority),
-        ("永久摧毁同时移除归属记录和棋盘实例", CheckPermanentChangeApplication),
-        ("对局快照保留只读结算数据", CheckMatchSnapshot),
-        ("技能使用独立实例并按同级规则合并", CheckSkillMerge),
-        ("空战场的被动技能可触发且回响不会连锁", CheckSkillBattle),
-        ("冲撞仅在己方首张卡牌发动后触发一次并按等级结算", CheckChargeSkill),
+        new("基础规则与定义", [
+            ("0.2 秒等于 2 个战斗 Tick", CheckTickConversion),
+            ("非固定步长时间会被拒绝", CheckInvalidTickConversion),
+            ("相同 Seed 产生相同随机序列", CheckDeterministicRandom),
+            ("保存随机状态后可以继续序列", CheckRandomResume),
+            ("成功 Result 正确携带数据", CheckSuccessfulResult),
+            ("失败 Result 使用 StringName 错误码", CheckFailureCode),
+            ("身份字段创建后保持只读", CheckReadonlyIdentity),
+            ("General 是合法的普通属性", CheckGeneralElement),
+            ("双属性按规范顺序保存", CheckElementNormalization),
+            ("非法属性组合会被拒绝", CheckInvalidElements),
+            ("多来源 Modifier 自然累加", CheckModifierStacking),
+            ("移除 Modifier 不影响其他来源", CheckModifierRemoval),
+            ("尺寸自动生成型号标签和占格数", CheckSizeTag),
+            ("未知标签显示原始 Key", CheckUnknownTagDisplay),
+            ("卡牌定义组合身份、属性与标签", CheckCardDefinition),
+            ("注册表登记英雄、卡牌与遭遇定义", CheckDefinitionDiscovery),
+            ("注册表拒绝同类型重复 Key", CheckDuplicateDefinition),
+            ("套装注册表拒绝未知套装归属", CheckUnknownCardSet),
+            ("定义中的初始属性不可修改", CheckFrozenDefinition),
+        ]),
+        new("对局与卡牌经济", [
+            ("工厂创建完全独立的卡牌实例", CheckIndependentInstances),
+            ("新对局可以选择英雄并生成卡牌", CheckMatchCreation),
+            ("不同对局之间不共享状态", CheckSessionIsolation),
+            ("每轮开始按英雄收入幂等发放金钱", CheckRoundIncome),
+            ("尺寸与等级按翻倍表计算初始价值", CheckInitialValues),
+            ("特殊卡牌可以覆写价值系数", CheckSpecialValueCoefficient),
+            ("获得卡牌统一设置半价现值", CheckAcquisitionSources),
+            ("半价出现小数时向下取整", CheckAcquiredValueRounding),
+            ("等级变化不会重算当前价值", CheckLevelDoesNotRecalculateValue),
+            ("同名同级卡牌连续合并且保留目标实例", CheckCardMergeUpgrade),
+            ("卡牌可以限制等级并应用分级配置", CheckCardLevelDefinitions),
+            ("无阵营无属性卡牌支持分级价值且没有能力", CheckBeastHideDefinition),
+            ("钻石固定为4级且获得后价值增加20", CheckDiamondDefinition),
+            ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
+            ("百宝箱出售后获得三件同级小型材料", CheckTreasureChestSaleReward),
+            ("型号商店只提供当前英雄归属的对应尺寸卡牌", CheckSizeShopCardPools),
+            ("购买按报价扣款并登记卡牌归属", CheckPurchase),
+            ("余额不足时交易无任何修改", CheckInsufficientWealth),
+            ("出售按现值回补且只能一次", CheckSale),
+        ]),
+        new("棋盘、套装与任务", [
+            ("卡牌可以直接放入空闲格", CheckDirectPlacement),
+            ("左右方向都能形成推挤方案", CheckPushDirections),
+            ("距离和影响数相同时优先右推", CheckRightTieBreak),
+            ("不可推挤卡牌会阻止放置", CheckUnpushableCard),
+            ("同盘移动会先释放自身原位", CheckSameZoneMove),
+            ("跨区失败时两个区域均不改变", CheckCrossZoneRollback),
+            ("同一实例只存在于一个棋盘区域", CheckUniqueBoardLocation),
+            ("卡牌不能越过棋盘容量边界", CheckBoardCapacity),
+            ("套装按战场不同卡牌累计阈值并精确移除", CheckCardSetBonuses),
+            ("显式套装目标可覆盖战场卡牌与英雄但不覆盖备战区", CheckCardSetExplicitTargets),
+            ("套装战斗来源在成员摧毁后仍按快照触发", CheckCardSetBattleSource),
+            ("任务按卡牌实例累计且仅在战场区激活解锁能力", CheckCardQuestProgress),
+            ("任务解锁的战斗能力随来源卡牌摧毁而失效", CheckCardQuestBattleDestroy),
+            ("移出棋盘后卡牌可以出售", CheckRemoveThenSell),
+        ]),
+        new("遭遇与轮次结算", [
+            ("野猪使用默认属性并携带三张1级卡牌和1级冲撞", CheckBoarMonsterDefinition),
+            ("校场按定义永久提升英雄生命或战场卡牌攻击", CheckTrainingGround),
+            ("垃圾场固定展示零钱与材料选项并结算奖励", CheckLandfill),
+            ("酒馆限时出现并结算交易与下一场战斗加成", CheckTavernEncounter),
+            ("普通回合三选一且包含商店", CheckNormalEncounterChoices),
+            ("相同 Seed 生成相同遭遇候选", CheckDeterministicEncounters),
+            ("候选生成时立即记录为已出现", CheckEncounterSeenHistory),
+            ("第 4 回合固定三个怪物遭遇", CheckMonsterTurn),
+            ("第 8 回合固定 PvP 并推进轮次", CheckPvpTurnAdvance),
+            ("新对局不会继承遭遇历史", CheckEncounterHistoryIsolation),
+            ("怪物战失败按损失生命比例奖励金币经验且不扣声望", CheckMonsterLoss),
+            ("怪物战胜利按怪物等级奖励并抽取待领取卡牌", CheckMonsterReward),
+            ("怪物技能可作为战利品领取", CheckMonsterSkillReward),
+            ("棋盘已满时怪物卡牌奖励保持待领取", CheckMonsterRewardRetention),
+            ("PvP 失败按战斗轮数扣声望", CheckPvpReputationLoss),
+            ("十次 PvP 胜利结束对局", CheckTenPvpWins),
+            ("胜利与声望归零同时满足时胜利优先", CheckVictoryPriority),
+            ("永久摧毁同时移除归属记录和棋盘实例", CheckPermanentChangeApplication),
+            ("对局快照保留只读结算数据", CheckMatchSnapshot),
+        ]),
+        new("战斗与卡牌能力", [
+            ("战斗快照与对局实例隔离", CheckBattleSnapshotIsolation),
+            ("相同输入产生相同战斗日志", CheckDeterministicBattle),
+            ("首次攻击在完整冷却后发动", CheckFirstActivationTiming),
+            ("同 Tick 按玩家方优先进入 FIFO", CheckStableFifoOrder),
+            ("伤害先扣护甲再扣生命", CheckArmorDamage),
+            ("最大生命百分比伤害向下取整并先扣护甲", CheckMaxHealthPercentDamage),
+            ("野猪按己方英雄当前生命比例造成分级伤害", CheckBoarCard),
+            ("轻骑兵伤害、成长冷却与人类攻击强化正确结算", CheckLightCavalry),
+            ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
+            ("荆棘甲先获得护甲再按英雄当前护甲造成伤害", CheckThornArmor),
+            ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
+            ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
+            ("神圣狮鹫使相邻人类疾速并在其获得疾速时强化攻击", CheckHolyGriffin),
+            ("修女治疗己方英雄并充能另一件光属性卡牌", CheckNun),
+            ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
+            ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
+            ("黎明之剑随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
+            ("教团远征军赋予临时恶魔标签并按存活恶魔增加伤害", CheckOrderCrusader),
+            ("无攻击来源时由日蚀结束战斗", CheckBattleTimeout),
+            ("魔法不足时不扣魔法也不发动", CheckInsufficientMana),
+            ("回响产生的事件不会触发其他回响", CheckEchoDoesNotChain),
+            ("灼伤扣护甲且中毒无视护甲", CheckBurnAndPoison),
+            ("永久摧毁只生成永久变化记录", CheckPermanentDestroy),
+        ]),
+        new("技能", [
+            ("技能使用独立实例并按同级规则合并", CheckSkillMerge),
+            ("空战场的被动技能可触发且回响不会连锁", CheckSkillBattle),
+            ("冲撞仅在己方首张卡牌发动后触发一次并按等级结算", CheckChargeSkill),
+        ]),
     ];
 
     public override void _Ready()
     {
-        var results = new List<string>();
-        var allPassed = true;
+        var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
+        var allChecks = _groups.SelectMany(group => group.Checks).ToArray();
+        var allButton = new Button
+        {
+            Text = $"全部验证 ({allChecks.Length})",
+            CustomMinimumSize = new Vector2(150, 42),
+        };
+        categoryButtons.AddChild(allButton);
+        allButton.Pressed += () => RunChecks("全部验证", allChecks);
 
-        foreach (var (name, check) in _checks)
+        foreach (var group in _groups)
+        {
+            var button = new Button
+            {
+                Text = $"{group.Name} ({group.Checks.Count})",
+                CustomMinimumSize = new Vector2(170, 42),
+            };
+            categoryButtons.AddChild(button);
+            button.Pressed += () => RunChecks(group.Name, group.Checks);
+        }
+
+        GetNode<Label>("Margin/Panel/Margin/Content/Title").Text = "选择验证范围";
+        GetNode<Label>("Margin/Panel/Margin/Content/Results/Output").Text =
+            $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
+        GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
+            () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+    }
+
+    private void RunChecks(
+        string groupName,
+        IReadOnlyList<(string Name, Func<bool> Check)> checks)
+    {
+        var results = new List<string>(checks.Count);
+        var passedCount = 0;
+        foreach (var (name, check) in checks)
         {
             try
             {
                 var passed = check();
-                allPassed &= passed;
+                if (passed) passedCount++;
                 results.Add($"{(passed ? "✓" : "✗")} {name}");
             }
             catch (Exception exception)
             {
-                allPassed = false;
                 results.Add($"✗ {name}\n    {exception.GetType().Name}: {exception.Message}");
             }
         }
 
+        var allPassed = passedCount == checks.Count;
         var title = GetNode<Label>("Margin/Panel/Margin/Content/Title");
         var output = GetNode<Label>("Margin/Panel/Margin/Content/Results/Output");
-        title.Text = allPassed ? "第 1～9 步验证通过" : "第 1～9 步验证失败";
+        title.Text = $"{groupName}：{(allPassed ? "通过" : "失败")} ({passedCount}/{checks.Count})";
         title.Modulate = allPassed ? new Color("75d69c") : new Color("ff7b72");
         output.Text = string.Join("\n", results);
         GD.Print($"{title.Text}\n{output.Text}");
-        GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
-            () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
     }
 
     private static bool CheckTickConversion()
@@ -546,9 +592,9 @@ public sealed partial class PhaseOneVerification : Control
             && opponent.Board.Battlefield.Placements[2].Size == 2;
     }
 
-    private static bool CheckPhysicalTraining()
+    private static bool CheckTrainingGround()
     {
-        var definition = new PhysicalTrainingEncounterDefinition();
+        var definition = new TrainingGroundEncounterDefinition();
         var registry = DefinitionRegistry.Create([new PaladinHeroDefinition(), definition]);
         var factory = new EntityFactory();
         var matches = new CreateMatchService(factory);
@@ -562,35 +608,47 @@ public sealed partial class PhaseOneVerification : Control
         var healthOpponent = matches.Create(2, 0, heroDefinition);
         var healthSetup = new BattleSetupFactory().Create(healthSession, healthOpponent, 1, new BattleTick(1));
 
-        var regenSession = matches.Create(3, 0, heroDefinition);
-        regenSession.Player.Hero!.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 3);
-        var regenOptions = resolver.CreateOptionSet(regenSession, definition);
-        var regenResult = resolver.Resolve(regenSession, regenOptions, definition.Options[1].Key);
-        var regenOpponent = matches.Create(4, 0, heroDefinition);
-        var regenSetup = new BattleSetupFactory().Create(regenSession, regenOpponent, 1, new BattleTick(1));
+        var trainingSession = matches.Create(3, 0, heroDefinition);
+        var attackDefinition = new AttackValueVerificationCardDefinition();
+        var thornDefinition = new ThornArmorCardDefinition();
+        var noAttackDefinition = new BeastHideCardDefinition();
+        var cardEconomy = new CardEconomyService(factory);
+        var attackCard = cardEconomy.AcquireCard(trainingSession, attackDefinition, 1, CardAcquisitionSource.Reward).Value!.Card;
+        var thornCard = cardEconomy.AcquireCard(trainingSession, thornDefinition, 1, CardAcquisitionSource.Reward).Value!.Card;
+        var noAttackCard = cardEconomy.AcquireCard(trainingSession, noAttackDefinition, 1, CardAcquisitionSource.Reward).Value!.Card;
+        var board = CreateBoardService();
+        _ = board.PlaceCard(trainingSession, attackCard.Id, BoardZone.Battlefield, 0);
+        _ = board.PlaceCard(trainingSession, thornCard.Id, BoardZone.Battlefield, 1);
+        _ = board.PlaceCard(trainingSession, noAttackCard.Id, BoardZone.Battlefield, 3);
+        var trainingOptions = resolver.CreateOptionSet(trainingSession, definition);
+        var trainingResult = resolver.Resolve(trainingSession, trainingOptions, definition.Options[1].Key);
         var invalidResult = resolver.Resolve(
-            regenSession,
-            regenOptions,
-            new StringName("encounter.physical_training.unknown"));
+            trainingSession,
+            trainingOptions,
+            new StringName("encounter.training_ground.unknown"));
 
-        return registry.Encounters.ContainsKey(new StringName("encounter.physical_training"))
+        return registry.Encounters.ContainsKey(new StringName("encounter.training_ground"))
             && definition.Kind == EncounterKind.Other
+            && definition.Attributes.Identity.DisplayName == "校场"
             && definition.MinimumRound == 1
             && definition.MaximumRound == 99
             && definition.Options.Count == 2
-            && definition.Options[0].Key == new StringName("encounter.physical_training.max_health")
-            && definition.Options[1].Key == new StringName("encounter.physical_training.health_regen")
+            && definition.Options[0].Key == new StringName("encounter.training_ground.body_training")
+            && definition.Options[0].DisplayName == "体能训练"
+            && definition.Options[1].Key == new StringName("encounter.training_ground.sparring")
+            && definition.Options[1].DisplayName == "对阵训练"
             && healthSession.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 3
             && healthResult.IsSuccess
             && healthResult.Value!.Changes.Count == 1
             && healthResult.Value.Changes[0].Amount == 30
             && healthSetup.Player.Hero.MaxHealth == 130
-            && regenResult.IsSuccess
-            && regenResult.Value!.Changes.Count == 1
-            && regenResult.Value.Changes[0].Amount == 3
-            && regenSetup.Player.Hero.HealthRegen == 3
-            && invalidResult.IsFailure
-            && regenSession.Player.Hero.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.HealthRegen) == 3;
+            && trainingResult.IsSuccess
+            && trainingResult.Value!.CardChanges!.Count == 1
+            && trainingResult.Value.CardChanges[0].CardCount == 2
+            && attackCard.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.AttackDamage) == 35
+            && thornCard.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.AttackDamage) == 5
+            && noAttackCard.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.AttackDamage) == 0
+            && invalidResult.IsFailure;
     }
 
     private static bool CheckLandfill()
@@ -606,39 +664,24 @@ public sealed partial class PhaseOneVerification : Control
         var board = CreateBoardService();
         var resolver = new ResolveEncounterOptionService(factory, board, cards);
         var wealthKey = new StringName("encounter.landfill.wealth");
-        var factionKey = new StringName("encounter.landfill.faction_small_card");
         var materialKey = new StringName("encounter.landfill.material_small_card");
 
         var deterministicA = resolver.CreateOptionSet(matches.Create(77, 0, heroDefinition), definition);
         var deterministicB = resolver.CreateOptionSet(matches.Create(77, 0, heroDefinition), definition);
         if (deterministicA.Options.Count != 2
             || deterministicA.Options[0].Key != wealthKey
+            || deterministicA.Options[1].Key != materialKey
             || deterministicA.Options[1].Key != deterministicB.Options[1].Key)
         {
             return false;
         }
 
-        MatchSession? factionSession = null;
-        EncounterOptionSet? factionOptions = null;
-        MatchSession? materialSession = null;
-        EncounterOptionSet? materialOptions = null;
-        for (ulong seed = 1; seed <= 1000 && (factionSession is null || materialSession is null); seed++)
-        {
-            var session = matches.Create(seed, 0, heroDefinition);
-            var options = resolver.CreateOptionSet(session, definition);
-            if (options.Options[1].Key == factionKey && factionSession is null)
-                (factionSession, factionOptions) = (session, options);
-            if (options.Options[1].Key == materialKey && materialSession is null)
-                (materialSession, materialOptions) = (session, options);
-        }
-        if (factionSession is null || factionOptions is null || materialSession is null || materialOptions is null)
-            return false;
-
         var wealthSession = matches.Create(88, 0, heroDefinition);
         var wealthOptions = resolver.CreateOptionSet(wealthSession, definition);
         var wealthResult = resolver.Resolve(wealthSession, wealthOptions, wealthKey);
         var repeatedResult = resolver.Resolve(wealthSession, wealthOptions, wealthKey);
-        var factionResult = resolver.Resolve(factionSession, factionOptions, factionKey);
+        var materialSession = matches.Create(89, 0, heroDefinition);
+        var materialOptions = resolver.CreateOptionSet(materialSession, definition);
         var materialResult = resolver.Resolve(materialSession, materialOptions, materialKey);
 
         var fullSession = matches.Create(99, 0, heroDefinition);
@@ -649,38 +692,89 @@ public sealed partial class PhaseOneVerification : Control
             var zone = index < 10 ? BoardZone.Battlefield : BoardZone.Bench;
             _ = board.PlaceCard(fullSession, blocker.Id, zone, index % 10);
         }
-        EncounterOptionSet? fullCardOptions = null;
-        for (var attempts = 0; attempts < 1000; attempts++)
-        {
-            var options = resolver.CreateOptionSet(fullSession, definition);
-            if (options.Options[1].Key == factionKey)
-            {
-                fullCardOptions = options;
-                break;
-            }
-        }
-        if (fullCardOptions is null) return false;
+        var fullCardOptions = resolver.CreateOptionSet(fullSession, definition);
         var inventoryBefore = fullSession.Player.Inventory.Cards.Count;
-        var fullResult = resolver.Resolve(fullSession, fullCardOptions, factionKey);
+        var fullResult = resolver.Resolve(fullSession, fullCardOptions, materialKey);
 
         return registry.Encounters.ContainsKey(new StringName("encounter.landfill"))
+            && definition.Attributes.Identity.DisplayName == "垃圾场"
             && definition.Level == 1
-            && definition.Options.Count == 3
+            && definition.Options.Count == 2
             && definition.OptionSlots.Count == 2
-            && definition.OptionSlots[1].Candidates[0].Weight == 60
-            && definition.OptionSlots[1].Candidates[1].Weight == 40
+            && definition.Options[0].DisplayName == "拾取零钱"
+            && definition.Options[1].DisplayName == "变废为宝"
+            && definition.OptionSlots[1].Candidates.Count == 1
             && wealthResult.IsSuccess
             && wealthResult.Value!.WealthGained == 2
             && wealthSession.Player.Wealth == 7
             && repeatedResult.IsFailure
-            && factionResult.Value?.GrantedCard?.Attributes.Identity.FactionKey == new StringName("paladin")
-            && factionResult.Value.GrantedCard.Attributes.Identity.Size == CardSize.Small
             && materialResult.Value?.GrantedCard?.Tags.Contains(GameTags.Material) == true
             && materialResult.Value.GrantedCard.Attributes.Identity.Size == CardSize.Small
             && fullResult.IsSuccess
             && fullResult.Value!.CardRewardSkipped
             && fullResult.Value.GrantedCard is null
             && fullSession.Player.Inventory.Cards.Count == inventoryBefore;
+    }
+
+    private static bool CheckTavernEncounter()
+    {
+        var definition = new TavernEncounterDefinition();
+        var heroDefinition = new PaladinHeroDefinition();
+        var otherFactionCard = new ShopVerificationCardDefinition(
+            CardSize.Small,
+            new StringName("other_hero"),
+            "tavern");
+        var registry = DefinitionRegistry.Create([heroDefinition, definition]);
+        var cards = new CardDefinition[] { otherFactionCard };
+        var factory = new EntityFactory();
+        var matches = new CreateMatchService(factory);
+        var board = CreateBoardService();
+        var resolver = new ResolveEncounterOptionService(factory, board, cards);
+        var tradeKey = new StringName("encounter.tavern.trade");
+        var cheersKey = new StringName("encounter.tavern.cheers");
+        var tradeSession = matches.Create(311, 0, heroDefinition);
+        var tradeOptions = resolver.CreateOptionSet(tradeSession, definition);
+        var tradeResult = resolver.Resolve(tradeSession, tradeOptions, tradeKey);
+
+        var insufficientSession = matches.Create(312, 0, heroDefinition);
+        insufficientSession.Player.Resources.SetBaseValue(GameAttributeKeys.Wealth, 1);
+        var insufficientOptions = resolver.CreateOptionSet(insufficientSession, definition);
+        var insufficientResult = resolver.Resolve(insufficientSession, insufficientOptions, tradeKey);
+
+        var cheerSession = matches.Create(313, 0, heroDefinition);
+        cheerSession.Player.Hero!.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 3);
+        var cheerOptions = resolver.CreateOptionSet(cheerSession, definition);
+        var cheerResult = resolver.Resolve(cheerSession, cheerOptions, cheersKey);
+        var opponent = matches.Create(314, 0, heroDefinition);
+        var setupFactory = new BattleSetupFactory();
+        var boostedSetup = setupFactory.Create(cheerSession, opponent, 1, new BattleTick(2));
+        var battleResult = new StartBattleService(setupFactory, new CombatSimulator())
+            .StartBattle(cheerSession, opponent, 2);
+        var nextBattleSetup = setupFactory.Create(cheerSession, opponent, 3, new BattleTick(2));
+
+        return registry.Encounters.ContainsKey(new StringName("encounter.tavern"))
+            && definition.Level == 1
+            && definition.MinimumRound == 1
+            && definition.MaximumRound == 3
+            && definition.Options.Count == 2
+            && definition.Options[0].Key == tradeKey
+            && definition.Options[1].Key == cheersKey
+            && tradeResult.IsSuccess
+            && tradeResult.Value!.WealthSpent == 2
+            && tradeResult.Value.GrantedCard?.Attributes.Identity.FactionKey == new StringName("other_hero")
+            && tradeResult.Value.GrantedCard.Attributes.Identity.Size == CardSize.Small
+            && tradeResult.Value.GrantedCard.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
+            && tradeSession.Player.Wealth == 3
+            && tradeSession.Board.Battlefield.Placements.Count + tradeSession.Board.Bench.Placements.Count == 1
+            && insufficientResult.IsFailure
+            && insufficientSession.Player.Wealth == 1
+            && insufficientSession.Player.Inventory.Cards.Count == 0
+            && cheerResult.IsSuccess
+            && cheerResult.Value!.PendingBattleMaxHealthBonus == 30
+            && boostedSetup.Player.Hero.MaxHealth == 130
+            && battleResult.IsSuccess
+            && cheerSession.PendingBattleMaxHealthBonus == 0
+            && nextBattleSetup.Player.Hero.MaxHealth == 100;
     }
 
     private static bool CheckSpecialValueCoefficient()
@@ -1464,7 +1558,9 @@ public sealed partial class PhaseOneVerification : Control
             || levelOne.Abilities[0].Effects[0]
                 is not GainSourceHeroArmorFromAttributeEffectDefinition { AttributeKey: var armorKey }
             || armorKey != GameAttributeKeys.Armor
-            || levelOne.Abilities[0].Effects[1] is not SourceHeroArmorDamageEffectDefinition)
+            || levelOne.Abilities[0].Effects[1]
+                is not SourceHeroArmorDamageEffectDefinition { BonusAttributeKey: var bonusKey }
+            || bonusKey != GameAttributeKeys.AttackDamage)
         {
             return false;
         }
@@ -2073,6 +2169,7 @@ public sealed partial class PhaseOneVerification : Control
         var attributeEquipmentId = EntityId.New();
         var fixedEquipmentId = EntityId.New();
         var shieldId = EntityId.New();
+        var thornArmorId = EntityId.New();
         var enemyAttackerId = EntityId.New();
         var attributeEquipmentAbility = new AbilityDefinition(
             new StringName("test.blacksmith_attribute_equipment"),
@@ -2100,6 +2197,8 @@ public sealed partial class PhaseOneVerification : Control
             [new DamageEffectDefinition(100)]);
         var shieldDefinition = new ArcaneShieldCardDefinition();
         var shieldLevel = shieldDefinition.GetLevel(2)!;
+        var thornDefinition = new ThornArmorCardDefinition();
+        var thornLevel = thornDefinition.GetLevel(1)!;
         var equipmentTags = new TagSet([GameTags.Equipment]);
         var setup = new BattleSetup(
             new BattleSideSetup(
@@ -2113,6 +2212,8 @@ public sealed partial class PhaseOneVerification : Control
                     new CardBattleSetup(shieldId, 4, 0, 80, shieldLevel.Abilities,
                         UseLegacyAttack: false, Tags: shieldDefinition.Tags,
                         ElementKeys: [GameElements.Light], ArmorAmount: 0),
+                    new CardBattleSetup(thornArmorId, 5, 0, 80, thornLevel.Abilities,
+                        UseLegacyAttack: false, Tags: thornDefinition.Tags, ArmorAmount: 10),
                 ]),
             new BattleSideSetup(
                 new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
@@ -2124,17 +2225,20 @@ public sealed partial class PhaseOneVerification : Control
         var attributeDamage = -1;
         var fixedDamage = -1;
         var absorbedArmor = -1;
+        var thornDamage = -1;
         foreach (var battleEvent in result.Events)
         {
             if (battleEvent is not DamageDealtEvent damage) continue;
             if (damage.SourceCardId == attributeEquipmentId) attributeDamage = damage.RawDamage;
             if (damage.SourceCardId == fixedEquipmentId) fixedDamage = damage.RawDamage;
             if (damage.SourceCardId == enemyAttackerId) absorbedArmor = damage.ArmorAbsorbed;
+            if (damage.SourceCardId == thornArmorId) thornDamage = damage.RawDamage;
         }
 
         return attributeDamage == 15
             && fixedDamage == 1
-            && absorbedArmor == 45;
+            && thornDamage == 75
+            && absorbedArmor == 65;
     }
 
     private static bool CheckHolySlashingBlade()
@@ -2214,8 +2318,9 @@ public sealed partial class PhaseOneVerification : Control
             .ToArray();
 
         return bladeDamage.SequenceEqual([400, 800])
-            && enemyDestroyed.Length == 2
-            && enemyDestroyed.All(value => value == enemySmallDemonId || value == enemyMediumUndeadId)
+            && enemyDestroyed.Length == 1
+            && enemyDestroyed[0] == enemySmallDemonId
+            && !enemyDestroyed.Contains(enemyMediumUndeadId)
             && !enemyDestroyed.Contains(enemyLargeDemonId)
             && enemyDestroyed.SequenceEqual(repeatedDestroyed);
     }
@@ -3276,6 +3381,26 @@ public sealed partial class PhaseOneVerification : Control
                         10,
                         [new DamageEffectDefinition(25)]),
                 ])
+        {
+        }
+    }
+
+    private sealed class AttackValueVerificationCardDefinition : CardDefinition
+    {
+        public AttackValueVerificationCardDefinition()
+            : base(
+                new EntityAttributes<CardIdentityAttributes>(
+                    new CardIdentityAttributes(
+                        new StringName("verification.attack_value"),
+                        "攻击属性验证卡牌",
+                        new StringName("paladin"),
+                        CardSize.Small,
+                        [GameElements.General]),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.AttackDamage] = 30,
+                    })),
+                new TagSet())
         {
         }
     }

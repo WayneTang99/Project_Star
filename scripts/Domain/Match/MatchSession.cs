@@ -11,6 +11,7 @@ public sealed class MatchSession
     private readonly List<PendingMonsterReward> _pendingMonsterRewards = [];
     private readonly List<AppliedCardSetModifier> _appliedCardSetModifiers = [];
     private readonly List<AppliedCardQuestModifier> _appliedCardQuestModifiers = [];
+    private int _pendingBattleMaxHealthBonus;
 
     public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10)
     {
@@ -42,6 +43,21 @@ public sealed class MatchSession
     public List<IMatchEvent> Events { get; } = [];
 
     public IReadOnlyList<PendingMonsterReward> PendingMonsterRewards => _pendingMonsterRewards;
+
+    public int PendingBattleMaxHealthBonus => _pendingBattleMaxHealthBonus;
+
+    internal void AddPendingBattleMaxHealthBonus(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        _pendingBattleMaxHealthBonus = checked(_pendingBattleMaxHealthBonus + amount);
+    }
+
+    internal int ConsumePendingBattleMaxHealthBonus()
+    {
+        var amount = _pendingBattleMaxHealthBonus;
+        _pendingBattleMaxHealthBonus = 0;
+        return amount;
+    }
 
     internal List<AppliedCardSetModifier> AppliedCardSetModifiers => _appliedCardSetModifiers;
 

@@ -56,7 +56,9 @@ public sealed record AttributeDamageEffectDefinition(StringName AttributeKey, bo
 public sealed record SourceHeroHealthScaledAttributeDamageEffectDefinition(
     StringName AttributeKey, bool BypassArmor = false) : EffectDefinition;
 
-public sealed record SourceHeroArmorDamageEffectDefinition(bool BypassArmor = false) : EffectDefinition;
+public sealed record SourceHeroArmorDamageEffectDefinition(
+    bool BypassArmor = false,
+    StringName? BonusAttributeKey = null) : EffectDefinition;
 
 public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
 
