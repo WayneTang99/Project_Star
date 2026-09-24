@@ -137,6 +137,26 @@ internal sealed class SkillBattleState : IBattleAbilitySource
         _combatAttributes.TryGetValue(key, out var value) ? value : 0;
 }
 
+// 套装阈值战斗来源不占棋盘，也不会因成员卡牌摧毁而失效（领域战斗层）。
+internal sealed class CardSetBattleState : IBattleAbilitySource
+{
+    public CardSetBattleState(CardSetBattleSetup setup, SideId side)
+    {
+        EntityId = setup.EntityId;
+        Side = side;
+        foreach (var definition in setup.Abilities) Abilities.Add(new BattleAbilityState(definition));
+    }
+
+    public EntityId EntityId { get; }
+    public SideId Side { get; }
+    public bool Destroyed => false;
+    public bool IsOnBench => false;
+    public int ActivationCount { get; set; }
+    public int CooldownBonusTicks { get; set; }
+    public List<BattleAbilityState> Abilities { get; } = [];
+    public int GetCombatAttribute(StringName key) => 0;
+}
+
 internal sealed record PendingAbility(
     IBattleAbilitySource Source,
     BattleAbilityState Ability,
@@ -160,12 +180,14 @@ internal sealed class BattleRuntime
         PlayerHero = new HeroBattleState(setup.Player.Hero); OpponentHero = new HeroBattleState(setup.Opponent.Hero);
         AddCards(setup.Player.Cards, SideId.Player); AddCards(setup.Opponent.Cards, SideId.Opponent); Cards.Sort(CompareCards);
         AddSkills(setup.Player.Skills, SideId.Player); AddSkills(setup.Opponent.Skills, SideId.Opponent);
+        AddSets(setup.Player.Sets, SideId.Player); AddSets(setup.Opponent.Sets, SideId.Opponent);
     }
     public BattleTick Tick { get; set; } = BattleTick.Zero;
     public HeroBattleState PlayerHero { get; }
     public HeroBattleState OpponentHero { get; }
     public List<CardBattleState> Cards { get; } = [];
     public List<SkillBattleState> Skills { get; } = [];
+    public List<CardSetBattleState> Sets { get; } = [];
     public IEnumerable<IBattleAbilitySource> AbilitySources
     {
         get
@@ -176,6 +198,8 @@ internal sealed class BattleRuntime
                     if (card.Side == side) yield return card;
                 foreach (var skill in Skills)
                     if (skill.Side == side) yield return skill;
+                foreach (var set in Sets)
+                    if (set.Side == side) yield return set;
             }
         }
     }
@@ -201,6 +225,10 @@ internal sealed class BattleRuntime
         Skills.Sort((left, right) => left.Side != right.Side
             ? left.Side.CompareTo(right.Side)
             : left.EntityId.Value.CompareTo(right.EntityId.Value));
+    }
+    private void AddSets(IReadOnlyList<CardSetBattleSetup> sets, SideId side)
+    {
+        foreach (var set in sets) Sets.Add(new CardSetBattleState(set, side));
     }
     private static int CompareCards(CardBattleState left, CardBattleState right)
     {

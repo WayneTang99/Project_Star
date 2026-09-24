@@ -121,7 +121,7 @@ flowchart LR
 
 ### 4.1 静态定义
 
-- `HeroDefinition`、`CardDefinition`、`SkillDefinition`、`EncounterDefinition`、`MonsterDefinition` 是抽象基类。
+- `HeroDefinition`、`CardDefinition`、`SkillDefinition`、`CardSetDefinition`、`EncounterDefinition`、`MonsterDefinition` 是抽象基类。
 - 每个具体内容是非抽象子类。英雄声明身份与初始属性；卡牌声明身份、初始属性、标签和能力组合；遭遇声明身份与排程配置；怪物声明固定战斗属性与卡组。
 - `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
 - `ChoiceEncounterDefinition` 使用只读选项列表和固定/加权展示槽组合通用遭遇效果，并显式声明遭遇等级；`ResolveEncounterOptionService` 使用对局随机状态生成本次选项、校验一次性选择并结算通用奖励。表现层动态读取选项，不按具体遭遇 key 分支。
@@ -140,7 +140,7 @@ flowchart LR
 
 ```text
 EntityAttributes
-├── IdentityAttributes     只读：key、展示名、归属、尺寸、ElementKeys
+├── IdentityAttributes     只读：key、展示名、归属、尺寸、ElementKeys、可选 SetKey
 ├── PersistentAttributes   对局内：等级、价值、金钱、声望等
 └── BaseCombatAttributes   派生战斗初始值的基础数值
 ```
@@ -162,6 +162,8 @@ EntityAttributes
 - Apply 按 ID 添加贡献，Remove 按 ID 精确移除。
 - 效果到期只移除自身贡献，不能清零整个属性。
 - 疾速与迟缓按最终属性值判断抵消。
+
+套装求值只读取战场区快照，先按卡牌 key 去重，再按套装 key 统计并稳定输出所有达到的阈值。阈值只解锁 `AbilityDefinition`，不另设套装专属效果执行路径；卡牌描述、技能和未来的任务解锁也遵循同一能力模型。持续属性能力的目标默认仅为该套装的战场卡牌，特殊目标由能力目标显式指定。棋盘应用用例按稳定来源精确 Apply / Remove Modifier；战斗能力写入 `BattleSetup`，战斗内卡牌摧毁不重新计算该快照。套装效果所称“全部卡牌”仅指战场区。其他非数值效果待具体内容描述后接入，每条效果的生命周期由其描述指定。
 
 ## 5. 标签与词条
 

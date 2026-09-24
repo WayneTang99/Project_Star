@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 
 namespace Project_Star.Application.Combat;
@@ -9,6 +11,12 @@ namespace Project_Star.Application.Combat;
 /// <summary>Copies match state into an immutable battle input.</summary>
 public sealed class BattleSetupFactory
 {
+    private readonly IReadOnlyDictionary<StringName, CardSetDefinition> _sets;
+    private readonly CardSetEvaluator _setEvaluator = new();
+
+    public BattleSetupFactory(IReadOnlyDictionary<StringName, CardSetDefinition>? sets = null) =>
+        _sets = sets ?? new Dictionary<StringName, CardSetDefinition>();
+
     public BattleSetup Create(
         MatchSession playerSession,
         MatchSession opponentSession,
@@ -26,7 +34,7 @@ public sealed class BattleSetupFactory
             eclipseTime ?? new BattleTick(300));
     }
 
-    private static BattleSideSetup CreateSide(MatchSession session)
+    private BattleSideSetup CreateSide(MatchSession session)
     {
         var hero = session.Player.Hero
             ?? throw new InvalidOperationException("A hero must be selected before battle.");
@@ -102,9 +110,23 @@ public sealed class BattleSetupFactory
                 skill.Abilities,
                 skill.Attributes.BaseCombat.SnapshotFinalValues()));
 
+        var sets = new List<CardSetBattleSetup>();
+        foreach (var active in _setEvaluator.Evaluate(session, _sets))
+        {
+            var battleAbilities = new List<AbilityDefinition>();
+            foreach (var ability in active.Threshold.Abilities)
+                if (ability.Activation != AbilityActivation.PassiveWhileEnabled)
+                    battleAbilities.Add(ability);
+            if (battleAbilities.Count > 0)
+                sets.Add(new CardSetBattleSetup(
+                    CardSetEvaluator.SourceId(active.SetKey, active.Threshold.RequiredDistinctCards),
+                    battleAbilities.AsReadOnly()));
+        }
+
         return new BattleSideSetup(
             new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison),
             cards.AsReadOnly(),
-            skills.AsReadOnly());
+            skills.AsReadOnly(),
+            sets.AsReadOnly());
     }
 }

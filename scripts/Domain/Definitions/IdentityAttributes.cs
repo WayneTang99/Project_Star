@@ -45,17 +45,21 @@ public sealed class CardIdentityAttributes : IdentityAttributes
         string displayName,
         StringName factionKey,
         CardSize size,
-        IEnumerable<StringName> elementKeys)
+        IEnumerable<StringName> elementKeys,
+        StringName? setKey = null)
         : base(key, displayName)
     {
         if (!Enum.IsDefined(size))
         {
             throw new ArgumentOutOfRangeException(nameof(size), size, null);
         }
+        if (setKey is { IsEmpty: true })
+            throw new ArgumentException("Set key cannot be empty.", nameof(setKey));
 
         FactionKey = factionKey;
         Size = size;
         ElementKeys = GameElements.Normalize(elementKeys);
+        SetKey = setKey;
     }
 
     public StringName FactionKey { get; }
@@ -65,6 +69,16 @@ public sealed class CardIdentityAttributes : IdentityAttributes
     public int OccupiedSlots => (int)Size;
 
     public IReadOnlyList<StringName> ElementKeys { get; }
+
+    public StringName? SetKey { get; }
+}
+
+// 套装只读身份字段（领域定义层）。
+public sealed class CardSetIdentityAttributes : IdentityAttributes
+{
+    public CardSetIdentityAttributes(StringName key, string displayName) : base(key, displayName)
+    {
+    }
 }
 
 public sealed class SkillIdentityAttributes : IdentityAttributes

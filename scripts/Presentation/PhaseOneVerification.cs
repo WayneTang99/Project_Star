@@ -45,6 +45,7 @@ public sealed partial class PhaseOneVerification : Control
         ("卡牌定义组合身份、属性与标签", CheckCardDefinition),
         ("注册表登记英雄、卡牌与遭遇定义", CheckDefinitionDiscovery),
         ("注册表拒绝同类型重复 Key", CheckDuplicateDefinition),
+        ("套装注册表拒绝未知套装归属", CheckUnknownCardSet),
         ("定义中的初始属性不可修改", CheckFrozenDefinition),
         ("工厂创建完全独立的卡牌实例", CheckIndependentInstances),
         ("新对局可以选择英雄并生成卡牌", CheckMatchCreation),
@@ -76,6 +77,9 @@ public sealed partial class PhaseOneVerification : Control
         ("跨区失败时两个区域均不改变", CheckCrossZoneRollback),
         ("同一实例只存在于一个棋盘区域", CheckUniqueBoardLocation),
         ("卡牌不能越过棋盘容量边界", CheckBoardCapacity),
+        ("套装按战场不同卡牌累计阈值并精确移除", CheckCardSetBonuses),
+        ("显式套装目标可覆盖战场卡牌与英雄但不覆盖备战区", CheckCardSetExplicitTargets),
+        ("套装战斗来源在成员摧毁后仍按快照触发", CheckCardSetBattleSource),
         ("移出棋盘后卡牌可以出售", CheckRemoveThenSell),
         ("战斗快照与对局实例隔离", CheckBattleSnapshotIsolation),
         ("相同输入产生相同战斗日志", CheckDeterministicBattle),
@@ -2404,6 +2408,127 @@ public sealed partial class PhaseOneVerification : Control
             && result.Events.OfType<AbilityActivatedEvent>().Count(value => value.SourceCardId == skill.Id) == 1;
     }
 
+    private static bool CheckUnknownCardSet()
+    {
+        try
+        {
+            _ = DefinitionRegistry.Create([new VerificationSetCardDefinition("verification.set_card_a")]);
+            return false;
+        }
+        catch (DefinitionValidationException)
+        {
+            return true;
+        }
+    }
+
+    private static bool CheckCardSetBonuses()
+    {
+        var registry = DefinitionRegistry.Create([
+            new VerificationCardSetDefinition(),
+            new VerificationSetCardDefinition("verification.set_card_a"),
+            new VerificationSetCardDefinition("verification.set_card_b"),
+            new VerificationSetCardDefinition("verification.set_card_c"),
+        ]);
+        var factory = new EntityFactory();
+        var session = new MatchSession(1);
+        session.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var opponent = new MatchSession(2);
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
+        var first = factory.CreateCard(registry.Cards[new StringName("verification.set_card_a")]);
+        var second = factory.CreateCard(registry.Cards[new StringName("verification.set_card_b")]);
+        var duplicate = factory.CreateCard(registry.Cards[new StringName("verification.set_card_a")]);
+        var third = factory.CreateCard(registry.Cards[new StringName("verification.set_card_c")]);
+        foreach (var card in new[] { first, second, duplicate, third })
+            session.Player.Inventory.Add(card);
+        if (board.PlaceCard(session, first.Id, BoardZone.Battlefield, 0).IsFailure
+            || board.PlaceCard(session, second.Id, BoardZone.Battlefield, 1).IsFailure
+            || first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 15
+            || board.PlaceCard(session, duplicate.Id, BoardZone.Battlefield, 2).IsFailure
+            || duplicate.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 15
+            || board.PlaceCard(session, third.Id, BoardZone.Battlefield, 3).IsFailure)
+            return false;
+
+        var active = new CardSetEvaluator().Evaluate(session, registry.Sets);
+        var frozen = new BattleSetupFactory(registry.Sets).Create(session, opponent, 1, new BattleTick(10));
+        if (active.Count != 2
+            || active[0].Threshold.RequiredDistinctCards != 2
+            || active[1].Threshold.RequiredDistinctCards != 3
+            || first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 65
+            || frozen.Player.Cards[0].AttackDamage != 65)
+            return false;
+
+        new CardSetBonusService(registry.Sets).Recalculate(session);
+        if (first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 65
+            || board.PlaceCard(session, third.Id, BoardZone.Bench, 0).IsFailure
+            || first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 15
+            || third.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != 5
+            || frozen.Player.Cards[0].AttackDamage != 65)
+            return false;
+
+        var independent = new StatModifier(ModifierId.New(), first.Id, GameAttributeKeys.AttackDamage, 7);
+        first.Attributes.BaseCombat.ApplyModifier(independent);
+        return board.RemoveFromBoard(session, second.Id).IsSuccess
+            && new CardSetEvaluator().Evaluate(session, registry.Sets).Count == 0
+            && first.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 12
+            && duplicate.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 5;
+    }
+
+    private static bool CheckCardSetExplicitTargets()
+    {
+        var registry = DefinitionRegistry.Create([
+            new VerificationCardSetDefinition(explicitTargets: true),
+            new VerificationSetCardDefinition("verification.set_card_a"),
+            new BeastHideCardDefinition(),
+        ]);
+        var factory = new EntityFactory();
+        var session = new MatchSession(1);
+        session.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
+        var member = factory.CreateCard(registry.Cards[new StringName("verification.set_card_a")]);
+        var other = factory.CreateCard(registry.Cards[new StringName("card.beast_hide")]);
+        var bench = factory.CreateCard(registry.Cards[new StringName("card.beast_hide")]);
+        foreach (var card in new[] { member, other, bench }) session.Player.Inventory.Add(card);
+        return board.PlaceCard(session, member.Id, BoardZone.Battlefield, 0).IsSuccess
+            && board.PlaceCard(session, other.Id, BoardZone.Battlefield, 1).IsSuccess
+            && board.PlaceCard(session, bench.Id, BoardZone.Bench, 0).IsSuccess
+            && member.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 15
+            && other.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 10
+            && bench.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 0
+            && session.Player.Hero!.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Armor) == 3;
+    }
+
+    private static bool CheckCardSetBattleSource()
+    {
+        var registry = DefinitionRegistry.Create([
+            new VerificationBattleSetDefinition(), new VerificationSelfDestroyingSetCardDefinition(),
+        ]);
+        var factory = new EntityFactory();
+        var player = new MatchSession(1);
+        var opponent = new MatchSession(2);
+        player.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        var card = factory.CreateCard(registry.Cards[new StringName("verification.self_destroying_set_card")]);
+        player.Player.Inventory.Add(card);
+        var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
+        if (board.PlaceCard(player, card.Id, BoardZone.Battlefield, 0).IsFailure) return false;
+        var setup = new BattleSetupFactory(registry.Sets).Create(
+            player, opponent, 3, new BattleTick(2), new BattleTick(300));
+        if (setup.Player.Sets.Count != 1
+            || board.PlaceCard(player, card.Id, BoardZone.Bench, 0).IsFailure)
+            return false;
+        var events = new CombatSimulator().Simulate(setup).Events;
+        var destroyedAt = events.ToList().FindIndex(value => value is CardDestroyedEvent);
+        var setActivatedAt = events.ToList().FindIndex(value => value is AbilityActivatedEvent
+            { SourceKind: AbilitySourceKind.CardSet });
+        return player.Board.Battlefield.Count == 0
+            && destroyedAt >= 0 && setActivatedAt > destroyedAt
+            && events.OfType<DamageDealtEvent>().Any(value =>
+                value.SourceKind == DamageSourceKind.CardSet && value.RawDamage == 7)
+            && events.OfType<AbilityActivatedEvent>().Count(value =>
+                value.SourceKind == AbilitySourceKind.CardSet) == 1;
+    }
+
     private static DefinitionRegistry CreateVerificationRegistry() => DefinitionRegistry.Create(
     [
         new VerificationHeroDefinition(),
@@ -2471,6 +2596,92 @@ public sealed partial class PhaseOneVerification : Control
                 0,
                 0,
                 [new DamageEffectDefinition(damage)])]);
+    }
+
+    // 验证用战士套装，不进入正式内容注册扫描（表现层验证模块）。
+    private sealed class VerificationCardSetDefinition : CardSetDefinition
+    {
+        public VerificationCardSetDefinition(bool explicitTargets = false)
+            : base(
+                new EntityAttributes<CardSetIdentityAttributes>(
+                    new CardSetIdentityAttributes(new StringName("verification.warrior_set"), "验证战士套装")),
+                explicitTargets
+                    ? [new CardSetThresholdDefinition(1, [
+                        SetModifier("verification.set.all_attack", GameAttributeKeys.AttackDamage, 10, AbilityTarget.AllBattlefieldCards),
+                        SetModifier("verification.set.hero_armor", GameAttributeKeys.Armor, 3, AbilityTarget.AlliedHero),
+                    ])]
+                    : [
+                    new CardSetThresholdDefinition(2, [SetModifier("verification.set.two_attack", GameAttributeKeys.AttackDamage, 10)]),
+                    new CardSetThresholdDefinition(3, [SetModifier("verification.set.three_attack", GameAttributeKeys.AttackDamage, 50)]),
+                    ])
+        {
+        }
+
+        private static AbilityDefinition SetModifier(
+            string key, StringName attributeKey, int amount,
+            AbilityTarget target = AbilityTarget.SourceGroupCards) => new(
+                new StringName(key), AbilityActivation.PassiveWhileEnabled, target, 0, 0,
+                [new ModifyAttributeEffectDefinition(attributeKey, amount)]);
+    }
+
+    // 验证套装的战斗回响来源（表现层验证模块）。
+    private sealed class VerificationBattleSetDefinition : CardSetDefinition
+    {
+        public VerificationBattleSetDefinition()
+            : base(
+                new EntityAttributes<CardSetIdentityAttributes>(
+                    new CardSetIdentityAttributes(new StringName("verification.battle_set"), "验证战斗套装")),
+                [new CardSetThresholdDefinition(1, [new AbilityDefinition(
+                    new StringName("verification.battle_set_echo"), AbilityActivation.EchoOnDamageDealt,
+                    AbilityTarget.EnemyHero, 0, 0, [new DamageEffectDefinition(7)])])])
+        {
+        }
+    }
+
+    // 验证卡牌在造成伤害前摧毁自身（表现层验证模块）。
+    private sealed class VerificationSelfDestroyingSetCardDefinition : CardDefinition
+    {
+        public VerificationSelfDestroyingSetCardDefinition()
+            : base(
+                new EntityAttributes<CardIdentityAttributes>(
+                    new CardIdentityAttributes(
+                        new StringName("verification.self_destroying_set_card"), "验证自毁套装卡",
+                        GameFactions.Neutral, CardSize.Small, [GameElements.General],
+                        new StringName("verification.battle_set")),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.CooldownTicks] = 1,
+                    })),
+                new TagSet(),
+                [new AbilityDefinition(
+                    new StringName("verification.self_destroying_attack"), AbilityActivation.Active,
+                    AbilityTarget.EnemyHero, 0, 1,
+                    [new DestroyCardEffectDefinition(false), new DamageEffectDefinition(1)])])
+        {
+        }
+    }
+
+    // 验证用套装卡牌定义（表现层验证模块）。
+    private sealed class VerificationSetCardDefinition : CardDefinition
+    {
+        public VerificationSetCardDefinition(string key)
+            : base(
+                new EntityAttributes<CardIdentityAttributes>(
+                    new CardIdentityAttributes(
+                        new StringName(key), "验证套装卡", GameFactions.Neutral, CardSize.Small,
+                        [GameElements.General], new StringName("verification.warrior_set")),
+                    baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
+                    {
+                        [GameAttributeKeys.AttackDamage] = 5,
+                        [GameAttributeKeys.CooldownTicks] = 10,
+                    })),
+                new TagSet(),
+                [new AbilityDefinition(
+                    new StringName("verification.set_attack"), AbilityActivation.Active,
+                    AbilityTarget.EnemyHero, 0, 10,
+                    [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage)])])
+        {
+        }
     }
 
     // 验证专用遭遇定义（表现层验证模块）。

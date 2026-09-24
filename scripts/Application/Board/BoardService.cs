@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Project_Star.Application.Common;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 
 namespace Project_Star.Application.Board;
@@ -30,10 +31,12 @@ public sealed class BoardService
     private static readonly StringName PlacementFailed = new("board.placement_failed");
 
     private readonly BoardPlacementSolver _solver;
+    private readonly CardSetBonusService? _setBonuses;
 
-    public BoardService(BoardPlacementSolver solver)
+    public BoardService(BoardPlacementSolver solver, IReadOnlyDictionary<StringName, CardSetDefinition>? sets = null)
     {
         _solver = solver ?? throw new ArgumentNullException(nameof(solver));
+        _setBonuses = sets is null ? null : new CardSetBonusService(sets);
     }
 
     public Result<BoardPlacementResult> PlaceCard(
@@ -87,6 +90,7 @@ public sealed class BoardService
             targetStart,
             movingCardIsPushable,
             plan);
+        _setBonuses?.Recalculate(session);
 
         return Result<BoardPlacementResult>.Success(
             new BoardPlacementResult(plan.Direction, plan.TotalDistance, plan.AffectedCards, moves));
@@ -127,6 +131,7 @@ public sealed class BoardService
         }
 
         session.Board.GetZone(location.Value.Zone).Remove(cardId);
+        _setBonuses?.Recalculate(session);
         return Result.Success();
     }
 

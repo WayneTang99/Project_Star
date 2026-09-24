@@ -22,7 +22,7 @@ public sealed partial class MinimalPlaytest : Control
     private enum Screen { HeroSelection, EncounterChoice, Shop, Event, Preparation, BattleResult }
 
     private readonly EntityFactory _factory = new();
-    private readonly BoardService _board = new(new BoardPlacementSolver());
+    private BoardService _board = null!;
     private readonly ShopCardPoolService _shopCardPool = new();
     private ResolveEncounterOptionService _encounterOptions = null!;
     private readonly Button[] _choices = new Button[3];
@@ -61,6 +61,7 @@ public sealed partial class MinimalPlaytest : Control
     public override void _Ready()
     {
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        _board = new BoardService(new BoardPlacementSolver(), _registry.Sets);
         _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
         _monsterRewards = new MonsterRewardClaimService(
             _registry, _economy, new SkillAcquisitionService(_factory), _board);
@@ -68,7 +69,7 @@ public sealed partial class MinimalPlaytest : Control
         _game = new GameCoordinator(
             new CreateMatchService(_factory),
             new EncounterScheduler(_registry, allowIncompleteMonsterChoices: true),
-            new StartBattleService(new BattleSetupFactory(), new CombatSimulator()),
+            new StartBattleService(new BattleSetupFactory(_registry.Sets), new CombatSimulator()),
             new MatchResultService(_board));
         const string root = "Margin/Frame/Margin/Content";
         _title = GetNode<Label>($"{root}/Header/HeaderPanel/Margin/Title");
@@ -546,6 +547,7 @@ public sealed partial class MinimalPlaytest : Control
                     DamageSourceKind.Eclipse => "日蚀",
                     DamageSourceKind.Status => "状态",
                     DamageSourceKind.Skill => "技能",
+                    DamageSourceKind.CardSet => "套装",
                     _ => "卡牌",
                 };
                 lines.Add($"{damage.Tick.ToSeconds(),4:0.0}s　{source}：{(damage.TargetSide == SideId.Player ? "玩家" : "敌方")}受到 {damage.HealthDamage} 点伤害，生命 {damage.RemainingHealth}");

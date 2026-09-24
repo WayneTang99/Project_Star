@@ -17,6 +17,7 @@ public enum AbilitySourceKind
 {
     Card = 0,
     Skill = 1,
+    CardSet = 2,
 }
 
 public sealed record AbilityActivatedEvent(
@@ -49,6 +50,7 @@ public enum DamageSourceKind
     Status = 1,
     Eclipse = 2,
     Skill = 3,
+    CardSet = 4,
 }
 
 public sealed record DamageDealtEvent(

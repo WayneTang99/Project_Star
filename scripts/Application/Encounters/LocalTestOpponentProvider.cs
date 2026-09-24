@@ -37,7 +37,8 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
             cardDefinition,
             cardDefinition.InitialLevel,
             CardAcquisitionSource.Reward).Value!;
-        _ = new BoardService(new BoardPlacementSolver()).PlaceCard(session, card.Id, BoardZone.Battlefield, 0);
+        _ = new BoardService(new BoardPlacementSolver(), _registry.Sets)
+            .PlaceCard(session, card.Id, BoardZone.Battlefield, 0);
         return session;
     }
 
@@ -49,7 +50,7 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
         ArgumentNullException.ThrowIfNull(definition);
         var session = new MatchSession(seed);
         session.Player.SelectHero(_factory.CreateMonsterCombatant(definition));
-        var board = new BoardService(new BoardPlacementSolver());
+        var board = new BoardService(new BoardPlacementSolver(), _registry.Sets);
         foreach (var entry in definition.Cards)
         {
             var cardDefinition = _registry.Cards[entry.CardKey];

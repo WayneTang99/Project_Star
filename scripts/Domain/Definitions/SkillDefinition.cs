@@ -16,7 +16,7 @@ public abstract class SkillDefinition
     {
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         Abilities = abilities is null ? Array.Empty<AbilityDefinition>() : new List<AbilityDefinition>(abilities).AsReadOnly();
-        ValidateAbilities(Abilities);
+        ValidateNonCardAbilities(Abilities);
         var configuredLevels = new Dictionary<int, SkillLevelDefinition>();
         if (levels is not null)
             foreach (var level in levels)
@@ -24,7 +24,7 @@ public abstract class SkillDefinition
                     throw new ArgumentException($"Duplicate skill level configuration '{level.Level}'.", nameof(levels));
         if (initialLevel is < 1 or > 5 || (configuredLevels.Count > 0 && !configuredLevels.ContainsKey(initialLevel)))
             throw new ArgumentOutOfRangeException(nameof(initialLevel));
-        foreach (var level in configuredLevels.Values) ValidateAbilities(level.Abilities);
+        foreach (var level in configuredLevels.Values) ValidateNonCardAbilities(level.Abilities);
         InitialLevel = initialLevel;
         Levels = configuredLevels;
         DefinitionFreezer.Freeze(attributes);
@@ -38,12 +38,16 @@ public abstract class SkillDefinition
     public bool SupportsLevel(int level) => Levels.Count == 0 ? level is >= 1 and <= 4 : Levels.ContainsKey(level);
     public SkillLevelDefinition? GetLevel(int level) => Levels.TryGetValue(level, out var value) ? value : null;
 
-    private static void ValidateAbilities(IReadOnlyList<AbilityDefinition> abilities)
+    internal static void ValidateNonCardAbilities(IReadOnlyList<AbilityDefinition> abilities, bool allowPersistent = false)
     {
         foreach (var ability in abilities)
         {
-            if (ability.Activation == AbilityActivation.Active)
-                throw new ArgumentException("First-version skills support passive abilities only.", nameof(abilities));
+            if (ability.Activation == AbilityActivation.Active || ability.Target == AbilityTarget.SelfCard
+                || ability.Activation == AbilityActivation.PassiveWhileEnabled && !allowPersistent
+                || ability.Activation != AbilityActivation.PassiveWhileEnabled
+                    && ability.Target is (AbilityTarget.SourceGroupCards or AbilityTarget.OtherBattlefieldCards
+                        or AbilityTarget.AllBattlefieldCards))
+                throw new ArgumentException("A non-card source requires a passive ability without a self-card target.", nameof(abilities));
             foreach (var effect in ability.Effects)
             {
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition

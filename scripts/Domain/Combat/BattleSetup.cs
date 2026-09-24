@@ -36,16 +36,21 @@ public sealed record SkillBattleSetup(
     IReadOnlyList<AbilityDefinition> Abilities,
     IReadOnlyDictionary<StringName, int> CombatAttributes);
 
+// 战斗开始时冻结的套装阈值能力来源（领域战斗层）。
+public sealed record CardSetBattleSetup(EntityId EntityId, IReadOnlyList<AbilityDefinition> Abilities);
+
 public sealed class BattleSideSetup
 {
     public BattleSideSetup(
         HeroBattleSetup hero,
         IReadOnlyList<CardBattleSetup> cards,
-        IReadOnlyList<SkillBattleSetup>? skills = null)
+        IReadOnlyList<SkillBattleSetup>? skills = null,
+        IReadOnlyList<CardSetBattleSetup>? sets = null)
     {
         Hero = hero ?? throw new ArgumentNullException(nameof(hero));
         Cards = cards ?? throw new ArgumentNullException(nameof(cards));
         Skills = skills ?? Array.Empty<SkillBattleSetup>();
+        Sets = sets ?? Array.Empty<CardSetBattleSetup>();
     }
 
     public HeroBattleSetup Hero { get; }
@@ -53,6 +58,8 @@ public sealed class BattleSideSetup
     public IReadOnlyList<CardBattleSetup> Cards { get; }
 
     public IReadOnlyList<SkillBattleSetup> Skills { get; }
+
+    public IReadOnlyList<CardSetBattleSetup> Sets { get; }
 }
 
 /// <summary>An immutable snapshot containing every input used by one battle simulation.</summary>

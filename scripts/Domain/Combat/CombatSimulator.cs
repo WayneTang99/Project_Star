@@ -88,7 +88,7 @@ public sealed class CombatSimulator
             runtime.Tick,
             card.EntityId,
             card.Side,
-            card is SkillBattleState ? AbilitySourceKind.Skill : AbilitySourceKind.Card));
+            GetAbilitySourceKind(card)));
     }
 
     private static void ResolveQueue(BattleRuntime runtime)
@@ -115,7 +115,7 @@ public sealed class CombatSimulator
                 pending.Source.EntityId,
                 pending.Source.Side,
                 pending.IsEcho,
-                pending.Source is SkillBattleState ? AbilitySourceKind.Skill : AbilitySourceKind.Card));
+                GetAbilitySourceKind(pending.Source)));
             if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
                 for (var repeat = 0; repeat < GetEffectiveMulticast(runtime, cardSource); repeat++)
                     Enqueue(runtime, cardSource, pending.Ability, false, true);
@@ -168,13 +168,13 @@ public sealed class CombatSimulator
         {
             case DamageEffectDefinition damage:
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor,
-                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
+                    GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case MaxHealthPercentDamageEffectDefinition percentDamage:
                 var amount = checked((int)((long)hero.MaxHealth * percentDamage.Percent / 100));
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor,
-                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
+                    GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case AttributeDamageEffectDefinition attributeDamage:
@@ -185,7 +185,7 @@ public sealed class CombatSimulator
                     hero,
                     GetEffectiveCombatAttribute(runtime, pending.Source, attributeDamage.AttributeKey),
                     attributeDamage.BypassArmor,
-                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
+                    GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage:
@@ -194,7 +194,7 @@ public sealed class CombatSimulator
                     runtime, pending.Source, scaledDamage.AttributeKey) * healthSourceHero.Health / healthSourceHero.MaxHealth));
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, scaledAmount,
                     scaledDamage.BypassArmor,
-                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
+                    GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
             case HealEffectDefinition heal:
@@ -305,6 +305,20 @@ public sealed class CombatSimulator
         }
         return value;
     }
+
+    private static AbilitySourceKind GetAbilitySourceKind(IBattleAbilitySource source) => source switch
+    {
+        SkillBattleState => AbilitySourceKind.Skill,
+        CardSetBattleState => AbilitySourceKind.CardSet,
+        _ => AbilitySourceKind.Card,
+    };
+
+    private static DamageSourceKind GetDamageSourceKind(IBattleAbilitySource source) => source switch
+    {
+        SkillBattleState => DamageSourceKind.Skill,
+        CardSetBattleState => DamageSourceKind.CardSet,
+        _ => DamageSourceKind.Card,
+    };
 
     private static void DestroyRandomEnemyCard(
         BattleRuntime runtime,

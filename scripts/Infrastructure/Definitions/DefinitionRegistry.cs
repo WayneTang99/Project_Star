@@ -13,12 +13,14 @@ public sealed class DefinitionRegistry
     private DefinitionRegistry(
         Dictionary<StringName, HeroDefinition> heroes,
         Dictionary<StringName, CardDefinition> cards,
+        Dictionary<StringName, CardSetDefinition> sets,
         Dictionary<StringName, SkillDefinition> skills,
         Dictionary<StringName, EncounterDefinition> encounters,
         Dictionary<StringName, MonsterDefinition> monsters)
     {
         Heroes = heroes;
         Cards = cards;
+        Sets = sets;
         Skills = skills;
         Encounters = encounters;
         Monsters = monsters;
@@ -27,6 +29,8 @@ public sealed class DefinitionRegistry
     public IReadOnlyDictionary<StringName, HeroDefinition> Heroes { get; }
 
     public IReadOnlyDictionary<StringName, CardDefinition> Cards { get; }
+
+    public IReadOnlyDictionary<StringName, CardSetDefinition> Sets { get; }
 
     public IReadOnlyDictionary<StringName, SkillDefinition> Skills { get; }
 
@@ -69,6 +73,7 @@ public sealed class DefinitionRegistry
         ArgumentNullException.ThrowIfNull(definitions);
         var heroes = new Dictionary<StringName, HeroDefinition>();
         var cards = new Dictionary<StringName, CardDefinition>();
+        var sets = new Dictionary<StringName, CardSetDefinition>();
         var skills = new Dictionary<StringName, SkillDefinition>();
         var encounters = new Dictionary<StringName, EncounterDefinition>();
         var monsters = new Dictionary<StringName, MonsterDefinition>();
@@ -82,6 +87,9 @@ public sealed class DefinitionRegistry
                     break;
                 case CardDefinition card:
                     AddUnique(cards, card.Attributes.Identity.Key, card, "card");
+                    break;
+                case CardSetDefinition set:
+                    AddUnique(sets, set.Attributes.Identity.Key, set, "set");
                     break;
                 case SkillDefinition skill:
                     AddUnique(skills, skill.Attributes.Identity.Key, skill, "skill");
@@ -99,17 +107,32 @@ public sealed class DefinitionRegistry
         }
 
         ValidateContentFactions(heroes, cards, skills);
+        ValidateCardSets(cards, sets);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
-        return new DefinitionRegistry(heroes, cards, skills, encounters, monsters);
+        return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters);
     }
 
     private static bool IsDefinitionType(Type type) =>
         typeof(HeroDefinition).IsAssignableFrom(type)
         || typeof(CardDefinition).IsAssignableFrom(type)
+        || typeof(CardSetDefinition).IsAssignableFrom(type)
         || typeof(SkillDefinition).IsAssignableFrom(type)
         || typeof(EncounterDefinition).IsAssignableFrom(type)
         || typeof(MonsterDefinition).IsAssignableFrom(type);
+
+    private static void ValidateCardSets(
+        IReadOnlyDictionary<StringName, CardDefinition> cards,
+        IReadOnlyDictionary<StringName, CardSetDefinition> sets)
+    {
+        foreach (var card in cards.Values)
+        {
+            var setKey = card.Attributes.Identity.SetKey;
+            if (setKey is not null && !sets.ContainsKey(setKey))
+                throw new DefinitionValidationException(
+                    $"Card '{card.Attributes.Identity.Key}' references unknown set '{setKey}'.");
+        }
+    }
 
     private static void ValidateMonsterCards(
         IReadOnlyDictionary<StringName, MonsterDefinition> monsters,

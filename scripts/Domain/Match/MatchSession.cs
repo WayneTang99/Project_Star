@@ -9,6 +9,7 @@ namespace Project_Star.Domain.Match;
 public sealed class MatchSession
 {
     private readonly List<PendingMonsterReward> _pendingMonsterRewards = [];
+    private readonly List<AppliedCardSetModifier> _appliedCardSetModifiers = [];
 
     public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10)
     {
@@ -41,6 +42,8 @@ public sealed class MatchSession
 
     public IReadOnlyList<PendingMonsterReward> PendingMonsterRewards => _pendingMonsterRewards;
 
+    internal List<AppliedCardSetModifier> AppliedCardSetModifiers => _appliedCardSetModifiers;
+
     internal void AddPendingMonsterReward(PendingMonsterReward reward) => _pendingMonsterRewards.Add(reward);
 
     internal void RemoveFirstPendingMonsterReward() => _pendingMonsterRewards.RemoveAt(0);
@@ -49,6 +52,8 @@ public sealed class MatchSession
 
     public MatchSummary? Summary { get; internal set; }
 }
+
+internal sealed record AppliedCardSetModifier(ModifierId Id, EntityId TargetId, bool IsHero);
 
 public sealed class MatchProgress
 {

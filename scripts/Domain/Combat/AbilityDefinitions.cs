@@ -12,6 +12,7 @@ public enum AbilityActivation
     EchoOnDamageDealt = 2,
     PassiveAura = 3,
     PassiveOnBattleStart = 4,
+    PassiveWhileEnabled = 5,
 }
 
 public enum AbilityTarget
@@ -19,6 +20,9 @@ public enum AbilityTarget
     EnemyHero = 0,
     AlliedHero = 1,
     SelfCard = 2,
+    SourceGroupCards = 3,
+    OtherBattlefieldCards = 4,
+    AllBattlefieldCards = 5,
 }
 
 public enum BattleStatus
@@ -33,6 +37,8 @@ public enum BattleStatus
 }
 
 public abstract record EffectDefinition;
+
+public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
 
@@ -122,9 +128,15 @@ public sealed class AbilityDefinition
         }
         if (activation != AbilityActivation.Active && manaCost != 0)
             throw new ArgumentException("Only active abilities can consume mana.", nameof(manaCost));
-        if ((activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveOnBattleStart)
+        if ((activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveOnBattleStart
+            or AbilityActivation.PassiveWhileEnabled)
             && cooldownTicks != 0)
             throw new ArgumentException("A passive ability cannot have a cooldown.", nameof(cooldownTicks));
+        if (activation == AbilityActivation.PassiveWhileEnabled
+            && (target is not AbilityTarget.SourceGroupCards and not AbilityTarget.OtherBattlefieldCards
+                and not AbilityTarget.AllBattlefieldCards and not AbilityTarget.AlliedHero
+                || allowsBench))
+            throw new ArgumentException("Persistent ability target is invalid.", nameof(target));
 
         Key = key;
         Activation = activation;
@@ -133,6 +145,8 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if ((activation == AbilityActivation.PassiveWhileEnabled) != (effect is ModifyAttributeEffectDefinition))
+                throw new ArgumentException("Persistent abilities require attribute modifiers only.", nameof(effects));
             var amount = effect switch
             {
                 DamageEffectDefinition value => value.Amount,
@@ -156,6 +170,9 @@ public sealed class AbilityDefinition
             }
             if (effect is AttributeDamageEffectDefinition attributeDamage && attributeDamage.AttributeKey.IsEmpty)
                 throw new ArgumentException("Attribute damage key cannot be empty.", nameof(effects));
+            if (effect is ModifyAttributeEffectDefinition attributeModifier
+                && (attributeModifier.AttributeKey.IsEmpty || attributeModifier.Amount == 0))
+                throw new ArgumentException("Attribute modifier is invalid.", nameof(effects));
             if (effect is SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage
                 && scaledDamage.AttributeKey.IsEmpty)
                 throw new ArgumentException("Scaled damage key cannot be empty.", nameof(effects));
