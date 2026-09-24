@@ -1,6 +1,6 @@
 # Project_Star 实施计划
 
-本计划依据 `docs/GAME_DESIGN.md` 的需求和 `docs/ARCHITECTURE.md` 的边界实施。`AGENTS.md` 是项目导航入口，术语定义见 `docs/GLOSSARY.md`。
+本计划依据 `docs/design/GAME_DESIGN.md` 的需求和 `docs/engineering/ARCHITECTURE.md` 的边界实施。`AGENTS.md` 是项目导航入口，术语定义见 `docs/design/GLOSSARY.md`。
 
 ## 1. 实施原则
 
@@ -48,9 +48,9 @@ flowchart LR
 1. **第 7、9 步 Godot 验收**：用现有验证场景和试玩入口复核能力、对局结果与新快照；发现具体差异后修复。
 2. **内容阶段 D → E 验收**：技能实例、通用战斗来源、技能合并升级及连续合并验证已接入；在 Godot 入口验收。
 3. **内容阶段 F → G**：确认套装效果目标和生命周期后，实现套装求值、阈值效果，随后补齐依赖技能、套装的正式内容。
-4. **第 10 步表现层**：确定 2D/3D 形式与战斗播放方式后，完成布局、拖拽预览和视觉资源映射；当前试玩的人工验收步骤见 `MANUAL_ACCEPTANCE.md`。
+4. **第 10 步表现层**：确定 2D/3D 形式与战斗播放方式后，完成布局、拖拽预览和视觉资源映射；当前试玩的人工验收步骤见 `docs/quality/MANUAL_ACCEPTANCE.md`。
 
-阶段 C 的卡牌合并和通用决策器已落地；各阶段的细项与待确认规则见 `CONTENT_EXPANSION_PLAN.md`。
+阶段 C 的卡牌合并和通用决策器已落地；各阶段的细项与待确认规则见 `docs/planning/CONTENT_EXPANSION_PLAN.md`。
 
 ## 3. 第 1 步：工程边界与基础领域类型
 

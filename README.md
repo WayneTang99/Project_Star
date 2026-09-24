@@ -23,11 +23,14 @@
 
 ## 详细需求
 
-游戏设计规则见 `docs/GAME_DESIGN.md`，架构实现见 `docs/ARCHITECTURE.md`，术语定义见 `docs/GLOSSARY.md`。
+游戏设计规则见 `docs/design/GAME_DESIGN.md`，架构实现见 `docs/engineering/ARCHITECTURE.md`，术语定义见 `docs/design/GLOSSARY.md`。
 
 ## 项目文件
 
 - `README.md` — 本文件，项目概览（人看）
 - `AGENTS.md` — AI 代理入口：行为准则、硬约束、文档导航
-- `docs/` — 专项文档（游戏设计、架构、术语、开发约定等）
+- `docs/design/` — 游戏规则、卡牌数据、术语
+- `docs/engineering/` — 架构、设计原则、开发约定
+- `docs/planning/` — 实现与内容扩充计划
+- `docs/quality/` — 人工验收与 BUG 记录
 - `ref/` — 只读设计参考区；仅供人工查看，不参与构建或打包，项目不得引用其中资源

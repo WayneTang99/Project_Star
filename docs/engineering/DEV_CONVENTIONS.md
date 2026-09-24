@@ -1,5 +1,5 @@
 # DEV_CONVENTIONS.md
-Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时参考；与 `AGENTS.md`（导航）、`docs/ARCHITECTURE.md`（架构）配合使用。
+Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时参考；与 `AGENTS.md`（导航）、`docs/engineering/ARCHITECTURE.md`（架构）配合使用。
 
 ## Git 工作流
 
@@ -24,7 +24,7 @@ Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时
 
 - **类前注释（必填）**：每个类 / 抽象类 / 接口定义前写普通 `//` 短注释，说明该类职责与所属层级/模块（如：`// 对局资源容器（对局层）`）。
 - **关键外部调用函数注释（必填）**：被外部模块调用的 public 方法（如应用用例、聚合根操作入口、跨层适配接口）写普通 `//` 短注释，说明用途；纯内部逻辑方法（private / 仅本类使用）可不写。
-- **注释语言**：一律使用中文，术语引用 `docs/GLOSSARY.md` 中的英文名（如 `StringName` / `ApplyModifier`）。
+- **注释语言**：一律使用中文，术语引用 `docs/design/GLOSSARY.md` 中的英文名（如 `StringName` / `ApplyModifier`）。
 - **格式**：保持简洁，单行 `//` 注释为主，不展开长段说明。
 
 ## 项目约束

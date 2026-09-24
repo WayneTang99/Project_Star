@@ -14,7 +14,7 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 - **做减法，极简优先**：只写解决当前问题的最小代码。不要添加没要求的抽象、配置、兼容性或"以后可能用到"的功能。
 - **精准修改，不碰无关代码**：只改必须改的地方。不要"顺手"优化旁边的格式或重构无关逻辑。改动范围要可控，方便审查。
 - **目标驱动，可验证**：把模糊任务（如"修 bug"）变成可验证的目标（如"写一个能复现该 bug 的测试，然后修到测试通过"）。
-- **BUG 必登记**：发现 bug 一律登记到 `docs/BUG_LOG.md`（编号/日期/位置/描述/根因/修复方案/状态），修复后补全根因与修复方案。
+- **BUG 必登记**：发现 bug 一律登记到 `docs/quality/BUG_LOG.md`（编号/日期/位置/描述/根因/修复方案/状态），修复后补全根因与修复方案。
 
 ## 硬约束
 
@@ -40,14 +40,15 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 
 ## 文档导航
 
-| 文档 | 职责 | 何时查阅 |
-|---|---|---|
-| `docs/GAME_DESIGN.md` | 游戏设计规则（英雄/卡牌/标签/棋盘/遭遇/胜负） | 理解游戏需求、实现游戏功能时 |
-| `docs/ARCHITECTURE.md` | 架构设计 + 战斗系统 + 能力系统实现细节 | 理解代码结构、写新系统时 |
-| `docs/GLOSSARY.md` | 术语表（英文名 + 中文名 + 定义） | 提出需求、写代码前先查术语 |
-| `docs/DESIGN_PRINCIPLES.md` | 软件设计原则（SOLID + 扩展模式） | 编写与审查代码时 |
-| `docs/IMPLEMENTATION_PLAN.md` | 实现计划 + 实施约定 | 了解当前进度、下一步做什么 |
-| `docs/CONTENT_EXPANSION_PLAN.md` | 内容并行扩充 + 技能/套装/收入实施计划 | 扩充实际内容、实现新增系统时 |
-| `docs/CARD_DATA.md` | 正式卡牌数据表（等级/价值/标签/描述） | 新增、修改或核对卡牌内容时 |
-| `docs/DEV_CONVENTIONS.md` | Git 工作流 + 提交规范 + 代码注释约定 + 项目约束 | 提交代码、写注释时 |
-| `docs/BUG_LOG.md` | BUG 发现与修复记录 | 发现 bug、修复 bug 时 |
+| 分类 | 文档 | 职责 | 何时查阅 |
+|---|---|---|---|
+| 设计 | `docs/design/GAME_DESIGN.md` | 游戏设计规则（英雄/卡牌/标签/棋盘/遭遇/胜负） | 理解游戏需求、实现游戏功能时 |
+| 设计 | `docs/design/CARD_DATA.md` | 正式卡牌数据表（等级/价值/标签/描述） | 新增、修改或核对卡牌内容时 |
+| 设计 | `docs/design/GLOSSARY.md` | 术语表（英文名 + 中文名 + 定义） | 提出需求、写代码前先查术语 |
+| 工程 | `docs/engineering/ARCHITECTURE.md` | 架构设计 + 战斗系统 + 能力系统实现细节 | 理解代码结构、写新系统时 |
+| 工程 | `docs/engineering/DESIGN_PRINCIPLES.md` | 软件设计原则（SOLID + 扩展模式） | 编写与审查代码时 |
+| 工程 | `docs/engineering/DEV_CONVENTIONS.md` | Git 工作流 + 提交规范 + 代码注释约定 + 项目约束 | 提交代码、写注释时 |
+| 计划 | `docs/planning/IMPLEMENTATION_PLAN.md` | 实现计划 + 实施约定 | 了解当前进度、下一步做什么 |
+| 计划 | `docs/planning/CONTENT_EXPANSION_PLAN.md` | 内容并行扩充 + 技能/套装/收入实施计划 | 扩充实际内容、实现新增系统时 |
+| 质量 | `docs/quality/MANUAL_ACCEPTANCE.md` | 当前试玩的人工验收步骤 | 验证试玩流程时 |
+| 质量 | `docs/quality/BUG_LOG.md` | BUG 发现与修复记录 | 发现 bug、修复 bug 时 |

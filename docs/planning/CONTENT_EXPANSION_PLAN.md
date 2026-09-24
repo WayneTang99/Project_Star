@@ -1,6 +1,6 @@
 # Project_Star 内容扩充实施计划
 
-本文档记录核心玩法骨架完成后的内容扩充准备与新增系统实施顺序。通用规则以 `docs/GAME_DESIGN.md` 为准，架构边界以 `docs/ARCHITECTURE.md` 为准，术语以 `docs/GLOSSARY.md` 为准。
+本文档记录核心玩法骨架完成后的内容扩充准备与新增系统实施顺序。通用规则以 `docs/design/GAME_DESIGN.md` 为准，架构边界以 `docs/engineering/ARCHITECTURE.md` 为准，术语以 `docs/design/GLOSSARY.md` 为准。
 
 ## 1. 目标
 
@@ -253,10 +253,10 @@ scripts/Content/
 每个阶段均需：
 
 1. 先确认本阶段待确认规则，不夹带下一阶段功能。
-2. 同步更新 `GLOSSARY.md`、`GAME_DESIGN.md`、`ARCHITECTURE.md` 和本计划。
+2. 同步更新 `docs/design/GLOSSARY.md`、`docs/design/GAME_DESIGN.md`、`docs/engineering/ARCHITECTURE.md` 和本计划。
 3. 新增的标识性 key 使用 `StringName`，身份字段进入属性集只读分区。
 4. 新能力和效果必须可被多张卡、多个技能或多个套装复用。
 5. 更新 Godot 内验证入口，并覆盖确定性、重复施加和精确移除。
 6. 运行 `dotnet build`，再执行 Godot 内人工验证。
-7. 发现 bug 时登记 `docs/BUG_LOG.md`。
+7. 发现 bug 时登记 `docs/quality/BUG_LOG.md`。
 8. 不修改 `.godot/`，不让项目引用或打包 `ref/`。

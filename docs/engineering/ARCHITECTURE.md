@@ -1,6 +1,6 @@
 # Project_Star 架构说明
 
-本文档依据 `docs/GAME_DESIGN.md` 的玩法需求，定义代码边界、数据所有权、依赖方向和运行流程。`AGENTS.md` 是项目导航入口，术语以 `docs/GLOSSARY.md` 为准；本文不改变玩法规则。
+本文档依据 `docs/design/GAME_DESIGN.md` 的玩法需求，定义代码边界、数据所有权、依赖方向和运行流程。`AGENTS.md` 是项目导航入口，术语以 `docs/design/GLOSSARY.md` 为准；本文不改变玩法规则。
 
 ## 1. 架构目标
 

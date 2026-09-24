@@ -1,6 +1,6 @@
 # Project_Star 设计原则
 
-本文档规定 Project_Star 代码设计与审查时采用的原则。玩法规则以 `docs/GAME_DESIGN.md` 为准，架构边界以 `docs/ARCHITECTURE.md` 为准，实施顺序以 `docs/IMPLEMENTATION_PLAN.md` 为准。
+本文档规定 Project_Star 代码设计与审查时采用的原则。玩法规则以 `docs/design/GAME_DESIGN.md` 为准，架构边界以 `docs/engineering/ARCHITECTURE.md` 为准，实施顺序以 `docs/planning/IMPLEMENTATION_PLAN.md` 为准。
 
 ## 1. 领域核心保持纯净
 
@@ -108,13 +108,13 @@
 - 领域层依赖抽象；Godot、存储和网络适配实现这些抽象。
 - 返回值应表达失败原因，避免以 null、异常或日志代替正常业务失败。
 - 公共接口优先使用不可变参数和结果。
-- 命名使用 `docs/GLOSSARY.md` 中的统一术语。
+- 命名使用 `docs/design/GLOSSARY.md` 中的统一术语。
 
 ## 14. 测试原则
 
 - 先测试不变量和边界，再测试常规路径。
 - 纯逻辑使用单元测试；Godot 层只保留必要集成测试。
-- 每个 bug 先添加可复现测试，再修复并登记 `docs/BUG_LOG.md`。
+- 每个 bug 先添加可复现测试，再修复并登记 `docs/quality/BUG_LOG.md`。
 - 确定性测试必须比较结果和事件顺序。
 - 架构迁移不得以删除测试换取通过。
 

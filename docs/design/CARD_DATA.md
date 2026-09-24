@@ -1,6 +1,6 @@
 # Project_Star 卡牌数据表
 
-本文档记录正式卡牌内容数据，供设计、实现和审查使用。玩法规则以 `docs/GAME_DESIGN.md` 为准，术语以 `docs/GLOSSARY.md` 为准；代码中的具体 `CardDefinition` 是运行时数据来源。
+本文档记录正式卡牌内容数据，供设计、实现和审查使用。玩法规则以 `docs/design/GAME_DESIGN.md` 为准，术语以 `docs/design/GLOSSARY.md` 为准；代码中的具体 `CardDefinition` 是运行时数据来源。
 
 ## 1. 字段约定
 

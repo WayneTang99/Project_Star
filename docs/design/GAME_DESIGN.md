@@ -1,6 +1,6 @@
 # GAME_DESIGN.md
 
-Project_Star 游戏设计规则。本文档记录游戏侧的设计需求，与 `AGENTS.md`（导航）、`docs/ARCHITECTURE.md`（架构实现）配合使用；术语定义见 `docs/GLOSSARY.md`。
+Project_Star 游戏设计规则。本文档记录游戏侧的设计需求，与 `AGENTS.md`（导航）、`docs/engineering/ARCHITECTURE.md`（架构实现）配合使用；术语定义见 `docs/design/GLOSSARY.md`。
 
 ## 一、核心要素
 
@@ -199,4 +199,4 @@ Project_Star 游戏设计规则。本文档记录游戏侧的设计需求，与 
 ## 十、战斗时间规则
 
 - 战斗有 A/B 超时（A 正常对局超时 / B PvP 对局超时），超时自动结束。
-- 战斗时间阶段用语见 `docs/GLOSSARY.md`「战斗描述用语」。
+- 战斗时间阶段用语见 `docs/design/GLOSSARY.md`「战斗描述用语」。

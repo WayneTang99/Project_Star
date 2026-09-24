@@ -11,7 +11,7 @@ Use this workflow only for `C:\GodotProject\Project_Star`. The user's request de
 
 - Confirm the repository root, current branch, upstream, and worktree status. The intended branch is `dev`, tracking `origin/dev`. If another branch is checked out, switch to `dev` only when doing so preserves local changes; otherwise ask the user how to handle them.
 - Preserve uncommitted work. Do not reset, clean, force push, or silently stash. If a pull cannot fast-forward, inspect divergence and ask before choosing a merge or rebase.
-- This project uses `docs/DEV_CONVENTIONS.md` for commit messages and related Git rules. Read it before creating a commit.
+- This project uses `docs/engineering/DEV_CONVENTIONS.md` for commit messages and related Git rules. Read it before creating a commit.
 
 ## Pull `dev`
 
@@ -23,7 +23,7 @@ Use this workflow only for `C:\GodotProject\Project_Star`. The user's request de
 ## Commit and push `dev`
 
 1. Inspect the diff and status. Stage only files belonging to the user's requested work; avoid `git add .` when unrelated changes exist.
-2. Use a focused commit message following `docs/DEV_CONVENTIONS.md`. Verify the commit contains the intended files.
+2. Use a focused commit message following `docs/engineering/DEV_CONVENTIONS.md`. Verify the commit contains the intended files.
 3. Before a requested push, fetch `origin dev` successfully again and inspect divergence. If remote `dev` advanced, incorporate it safely before pushing. Push with `git push origin dev`; never force push unless explicitly requested.
 4. Check the push exit code and confirm the remote branch matches the new local commit. Report the commit ID and whether the push succeeded.
 
