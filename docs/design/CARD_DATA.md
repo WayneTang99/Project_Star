@@ -35,6 +35,8 @@
 | `card.holy_slashing_blade` | 黎明之剑 | `paladin` | Large | Light | Equipment | 4 | 冷却10秒；造成200伤害，并随机摧毁敌方一件小型或中型恶魔或亡灵卡牌；被动：本场战斗双方每有一件恶魔或亡灵卡牌被摧毁，此卡牌攻击翻倍；本次发动摧毁的卡牌立即计数 |
 | `card.order_crusader` | 教团远征军 | `paladin` | Large | Light | Human | 2 | 冷却8秒；发动时造成40/80/120伤害；被动：敌方小型卡牌在战斗中视为恶魔；敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害+10/20/40；来源被摧毁后赋予的恶魔标签立即失效 |
 | `card.holy_griffin` | 神圣狮鹫 | `paladin` | Large | Light | Beast, Mount | 2 | 冷却5秒；发动时相邻人类获得1秒疾速；被动：当相邻人类获得疾速时，其攻击力+10/20/30 |
+| `card.nun` | 修女 | `paladin` | Small | Light | Human | 1 | 冷却6秒，魔法消耗10；发动时治疗己方英雄10/20/40/80生命，并随机充能己方另一件光属性卡牌1秒（不包括此卡牌） |
+| `card.thorn_armor` | 荆棘甲 | `paladin` | Medium | General | Equipment | 1 | 冷却8/7/6/5秒；发动时获得10/20/40/80护甲，再造成等同于己方英雄当前护甲值的普通伤害，先扣敌方护甲 |
 
 ## 3. 通用价值表
 

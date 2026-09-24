@@ -92,9 +92,11 @@ public sealed partial class PhaseOneVerification : Control
         ("野猪按己方英雄当前生命比例造成分级伤害", CheckBoarCard),
         ("轻骑兵伤害、成长冷却与人类攻击强化正确结算", CheckLightCavalry),
         ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
+        ("荆棘甲先获得护甲再按英雄当前护甲造成伤害", CheckThornArmor),
         ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
         ("军靴使相邻卡牌疾速且对人类翻倍", CheckMilitaryBoots),
         ("神圣狮鹫使相邻人类疾速并在其获得疾速时强化攻击", CheckHolyGriffin),
+        ("修女治疗己方英雄并充能另一件光属性卡牌", CheckNun),
         ("大教堂光环为己方光属性卡牌提供可移除的多重", CheckCathedral),
         ("铁匠铺强化装备已有的攻击与护甲能力", CheckBlacksmith),
         ("黎明之剑随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CheckHolySlashingBlade),
@@ -1433,6 +1435,96 @@ public sealed partial class PhaseOneVerification : Control
             && healthDamage == 10;
     }
 
+    private static bool CheckThornArmor()
+    {
+        var definition = new ThornArmorCardDefinition();
+        var levelOne = definition.GetLevel(1)!;
+        var levelTwo = definition.GetLevel(2)!;
+        var levelThree = definition.GetLevel(3)!;
+        var levelFour = definition.GetLevel(4)!;
+        if (definition.InitialLevel != 1
+            || !definition.SupportsLevel(1)
+            || !definition.SupportsLevel(2)
+            || !definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Medium
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
+            || !definition.Tags.Contains(GameTags.Equipment)
+            || levelOne.Abilities[0].CooldownTicks != 80
+            || levelTwo.Abilities[0].CooldownTicks != 70
+            || levelThree.Abilities[0].CooldownTicks != 60
+            || levelFour.Abilities[0].CooldownTicks != 50
+            || levelOne.BaseCombatValues[GameAttributeKeys.Armor] != 10
+            || levelTwo.BaseCombatValues[GameAttributeKeys.Armor] != 20
+            || levelThree.BaseCombatValues[GameAttributeKeys.Armor] != 40
+            || levelFour.BaseCombatValues[GameAttributeKeys.Armor] != 80
+            || levelOne.Abilities[0].Effects[0]
+                is not GainSourceHeroArmorFromAttributeEffectDefinition { AttributeKey: var armorKey }
+            || armorKey != GameAttributeKeys.Armor
+            || levelOne.Abilities[0].Effects[1] is not SourceHeroArmorDamageEffectDefinition)
+        {
+            return false;
+        }
+
+        var thornArmorId = EntityId.New();
+        var opponentAttackerId = EntityId.New();
+        var opponentAttack = new AbilityDefinition(
+            new StringName("test.thorn_armor_target"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            81,
+            [new DamageEffectDefinition(20)]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 5, ManaRegen: 0),
+                [new CardBattleSetup(
+                    thornArmorId,
+                    0,
+                    0,
+                    80,
+                    levelOne.Abilities,
+                    UseLegacyAttack: false,
+                    Tags: definition.Tags,
+                    ArmorAmount: levelOne.BaseCombatValues[GameAttributeKeys.Armor])]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 20, ManaRegen: 0),
+                [new CardBattleSetup(
+                    opponentAttackerId,
+                    0,
+                    20,
+                    81,
+                    [opponentAttack],
+                    UseLegacyAttack: false)]),
+            1,
+            new BattleTick(82),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var thornDamageCorrect = false;
+        var gainedArmorCorrect = false;
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is DamageDealtEvent thornDamage
+                && thornDamage.SourceCardId == thornArmorId)
+            {
+                thornDamageCorrect = thornDamage.RawDamage == 15
+                    && thornDamage.ArmorAbsorbed == 15
+                    && thornDamage.HealthDamage == 0;
+            }
+            if (battleEvent is DamageDealtEvent counterattack
+                && counterattack.SourceCardId == opponentAttackerId)
+            {
+                gainedArmorCorrect = counterattack.ArmorAbsorbed == 15
+                    && counterattack.HealthDamage == 5;
+            }
+        }
+
+        return thornDamageCorrect && gainedArmorCorrect;
+    }
+
     private static bool CheckArcaneShield()
     {
         var definition = new ArcaneShieldCardDefinition();
@@ -1700,6 +1792,138 @@ public sealed partial class PhaseOneVerification : Control
         }
 
         return bonusEvents == 2 && finalAttack == 25;
+    }
+
+    private static bool CheckNun()
+    {
+        var definition = new NunCardDefinition();
+        var levelOne = definition.GetLevel(1)!;
+        var levelTwo = definition.GetLevel(2)!;
+        var levelThree = definition.GetLevel(3)!;
+        var levelFour = definition.GetLevel(4)!;
+        var levelOneAbility = levelOne.Abilities[0];
+        var charge = levelOneAbility.Effects[1]
+            as ChargeRandomOtherAlliedElementCardEffectDefinition;
+        if (definition.InitialLevel != 1
+            || !definition.SupportsLevel(1)
+            || !definition.SupportsLevel(2)
+            || !definition.SupportsLevel(3)
+            || !definition.SupportsLevel(4)
+            || definition.SupportsLevel(5)
+            || definition.Attributes.Identity.FactionKey != new StringName("paladin")
+            || definition.Attributes.Identity.Size != CardSize.Small
+            || definition.Attributes.Identity.ElementKeys.Count != 1
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || !definition.Tags.Contains(GameTags.Human)
+            || levelOneAbility.Activation != AbilityActivation.Active
+            || levelOneAbility.Target != AbilityTarget.AlliedHero
+            || levelOneAbility.ManaCost != 10
+            || levelOneAbility.CooldownTicks != 60
+            || ((HealEffectDefinition)levelOneAbility.Effects[0]).Amount != 10
+            || ((HealEffectDefinition)levelTwo.Abilities[0].Effects[0]).Amount != 20
+            || ((HealEffectDefinition)levelThree.Abilities[0].Effects[0]).Amount != 40
+            || ((HealEffectDefinition)levelFour.Abilities[0].Effects[0]).Amount != 80
+            || charge is null
+            || charge.ElementKey != GameElements.Light
+            || charge.AmountTicks != 10)
+        {
+            return false;
+        }
+
+        var lightTargetId = EntityId.New();
+        var nunId = EntityId.New();
+        var darkTargetId = EntityId.New();
+        var opponentAttackerId = EntityId.New();
+        var finishingAttack = new AbilityDefinition(
+            new StringName("test.nun_light_target"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            70,
+            [new DamageEffectDefinition(100)]);
+        var darkAttack = new AbilityDefinition(
+            new StringName("test.nun_dark_target"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            70,
+            [new DamageEffectDefinition(1)]);
+        var openingAttack = new AbilityDefinition(
+            new StringName("test.nun_opening_attack"),
+            AbilityActivation.Active,
+            AbilityTarget.EnemyHero,
+            0,
+            10,
+            [new DamageEffectDefinition(30), new DestroyCardEffectDefinition(false)]);
+        var setup = new BattleSetup(
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, InitialMana: 10, ManaRegen: 0),
+                [
+                    new CardBattleSetup(
+                        lightTargetId,
+                        0,
+                        100,
+                        70,
+                        [finishingAttack],
+                        UseLegacyAttack: false,
+                        ElementKeys: [GameElements.Light]),
+                    new CardBattleSetup(
+                        nunId,
+                        1,
+                        0,
+                        60,
+                        levelOne.Abilities,
+                        UseLegacyAttack: false,
+                        Tags: definition.Tags,
+                        ElementKeys: definition.Attributes.Identity.ElementKeys),
+                    new CardBattleSetup(
+                        darkTargetId,
+                        2,
+                        1,
+                        70,
+                        [darkAttack],
+                        UseLegacyAttack: false,
+                        ElementKeys: [GameElements.Dark]),
+                ]),
+            new BattleSideSetup(
+                new HeroBattleSetup(EntityId.New(), 100, 0, ManaRegen: 0),
+                [new CardBattleSetup(
+                    opponentAttackerId,
+                    0,
+                    30,
+                    10,
+                    [openingAttack],
+                    UseLegacyAttack: false)]),
+            1,
+            new BattleTick(80),
+            new BattleTick(1000));
+        var result = new CombatSimulator().Simulate(setup);
+        var chargedCorrectTarget = false;
+        var lightActivatedImmediately = false;
+        var manaSpent = 0;
+        foreach (var battleEvent in result.Events)
+        {
+            if (battleEvent is CardChargedEvent charged
+                && charged.SourceCardId == nunId
+                && charged.TargetCardId == lightTargetId
+                && charged.AmountTicks == 10)
+            {
+                chargedCorrectTarget = true;
+            }
+            if (battleEvent is AbilityActivatedEvent activation
+                && activation.SourceCardId == lightTargetId
+                && activation.Tick.Value == 60)
+            {
+                lightActivatedImmediately = true;
+            }
+            if (battleEvent is ManaChangedEvent mana && mana.Side == SideId.Player)
+                manaSpent -= mana.Amount;
+        }
+
+        return result.PlayerRemainingHealth == 80
+            && manaSpent == 10
+            && chargedCorrectTarget
+            && lightActivatedImmediately;
     }
 
     private static bool CheckCathedral()

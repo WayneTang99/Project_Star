@@ -214,6 +214,18 @@ public sealed class CombatSimulator
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
+            case SourceHeroArmorDamageEffectDefinition heroArmorDamage:
+                var armorSourceHero = runtime.GetHero(pending.Source.Side);
+                ApplyDamage(
+                    runtime,
+                    pending.Source.EntityId,
+                    targetSide,
+                    hero,
+                    armorSourceHero.Armor,
+                    heroArmorDamage.BypassArmor,
+                    GetDamageSourceKind(pending.Source));
+                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
+                break;
             case HealEffectDefinition heal:
                 hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
                 break;
@@ -243,6 +255,11 @@ public sealed class CombatSimulator
                 if (pending.Source is not CardBattleState adjacentSource)
                     throw new InvalidOperationException("Adjacent card effects require a card source.");
                 ApplyStatusToAdjacentAlliedCards(runtime, adjacentSource, adjacent);
+                break;
+            case ChargeRandomOtherAlliedElementCardEffectDefinition charge:
+                if (pending.Source is not CardBattleState chargeSource)
+                    throw new InvalidOperationException("Random card charge requires a card source.");
+                ChargeRandomOtherAlliedElementCard(runtime, chargeSource, charge);
                 break;
             case DestroyCardEffectDefinition destroy:
                 if (pending.Source is not CardBattleState destroySource)
@@ -357,6 +374,46 @@ public sealed class CombatSimulator
         }
         if (candidates.Count == 0) return;
         DestroyCard(runtime, candidates[runtime.NextRandomIndex(candidates.Count)], source.EntityId, effect.Permanent);
+    }
+
+    private static void ChargeRandomOtherAlliedElementCard(
+        BattleRuntime runtime,
+        CardBattleState source,
+        ChargeRandomOtherAlliedElementCardEffectDefinition effect)
+    {
+        var candidates = new System.Collections.Generic.List<CardBattleState>();
+        foreach (var card in runtime.Cards)
+        {
+            if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench
+                || !card.ElementKeys.Contains(effect.ElementKey)
+                || !card.Abilities.Any(ability =>
+                    ability.Definition.Activation == AbilityActivation.Active
+                    && ability.RemainingCooldownUnits > 0))
+            {
+                continue;
+            }
+            candidates.Add(card);
+        }
+        if (candidates.Count == 0) return;
+        var target = candidates[runtime.NextRandomIndex(candidates.Count)];
+        foreach (var ability in target.Abilities)
+        {
+            if (ability.Definition.Activation != AbilityActivation.Active
+                || ability.RemainingCooldownUnits == 0)
+            {
+                continue;
+            }
+            ability.RemainingCooldownUnits = Math.Max(
+                0,
+                ability.RemainingCooldownUnits - effect.AmountTicks * 2);
+            if (ability.RemainingCooldownUnits == 0)
+                Enqueue(runtime, target, ability, false);
+        }
+        runtime.Events.Add(new CardChargedEvent(
+            runtime.Tick,
+            source.EntityId,
+            target.EntityId,
+            effect.AmountTicks));
     }
 
     private static bool ContainsAnyTag(CardBattleState card, System.Collections.Generic.IReadOnlyList<StringName> tags)

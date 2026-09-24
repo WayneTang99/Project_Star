@@ -56,6 +56,8 @@ public sealed record AttributeDamageEffectDefinition(StringName AttributeKey, bo
 public sealed record SourceHeroHealthScaledAttributeDamageEffectDefinition(
     StringName AttributeKey, bool BypassArmor = false) : EffectDefinition;
 
+public sealed record SourceHeroArmorDamageEffectDefinition(bool BypassArmor = false) : EffectDefinition;
+
 public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
@@ -69,6 +71,11 @@ public sealed record GainArmorEqualToManaSpentEffectDefinition : EffectDefinitio
 
 public sealed record GrantMulticastToAlliedElementCardsEffectDefinition(StringName ElementKey, int Amount)
     : EffectDefinition;
+
+// 随机充能己方另一件指定属性卡牌（领域战斗层）。
+public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
+    StringName ElementKey,
+    int AmountTicks) : EffectDefinition;
 
 // 使敌方指定尺寸卡牌在战斗中获得标签（领域战斗层）。
 public sealed record GrantTagToEnemySizeCardsEffectDefinition(CardSize Size, StringName Tag)
@@ -173,6 +180,7 @@ public sealed class AbilityDefinition
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
                 ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => value.Amount,
                 GrantMulticastToAlliedElementCardsEffectDefinition value => value.Amount,
+                ChargeRandomOtherAlliedElementCardEffectDefinition value => value.AmountTicks,
                 IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => value.Amount,
                 _ => 0,
             };
@@ -222,6 +230,11 @@ public sealed class AbilityDefinition
                 && multicastAura.ElementKey.IsEmpty)
             {
                 throw new ArgumentException("Multicast aura element key cannot be empty.", nameof(effects));
+            }
+            if (effect is ChargeRandomOtherAlliedElementCardEffectDefinition charge
+                && (charge.ElementKey.IsEmpty || charge.AmountTicks < 1))
+            {
+                throw new ArgumentException("Random card charge configuration is invalid.", nameof(effects));
             }
             if (effect is GrantTagToEnemySizeCardsEffectDefinition tagAura
                 && (!Enum.IsDefined(tagAura.Size) || tagAura.Tag.IsEmpty))

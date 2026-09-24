@@ -38,6 +38,12 @@ public sealed record CardAttributeChangedEvent(
     int Amount,
     int CurrentValue) : BattleEvent(Tick);
 
+public sealed record CardChargedEvent(
+    BattleTick Tick,
+    EntityId SourceCardId,
+    EntityId TargetCardId,
+    int AmountTicks) : BattleEvent(Tick);
+
 public sealed record CardDestroyedEvent(
     BattleTick Tick,
     EntityId CardId,

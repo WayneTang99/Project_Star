@@ -53,6 +53,7 @@ public abstract class SkillDefinition
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition
                     or DestroyCardEffectDefinition
                     or IncreaseSourceCooldownEffectDefinition
+                    or ChargeRandomOtherAlliedElementCardEffectDefinition
                     || effect is ApplyStatusEffectDefinition status
                         && status.Status is BattleStatus.HasteDuration or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration)
                 {
