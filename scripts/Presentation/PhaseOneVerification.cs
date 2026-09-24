@@ -63,7 +63,7 @@ public sealed partial class PhaseOneVerification : Control
         ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
         ("百宝箱出售后获得三件同级小型材料", CheckTreasureChestSaleReward),
         ("型号商店只提供当前英雄归属的对应尺寸卡牌", CheckSizeShopCardPools),
-        ("野猪使用默认属性并携带两张1级兽皮和一张1级野猪卡", CheckBoarMonsterDefinition),
+        ("野猪使用默认属性并携带三张1级卡牌和1级冲撞", CheckBoarMonsterDefinition),
         ("体能训练按英雄等级结算可扩展选项", CheckPhysicalTraining),
         ("垃圾填埋场生成固定与加权选项并结算奖励", CheckLandfill),
         ("购买按报价扣款并登记卡牌归属", CheckPurchase),
@@ -120,6 +120,7 @@ public sealed partial class PhaseOneVerification : Control
         ("对局快照保留只读结算数据", CheckMatchSnapshot),
         ("技能使用独立实例并按同级规则合并", CheckSkillMerge),
         ("空战场的被动技能可触发且回响不会连锁", CheckSkillBattle),
+        ("冲撞仅在己方首张卡牌发动后触发一次并按等级结算", CheckChargeSkill),
     ];
 
     public override void _Ready()
@@ -496,7 +497,8 @@ public sealed partial class PhaseOneVerification : Control
     private static bool CheckBoarMonsterDefinition()
     {
         var definition = new BoarMonsterDefinition();
-        var registry = DefinitionRegistry.Create([definition, new BeastHideCardDefinition(), new BoarCardDefinition()]);
+        var registry = DefinitionRegistry.Create([definition, new BeastHideCardDefinition(), new BoarCardDefinition(),
+            new ChargeSkillDefinition()]);
         var session = new MatchSession(1);
         session.Progress.Turn = 4;
         var choices = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true).Generate(session).Value!;
@@ -510,7 +512,9 @@ public sealed partial class PhaseOneVerification : Control
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.ManaRegen) == 10
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.HealthRegen) == 0
             && definition.Level == 1
-            && definition.Skills.Count == 0
+            && definition.Skills.Count == 1
+            && definition.Skills[0].SkillKey == new StringName("skill.charge")
+            && definition.Skills[0].Level == 1
             && definition.Cards.Count == 3
             && definition.Cards[0].CardKey == new StringName("card.beast_hide")
             && definition.Cards[0].Level == 1
@@ -527,6 +531,9 @@ public sealed partial class PhaseOneVerification : Control
             && opponent.Player.Hero!.Attributes.Identity.DisplayName == "野猪"
             && opponent.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
             && opponent.Player.Inventory.Cards.Count == 3
+            && opponent.Player.Skills.Items.Count == 1
+            && opponent.Player.Skills.Items[0].Attributes.Identity.Key == new StringName("skill.charge")
+            && opponent.Player.Skills.Items[0].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
             && opponent.Board.Battlefield.Count == 3
             && opponent.Player.Inventory.Cards[0].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
             && opponent.Player.Inventory.Cards[1].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
@@ -2144,7 +2151,8 @@ public sealed partial class PhaseOneVerification : Control
         var factory = new EntityFactory();
         var board = CreateBoardService();
         var registry = DefinitionRegistry.Create([
-            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition()]);
+            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition(),
+            new ChargeSkillDefinition()]);
         var claimed = new MonsterRewardClaimService(registry,
             new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
             .ClaimFirst(session);
@@ -2175,13 +2183,34 @@ public sealed partial class PhaseOneVerification : Control
         var claimed = new MonsterRewardClaimService(registry,
             new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
             .ClaimFirst(session);
-        return pending is { Kind: MonsterRewardKind.Skill, Level: 1 }
+        var genericPassed = pending is { Kind: MonsterRewardKind.Skill, Level: 1 }
             && pending.Key == new StringName("skill.assault")
             && opponent.Player.Skills.Items.Count == 1
             && claimed.IsSuccess
             && session.Player.Skills.Items.Count == 1
             && session.Board.Battlefield.Count == 0
             && session.PendingMonsterRewards.Count == 0;
+        if (!genericPassed) return false;
+
+        var boarRegistry = DefinitionRegistry.Create([
+            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition(),
+            new ChargeSkillDefinition()]);
+        var boar = new LocalTestOpponentProvider(boarRegistry).CreateMonsterOpponent(
+            2, boarRegistry.Monsters[new StringName("monster.boar")]);
+        var boarSession = new MatchSession(7);
+        _ = CreateMatchResultService().Apply(boarSession, CreateBattleResult(BattleOutcome.PlayerVictory),
+            MatchBattleKind.Monster, opponent: boar);
+        var boarPending = boarSession.PendingMonsterRewards.Count == 1
+            ? boarSession.PendingMonsterRewards[0] : null;
+        var boarBoard = CreateBoardService();
+        var boarClaimed = new MonsterRewardClaimService(boarRegistry,
+            new CardEconomyService(factory, boarBoard), new SkillAcquisitionService(factory), boarBoard)
+            .ClaimFirst(boarSession);
+        return boarPending is { Kind: MonsterRewardKind.Skill, Level: 1 }
+            && boarPending.Key == new StringName("skill.charge")
+            && boarClaimed.IsSuccess
+            && boarSession.Player.Skills.Items.Count == 1
+            && boarSession.Player.Skills.Items[0].Attributes.Identity.Key == new StringName("skill.charge");
     }
 
     private static bool CheckMonsterRewardRetention()
@@ -2199,7 +2228,8 @@ public sealed partial class PhaseOneVerification : Control
         _ = CreateMatchResultService().Apply(session, CreateBattleResult(BattleOutcome.PlayerVictory),
             MatchBattleKind.Monster, opponent: CreateBoarOpponent());
         var registry = DefinitionRegistry.Create([
-            new BoarMonsterDefinition(), blockerDefinition, new BoarCardDefinition()]);
+            new BoarMonsterDefinition(), blockerDefinition, new BoarCardDefinition(),
+            new ChargeSkillDefinition()]);
         var claimed = new MonsterRewardClaimService(registry,
             new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
             .ClaimFirst(session);
@@ -2213,7 +2243,8 @@ public sealed partial class PhaseOneVerification : Control
     private static MatchSession CreateBoarOpponent()
     {
         var registry = DefinitionRegistry.Create([
-            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition()]);
+            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition(),
+            new ChargeSkillDefinition()]);
         return new LocalTestOpponentProvider(registry).CreateMonsterOpponent(
             2, registry.Monsters[new StringName("monster.boar")]);
     }
@@ -2408,6 +2439,61 @@ public sealed partial class PhaseOneVerification : Control
                 value.SourceCardId == skill.Id && value.SourceKind == DamageSourceKind.Skill
                 && value.TargetSide == SideId.Opponent && value.RawDamage == 5)
             && result.Events.OfType<AbilityActivatedEvent>().Count(value => value.SourceCardId == skill.Id) == 1;
+    }
+
+    private static bool CheckChargeSkill()
+    {
+        var definition = new ChargeSkillDefinition();
+        var factory = new EntityFactory();
+        var multipliers = new[] { 10, 20, 30, 40 };
+        var heroLevels = new[] { 1, 3, 5, 2 };
+        for (var level = 1; level <= 4; level++)
+        {
+            var skill = factory.CreateSkill(definition, level);
+            var playerCard = new CardBattleSetup(EntityId.New(), 0, 0, 2);
+            var opponentCard = new CardBattleSetup(EntityId.New(), 0, 1, 1);
+            var setup = new BattleSetup(
+                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 200, 0, Level: heroLevels[level - 1]),
+                    [playerCard], [new SkillBattleSetup(skill.Id, skill.Abilities,
+                        skill.Attributes.BaseCombat.SnapshotFinalValues())]),
+                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 200, 5), [opponentCard]),
+                1, new BattleTick(5), new BattleTick(300));
+            var events = new CombatSimulator().Simulate(setup).Events;
+            var charge = events.OfType<DamageDealtEvent>()
+                .Where(value => value.SourceCardId == skill.Id).ToArray();
+            if (charge.Length != 1
+                || charge[0].SourceKind != DamageSourceKind.Skill
+                || charge[0].TargetSide != SideId.Opponent
+                || charge[0].RawDamage != heroLevels[level - 1] * multipliers[level - 1]
+                || charge[0].ArmorAbsorbed != 5
+                || charge[0].Tick != new BattleTick(2)
+                || skill.Abilities[0].Effects[0] is not SourceHeroLevelScaledDamageEffectDefinition levelEffect
+                || levelEffect.Multiplier != multipliers[level - 1]
+                || events.OfType<AbilityActivatedEvent>().Count(value =>
+                    value.SourceCardId == skill.Id && value.IsEcho) != 1
+                || events.OfType<AbilityActivatedEvent>().Count(value =>
+                    value.SourceCardId == playerCard.EntityId) < 2
+                || !events.OfType<AbilityActivatedEvent>().Any(value =>
+                    value.SourceCardId == opponentCard.EntityId && value.Tick == new BattleTick(1)))
+                return false;
+        }
+
+        var idleSkill = factory.CreateSkill(definition);
+        var idleSetup = new BattleSetup(
+            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 200, 0), [],
+                [new SkillBattleSetup(idleSkill.Id, idleSkill.Abilities,
+                    idleSkill.Attributes.BaseCombat.SnapshotFinalValues())]),
+            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 200, 0),
+                [new CardBattleSetup(EntityId.New(), 0, 1, 1)]),
+            2, new BattleTick(2), new BattleTick(300));
+        var player = new MatchSession(1);
+        var opponent = new MatchSession(2);
+        player.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        opponent.Player.SelectHero(factory.CreateHero(new VerificationHeroDefinition()));
+        player.Player.Hero!.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 7);
+        return !new CombatSimulator().Simulate(idleSetup).Events.OfType<AbilityActivatedEvent>()
+                .Any(value => value.SourceCardId == idleSkill.Id)
+            && new BattleSetupFactory().Create(player, opponent, 1, new BattleTick(1)).Player.Hero.Level == 7;
     }
 
     private static bool CheckUnknownCardSet()

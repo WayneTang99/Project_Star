@@ -11,11 +11,13 @@ internal sealed class HeroBattleState
     public HeroBattleState(HeroBattleSetup setup)
     {
         EntityId = setup.EntityId; MaxHealth = setup.MaxHealth; Health = setup.MaxHealth; Armor = setup.Armor;
+        Level = setup.Level;
         MaxMana = setup.MaxMana; Mana = setup.InitialMana; ManaRegen = setup.ManaRegen;
         HealthRegen = setup.HealthRegen; Burn = setup.Burn; Poison = setup.Poison;
     }
     public EntityId EntityId { get; }
     public int MaxHealth { get; }
+    public int Level { get; }
     public int Health { get; set; }
     public int Armor { get; set; }
     public int MaxMana { get; }
@@ -35,6 +37,7 @@ internal sealed class BattleAbilityState
     }
     public AbilityDefinition Definition { get; }
     public int RemainingCooldownUnits { get; set; }
+    public bool Triggered { get; set; }
 }
 
 internal interface IBattleAbilitySource

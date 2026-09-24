@@ -13,6 +13,7 @@ public enum AbilityActivation
     PassiveAura = 3,
     PassiveOnBattleStart = 4,
     PassiveWhileEnabled = 5,
+    EchoOnFirstAlliedCardActivated = 6,
 }
 
 public enum AbilityTarget
@@ -41,6 +42,10 @@ public abstract record EffectDefinition;
 public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
+
+// 按来源方英雄等级与固定系数造成伤害（领域战斗层）。
+public sealed record SourceHeroLevelScaledDamageEffectDefinition(int Multiplier, bool BypassArmor = false)
+    : EffectDefinition;
 
 public sealed record MaxHealthPercentDamageEffectDefinition(int Percent, bool BypassArmor = false) : EffectDefinition;
 
@@ -150,6 +155,7 @@ public sealed class AbilityDefinition
             var amount = effect switch
             {
                 DamageEffectDefinition value => value.Amount,
+                SourceHeroLevelScaledDamageEffectDefinition value => value.Multiplier,
                 MaxHealthPercentDamageEffectDefinition value => value.Percent,
                 IncreaseSourceCooldownEffectDefinition value => value.AmountTicks,
                 ModifyTaggedAlliedCardsAttributeEffectDefinition value => value.Amount,

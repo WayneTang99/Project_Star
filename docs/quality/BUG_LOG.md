@@ -35,3 +35,5 @@
 | BUG-019 | 2026-09-23 | `scripts/Presentation/MinimalPlaytest.cs` / 选角 | 将试玩创建参数设为 999 后，首轮收入立即发放，玩家实际起始显示 1004 金，不符合测试目标。 | `CreateMatchService.Create` 会在创建对局时结算第 1 轮收入，试玩把目标余额误当成结算前余额。 | 试玩创建对局时从目标余额 999 中扣除英雄初始收入作为创建参数，首轮收入结算后显示 999。 | Fixed |
 | BUG-020 | 2026-09-24 | `scripts/Presentation/PhaseOneVerification.cs` / `CheckMonsterRewardRetention` | Godot 规则验证的“棋盘已满时怪物卡牌奖励保持待领取”用例抛出未知阵营异常。 | 测试使用帕拉帝恩臂铠占位，但专用定义注册表未包含其阵营。 | 改用已有的无阵营兽皮占位，并复用同一兽皮定义注册到测试用定义表。 | Fixed |
 | BUG-021 | 2026-09-24 | `scripts/Presentation/PhaseOneVerification.cs` / `CheckCardSetBonuses` | 套装战斗快照验证因未知套装异常失败。 | 测试创建 `BattleSetupFactory` 时漏传已注册的套装定义。 | 将同一注册表的套装定义传给战斗快照工厂；无界面规则验证 90 项全部通过。 | Fixed |
+| BUG-022 | 2026-09-24 | `scripts/Presentation/PhaseOneVerification.cs` / `CheckChargeSkill` | 冲撞护甲验证错误地显示失败。 | 用例中的触发卡牌先造成 1 点伤害，已消耗敌方 1 点护甲，却仍断言冲撞吸收完整 5 点护甲。 | 将触发卡牌伤害设为 0，仅保留发动事件；无界面规则验证 93 项全部通过。 | Fixed |
+| BUG-023 | 2026-09-24 | `scripts/Content/Skills/ChargeSkillDefinition.cs` / 冲撞伤害 | 冲撞被定义为按技能等级预先计算的固定伤害，不符合“自身等级”指英雄等级的规则。 | 将描述中的自身等级误解为技能等级，且战斗快照没有提供英雄等级。 | 战斗快照加入英雄等级，改用按来源方英雄等级乘技能等级系数的通用伤害效果，并以不同英雄等级验证。 | Fixed |

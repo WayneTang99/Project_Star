@@ -46,8 +46,9 @@ public sealed class BattleSetupFactory
         var healthRegen = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.HealthRegen);
         var burn = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Burn);
         var poison = hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Poison);
+        var level = hero.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level);
         if (maxHealth < 1 || armor < 0 || maxMana < 0 || mana < 0 || mana > maxMana
-            || manaRegen < 0 || healthRegen < 0 || burn < 0 || poison < 0)
+            || manaRegen < 0 || healthRegen < 0 || burn < 0 || poison < 0 || level < 1)
         {
             throw new InvalidOperationException("Hero battle attributes are invalid.");
         }
@@ -130,7 +131,7 @@ public sealed class BattleSetupFactory
         }
 
         return new BattleSideSetup(
-            new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison),
+            new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison, level),
             cards.AsReadOnly(),
             skills.AsReadOnly(),
             sets.AsReadOnly());

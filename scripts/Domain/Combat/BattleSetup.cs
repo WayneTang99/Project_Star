@@ -15,7 +15,8 @@ public sealed record HeroBattleSetup(
     int ManaRegen = 10,
     int HealthRegen = 0,
     int Burn = 0,
-    int Poison = 0);
+    int Poison = 0,
+    int Level = 1);
 
 public sealed record CardBattleSetup(
     EntityId EntityId,

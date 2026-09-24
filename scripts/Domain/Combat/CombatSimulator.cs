@@ -155,6 +155,16 @@ public sealed class CombatSimulator
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
                 Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
+                && !ability.Triggered
+                && source.Side == origin.Source.Side
+                && origin.Source is CardBattleState
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && !origin.IsMulticast)
+            {
+                ability.Triggered = true;
+                Enqueue(runtime, source, ability, true);
+            }
         }
     }
 
@@ -168,6 +178,13 @@ public sealed class CombatSimulator
         {
             case DamageEffectDefinition damage:
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor,
+                    GetDamageSourceKind(pending.Source));
+                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
+                break;
+            case SourceHeroLevelScaledDamageEffectDefinition levelDamage:
+                var sourceLevel = runtime.GetHero(pending.Source.Side).Level;
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero,
+                    checked(sourceLevel * levelDamage.Multiplier), levelDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
