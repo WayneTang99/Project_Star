@@ -28,6 +28,7 @@ public sealed partial class MinimalPlaytest : Control
     private readonly Button[] _choices = new Button[3];
     private DefinitionRegistry _registry = null!;
     private CardEconomyService _economy = null!;
+    private MonsterRewardClaimService _monsterRewards = null!;
     private GameCoordinator _game = null!;
     private MatchSession? _player;
     private MatchSession? _enemy;
@@ -42,6 +43,7 @@ public sealed partial class MinimalPlaytest : Control
     private Button _refreshShop = null!;
     private Button _battleButton = null!;
     private Button _continue = null!;
+    private Button _rewardButton = null!;
     private VBoxContainer _eventOptionButtons = null!;
     private Control _battlefieldPanel = null!;
     private Control _benchPanel = null!;
@@ -60,6 +62,8 @@ public sealed partial class MinimalPlaytest : Control
     {
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
+        _monsterRewards = new MonsterRewardClaimService(
+            _registry, _economy, new SkillAcquisitionService(_factory), _board);
         _encounterOptions = new ResolveEncounterOptionService(_factory, _board, _registry.Cards.Values);
         _game = new GameCoordinator(
             new CreateMatchService(_factory),
@@ -80,6 +84,9 @@ public sealed partial class MinimalPlaytest : Control
         _refreshShop = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Refresh");
         _battleButton = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/Actions/Battle");
         _continue = GetNode<Button>($"{root}/MainPanel/Margin/MainContent/EncounterActions/Generate");
+        _rewardButton = new Button { Visible = false };
+        GetNode<HBoxContainer>($"{root}/MainPanel/Margin/MainContent/EncounterActions").AddChild(_rewardButton);
+        _rewardButton.Pressed += ClaimMonsterReward;
         _eventOptionButtons = GetNode<VBoxContainer>($"{root}/MainPanel/Margin/MainContent/EventOptions");
         _battlefieldPanel = GetNode<Control>($"{root}/BattlefieldPanel");
         _benchPanel = GetNode<Control>($"{root}/BenchPanel");
@@ -469,6 +476,7 @@ public sealed partial class MinimalPlaytest : Control
     private void StartBattle()
     {
         if (_player is null || _enemy is null) return;
+        var before = _game.GetSnapshot(_player);
         var result = _game.ResolveBattle(_player, _enemy, _battleKind, _battleRound);
         if (result.IsFailure) { _log.Text = result.Failure!.Message; return; }
         var snapshot = _game.GetSnapshot(_player);
@@ -476,8 +484,20 @@ public sealed partial class MinimalPlaytest : Control
         _title.Text = snapshot.Status == MatchStatus.InProgress ? "战斗结算"
             : snapshot.Status == MatchStatus.Won ? "对局胜利" : "对局失败";
         _log.Text = FormatBattleLog(result.Value!);
+        if (_battleKind == MatchBattleKind.Monster)
+            _log.Text += $"\n金币 +{snapshot.Wealth - before.Wealth}，经验 +{snapshot.Experience - before.Experience}。";
         _continue.Text = snapshot.Status == MatchStatus.InProgress ? "进入下一回合" : "返回英雄选择";
         _continue.Visible = true;
+        UpdateState();
+    }
+
+    private void ClaimMonsterReward()
+    {
+        if (_player is null) return;
+        var claimed = _monsterRewards.ClaimFirst(_player);
+        if (claimed.IsFailure) { _log.Text = claimed.Failure!.Message; return; }
+        _log.Text += $"\n已领取 {claimed.Value!.Reward.DisplayName}（{claimed.Value.CurrentLevel}级）。";
+        RefreshBoard();
         UpdateState();
     }
 
@@ -494,6 +514,7 @@ public sealed partial class MinimalPlaytest : Control
         foreach (var child in _eventOptionButtons.GetChildren()) child.QueueFree();
         _eventOptionButtons.Visible = false;
         _hero.Visible = _battleButton.Visible = _continue.Visible = _refreshShop.Visible = false;
+        _rewardButton.Visible = false;
         foreach (var button in _buyButtons) if (button is not null) button.Visible = false;
         _battlefieldPanel.Visible = _player is not null;
         _benchPanel.Visible = _player is not null;
@@ -506,9 +527,12 @@ public sealed partial class MinimalPlaytest : Control
     {
         if (_player is null) { _state.Text = "尚未开始对局"; return; }
         var snapshot = _game.GetSnapshot(_player);
-        _state.Text = $"轮次 {snapshot.Round}-{snapshot.Turn}　财富 {snapshot.Wealth}　收入 {snapshot.Income}　"
+        _state.Text = $"轮次 {snapshot.Round}-{snapshot.Turn}　财富 {snapshot.Wealth}　经验 {snapshot.Experience}　收入 {snapshot.Income}　"
             + $"声望 {snapshot.Reputation}　PvP胜场 {snapshot.PvpWins}/10　"
             + $"战场 {snapshot.BattlefieldCount}/10　备战 {snapshot.BenchCount}/10";
+        _rewardButton.Visible = snapshot.PendingMonsterRewards.Count > 0;
+        if (_rewardButton.Visible)
+            _rewardButton.Text = $"领取战利品：{snapshot.PendingMonsterRewards[0].DisplayName}";
     }
 
     private static string FormatBattleLog(BattleResult result)

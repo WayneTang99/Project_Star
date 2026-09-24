@@ -41,6 +41,10 @@ public sealed record MaxHealthPercentDamageEffectDefinition(int Percent, bool By
 public sealed record AttributeDamageEffectDefinition(StringName AttributeKey, bool BypassArmor = false)
     : EffectDefinition;
 
+// 按来源方英雄当前生命比例缩放来源属性伤害（领域战斗层）。
+public sealed record SourceHeroHealthScaledAttributeDamageEffectDefinition(
+    StringName AttributeKey, bool BypassArmor = false) : EffectDefinition;
+
 public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
@@ -152,6 +156,9 @@ public sealed class AbilityDefinition
             }
             if (effect is AttributeDamageEffectDefinition attributeDamage && attributeDamage.AttributeKey.IsEmpty)
                 throw new ArgumentException("Attribute damage key cannot be empty.", nameof(effects));
+            if (effect is SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage
+                && scaledDamage.AttributeKey.IsEmpty)
+                throw new ArgumentException("Scaled damage key cannot be empty.", nameof(effects));
             if (effect is GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor
                 && attributeArmor.AttributeKey.IsEmpty)
             {

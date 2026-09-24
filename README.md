@@ -29,7 +29,7 @@
 
 - `README.md` — 本文件，项目概览（人看）
 - `AGENTS.md` — AI 代理入口：行为准则、硬约束、文档导航
-- `docs/design/` — 游戏规则、卡牌数据、术语
+- `docs/design/` — 游戏规则、卡牌/技能/遭遇/英雄数据、术语
 - `docs/engineering/` — 架构、设计原则、开发约定
 - `docs/planning/` — 实现与内容扩充计划
 - `docs/quality/` — 人工验收与 BUG 记录

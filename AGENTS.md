@@ -44,6 +44,9 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 |---|---|---|---|
 | 设计 | `docs/design/GAME_DESIGN.md` | 游戏设计规则（英雄/卡牌/标签/棋盘/遭遇/胜负） | 理解游戏需求、实现游戏功能时 |
 | 设计 | `docs/design/CARD_DATA.md` | 正式卡牌数据表（等级/价值/标签/描述） | 新增、修改或核对卡牌内容时 |
+| 设计 | `docs/design/SKILL_DATA.md` | 正式技能数据表（等级/归属/效果） | 新增、修改或核对技能内容时 |
+| 设计 | `docs/design/ENCOUNTER_DATA.md` | 正式遭遇数据表（排程/商店/选项） | 新增、修改或核对遭遇内容时 |
+| 设计 | `docs/design/HERO_DATA.md` | 正式英雄数据表（归属/初始属性） | 新增、修改或核对英雄内容时 |
 | 设计 | `docs/design/GLOSSARY.md` | 术语表（英文名 + 中文名 + 定义） | 提出需求、写代码前先查术语 |
 | 工程 | `docs/engineering/ARCHITECTURE.md` | 架构设计 + 战斗系统 + 能力系统实现细节 | 理解代码结构、写新系统时 |
 | 工程 | `docs/engineering/DESIGN_PRINCIPLES.md` | 软件设计原则（SOLID + 扩展模式） | 编写与审查代码时 |

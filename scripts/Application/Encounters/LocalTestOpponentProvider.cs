@@ -59,6 +59,8 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
             if (placement.IsFailure)
                 throw new InvalidOperationException(placement.Failure!.Message);
         }
+        foreach (var entry in definition.Skills)
+            session.Player.Skills.Add(_factory.CreateSkill(_registry.Skills[entry.SkillKey], entry.Level));
         return session;
     }
 

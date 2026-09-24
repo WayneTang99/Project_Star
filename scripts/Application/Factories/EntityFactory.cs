@@ -27,6 +27,7 @@ public sealed class EntityFactory
                 definition.Attributes.Identity.DisplayName,
                 new Godot.StringName("monster")),
             baseCombat: definition.Attributes.BaseCombat.CreateMutableCopy());
+        attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, definition.Level);
         return new HeroInstance(EntityId.New(), attributes);
     }
 

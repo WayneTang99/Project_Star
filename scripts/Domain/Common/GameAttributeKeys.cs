@@ -7,6 +7,7 @@ public static class GameAttributeKeys
     public static readonly StringName Level = new("Level");
     public static readonly StringName Value = new("Value");
     public static readonly StringName Wealth = new("Wealth");
+    public static readonly StringName Experience = new("Experience");
     public static readonly StringName Income = new("Income");
     public static readonly StringName MaxHealth = new("MaxHealth");
     public static readonly StringName Armor = new("Armor");

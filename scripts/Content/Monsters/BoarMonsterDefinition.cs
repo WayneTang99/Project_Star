@@ -13,7 +13,9 @@ public sealed class BoarMonsterDefinition : MonsterDefinition
             [
                 new MonsterCardEntry(new StringName("card.beast_hide"), 1, 0),
                 new MonsterCardEntry(new StringName("card.beast_hide"), 1, 1),
-            ])
+                new MonsterCardEntry(new StringName("card.boar"), 1, 2),
+            ],
+            level: 1)
     {
     }
 }

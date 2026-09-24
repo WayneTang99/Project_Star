@@ -188,6 +188,15 @@ public sealed class CombatSimulator
                     pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
                 if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
                 break;
+            case SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage:
+                var healthSourceHero = runtime.GetHero(pending.Source.Side);
+                var scaledAmount = checked((int)((long)GetEffectiveCombatAttribute(
+                    runtime, pending.Source, scaledDamage.AttributeKey) * healthSourceHero.Health / healthSourceHero.MaxHealth));
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, scaledAmount,
+                    scaledDamage.BypassArmor,
+                    pending.Source is SkillBattleState ? DamageSourceKind.Skill : DamageSourceKind.Card);
+                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
+                break;
             case HealEffectDefinition heal:
                 hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
                 break;

@@ -14,6 +14,7 @@ public static class TagDisplayNames
         [GameTags.Material] = "材料",
         [GameTags.Consumable] = "消耗品",
         [GameTags.Human] = "人类",
+        [GameTags.Beast] = "野兽",
         [GameTags.Mechanical] = "机械",
         [GameTags.Demon] = "恶魔",
         [GameTags.Undead] = "亡灵",

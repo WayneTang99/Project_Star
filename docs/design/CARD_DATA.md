@@ -22,6 +22,7 @@
 |---|---|---|---|---|---|---:|---|
 | `card.judgment_hammer` | 审判之锤 | `paladin` | Large | Light | Equipment | 3 | 冷却6/5秒；对敌方英雄造成其最大生命20%的普通伤害，小数向下取整，先扣护甲 |
 | `card.beast_hide` | 兽皮 | `neutral` | Small | General | Material | 1 | 该卡牌价值+2/4/8/16 |
+| `card.boar` | 野猪 | `neutral` | Medium | General | Beast | 1 | 冷却6秒；发动时造成20/30/50/100 × 己方英雄当前生命百分比的普通伤害，小数向下取整，先扣护甲 |
 | `card.diamond` | 钻石 | `neutral` | Small | General | Material | 4 | 该卡牌价值+20 |
 | `card.jewelry_bag` | 珠宝袋 | `neutral` | Small | General | — | 2 | 出售时随机获得一张与该卡牌同等级的材料卡；双棋盘已满时不获得 |
 | `card.light_cavalry` | 轻骑兵 | `paladin` | Medium | General | Human | 1 | 冷却3秒；发动时造成10/20/40/60伤害；首次发动后，此卡牌冷却+2秒；发动后，己方战场区具备攻击能力的人类卡牌攻击+10/20/40/60（包括自身，可累计） |

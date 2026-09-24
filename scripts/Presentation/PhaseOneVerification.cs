@@ -13,6 +13,7 @@ using Project_Star.Content.Cards;
 using Project_Star.Content.Encounters;
 using Project_Star.Content.Heroes;
 using Project_Star.Content.Monsters;
+using Project_Star.Content.Skills;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Definitions;
@@ -61,7 +62,7 @@ public sealed partial class PhaseOneVerification : Control
         ("珠宝袋出售后自动获得同级材料卡", CheckJewelryBagSaleReward),
         ("百宝箱出售后获得三件同级小型材料", CheckTreasureChestSaleReward),
         ("型号商店只提供当前英雄归属的对应尺寸卡牌", CheckSizeShopCardPools),
-        ("野猪使用默认属性并拥有两张1级兽皮", CheckBoarMonsterDefinition),
+        ("野猪使用默认属性并携带两张1级兽皮和一张1级野猪卡", CheckBoarMonsterDefinition),
         ("体能训练按英雄等级结算可扩展选项", CheckPhysicalTraining),
         ("垃圾填埋场生成固定与加权选项并结算奖励", CheckLandfill),
         ("购买按报价扣款并登记卡牌归属", CheckPurchase),
@@ -82,6 +83,7 @@ public sealed partial class PhaseOneVerification : Control
         ("同 Tick 按玩家方优先进入 FIFO", CheckStableFifoOrder),
         ("伤害先扣护甲再扣生命", CheckArmorDamage),
         ("最大生命百分比伤害向下取整并先扣护甲", CheckMaxHealthPercentDamage),
+        ("野猪按己方英雄当前生命比例造成分级伤害", CheckBoarCard),
         ("轻骑兵伤害、成长冷却与人类攻击强化正确结算", CheckLightCavalry),
         ("臂铠按卡牌多重属性额外发动并重复获得护甲", CheckArmguard),
         ("魔能盾按己方累计魔法消耗获得护甲", CheckArcaneShield),
@@ -101,8 +103,10 @@ public sealed partial class PhaseOneVerification : Control
         ("第 4 回合固定三个怪物遭遇", CheckMonsterTurn),
         ("第 8 回合固定 PvP 并推进轮次", CheckPvpTurnAdvance),
         ("新对局不会继承遭遇历史", CheckEncounterHistoryIsolation),
-        ("怪物战失败不会扣除声望", CheckMonsterLoss),
-        ("怪物战胜利奖励财富", CheckMonsterReward),
+        ("怪物战失败按损失生命比例奖励金币经验且不扣声望", CheckMonsterLoss),
+        ("怪物战胜利按怪物等级奖励并抽取待领取卡牌", CheckMonsterReward),
+        ("怪物技能可作为战利品领取", CheckMonsterSkillReward),
+        ("棋盘已满时怪物卡牌奖励保持待领取", CheckMonsterRewardRetention),
         ("PvP 失败按战斗轮数扣声望", CheckPvpReputationLoss),
         ("十次 PvP 胜利结束对局", CheckTenPvpWins),
         ("胜利与声望归零同时满足时胜利优先", CheckVictoryPriority),
@@ -137,6 +141,7 @@ public sealed partial class PhaseOneVerification : Control
         title.Text = allPassed ? "第 1～9 步验证通过" : "第 1～9 步验证失败";
         title.Modulate = allPassed ? new Color("75d69c") : new Color("ff7b72");
         output.Text = string.Join("\n", results);
+        GD.Print($"{title.Text}\n{output.Text}");
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
     }
@@ -485,7 +490,7 @@ public sealed partial class PhaseOneVerification : Control
     private static bool CheckBoarMonsterDefinition()
     {
         var definition = new BoarMonsterDefinition();
-        var registry = DefinitionRegistry.Create([definition, new BeastHideCardDefinition()]);
+        var registry = DefinitionRegistry.Create([definition, new BeastHideCardDefinition(), new BoarCardDefinition()]);
         var session = new MatchSession(1);
         session.Progress.Turn = 4;
         var choices = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true).Generate(session).Value!;
@@ -498,21 +503,31 @@ public sealed partial class PhaseOneVerification : Control
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.Mana) == 0
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.ManaRegen) == 10
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.HealthRegen) == 0
-            && definition.Cards.Count == 2
+            && definition.Level == 1
+            && definition.Skills.Count == 0
+            && definition.Cards.Count == 3
             && definition.Cards[0].CardKey == new StringName("card.beast_hide")
             && definition.Cards[0].Level == 1
             && definition.Cards[0].BoardStart == 0
             && definition.Cards[1].CardKey == new StringName("card.beast_hide")
             && definition.Cards[1].Level == 1
             && definition.Cards[1].BoardStart == 1
+            && definition.Cards[2].CardKey == new StringName("card.boar")
+            && definition.Cards[2].Level == 1
+            && definition.Cards[2].BoardStart == 2
             && choices.Count == 1
             && choices[0].Key == new StringName("monster.boar")
             && choices[0].Kind == EncounterKind.Monster
             && opponent.Player.Hero!.Attributes.Identity.DisplayName == "野猪"
-            && opponent.Player.Inventory.Cards.Count == 2
-            && opponent.Board.Battlefield.Count == 2
+            && opponent.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
+            && opponent.Player.Inventory.Cards.Count == 3
+            && opponent.Board.Battlefield.Count == 3
             && opponent.Player.Inventory.Cards[0].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
-            && opponent.Player.Inventory.Cards[1].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1;
+            && opponent.Player.Inventory.Cards[1].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
+            && opponent.Player.Inventory.Cards[2].Attributes.Identity.Key == new StringName("card.boar")
+            && opponent.Player.Inventory.Cards[2].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
+            && opponent.Board.Battlefield.Placements[2].Start == 2
+            && opponent.Board.Battlefield.Placements[2].Size == 2;
     }
 
     private static bool CheckPhysicalTraining()
@@ -1187,6 +1202,78 @@ public sealed partial class PhaseOneVerification : Control
         }
 
         return false;
+    }
+
+    private static bool CheckBoarCard()
+    {
+        var definition = new BoarCardDefinition();
+        var identity = definition.Attributes.Identity;
+        if (identity.Key != new StringName("card.boar")
+            || identity.FactionKey != GameFactions.Neutral
+            || identity.Size != CardSize.Medium
+            || identity.ElementKeys.Count != 1
+            || identity.ElementKeys[0] != GameElements.General
+            || !definition.Tags.Contains(GameTags.Beast)
+            || TagDisplayNames.Get(GameTags.Beast) != "野兽"
+            || definition.InitialLevel != 1
+            || definition.SupportsLevel(5))
+            return false;
+
+        var expectedDamage = new[] { 20, 30, 50, 100 };
+        for (var level = 1; level <= 4; level++)
+        {
+            var levelDefinition = definition.GetLevel(level);
+            if (levelDefinition is null
+                || levelDefinition.BaseCombatValues[GameAttributeKeys.AttackDamage] != expectedDamage[level - 1]
+                || levelDefinition.Abilities.Count != 1
+                || levelDefinition.Abilities[0].Activation != AbilityActivation.Active
+                || levelDefinition.Abilities[0].CooldownTicks != 60
+                || levelDefinition.Abilities[0].Effects[0]
+                    is not SourceHeroHealthScaledAttributeDamageEffectDefinition { BypassArmor: false })
+                return false;
+
+            var boarId = EntityId.New();
+            var opponentId = EntityId.New();
+            var opponentAttack = new AbilityDefinition(
+                new StringName("test.boar_opponent_attack"),
+                AbilityActivation.Active,
+                AbilityTarget.EnemyHero,
+                0,
+                40,
+                [new DamageEffectDefinition(25)]);
+            var setup = new BattleSetup(
+                new BattleSideSetup(
+                    new HeroBattleSetup(EntityId.New(), 100, 0),
+                    [new CardBattleSetup(boarId, 0, expectedDamage[level - 1], 60,
+                        levelDefinition.Abilities, UseLegacyAttack: false, Tags: definition.Tags,
+                        OccupiedSlots: 2, ElementKeys: identity.ElementKeys)]),
+                new BattleSideSetup(
+                    new HeroBattleSetup(EntityId.New(), 1000, 3),
+                    [new CardBattleSetup(opponentId, 0, 50, 40,
+                        [opponentAttack], UseLegacyAttack: false)]),
+                1,
+                new BattleTick(121),
+                new BattleTick(1000));
+            var result = new CombatSimulator().Simulate(setup);
+            var damage = result.Events.OfType<DamageDealtEvent>()
+                .Where(value => value.SourceCardId == boarId).ToArray();
+            var firstDamage = expectedDamage[level - 1] * 75 / 100;
+            var secondDamage = expectedDamage[level - 1] / 2;
+            if (damage.Length != 2
+                || damage[0].Tick.Value != 60
+                || damage[0].TargetSide != SideId.Opponent
+                || damage[0].RawDamage != firstDamage
+                || damage[0].ArmorAbsorbed != 3
+                || damage[0].HealthDamage != firstDamage - 3
+                || damage[1].Tick.Value != 120
+                || damage[1].TargetSide != SideId.Opponent
+                || damage[1].RawDamage != secondDamage
+                || damage[1].ArmorAbsorbed != 0
+                || damage[1].HealthDamage != secondDamage)
+                return false;
+        }
+
+        return true;
     }
 
     private static bool CheckLightCavalry()
@@ -2027,15 +2114,113 @@ public sealed partial class PhaseOneVerification : Control
     private static bool CheckMonsterLoss()
     {
         var session = new MatchSession(1);
-        _ = CreateMatchResultService().Apply(session, CreateBattleResult(BattleOutcome.OpponentVictory), MatchBattleKind.Monster);
-        return session.Player.Reputation == 10 && session.Status == MatchStatus.InProgress;
+        var battle = new BattleResult(BattleOutcome.OpponentVictory, BattleEndReason.HeroDefeated,
+            new BattleTick(1), 0, 50, Array.Empty<BattleEvent>());
+        _ = CreateMatchResultService().Apply(session, battle, MatchBattleKind.Monster,
+            opponent: CreateBoarOpponent());
+        return session.Player.Reputation == 10
+            && session.Player.Wealth == 1
+            && session.Player.Experience == 1
+            && session.PendingMonsterRewards.Count == 0
+            && session.Status == MatchStatus.InProgress;
     }
 
     private static bool CheckMonsterReward()
     {
         var session = new MatchSession(1, 3);
-        _ = CreateMatchResultService().Apply(session, CreateBattleResult(BattleOutcome.PlayerVictory), MatchBattleKind.Monster);
-        return session.Player.Wealth == 5;
+        var opponent = CreateBoarOpponent();
+        _ = CreateMatchResultService().Apply(session, CreateBattleResult(BattleOutcome.PlayerVictory),
+            MatchBattleKind.Monster, opponent: opponent);
+        var pending = session.PendingMonsterRewards.Count == 1 ? session.PendingMonsterRewards[0] : null;
+        var repeated = new MatchSession(1, 3);
+        _ = CreateMatchResultService().Apply(repeated, CreateBattleResult(BattleOutcome.PlayerVictory),
+            MatchBattleKind.Monster, opponent: CreateBoarOpponent());
+        var factory = new EntityFactory();
+        var board = CreateBoardService();
+        var registry = DefinitionRegistry.Create([
+            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition()]);
+        var claimed = new MonsterRewardClaimService(registry,
+            new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
+            .ClaimFirst(session);
+        return session.Player.Wealth == 6
+            && session.Player.Experience == 2
+            && pending is { Kind: MonsterRewardKind.Card, Level: 1 }
+            && (pending.Key == new StringName("card.beast_hide") || pending.Key == new StringName("card.boar"))
+            && repeated.PendingMonsterRewards.Count == 1
+            && repeated.PendingMonsterRewards[0].Key == pending.Key
+            && claimed.IsSuccess
+            && session.PendingMonsterRewards.Count == 0
+            && session.Player.Inventory.Cards.Count == 1
+            && session.Board.Battlefield.Count == 1;
+    }
+
+    private static bool CheckMonsterSkillReward()
+    {
+        var factory = new EntityFactory();
+        var skill = new AssaultSkillDefinition();
+        var monster = new SkillOnlyVerificationMonsterDefinition();
+        var registry = DefinitionRegistry.Create([monster, skill]);
+        var opponent = new LocalTestOpponentProvider(registry).CreateMonsterOpponent(2, monster);
+        var session = new MatchSession(1);
+        _ = CreateMatchResultService().Apply(session, CreateBattleResult(BattleOutcome.PlayerVictory),
+            MatchBattleKind.Monster, opponent: opponent);
+        var pending = session.PendingMonsterRewards.Count == 1 ? session.PendingMonsterRewards[0] : null;
+        var board = CreateBoardService();
+        var claimed = new MonsterRewardClaimService(registry,
+            new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
+            .ClaimFirst(session);
+        return pending is { Kind: MonsterRewardKind.Skill, Level: 1 }
+            && pending.Key == new StringName("skill.assault")
+            && opponent.Player.Skills.Items.Count == 1
+            && claimed.IsSuccess
+            && session.Player.Skills.Items.Count == 1
+            && session.Board.Battlefield.Count == 0
+            && session.PendingMonsterRewards.Count == 0;
+    }
+
+    private static bool CheckMonsterRewardRetention()
+    {
+        var session = new MatchSession(1, boardCapacity: 1);
+        var factory = new EntityFactory();
+        var board = CreateBoardService();
+        var blockerDefinition = new BeastHideCardDefinition();
+        foreach (var zone in new[] { BoardZone.Battlefield, BoardZone.Bench })
+        {
+            var blocker = factory.CreateCard(blockerDefinition, 4);
+            session.Player.Inventory.Add(blocker);
+            if (board.PlaceCard(session, blocker.Id, zone, 0).IsFailure) return false;
+        }
+        _ = CreateMatchResultService().Apply(session, CreateBattleResult(BattleOutcome.PlayerVictory),
+            MatchBattleKind.Monster, opponent: CreateBoarOpponent());
+        var registry = DefinitionRegistry.Create([
+            new BoarMonsterDefinition(), blockerDefinition, new BoarCardDefinition()]);
+        var claimed = new MonsterRewardClaimService(registry,
+            new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
+            .ClaimFirst(session);
+        return claimed.IsFailure
+            && session.PendingMonsterRewards.Count == 1
+            && session.Player.Inventory.Cards.Count == 2
+            && session.Board.Battlefield.Count == 1
+            && session.Board.Bench.Count == 1;
+    }
+
+    private static MatchSession CreateBoarOpponent()
+    {
+        var registry = DefinitionRegistry.Create([
+            new BoarMonsterDefinition(), new BeastHideCardDefinition(), new BoarCardDefinition()]);
+        return new LocalTestOpponentProvider(registry).CreateMonsterOpponent(
+            2, registry.Monsters[new StringName("monster.boar")]);
+    }
+
+    // 验证怪物定义可直接携带技能（表现层验证模块）。
+    private sealed class SkillOnlyVerificationMonsterDefinition : MonsterDefinition
+    {
+        public SkillOnlyVerificationMonsterDefinition()
+            : base(new StringName("verification.monster.skill"), "验证技能怪物",
+                Array.Empty<MonsterCardEntry>(),
+                skills: [new MonsterSkillEntry(new StringName("skill.assault"), 1)])
+        {
+        }
     }
 
     private static bool CheckPvpReputationLoss()
@@ -2071,7 +2256,8 @@ public sealed partial class PhaseOneVerification : Control
         _ = CreateBoardService().PlaceCard(session, card.Id, BoardZone.Battlefield, 0);
         var battle = new BattleResult(BattleOutcome.Draw, BattleEndReason.Timeout, new BattleTick(1), 1, 1,
             Array.Empty<BattleEvent>(), [new PermanentChange(card.Id, "Destroy")]);
-        _ = CreateMatchResultService().Apply(session, battle, MatchBattleKind.Monster);
+        _ = CreateMatchResultService().Apply(session, battle, MatchBattleKind.Monster,
+            opponent: CreateBoarOpponent());
         return session.Player.Inventory.Find(card.Id) is null && !session.Board.Contains(card.Id);
     }
 
@@ -2081,7 +2267,8 @@ public sealed partial class PhaseOneVerification : Control
         _ = AcquireBoardCard(session, CardSize.Small);
         var snapshot = MatchSnapshot.From(session);
         session.Player.Resources.SetBaseValue(GameAttributeKeys.Wealth, 99);
-        return snapshot.Wealth == 4 && snapshot.Cards.Count == 1;
+        session.Player.Resources.SetBaseValue(GameAttributeKeys.Experience, 42);
+        return snapshot.Wealth == 4 && snapshot.Experience == 0 && snapshot.Cards.Count == 1;
     }
 
     private static MatchResultService CreateMatchResultService() => new(CreateBoardService());

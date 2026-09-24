@@ -74,6 +74,9 @@ internal sealed class CardBattleState : IBattleAbilitySource
                 case AttributeDamageEffectDefinition attributeDamage:
                     SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
                     break;
+                case SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage:
+                    SupportedCombatAttributes.Add(scaledDamage.AttributeKey);
+                    break;
                 case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
                     SupportedCombatAttributes.Add(attributeArmor.AttributeKey);
                     break;

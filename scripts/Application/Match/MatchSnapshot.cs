@@ -33,11 +33,13 @@ public sealed record MatchSnapshot(
     int Round,
     int Turn,
     int Wealth,
+    int Experience,
     int Income,
     int Reputation,
     int PvpWins,
     IReadOnlyList<CardSnapshot> Cards,
     IReadOnlyList<SkillSnapshot> Skills,
+    IReadOnlyList<PendingMonsterReward> PendingMonsterRewards,
     IReadOnlyList<EncounterChoice> EncounterChoices,
     IReadOnlyList<BoardPlacementSnapshot> BoardPlacements,
     int BattlefieldCount,
@@ -73,8 +75,9 @@ public sealed record MatchSnapshot(
         AddPlacements(session.Board.Battlefield, BoardZone.Battlefield, placements);
         AddPlacements(session.Board.Bench, BoardZone.Bench, placements);
         return new MatchSnapshot(session.Id, session.Status, session.Progress.Round, session.Progress.Turn,
-            session.Player.Wealth, session.Player.Income, session.Player.Reputation, session.Progress.PvpWins,
-            cards.AsReadOnly(), skills.AsReadOnly(), Array.AsReadOnly(session.EncounterSchedule.CurrentChoices.ToArray()), placements.AsReadOnly(),
+            session.Player.Wealth, session.Player.Experience, session.Player.Income, session.Player.Reputation, session.Progress.PvpWins,
+            cards.AsReadOnly(), skills.AsReadOnly(), Array.AsReadOnly(session.PendingMonsterRewards.ToArray()),
+            Array.AsReadOnly(session.EncounterSchedule.CurrentChoices.ToArray()), placements.AsReadOnly(),
             session.Board.Battlefield.Count, session.Board.Bench.Count, session.Summary);
     }
 

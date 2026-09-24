@@ -8,6 +8,8 @@ namespace Project_Star.Domain.Match;
 /// <summary>The aggregate root and sole mutable state owner for one match.</summary>
 public sealed class MatchSession
 {
+    private readonly List<PendingMonsterReward> _pendingMonsterRewards = [];
+
     public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10)
     {
         if (startingWealth < 0 || startingReputation < 1)
@@ -37,6 +39,12 @@ public sealed class MatchSession
 
     public List<IMatchEvent> Events { get; } = [];
 
+    public IReadOnlyList<PendingMonsterReward> PendingMonsterRewards => _pendingMonsterRewards;
+
+    internal void AddPendingMonsterReward(PendingMonsterReward reward) => _pendingMonsterRewards.Add(reward);
+
+    internal void RemoveFirstPendingMonsterReward() => _pendingMonsterRewards.RemoveAt(0);
+
     public MatchStatus Status { get; internal set; } = MatchStatus.InProgress;
 
     public MatchSummary? Summary { get; internal set; }
@@ -58,6 +66,7 @@ public sealed class PlayerState
     public PlayerState(int startingWealth, int startingReputation)
     {
         Resources.SetBaseValue(GameAttributeKeys.Wealth, startingWealth);
+        Resources.SetBaseValue(GameAttributeKeys.Experience, 0);
         Resources.SetBaseValue(GameAttributeKeys.Reputation, startingReputation);
     }
 
@@ -70,6 +79,8 @@ public sealed class PlayerState
     public ModifiableAttributeSet Resources { get; } = new();
 
     public int Wealth => Resources.GetBaseValue(GameAttributeKeys.Wealth);
+
+    public int Experience => Resources.GetBaseValue(GameAttributeKeys.Experience);
 
     public int Reputation => Resources.GetBaseValue(GameAttributeKeys.Reputation);
 
@@ -92,6 +103,12 @@ public sealed class PlayerState
     {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
         Resources.SetBaseValue(GameAttributeKeys.Wealth, checked(Wealth + amount));
+    }
+
+    internal void AddExperience(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        Resources.SetBaseValue(GameAttributeKeys.Experience, checked(Experience + amount));
     }
 
     internal void LoseReputation(int amount)

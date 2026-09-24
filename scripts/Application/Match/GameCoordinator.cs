@@ -49,7 +49,7 @@ public sealed class GameCoordinator
         var battle = _battles.StartBattle(player, opponent, player.Random.State);
         if (battle.IsFailure) return Result<BattleResult>.Fail(battle.Failure!);
 
-        var settlement = _results.Apply(player, battle.Value!, kind, battleRound);
+        var settlement = _results.Apply(player, battle.Value!, kind, battleRound, opponent);
         if (settlement.IsFailure) return Result<BattleResult>.Fail(settlement.Failure!);
         return Result<BattleResult>.Success(battle.Value!);
     }

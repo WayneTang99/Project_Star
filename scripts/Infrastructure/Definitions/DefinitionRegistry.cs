@@ -100,6 +100,7 @@ public sealed class DefinitionRegistry
 
         ValidateContentFactions(heroes, cards, skills);
         ValidateMonsterCards(monsters, cards);
+        ValidateMonsterSkills(monsters, skills);
         return new DefinitionRegistry(heroes, cards, skills, encounters, monsters);
     }
 
@@ -137,6 +138,20 @@ public sealed class DefinitionRegistry
                     occupied[slot] = true;
                 }
             }
+        }
+    }
+
+    private static void ValidateMonsterSkills(
+        IReadOnlyDictionary<StringName, MonsterDefinition> monsters,
+        IReadOnlyDictionary<StringName, SkillDefinition> skills)
+    {
+        foreach (var monster in monsters.Values)
+        foreach (var entry in monster.Skills)
+        {
+            if (!skills.TryGetValue(entry.SkillKey, out var skill)
+                || !skill.SupportsLevel(entry.Level))
+                throw new DefinitionValidationException(
+                    $"Monster '{monster.Attributes.Identity.Key}' references an invalid skill '{entry.SkillKey}' at level {entry.Level}.");
         }
     }
 

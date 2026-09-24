@@ -3,6 +3,8 @@ using Project_Star.Application.Board;
 using Project_Star.Application.Common;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Match;
+using Project_Star.Domain.Common;
+using Project_Star.Infrastructure.Random;
 
 namespace Project_Star.Application.Match;
 
@@ -19,17 +21,27 @@ public sealed class MatchResultService
 
     public MatchResultService(BoardService boardService) => _boardService = boardService;
 
-    public Result Apply(MatchSession session, BattleResult battle, MatchBattleKind kind, int? battleRound = null)
+    public Result Apply(
+        MatchSession session,
+        BattleResult battle,
+        MatchBattleKind kind,
+        int? battleRound = null,
+        MatchSession? opponent = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(battle);
         if (session.Status != MatchStatus.InProgress)
             return Result.Fail(new Failure(new Godot.StringName("match.already_ended"), "The match has already ended."));
+        if (kind == MatchBattleKind.Monster
+            && (opponent?.Player.Hero is not { } monster
+                || monster.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) < 1
+                || monster.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level) < 1))
+            return Result.Fail(new Failure(new Godot.StringName("match.invalid_monster"), "A valid monster opponent is required."));
 
         ApplyPermanentChanges(session, battle);
         if (kind == MatchBattleKind.Monster)
         {
-            if (battle.Outcome == BattleOutcome.PlayerVictory) session.Player.AddWealth(2);
+            SettleMonsterBattle(session, opponent!, battle);
             return Result.Success();
         }
 
@@ -40,6 +52,35 @@ public sealed class MatchResultService
         if (session.Progress.PvpWins >= 10) End(session, MatchStatus.Won);
         else if (session.Player.Reputation <= 0) End(session, MatchStatus.Lost);
         return Result.Success();
+    }
+
+    private static void SettleMonsterBattle(MatchSession session, MatchSession opponent, BattleResult battle)
+    {
+        var monster = opponent.Player.Hero!;
+        var maxHealth = monster.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth);
+        var lostHealth = maxHealth - Math.Clamp(battle.OpponentRemainingHealth, 0, maxHealth);
+        var level = monster.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level);
+        session.Player.AddWealth(checked((int)(((long)level + 2) * lostHealth / maxHealth)));
+        session.Player.AddExperience(checked((int)(((long)level + 1) * lostHealth / maxHealth)));
+        if (battle.Outcome != BattleOutcome.PlayerVictory) return;
+
+        var candidates = new System.Collections.Generic.List<PendingMonsterReward>();
+        foreach (var card in opponent.Player.Inventory.Cards)
+            candidates.Add(new PendingMonsterReward(
+                MonsterRewardKind.Card,
+                card.Attributes.Identity.Key,
+                card.Attributes.Identity.DisplayName,
+                card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level)));
+        foreach (var skill in opponent.Player.Skills.Items)
+            candidates.Add(new PendingMonsterReward(
+                MonsterRewardKind.Skill,
+                skill.Attributes.Identity.Key,
+                skill.Attributes.Identity.DisplayName,
+                skill.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level)));
+        if (candidates.Count == 0) return;
+        var random = new SeededRandom(session.Random.State);
+        session.AddPendingMonsterReward(candidates[random.NextInt(0, candidates.Count)]);
+        session.Random.State = random.State;
     }
 
     public Result Surrender(MatchSession session, MatchBattleKind kind)
