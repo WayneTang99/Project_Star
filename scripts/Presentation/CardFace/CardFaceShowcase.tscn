@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Presentation/CardFace/CardFaceShowcase.cs" id="1_showcase"]
+
+[node name="CardFaceShowcase" type="Control"]
+custom_minimum_size = Vector2(1248, 480)
+script = ExtResource("1_showcase")

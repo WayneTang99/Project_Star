@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Presentation/CardFace/CardLevelGem.cs" id="1_level"]
+
+[node name="CardLevelGem" type="Control"]
+custom_minimum_size = Vector2(38, 40)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("1_level")

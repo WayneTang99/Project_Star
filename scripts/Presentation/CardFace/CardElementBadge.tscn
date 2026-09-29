@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Presentation/CardFace/CardElementBadge.cs" id="1_element"]
+
+[node name="CardElementBadge" type="Control"]
+custom_minimum_size = Vector2(58, 58)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("1_element")

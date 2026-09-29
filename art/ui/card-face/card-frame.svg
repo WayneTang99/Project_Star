@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff0bd"/>
+      <stop offset=".28" stop-color="#b77d35"/>
+      <stop offset=".52" stop-color="#f4d58e"/>
+      <stop offset=".78" stop-color="#8a5727"/>
+      <stop offset="1" stop-color="#f9e4ae"/>
+    </linearGradient>
+    <g id="corner-scroll" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 51 C16 49 19 45 19 37 C19 30 12 28 12 22 C12 14 21 10 28 14 C34 18 31 25 26 25 C22 25 21 21 24 19" stroke="#392312" stroke-width="5"/>
+      <path d="M8 51 C16 49 19 45 19 37 C19 30 12 28 12 22 C12 14 21 10 28 14 C34 18 31 25 26 25 C22 25 21 21 24 19" stroke="url(#brass)" stroke-width="2.8"/>
+      <path d="M14 42 C24 39 31 35 37 27 C42 20 42 13 37 9 M18 47 C29 44 37 39 43 31" stroke="#f2d18b" stroke-width="1.1"/>
+      <path d="M29 13 C36 6 45 9 44 17 C43 22 37 23 35 19 C34 17 36 15 38 16" stroke="#805224" stroke-width="1.8"/>
+      <path d="M12 31 C18 34 22 32 24 28 M10 39 C16 42 20 40 22 36" stroke="#fff0c9" stroke-width="1"/>
+      <path d="M18 16 24 11 30 16 25 22 19 21Z" fill="#eed395" stroke="#513414" stroke-width="1.4"/>
+      <path d="m20 16 4-3 4 3-4 4Z" fill="#fff2c8" stroke="none"/>
+    </g>
+  </defs>
+  <rect x="3.5" y="3.5" width="121" height="121" rx="18" fill="none" stroke="#291a10" stroke-width="8"/>
+  <rect x="5.5" y="5.5" width="117" height="117" rx="17" fill="none" stroke="url(#brass)" stroke-width="4"/>
+  <rect x="10" y="10" width="108" height="108" rx="13" fill="none" stroke="#f6e2ae" stroke-width="1.35"/>
+  <rect x="13" y="13" width="102" height="102" rx="11" fill="none" stroke="#71491f" stroke-width="1"/>
+  <path d="M47 6 H81 M47 122 H81 M6 47 V81 M122 47 V81" stroke="#442a14" stroke-width="5"/>
+  <path d="M47 6 H81 M47 122 H81 M6 47 V81 M122 47 V81" stroke="url(#brass)" stroke-width="2"/>
+  <use href="#corner-scroll"/>
+  <use href="#corner-scroll" transform="translate(128 0) scale(-1 1)"/>
+  <use href="#corner-scroll" transform="translate(0 128) scale(1 -1)"/>
+  <use href="#corner-scroll" transform="translate(128 128) scale(-1 -1)"/>
+</svg>
