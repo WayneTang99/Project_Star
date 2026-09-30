@@ -13,6 +13,8 @@ using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
+using Project_Star.Presentation.CardFace;
+using CardFaceControl = Project_Star.Presentation.CardFace.CardFace;
 
 namespace Project_Star.Presentation;
 
@@ -54,6 +56,10 @@ public sealed partial class MinimalPlaytest : Control
     private readonly Button[] _battlefieldSlots = new Button[10];
     private readonly Button[] _benchSlots = new Button[10];
     private readonly Button[] _enemyBattlefieldSlots = new Button[10];
+    private readonly CardFaceControl?[] _battlefieldFaces = new CardFaceControl?[10];
+    private readonly CardFaceControl?[] _benchFaces = new CardFaceControl?[10];
+    private readonly CardFaceControl?[] _enemyBattlefieldFaces = new CardFaceControl?[10];
+    private PackedScene _cardFaceScene = null!;
     private EntityId? _selectedCardId;
     private ShopStock? _currentStock;
     private EncounterOptionSet? _currentEncounterOptions;
@@ -61,6 +67,7 @@ public sealed partial class MinimalPlaytest : Control
     public override void _Ready()
     {
         _registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        _cardFaceScene = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn");
         _board = new BoardService(new BoardPlacementSolver(), _registry.Sets);
         _economy = new CardEconomyService(_factory, _board, _registry.Cards.Values);
         _monsterRewards = new MonsterRewardClaimService(
@@ -358,9 +365,11 @@ public sealed partial class MinimalPlaytest : Control
             _battlefieldSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(110, 96) };
             _battlefieldSlots[index].Pressed += () => OnBoardSlot(BoardZone.Battlefield, slot);
             _battlefieldGrid.AddChild(_battlefieldSlots[index]);
+            _battlefieldFaces[index] = CreateBoardFace(_battlefieldSlots[index]);
             _benchSlots[index] = new Button { Text = "·", CustomMinimumSize = new Vector2(110, 96) };
             _benchSlots[index].Pressed += () => OnBoardSlot(BoardZone.Bench, slot);
             _benchGrid.AddChild(_benchSlots[index]);
+            _benchFaces[index] = CreateBoardFace(_benchSlots[index]);
             _enemyBattlefieldSlots[index] = new Button
             {
                 Text = "·",
@@ -368,7 +377,17 @@ public sealed partial class MinimalPlaytest : Control
                 Disabled = true,
             };
             _enemyBattlefieldGrid.AddChild(_enemyBattlefieldSlots[index]);
+            _enemyBattlefieldFaces[index] = CreateBoardFace(_enemyBattlefieldSlots[index]);
         }
+    }
+
+    private CardFaceControl CreateBoardFace(Button slot)
+    {
+        var face = _cardFaceScene.Instantiate<CardFaceControl>();
+        face.Scale = new Vector2(0.17f, 0.17f);
+        face.MouseFilter = Control.MouseFilterEnum.Ignore;
+        slot.AddChild(face);
+        return face;
     }
 
     private void OnBoardSlot(BoardZone zone, int slot)
@@ -409,10 +428,10 @@ public sealed partial class MinimalPlaytest : Control
         for (var slot = 0; slot < _enemyBattlefieldSlots.Length; slot++)
         {
             var placement = snapshot is null ? null : FindAt(snapshot.BoardPlacements, BoardZone.Battlefield, slot);
-            _enemyBattlefieldSlots[slot].Text = placement is null ? $"{slot + 1}\n·"
-                : placement.Start == slot
-                    ? $"{slot + 1}\n{FormatCardFace(snapshot!.Cards.First(card => card.Id == placement.CardId))}"
-                    : $"{slot + 1}\n■";
+            var card = placement?.Start == slot
+                ? snapshot!.Cards.First(item => item.Id == placement.CardId)
+                : null;
+            SetBoardFace(_enemyBattlefieldSlots[slot], _enemyBattlefieldFaces[slot], card, slot, placement is not null);
         }
     }
 
@@ -421,11 +440,55 @@ public sealed partial class MinimalPlaytest : Control
         for (var slot = 0; slot < buttons.Count; slot++)
         {
             var placement = FindAt(snapshot.BoardPlacements, zone, slot);
-            buttons[slot].Text = placement is null ? $"{slot + 1}\n·"
-                : placement.Start == slot
-                    ? $"{slot + 1}\n{FormatCardFace(snapshot.Cards.First(card => card.Id == placement.CardId))}"
-                : $"{slot + 1}\n■";
+            var faces = zone == BoardZone.Battlefield ? _battlefieldFaces : _benchFaces;
+            var card = placement?.Start == slot
+                ? snapshot.Cards.First(item => item.Id == placement.CardId)
+                : null;
+            SetBoardFace(buttons[slot], faces[slot], card, slot, placement is not null);
             buttons[slot].Modulate = placement?.CardId == _selectedCardId ? new Color("75d69c") : Colors.White;
+        }
+    }
+
+    private void SetBoardFace(Button slot, CardFaceControl? face, CardSnapshot? card, int index, bool occupied = false)
+    {
+        slot.Text = card is not null ? string.Empty : occupied ? "■" : $"{index + 1}\n·";
+        if (face is null) return;
+        face.Visible = card is not null;
+        if (card is null) return;
+        face.Position = new Vector2(
+            (slot.Size.X - 200 * (int)card.Size * face.Scale.X) * 0.5f,
+            (slot.Size.Y - 400 * face.Scale.Y) * 0.5f);
+        face.SetCard(CreateCardFaceViewModel(card));
+    }
+
+    private CardFaceViewModel CreateCardFaceViewModel(CardSnapshot card)
+    {
+        var definition = _registry.Cards[card.Key];
+        var level = definition.GetLevel(card.Level);
+        var effects = new List<CardFaceEffect>();
+        if (level is not null)
+        {
+            AddEffect(GameAttributeKeys.AttackDamage, CardFaceEffectKind.Damage);
+            AddEffect(GameAttributeKeys.Armor, CardFaceEffectKind.Armor);
+            AddEffect(GameAttributeKeys.Poison, CardFaceEffectKind.Poison);
+            AddEffect(GameAttributeKeys.Burn, CardFaceEffectKind.Burn);
+        }
+
+        var artworkPath = card.Key.ToString() switch
+        {
+            "armguard" => "res://art/ui/card-face/artwork/armguard.png",
+            "boar" => "res://art/ui/card-face/artwork/boar.png",
+            "judgment_hammer" => "res://art/ui/card-face/artwork/judgment_hammer.png",
+            _ => null,
+        };
+        return new CardFaceViewModel(
+            card.Key, card.DisplayName, card.FactionKey, card.Size, card.Level, card.Value,
+            artworkPath is null ? null : GD.Load<Texture2D>(artworkPath), card.ElementKeys, effects);
+
+        void AddEffect(StringName key, CardFaceEffectKind kind)
+        {
+            if (level!.BaseCombatValues.TryGetValue(key, out var value) && value > 0)
+                effects.Add(new CardFaceEffect(kind, value.ToString()));
         }
     }
 

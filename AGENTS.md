@@ -48,10 +48,12 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | 设计 | `docs/design/ENCOUNTER_DATA.md` / `docs/design/EncounterDataTable.csv` | 遭遇字段规则与正式 CSV 数据（排程/商店/选项） | 新增、修改或核对遭遇内容时 |
 | 设计 | `docs/design/HERO_DATA.md` / `docs/design/HeroDataTable.csv` | 英雄字段规则与正式 CSV 数据（归属/初始属性） | 新增、修改或核对英雄内容时 |
 | 设计 | `docs/design/GLOSSARY.md` | 术语表（英文名 + 中文名 + 定义） | 提出需求、写代码前先查术语 |
+| 设计 | `docs/design/UI_SYSTEM.md` / `docs/design/CARD_FACE_UI.md` | UI 系统方案、组件边界、刷新流程与卡面规范 | 设计或修改对局界面、棋盘和卡面时 |
 | 工程 | `docs/engineering/ARCHITECTURE.md` | 架构设计 + 战斗系统 + 能力系统实现细节 | 理解代码结构、写新系统时 |
 | 工程 | `docs/engineering/DESIGN_PRINCIPLES.md` | 软件设计原则（SOLID + 扩展模式） | 编写与审查代码时 |
 | 工程 | `docs/engineering/DEV_CONVENTIONS.md` | Git 工作流 + 提交规范 + 代码注释约定 + 项目约束 | 提交代码、写注释时 |
 | 计划 | `docs/planning/IMPLEMENTATION_PLAN.md` | 实现计划 + 实施约定 | 了解当前进度、下一步做什么 |
+| 计划 | `docs/planning/UI_IMPLEMENTATION_PLAN.md` | UI 架构拆分、组件、数据刷新及分阶段验收清单 | 实施第 10 步表现层、重构试玩 UI 时 |
 | 计划 | `docs/planning/CONTENT_EXPANSION_PLAN.md` | 内容并行扩充 + 技能/套装/收入实施计划 | 扩充实际内容、实现新增系统时 |
 | 质量 | `docs/quality/MANUAL_ACCEPTANCE.md` | 当前试玩的人工验收步骤 | 验证试玩流程时 |
 | 质量 | `docs/quality/BUG_LOG.md` | BUG 发现与修复记录 | 发现 bug、修复 bug 时 |
