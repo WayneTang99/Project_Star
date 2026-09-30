@@ -295,6 +295,9 @@ flowchart TD
 
 ## 14. UI 与 Godot
 
+试玩入口 `MinimalPlaytest` 组装服务与控件，`MatchPresenter` 独占页面和当前对局/访问上下文，通过应用用例执行操作；统一 `RefreshView` 捕获完整 `MatchPageViewModel`，根节点仅按该模型 Render。`MatchSnapshot` 复制卡牌基础/当前属性、能力及任务；`MatchDisplayQuery` 提供商品展示、购买条件和套装阈值，查询不创建实例或消耗随机状态。`CardDisplayAdapter` 按通用效果语义生成卡面与详情，并按完整 `StringName` key 缓存原画。商店与事件旧批次操作由 Presenter 拒绝；播放和完整经济事务分别在 UI P5/P4 接入。
+
+
 - UI 读取不可变 Snapshot 或只读 ViewModel。
 - 拖拽、购买和选择遭遇转换为 Command。
 - UI 不持有可修改的领域集合。

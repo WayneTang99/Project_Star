@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2040" height="1940" viewBox="0 0 2040 1940"><style>text{font-family:Microsoft YaHei,sans-serif;fill:#253e52;font-size:24px}rect{stroke:#65839a;stroke-width:2;fill:#f7fbff}.card{fill:#e2eff8;stroke:#9e8756}.muted{fill:#667c8c}.small{font-size:18px}</style><rect width="2040" height="1940" fill="#fff"/>
+<text x='60' y='38'>商店 · P0 尺寸线框，未实施</text>
+<g transform='translate(60 65)'><rect width='1920' height='1080'/><rect x='24' y='24' width='1872' height='216'/><text x='40' y='64'>1920×1080 · 第 1 轮 / 第 1 回合</text><text x='1640' y='64'>金钱 999 · 收入 5</text>
+<rect x='24' y='256' width='312' height='256'/>
+<rect x='352' y='256' width='1216' height='256'/>
+<rect x='1584' y='256' width='312' height='256'/>
+<text x='364' y='284'>商店</text>
+<text x='36' y='326'>商店头像</text><text x='1596' y='326' class='small'>离开商店</text>
+<text x='1328' y='284' class='small'>刷新 / 商品内购买</text>
+<rect x='460' y='296' width='100' height='200'/><text x='466' y='318' class='small muted'>1</text>
+<rect x='560' y='296' width='100' height='200'/><text x='566' y='318' class='small muted'>2</text>
+<rect x='660' y='296' width='100' height='200'/><text x='666' y='318' class='small muted'>3</text>
+<rect x='760' y='296' width='100' height='200'/><text x='766' y='318' class='small muted'>4</text>
+<rect x='860' y='296' width='100' height='200'/><text x='866' y='318' class='small muted'>5</text>
+<rect x='960' y='296' width='100' height='200'/><text x='966' y='318' class='small muted'>6</text>
+<rect x='1060' y='296' width='100' height='200'/><text x='1066' y='318' class='small muted'>7</text>
+<rect x='1160' y='296' width='100' height='200'/><text x='1166' y='318' class='small muted'>8</text>
+<rect x='1260' y='296' width='100' height='200'/><text x='1266' y='318' class='small muted'>9</text>
+<rect x='1360' y='296' width='100' height='200'/><text x='1366' y='318' class='small muted'>10</text>
+<rect class='card' x='460' y='296' width='100' height='200'/><text class='small' x='466' y='348'>1 格</text>
+<text class='small' x='466' y='379'>报价</text><text class='small' x='466' y='406'>购买</text>
+<rect class='card' x='560' y='296' width='200' height='200'/><text class='small' x='566' y='348'>2 格</text>
+<text class='small' x='566' y='379'>报价</text><text class='small' x='566' y='406'>购买</text>
+<rect class='card' x='760' y='296' width='300' height='200'/><text class='small' x='766' y='348'>3 格</text>
+<text class='small' x='766' y='379'>报价</text><text class='small' x='766' y='406'>购买</text>
+<rect x='24' y='528' width='312' height='256'/>
+<rect x='352' y='528' width='1216' height='256'/>
+<rect x='1584' y='528' width='312' height='256'/>
+<text x='364' y='556'>我方战场</text>
+<text x='36' y='608' class='muted'>保留空白</text><text x='1596' y='608' class='muted'>保留空白</text>
+<rect x='460' y='568' width='100' height='200'/><text x='466' y='590' class='small muted'>1</text>
+<rect x='560' y='568' width='100' height='200'/><text x='566' y='590' class='small muted'>2</text>
+<rect x='660' y='568' width='100' height='200'/><text x='666' y='590' class='small muted'>3</text>
+<rect x='760' y='568' width='100' height='200'/><text x='766' y='590' class='small muted'>4</text>
+<rect x='860' y='568' width='100' height='200'/><text x='866' y='590' class='small muted'>5</text>
+<rect x='960' y='568' width='100' height='200'/><text x='966' y='590' class='small muted'>6</text>
+<rect x='1060' y='568' width='100' height='200'/><text x='1066' y='590' class='small muted'>7</text>
+<rect x='1160' y='568' width='100' height='200'/><text x='1166' y='590' class='small muted'>8</text>
+<rect x='1260' y='568' width='100' height='200'/><text x='1266' y='590' class='small muted'>9</text>
+<rect x='1360' y='568' width='100' height='200'/><text x='1366' y='590' class='small muted'>10</text>
+<rect class='card' x='460' y='568' width='100' height='200'/><text class='small' x='466' y='620'>1 格</text>
+<rect class='card' x='560' y='568' width='200' height='200'/><text class='small' x='566' y='620'>2 格</text>
+<rect class='card' x='760' y='568' width='300' height='200'/><text class='small' x='766' y='620'>3 格</text>
+<rect x='24' y='800' width='312' height='256'/>
+<rect x='352' y='800' width='1216' height='256'/>
+<rect x='1584' y='800' width='312' height='256'/>
+<text x='364' y='828'>备战区</text>
+<text x='36' y='845'>英雄头像</text><text x='36' y='880' class='small'>技能 / 套装 / 奖励</text><text x='36' y='910' class='small muted'>二级浮层入口</text><text x='1596' y='845' class='small'>声望 / 经验 / 等级</text>
+<rect x='460' y='840' width='100' height='200'/><text x='466' y='862' class='small muted'>1</text>
+<rect x='560' y='840' width='100' height='200'/><text x='566' y='862' class='small muted'>2</text>
+<rect x='660' y='840' width='100' height='200'/><text x='666' y='862' class='small muted'>3</text>
+<rect x='760' y='840' width='100' height='200'/><text x='766' y='862' class='small muted'>4</text>
+<rect x='860' y='840' width='100' height='200'/><text x='866' y='862' class='small muted'>5</text>
+<rect x='960' y='840' width='100' height='200'/><text x='966' y='862' class='small muted'>6</text>
+<rect x='1060' y='840' width='100' height='200'/><text x='1066' y='862' class='small muted'>7</text>
+<rect x='1160' y='840' width='100' height='200'/><text x='1166' y='862' class='small muted'>8</text>
+<rect x='1260' y='840' width='100' height='200'/><text x='1266' y='862' class='small muted'>9</text>
+<rect x='1360' y='840' width='100' height='200'/><text x='1366' y='862' class='small muted'>10</text>
+<rect class='card' x='460' y='840' width='100' height='200'/><text class='small' x='466' y='892'>1 格</text>
+<rect class='card' x='560' y='840' width='200' height='200'/><text class='small' x='566' y='892'>2 格</text>
+<rect class='card' x='760' y='840' width='300' height='200'/><text class='small' x='766' y='892'>3 格</text>
+<text x='40' y='204' class='small muted'>列宽 312 / 1216 / 312 · 格宽 100 · 卡高 200 · 浮层不挤动轨道</text></g>
+<g transform='translate(60 1180)'><rect width='1280' height='720'/><rect x='16' y='16' width='1248' height='144'/><text x='32' y='56'>1280×720 · 第 1 轮 / 第 1 回合</text><text x='1000' y='56'>金钱 999 · 收入 5</text>
+<rect x='16' y='172' width='208' height='172'/>
+<rect x='236' y='172' width='808' height='172'/>
+<rect x='1056' y='172' width='208' height='172'/>
+<text x='248' y='200'>商店</text>
+<text x='28' y='242'>商店头像</text><text x='1068' y='242' class='small'>离开商店</text>
+<text x='804' y='200' class='small'>刷新 / 商品内购买</text>
+<rect x='340' y='212' width='60' height='120'/><text x='346' y='234' class='small muted'>1</text>
+<rect x='400' y='212' width='60' height='120'/><text x='406' y='234' class='small muted'>2</text>
+<rect x='460' y='212' width='60' height='120'/><text x='466' y='234' class='small muted'>3</text>
+<rect x='520' y='212' width='60' height='120'/><text x='526' y='234' class='small muted'>4</text>
+<rect x='580' y='212' width='60' height='120'/><text x='586' y='234' class='small muted'>5</text>
+<rect x='640' y='212' width='60' height='120'/><text x='646' y='234' class='small muted'>6</text>
+<rect x='700' y='212' width='60' height='120'/><text x='706' y='234' class='small muted'>7</text>
+<rect x='760' y='212' width='60' height='120'/><text x='766' y='234' class='small muted'>8</text>
+<rect x='820' y='212' width='60' height='120'/><text x='826' y='234' class='small muted'>9</text>
+<rect x='880' y='212' width='60' height='120'/><text x='886' y='234' class='small muted'>10</text>
+<rect class='card' x='340' y='212' width='60' height='120'/><text class='small' x='346' y='264'>1 格</text>
+<text class='small' x='346' y='295'>报价</text><text class='small' x='346' y='322'>购买</text>
+<rect class='card' x='400' y='212' width='120' height='120'/><text class='small' x='406' y='264'>2 格</text>
+<text class='small' x='406' y='295'>报价</text><text class='small' x='406' y='322'>购买</text>
+<rect class='card' x='520' y='212' width='180' height='120'/><text class='small' x='526' y='264'>3 格</text>
+<text class='small' x='526' y='295'>报价</text><text class='small' x='526' y='322'>购买</text>
+<rect x='16' y='356' width='208' height='172'/>
+<rect x='236' y='356' width='808' height='172'/>
+<rect x='1056' y='356' width='208' height='172'/>
+<text x='248' y='384'>我方战场</text>
+<text x='28' y='436' class='muted'>保留空白</text><text x='1068' y='436' class='muted'>保留空白</text>
+<rect x='340' y='396' width='60' height='120'/><text x='346' y='418' class='small muted'>1</text>
+<rect x='400' y='396' width='60' height='120'/><text x='406' y='418' class='small muted'>2</text>
+<rect x='460' y='396' width='60' height='120'/><text x='466' y='418' class='small muted'>3</text>
+<rect x='520' y='396' width='60' height='120'/><text x='526' y='418' class='small muted'>4</text>
+<rect x='580' y='396' width='60' height='120'/><text x='586' y='418' class='small muted'>5</text>
+<rect x='640' y='396' width='60' height='120'/><text x='646' y='418' class='small muted'>6</text>
+<rect x='700' y='396' width='60' height='120'/><text x='706' y='418' class='small muted'>7</text>
+<rect x='760' y='396' width='60' height='120'/><text x='766' y='418' class='small muted'>8</text>
+<rect x='820' y='396' width='60' height='120'/><text x='826' y='418' class='small muted'>9</text>
+<rect x='880' y='396' width='60' height='120'/><text x='886' y='418' class='small muted'>10</text>
+<rect class='card' x='340' y='396' width='60' height='120'/><text class='small' x='346' y='448'>1 格</text>
+<rect class='card' x='400' y='396' width='120' height='120'/><text class='small' x='406' y='448'>2 格</text>
+<rect class='card' x='520' y='396' width='180' height='120'/><text class='small' x='526' y='448'>3 格</text>
+<rect x='16' y='540' width='208' height='172'/>
+<rect x='236' y='540' width='808' height='172'/>
+<rect x='1056' y='540' width='208' height='172'/>
+<text x='248' y='568'>备战区</text>
+<text x='28' y='585'>英雄头像</text><text x='28' y='620' class='small'>技能 / 套装 / 奖励</text><text x='28' y='650' class='small muted'>二级浮层入口</text><text x='1068' y='585' class='small'>声望 / 经验 / 等级</text>
+<rect x='340' y='580' width='60' height='120'/><text x='346' y='602' class='small muted'>1</text>
+<rect x='400' y='580' width='60' height='120'/><text x='406' y='602' class='small muted'>2</text>
+<rect x='460' y='580' width='60' height='120'/><text x='466' y='602' class='small muted'>3</text>
+<rect x='520' y='580' width='60' height='120'/><text x='526' y='602' class='small muted'>4</text>
+<rect x='580' y='580' width='60' height='120'/><text x='586' y='602' class='small muted'>5</text>
+<rect x='640' y='580' width='60' height='120'/><text x='646' y='602' class='small muted'>6</text>
+<rect x='700' y='580' width='60' height='120'/><text x='706' y='602' class='small muted'>7</text>
+<rect x='760' y='580' width='60' height='120'/><text x='766' y='602' class='small muted'>8</text>
+<rect x='820' y='580' width='60' height='120'/><text x='826' y='602' class='small muted'>9</text>
+<rect x='880' y='580' width='60' height='120'/><text x='886' y='602' class='small muted'>10</text>
+<rect class='card' x='340' y='580' width='60' height='120'/><text class='small' x='346' y='632'>1 格</text>
+<rect class='card' x='400' y='580' width='120' height='120'/><text class='small' x='406' y='632'>2 格</text>
+<rect class='card' x='520' y='580' width='180' height='120'/><text class='small' x='526' y='632'>3 格</text>
+<text x='32' y='132' class='small muted'>列宽 208 / 808 / 208 · 格宽 60 · 卡高 120 · 浮层不挤动轨道</text></g>
+</svg>

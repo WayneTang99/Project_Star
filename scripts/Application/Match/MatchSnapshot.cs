@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.ObjectModel;
 using Godot;
+using Project_Star.Domain.Combat;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
@@ -20,7 +22,19 @@ public sealed record CardSnapshot(
     CardSize Size,
     StringName FactionKey,
     IReadOnlyList<StringName> ElementKeys,
-    IReadOnlyList<QuestProgressSnapshot> Quests);
+    IReadOnlyList<QuestProgressSnapshot> Quests)
+{
+    public StringName? SetKey { get; init; }
+    public IReadOnlyList<StringName> Tags { get; init; } = Array.Empty<StringName>();
+    public IReadOnlyDictionary<StringName, int> BaseValues { get; init; } =
+        new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
+    public IReadOnlyDictionary<StringName, int> CurrentValues { get; init; } =
+        new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
+    public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = Array.Empty<AbilityDefinition>();
+}
+
+public sealed record HeroSnapshot(EntityId Id, StringName Key, string DisplayName,
+    StringName FactionKey, int Level, IReadOnlyDictionary<StringName, int> CombatValues);
 
 public sealed record BoardPlacementSnapshot(EntityId CardId, BoardZone Zone, int Start, int EndExclusive);
 
@@ -29,7 +43,16 @@ public sealed record SkillSnapshot(
     StringName Key,
     string DisplayName,
     int Level,
-    StringName FactionKey);
+    StringName FactionKey)
+{
+    public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = Array.Empty<AbilityDefinition>();
+    public IReadOnlyDictionary<StringName, int> CurrentValues { get; init; } =
+        new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
+}
+
+public sealed record CardSetThresholdSnapshot(int RequiredCount, bool Active, IReadOnlyList<AbilityDefinition> Abilities);
+public sealed record CardSetSnapshot(StringName Key, string DisplayName, int DistinctCardCount,
+    IReadOnlyList<CardSetThresholdSnapshot> Thresholds);
 
 public sealed record MatchSnapshot(
     Guid MatchId,
@@ -50,6 +73,11 @@ public sealed record MatchSnapshot(
     int BenchCount,
     MatchSummary? Summary)
 {
+    public HeroSnapshot? Hero { get; init; }
+    public int BattlefieldCapacity { get; init; }
+    public int BenchCapacity { get; init; }
+    public IReadOnlyList<CardSetSnapshot> Sets { get; init; } = Array.Empty<CardSetSnapshot>();
+
     public static MatchSnapshot From(MatchSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -66,11 +94,19 @@ public sealed record MatchSnapshot(
                 identity.Key,
                 identity.DisplayName,
                 card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level),
-                card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value),
+                card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value),
                 identity.Size,
                 identity.FactionKey,
-                identity.ElementKeys,
-                quests.AsReadOnly()));
+                Array.AsReadOnly(identity.ElementKeys.ToArray()),
+                quests.AsReadOnly())
+            {
+                SetKey = identity.SetKey,
+                Tags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
+                BaseValues = card.Attributes.BaseCombat.CreateMutableCopy().SnapshotFinalValues(),
+                CurrentValues = card.Attributes.BaseCombat.SnapshotFinalValues(),
+                Abilities = CopyAbilities(card.Abilities.Concat(card.Quests
+                    .Where(card.IsQuestUnlocked).SelectMany(quest => quest.Abilities))),
+            });
         }
         var placements = new List<BoardPlacementSnapshot>();
         var skills = new List<SkillSnapshot>();
@@ -80,15 +116,44 @@ public sealed record MatchSnapshot(
                 skill.Attributes.Identity.Key,
                 skill.Attributes.Identity.DisplayName,
                 skill.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level),
-                skill.Attributes.Identity.FactionKey));
+                skill.Attributes.Identity.FactionKey)
+            {
+                Abilities = CopyAbilities(skill.Abilities),
+                CurrentValues = skill.Attributes.BaseCombat.SnapshotFinalValues(),
+            });
         AddPlacements(session.Board.Battlefield, BoardZone.Battlefield, placements);
         AddPlacements(session.Board.Bench, BoardZone.Bench, placements);
         return new MatchSnapshot(session.Id, session.Status, session.Progress.Round, session.Progress.Turn,
             session.Player.Wealth, session.Player.Experience, session.Player.Income, session.Player.Reputation, session.Progress.PvpWins,
             cards.AsReadOnly(), skills.AsReadOnly(), Array.AsReadOnly(session.PendingMonsterRewards.ToArray()),
             Array.AsReadOnly(session.EncounterSchedule.CurrentChoices.ToArray()), placements.AsReadOnly(),
-            session.Board.Battlefield.Count, session.Board.Bench.Count, session.Summary);
+            session.Board.Battlefield.Count, session.Board.Bench.Count, session.Summary)
+        {
+            Hero = session.Player.Hero is not { } hero ? null : new HeroSnapshot(
+                hero.Id, hero.Attributes.Identity.Key, hero.Attributes.Identity.DisplayName,
+                hero.Attributes.Identity.FactionKey,
+                hero.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level),
+                hero.Attributes.BaseCombat.SnapshotFinalValues()),
+            BattlefieldCapacity = session.Board.Battlefield.Capacity,
+            BenchCapacity = session.Board.Bench.Capacity,
+        };
     }
+
+    // Copy collection-bearing effects so a captured view cannot change with later content edits.
+    internal static IReadOnlyList<AbilityDefinition> CopyAbilities(IEnumerable<AbilityDefinition> abilities) =>
+        Array.AsReadOnly(abilities.Select(ability => new AbilityDefinition(
+            ability.Key, ability.Activation, ability.Target, ability.ManaCost, ability.CooldownTicks,
+            Array.AsReadOnly(ability.Effects.Select(effect => effect switch
+            {
+                DestroyRandomEnemyCardEffectDefinition value => value with
+                {
+                    RequiredAnyTags = Array.AsReadOnly(value.RequiredAnyTags.ToArray()),
+                    AllowedSizes = Array.AsReadOnly(value.AllowedSizes.ToArray()),
+                },
+                MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => value with
+                { RequiredAnyTags = Array.AsReadOnly(value.RequiredAnyTags.ToArray()) },
+                _ => effect,
+            }).ToArray()), ability.AllowsBench)).ToArray());
 
     private static void AddPlacements(
         BoardZoneState zoneState,

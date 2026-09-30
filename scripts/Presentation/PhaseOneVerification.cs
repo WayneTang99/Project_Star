@@ -20,6 +20,7 @@ using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Random;
+using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation;
 
@@ -32,6 +33,14 @@ public sealed partial class PhaseOneVerification : Control
 
     private readonly List<VerificationGroup> _groups =
     [
+        new("UI 数据与流程", [
+            ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
+            ("卡面保留治疗/百分比语义并匹配完整原画 key", PlaytestVerification.EffectSemanticsAndArtwork),
+            ("重复刷新不重抽且旧商品不能重复交易", PlaytestVerification.RefreshAndStaleOffers),
+            ("事件获得卡牌在同次刷新中进入棋盘且不重复领取", PlaytestVerification.EventAcquisitionRefresh),
+            ("校场实例加成在同次刷新中进入卡面", PlaytestVerification.EventModifierRefresh),
+            ("怪物与PvP敌方同步可见且结算与重开无残留", PlaytestVerification.EnemyVisibilityAndReset),
+        ]),
         new("基础规则与定义", [
             ("0.2 秒等于 2 个战斗 Tick", CheckTickConversion),
             ("非固定步长时间会被拒绝", CheckInvalidTickConversion),
@@ -145,6 +154,9 @@ public sealed partial class PhaseOneVerification : Control
 
     public override void _Ready()
     {
+        _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("真实场景事件刷新、敌方可见性与重开事件连接", () => PlaytestVerification.RenderedScene(this)),
+        ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();
         var allButton = new Button
@@ -171,6 +183,13 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--verify"))
+            Callable.From(() =>
+            {
+                RunChecks("全部验证", allChecks);
+                var output = GetNode<Label>("Margin/Panel/Margin/Content/Results/Output").Text;
+                GetTree().Quit(output.Contains("✗") ? 1 : 0);
+            }).CallDeferred();
     }
 
     private void RunChecks(
