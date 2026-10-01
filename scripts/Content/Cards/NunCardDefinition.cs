@@ -17,7 +17,9 @@ public sealed class NunCardDefinition : CardDefinition
                     "修女",
                     new StringName("paladin"),
                     CardSize.Small,
-                    [GameElements.Light]),
+                    [GameElements.Light],
+                    illustration: new StringName("res://art/ui/card-face/artwork/nun-illustration.png"),
+                    description: "发动：冷却6秒，消耗10魔法，治疗己方英雄10/20/40/80生命，并随机充能己方另一件光属性卡牌1秒（不包括此卡牌）。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

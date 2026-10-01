@@ -8,7 +8,7 @@ using Project_Star.Domain.Match;
 
 namespace Project_Star.Presentation.CardFace;
 
-/// <summary>Visual preview assembled from existing card definitions and original sample art.</summary>
+// 从正式卡牌定义与插画属性组成三种尺寸的卡面示例（表现层）。
 public sealed partial class CardFaceShowcase : Control
 {
     public override void _Ready()
@@ -33,6 +33,7 @@ public sealed partial class CardFaceShowcase : Control
         center.AddChild(cards);
 
         var armguard = new ArmguardCardDefinition();
+        var adapter = new CardDisplayAdapter();
         var armguardLevel = armguard.GetLevel(armguard.InitialLevel)!;
         AddCard(cards, new CardFaceViewModel(
             armguard.Attributes.Identity.Key,
@@ -41,7 +42,7 @@ public sealed partial class CardFaceShowcase : Control
             armguard.Attributes.Identity.Size,
             armguard.InitialLevel,
             CardValueCalculator.CalculateInitialValue(armguard, armguard.InitialLevel),
-            GD.Load<Texture2D>("res://art/ui/card-face/artwork/armguard.png"),
+            adapter.Artwork(armguard.Attributes.Identity.Illustration),
             armguard.Attributes.Identity.ElementKeys,
             [
                 new CardFaceEffect(CardFaceEffectKind.Damage, armguardLevel.BaseCombatValues[GameAttributeKeys.AttackDamage].ToString()),
@@ -57,7 +58,7 @@ public sealed partial class CardFaceShowcase : Control
             boar.Attributes.Identity.Size,
             boar.InitialLevel,
             CardValueCalculator.CalculateInitialValue(boar, boar.InitialLevel),
-            GD.Load<Texture2D>("res://art/ui/card-face/artwork/boar.png"),
+            adapter.Artwork(boar.Attributes.Identity.Illustration),
             boar.Attributes.Identity.ElementKeys,
             [new CardFaceEffect(CardFaceEffectKind.Damage,
                 boarLevel.BaseCombatValues[GameAttributeKeys.AttackDamage].ToString())]));
@@ -76,9 +77,23 @@ public sealed partial class CardFaceShowcase : Control
             hammer.Attributes.Identity.Size,
             hammer.InitialLevel,
             CardValueCalculator.CalculateInitialValue(hammer, hammer.InitialLevel),
-            GD.Load<Texture2D>("res://art/ui/card-face/artwork/judgment_hammer.png"),
+            adapter.Artwork(hammer.Attributes.Identity.Illustration),
             hammer.Attributes.Identity.ElementKeys,
             [new CardFaceEffect(CardFaceEffectKind.Damage, $"{damagePercent}%")]));
+        if (OS.GetCmdlineUserArgs().Contains("--capture-overlay"))
+            Callable.From(CaptureOverlay).CallDeferred();
+    }
+
+    // 捕获原生400高卡面，核对三种尺寸共用整张插画底图与叠加信息。
+    private async void CaptureOverlay()
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        DirAccess.MakeDirRecursiveAbsolute("res://docs/quality/card-overlay");
+        using var image = GetViewport().GetTexture().GetImage();
+        var error = image.SavePng($"res://docs/quality/card-overlay/native-{image.GetWidth()}x{image.GetHeight()}.png");
+        GetTree().Quit(error == Error.Ok ? 0 : 1);
     }
 
     private static void AddCard(HBoxContainer cards, CardFaceViewModel model)

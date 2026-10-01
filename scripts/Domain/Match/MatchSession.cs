@@ -65,7 +65,7 @@ public sealed class MatchSession
 
     internal void AddPendingMonsterReward(PendingMonsterReward reward) => _pendingMonsterRewards.Add(reward);
 
-    internal void RemoveFirstPendingMonsterReward() => _pendingMonsterRewards.RemoveAt(0);
+    internal void RemovePendingMonsterReward(int index) => _pendingMonsterRewards.RemoveAt(index);
 
     public MatchStatus Status { get; internal set; } = MatchStatus.InProgress;
 

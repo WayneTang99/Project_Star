@@ -17,7 +17,9 @@ public sealed class BoarCardDefinition : CardDefinition
                     "野猪",
                     GameFactions.Neutral,
                     CardSize.Medium,
-                    [GameElements.General]),
+                    [GameElements.General],
+                    illustration: new StringName("res://art/ui/card-face/artwork/boar-illustration.png"),
+                    description: "发动：冷却6秒，对敌方英雄造成20/30/50/100 × 己方英雄当前生命比例的普通伤害（小数向下取整，先扣护甲）。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 20,

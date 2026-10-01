@@ -6,13 +6,15 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
-/// <summary>Runs deterministic combat, including abilities, statuses, eclipse, and extinction.</summary>
+// 战斗领域的确定性结算器，记录能力、状态、日蚀与只读播放快照。
 public sealed class CombatSimulator
 {
+    // 只计算一次战斗，结果包含原始日志和对应时间点的冻结状态。
     public BattleResult Simulate(BattleSetup setup)
     {
         ArgumentNullException.ThrowIfNull(setup);
         var runtime = new BattleRuntime(setup);
+        CaptureState(runtime);
         runtime.Events.Add(new BattleStartedEvent(runtime.Tick));
         EnqueueBattleStartAbilities(runtime);
         ResolveQueue(runtime);
@@ -25,6 +27,7 @@ public sealed class CombatSimulator
             AdvanceCooldowns(runtime);
             EnqueueReadyActives(runtime);
             SettleHeroStatuses(runtime);
+            CaptureState(runtime);
             ResolveQueue(runtime);
             var result = TryCreateDefeatResult(runtime);
             if (result is not null) return result;
@@ -116,10 +119,15 @@ public sealed class CombatSimulator
                 pending.Source.Side,
                 pending.IsEcho,
                 GetAbilitySourceKind(pending.Source)));
+            CaptureState(runtime);
             if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
                 for (var repeat = 0; repeat < GetEffectiveMulticast(runtime, cardSource); repeat++)
                     Enqueue(runtime, cardSource, pending.Ability, false, true);
-            foreach (var effect in definition.Effects) ApplyEffect(runtime, pending, effect);
+            foreach (var effect in definition.Effects)
+            {
+                ApplyEffect(runtime, pending, effect);
+                CaptureState(runtime);
+            }
             if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
         }
@@ -573,7 +581,9 @@ public sealed class CombatSimulator
     private static void SettleHeroStatuses(BattleRuntime runtime)
     {
         SettleHero(runtime, SideId.Player, runtime.PlayerHero);
+        CaptureState(runtime);
         SettleHero(runtime, SideId.Opponent, runtime.OpponentHero);
+        CaptureState(runtime);
     }
 
     private static void SettleHero(BattleRuntime runtime, SideId side, HeroBattleState hero)
@@ -620,6 +630,7 @@ public sealed class CombatSimulator
             healthDamage,
             target.Health,
             sourceKind));
+        CaptureState(runtime);
     }
 
     private static BattleResult? TryCreateDefeatResult(BattleRuntime runtime)
@@ -635,8 +646,27 @@ public sealed class CombatSimulator
     private static BattleResult CreateResult(BattleRuntime runtime, BattleOutcome outcome, BattleEndReason reason)
     {
         runtime.Events.Add(new BattleEndedEvent(runtime.Tick, reason));
+        CaptureState(runtime);
         return new BattleResult(outcome, reason, runtime.Tick, runtime.PlayerHero.Health, runtime.OpponentHero.Health,
-            runtime.Events.AsReadOnly(), runtime.PermanentChanges.AsReadOnly());
+            runtime.Events.AsReadOnly(), runtime.PermanentChanges.AsReadOnly(), runtime.States.AsReadOnly());
+    }
+
+    // 只记录战斗层已经计算出的结果，不推进冷却、随机数或任何玩法状态。
+    private static void CaptureState(BattleRuntime runtime)
+    {
+        var cards = runtime.Cards.Select(card => new CardBattleSnapshot(card.EntityId, card.Side, card.Destroyed,
+            card.HasteDuration, card.SlowDuration, card.ImmobilizeDuration,
+            Array.AsReadOnly(card.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.Active)
+                .Select(ability => ability.RemainingCooldownUnits).ToArray()),
+            new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(card.CombatAttributes.Keys
+                .ToDictionary(key => key, key => key == GameAttributeKeys.Multicast
+                    ? GetEffectiveMulticast(runtime, card) : GetEffectiveCombatAttribute(runtime, card, key))))).ToArray();
+        runtime.States.Add(new BattleStateSnapshot(runtime.Tick, runtime.Events.Count,
+            runtime.Tick.Value >= runtime.EclipseTime.Value, Hero(runtime.PlayerHero), Hero(runtime.OpponentHero),
+            Array.AsReadOnly(cards)));
+
+        static HeroBattleSnapshot Hero(HeroBattleState hero) => new(hero.Health, hero.MaxHealth, hero.Armor,
+            hero.Mana, hero.MaxMana, hero.Burn, hero.Poison, hero.HealthRegen, hero.ManaRegen);
     }
 
     private static SideId Opposite(SideId side) => side == SideId.Player ? SideId.Opponent : SideId.Player;

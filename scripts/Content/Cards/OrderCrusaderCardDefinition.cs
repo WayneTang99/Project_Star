@@ -17,7 +17,9 @@ public sealed class OrderCrusaderCardDefinition : CardDefinition
                     "教团远征军",
                     new StringName("paladin"),
                     CardSize.Large,
-                    [GameElements.Light]),
+                    [GameElements.Light],
+                    illustration: new StringName("res://art/ui/card-face/artwork/order_crusader-illustration.png"),
+                    description: "发动：冷却8秒，对敌方英雄造成40/80/120伤害；光环：敌方小型卡牌在战斗中视为恶魔，敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害增加10/20/40；此卡牌被摧毁后，赋予的恶魔标签立即失效。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 40,

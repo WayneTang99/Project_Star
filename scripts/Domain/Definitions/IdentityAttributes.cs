@@ -38,15 +38,19 @@ public sealed class HeroIdentityAttributes : IdentityAttributes
     public StringName FactionKey { get; }
 }
 
+// 卡牌只读身份字段（领域定义层）。
 public sealed class CardIdentityAttributes : IdentityAttributes
 {
+    // 创建卡牌身份；验证夹具可省略插画和展示描述。
     public CardIdentityAttributes(
         StringName key,
         string displayName,
         StringName factionKey,
         CardSize size,
         IEnumerable<StringName> elementKeys,
-        StringName? setKey = null)
+        StringName? setKey = null,
+        StringName? illustration = null,
+        string description = "")
         : base(key, displayName)
     {
         if (!Enum.IsDefined(size))
@@ -60,6 +64,8 @@ public sealed class CardIdentityAttributes : IdentityAttributes
         Size = size;
         ElementKeys = GameElements.Normalize(elementKeys);
         SetKey = setKey;
+        Illustration = illustration ?? new StringName("");
+        Description = description ?? throw new ArgumentNullException(nameof(description));
     }
 
     public StringName FactionKey { get; }
@@ -71,6 +77,12 @@ public sealed class CardIdentityAttributes : IdentityAttributes
     public IReadOnlyList<StringName> ElementKeys { get; }
 
     public StringName? SetKey { get; }
+
+    // 插画资源标识属于只读身份；纹理由表现层加载。
+    public StringName Illustration { get; }
+
+    // 展示描述属于只读文本，由内容定义提供，不参与规则计算。
+    public string Description { get; }
 }
 
 // 套装只读身份字段（领域定义层）。

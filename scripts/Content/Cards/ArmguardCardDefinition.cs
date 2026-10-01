@@ -17,7 +17,9 @@ public sealed class ArmguardCardDefinition : CardDefinition
                     "臂铠",
                     new StringName("paladin"),
                     CardSize.Small,
-                    [GameElements.General]),
+                    [GameElements.General],
+                    illustration: new StringName("res://art/ui/card-face/artwork/armguard-illustration.png"),
+                    description: "光环：此卡牌具有1层多重（每层多重额外发动一次）；发动：冷却5秒，每次发动对敌方英雄造成5/10/15/20伤害，并使己方英雄获得5/10/15/20护甲。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 5,

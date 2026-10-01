@@ -34,8 +34,12 @@ public sealed partial class PhaseOneVerification : Control
     private readonly List<VerificationGroup> _groups =
     [
         new("UI 数据与流程", [
+            ("战斗快照覆盖治疗、状态、冷却、充能、多重与摧毁", BattlePlaybackVerification.CapturedStates),
+            ("回放暂停、倍速与跳过结果一致且冻结旧画面", BattlePlaybackVerification.ControlsAndIsolation),
             ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
-            ("卡面保留治疗/百分比语义并匹配完整原画 key", PlaytestVerification.EffectSemanticsAndArtwork),
+            ("卡面保留治疗/百分比语义并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
+            ("全部正式插画与 CSV、实例、快照和卡面一致", PlaytestVerification.FormalIllustrations),
+            ("全部卡牌描述作为只读属性贯穿CSV、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
             ("重复刷新不重抽且旧商品不能重复交易", PlaytestVerification.RefreshAndStaleOffers),
             ("事件获得卡牌在同次刷新中进入棋盘且不重复领取", PlaytestVerification.EventAcquisitionRefresh),
             ("校场实例加成在同次刷新中进入卡面", PlaytestVerification.EventModifierRefresh),
@@ -156,6 +160,16 @@ public sealed partial class PhaseOneVerification : Control
     {
         _groups.Add(new VerificationGroup("试玩场景集成", [
             ("真实场景事件刷新、敌方可见性与重开事件连接", () => PlaytestVerification.RenderedScene(this)),
+            ("独立组件渲染无命令、页面互斥与旧按钮解绑", () => PlaytestVerification.IsolatedComponents(this)),
+            ("棋盘预览无副作用并在提交时重新验证阻挡", PlaytestVerification.BoardPreviewAndCommit),
+            ("拖拽偏移、跨区目标、只读区域与过期对局", () => PlaytestVerification.DragTargets(this)),
+            ("拖拽查询、取消选择与旧对局隔离", PlaytestVerification.DragPresenterState),
+            ("完整购买失败无残留、满盘合并与重复购买", PlaytestVerification.CompletePurchases),
+            ("连续合并释放空间并放置原库存目标", PlaytestVerification.MergePlacementReleasedSpace),
+            ("棋盘出售失败保留、现值回补与出售奖励", PlaytestVerification.CompleteSales),
+            ("指定技能奖励、过期领取与出售确认隔离", PlaytestVerification.RewardSelectionAndStaleSale),
+            ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
+            ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
         ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();
@@ -190,6 +204,28 @@ public sealed partial class PhaseOneVerification : Control
                 var output = GetNode<Label>("Margin/Panel/Margin/Content/Results/Output").Text;
                 GetTree().Quit(output.Contains("✗") ? 1 : 0);
             }).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-native-drag"))
+            Callable.From((Action)(async () =>
+            {
+                try
+                {
+                    var passed = await PlaytestVerification.NativeDrag(this);
+                    GD.Print($"原生拖拽输入验证：{(passed ? "通过" : "失败")}");
+                    GetTree().Quit(passed ? 0 : 1);
+                }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-ui-windows"))
+            Callable.From((Action)(async () =>
+            {
+                try
+                {
+                    var passed = await PlaytestVerification.WindowsAndKeyboard(this);
+                    GD.Print($"窗口、焦点与键盘移动验证：{(passed ? "通过" : "失败")}");
+                    GetTree().Quit(passed ? 0 : 1);
+                }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
     }
 
     private void RunChecks(

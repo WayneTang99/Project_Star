@@ -12,6 +12,9 @@ namespace Project_Star.Presentation.Playtest;
 
 internal static class PlaytestText
 {
+    // HUD 使用冻结的战斗状态，含当前生命、护甲、魔法和状态层数。
+    public static string FormatHeroHud(HeroBattleSnapshot hero) =>
+        $"生命 {hero.Health}/{hero.MaxHealth}\n护甲 {hero.Armor}\n魔法 {hero.Mana}/{hero.MaxMana}\n灼伤 {hero.Burn} · 中毒 {hero.Poison}";
     public static string FormatEventResult(EncounterOptionResult result)
     {
         var changes = new List<string>();

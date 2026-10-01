@@ -17,7 +17,9 @@ public sealed class ThornArmorCardDefinition : CardDefinition
                     "荆棘甲",
                     new StringName("paladin"),
                     CardSize.Medium,
-                    [GameElements.General]),
+                    [GameElements.General],
+                    illustration: new StringName("res://art/ui/card-face/artwork/thorn_armor-illustration.png"),
+                    description: "发动：冷却8/7/6/5秒，己方英雄获得10/20/40/80护甲，再对敌方英雄造成等同于己方英雄当前护甲值加此卡牌攻击值的普通伤害（先扣敌方护甲）。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

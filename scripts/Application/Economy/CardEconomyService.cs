@@ -29,7 +29,7 @@ public sealed record CardAcquisitionResult(CardInstance Card, bool WasCreated, i
     public static implicit operator CardInstance(CardAcquisitionResult result) => result.Card;
 }
 
-/// <summary>Executes atomic card acquisition, purchase, and sale operations.</summary>
+// 应用层统一获得、购买、放置与出售；先校验完整操作，再同步提交。
 public sealed class CardEconomyService
 {
     private static readonly StringName InsufficientWealth = new("economy.insufficient_wealth");
@@ -39,6 +39,7 @@ public sealed class CardEconomyService
     private static readonly StringName OfferSold = new("economy.offer_sold");
     private static readonly StringName SaleRewardUnavailable = new("economy.sale_reward_unavailable");
     private static readonly StringName MergeBoardUnavailable = new("economy.merge_board_unavailable");
+    private static readonly StringName BoardFull = new("economy.board_full");
 
     private readonly EntityFactory _entityFactory;
     private readonly BoardService? _boardService;
@@ -107,7 +108,58 @@ public sealed class CardEconomyService
         return Result<CardAcquisitionResult>.Success(result);
     }
 
-    public Result<int> SellCard(MatchSession session, EntityId cardId)
+    // 只读校验完整购买条件，与界面展示和实际提交共用。
+    public Result CheckPurchase(MatchSession session, ShopOffer offer)
+    {
+        if (offer.IsSold) return Result.Fail(new Failure(OfferSold, "该商品已售罄。"));
+        if (session.Player.Wealth < offer.Price)
+            return Result.Fail(new Failure(InsufficientWealth, "金钱不足。"));
+        return CheckPlacement(session, offer.Definition, BuildMergePlan(session, offer.Definition, offer.Level));
+    }
+
+    // 一次购买完成扣款、合并或自动放置，以及售罄标记；失败不改变状态。
+    public Result<CardAcquisitionResult> BuyAndPlace(MatchSession session, ShopOffer offer)
+    {
+        var check = CheckPurchase(session, offer);
+        if (check.IsFailure) return Result<CardAcquisitionResult>.Fail(check.Failure!);
+        var acquired = AcquireAndPlace(session, offer.Definition, offer.Level, CardAcquisitionSource.Purchase);
+        if (acquired.IsFailure) return acquired;
+        session.Player.TrySpendWealth(offer.Price);
+        offer.MarkSold();
+        return acquired;
+    }
+
+    // 获得奖励与购买共用合并、空间预检和自动放置，不留游离库存。
+    public Result<CardAcquisitionResult> AcquireAndPlace(MatchSession session, CardDefinition definition,
+        int level, CardAcquisitionSource source)
+    {
+        var plan = BuildMergePlan(session, definition, level);
+        var check = CheckPlacement(session, definition, plan);
+        if (check.IsFailure) return Result<CardAcquisitionResult>.Fail(check.Failure!);
+        var target = plan.TargetId is { } id && session.Board.Contains(id) ? null
+            : _boardService!.FindFirstAvailableTarget(session, definition.Attributes.Identity.OccupiedSlots, plan.ConsumedIds);
+        var acquired = AcquireOrMerge(session, definition, level, plan);
+        if (target is not null)
+        {
+            // 同步提交期间没有外部回调；预检后只会释放空间，放置计划保持有效。
+            var placed = _boardService!.PlaceCard(session, acquired.Id, target.Zone, target.Start);
+            if (placed.IsFailure) throw new InvalidOperationException(placed.Failure!.Message);
+        }
+        else _boardService!.RefreshBonuses(session);
+        return Result<CardAcquisitionResult>.Success(acquired);
+    }
+
+    private Result CheckPlacement(MatchSession session, CardDefinition definition, MergePlan plan)
+    {
+        if (_boardService is null || !CanApplyMergePlan(session, plan))
+            return Result.Fail(new Failure(MergeBoardUnavailable, "未配置棋盘操作，无法完成交易。"));
+        if (plan.TargetId is { } id && session.Board.Contains(id)) return Result.Success();
+        return _boardService.FindFirstAvailableTarget(session, definition.Attributes.Identity.OccupiedSlots, plan.ConsumedIds) is null
+            ? Result.Fail(new Failure(BoardFull, "双棋盘空间不足。")) : Result.Success();
+    }
+
+    // 只读返回出售回补额；移除之前校验奖励依赖、现值与金额溢出。
+    public Result<int> CheckSale(MatchSession session, EntityId cardId, bool fromBoard = true)
     {
         ArgumentNullException.ThrowIfNull(session);
         var card = session.Player.Inventory.Find(cardId);
@@ -116,10 +168,13 @@ public sealed class CardEconomyService
             return Result<int>.Fail(new Failure(CardNotOwned, "The card is not in the player's inventory."));
         }
 
-        if (session.Board.Contains(cardId))
+        if (!fromBoard && session.Board.Contains(cardId))
         {
             return Result<int>.Fail(new Failure(CardOnBoard, "Move the card off the board before selling it."));
         }
+
+        if (fromBoard && (_boardService is null || !session.Board.Contains(cardId)))
+            return Result<int>.Fail(new Failure(CardOnBoard, "该卡牌不在可出售的棋盘上。"));
 
         if (card.OnSellReward is not null && (_boardService is null || _cardDefinitions.Count == 0))
         {
@@ -143,14 +198,25 @@ public sealed class CardEconomyService
             return Result<int>.Fail(new Failure(InvalidValue, "Selling this card would overflow player wealth."));
         }
 
-        if (!session.Player.Inventory.Remove(cardId))
-        {
-            return Result<int>.Fail(new Failure(CardNotOwned, "The card is not in the player's inventory."));
-        }
-
-        session.Player.AddWealth(currentValue);
-        ApplyOnSellReward(session, card);
         return Result<int>.Success(currentValue);
+    }
+
+    // 保留游离库存出售入口供现有应用调用者使用。
+    public Result<int> SellCard(MatchSession session, EntityId cardId) => Sell(session, cardId, false);
+
+    // 从棋盘出售，一次完成移除、库存删除、现值回补和既有出售奖励。
+    public Result<int> SellFromBoard(MatchSession session, EntityId cardId) => Sell(session, cardId, true);
+
+    private Result<int> Sell(MatchSession session, EntityId cardId, bool fromBoard)
+    {
+        var check = CheckSale(session, cardId, fromBoard);
+        if (check.IsFailure) return check;
+        var card = session.Player.Inventory.Find(cardId)!;
+        if (fromBoard) _boardService!.RemoveFromBoard(session, cardId);
+        session.Player.Inventory.Remove(cardId);
+        session.Player.AddWealth(check.Value);
+        ApplyOnSellReward(session, card);
+        return check;
     }
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
@@ -178,15 +244,8 @@ public sealed class CardEconomyService
         {
             var selected = candidates[random.NextInt(0, candidates.Count)];
             var level = reward.SameLevel ? soldLevel : selected.InitialLevel;
-            var mergeTarget = FindMergeTarget(session, selected, level);
-            var target = mergeTarget is null
-                ? _boardService.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
-                : null;
-            if (mergeTarget is null && target is null) continue;
-            var acquired = AcquireOrMerge(session, selected, level, BuildMergePlan(session, selected, level));
-            if (!acquired.WasCreated) continue;
-            var placement = _boardService.PlaceCard(session, acquired.Card.Id, target!.Zone, target.Start);
-            if (placement.IsFailure) _ = session.Player.Inventory.Remove(acquired.Card.Id);
+            // 沿用空间不足时跳过该件出售奖励的既有规则；成功仍走完整获得入口。
+            _ = AcquireAndPlace(session, selected, level, CardAcquisitionSource.Reward);
         }
         session.Random.State = random.State;
     }

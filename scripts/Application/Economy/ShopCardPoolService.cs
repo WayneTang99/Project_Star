@@ -71,17 +71,26 @@ public sealed class ShopCardPoolService
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(stock);
-        if (!stock.CanRefresh)
-            return Result<IReadOnlyList<ShopOffer>>.Fail(new Failure(
-                RefreshUnavailable,
-                "This shop cannot be refreshed."));
-        if (!session.Player.TrySpendWealth(stock.RefreshCost))
-            return Result<IReadOnlyList<ShopOffer>>.Fail(new Failure(
-                InsufficientWealth,
-                "Not enough wealth to refresh this shop."));
+        var check = CheckRefresh(session, stock);
+        if (check.IsFailure) return Result<IReadOnlyList<ShopOffer>>.Fail(check.Failure!);
+        session.Player.TrySpendWealth(stock.RefreshCost);
         var offers = DrawOffers(session, stock.EligibleCards);
         stock.ReplaceOffers(offers);
         return Result<IReadOnlyList<ShopOffer>>.Success(offers);
+    }
+
+    // 费用与剩余次数条件由应用查询提供，提交复用同一校验。
+    public Result CheckRefresh(MatchSession session, ShopStock stock)
+    {
+        if (!stock.CanRefresh)
+            return Result.Fail(new Failure(
+                RefreshUnavailable,
+                "本次商店不可刷新。"));
+        if (session.Player.Wealth < stock.RefreshCost)
+            return Result.Fail(new Failure(
+                InsufficientWealth,
+                "刷新商店的金钱不足。"));
+        return Result.Success();
     }
 
     // 按商店等级返回刷新费用。

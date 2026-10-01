@@ -21,6 +21,7 @@ public enum BattleEndReason
     Extinction = 3,
 }
 
+// 战斗领域的结算结果与冻结记录，播放不再修改此结果。
 public sealed class BattleResult
 {
     public BattleResult(
@@ -30,7 +31,8 @@ public sealed class BattleResult
         int playerRemainingHealth,
         int opponentRemainingHealth,
         IReadOnlyList<BattleEvent> events,
-        IReadOnlyList<PermanentChange>? permanentChanges = null)
+        IReadOnlyList<PermanentChange>? permanentChanges = null,
+        IReadOnlyList<BattleStateSnapshot>? states = null)
     {
         Outcome = outcome;
         EndReason = endReason;
@@ -39,6 +41,7 @@ public sealed class BattleResult
         OpponentRemainingHealth = opponentRemainingHealth;
         Events = events ?? throw new ArgumentNullException(nameof(events));
         PermanentChanges = permanentChanges ?? Array.Empty<PermanentChange>();
+        States = states ?? Array.Empty<BattleStateSnapshot>();
     }
 
     public BattleOutcome Outcome { get; }
@@ -54,4 +57,6 @@ public sealed class BattleResult
     public IReadOnlyList<BattleEvent> Events { get; }
 
     public IReadOnlyList<PermanentChange> PermanentChanges { get; }
+
+    public IReadOnlyList<BattleStateSnapshot> States { get; }
 }

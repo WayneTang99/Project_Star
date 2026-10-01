@@ -17,7 +17,9 @@ public sealed class ArcaneShieldCardDefinition : CardDefinition
                     "魔能盾",
                     new StringName("paladin"),
                     CardSize.Medium,
-                    [GameElements.Light]),
+                    [GameElements.Light],
+                    illustration: new StringName("res://art/ui/card-face/artwork/arcane_shield-illustration.png"),
+                    description: "发动：冷却8/7/6秒，消耗20/40/80魔法，己方英雄获得等同于本场战斗累计魔法消耗的护甲（包含本次消耗），并叠加此卡牌的护甲数值加成。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

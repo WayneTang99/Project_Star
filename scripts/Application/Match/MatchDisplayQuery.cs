@@ -35,9 +35,23 @@ public static class MatchDisplayQuery
         Project_Star.Application.Board.BoardService board)
     {
         var merge = economy.FindMergeTarget(session, offer.Definition, offer.Level) is not null;
-        var space = merge || board.FindFirstAvailableTarget(session, offer.Definition.Attributes.Identity.OccupiedSlots) is not null;
-        return (merge, offer.IsSold ? "已售罄" : session.Player.Wealth < offer.Price ? "金钱不足"
-            : !space ? "双棋盘空间不足" : "");
+        var check = economy.CheckPurchase(session, offer);
+        return (merge, check.Failure?.Message ?? "");
+    }
+
+    // 技能奖励展示使用正式等级配置，并复制可变集合。
+    public static SkillSnapshot FromSkill(SkillDefinition definition, int level)
+    {
+        var values = definition.Attributes.BaseCombat.CreateMutableCopy();
+        var configured = definition.GetLevel(level);
+        if (configured is not null)
+            foreach (var (key, value) in configured.BaseCombatValues) values.SetBaseValue(key, value);
+        var identity = definition.Attributes.Identity;
+        return new SkillSnapshot(default, identity.Key, identity.DisplayName, level, identity.FactionKey)
+        {
+            Abilities = MatchSnapshot.CopyAbilities(configured?.Abilities ?? definition.Abilities),
+            CurrentValues = values.SnapshotFinalValues(),
+        };
     }
 
     public static CardSnapshot FromOffer(ShopOffer offer)
@@ -53,6 +67,8 @@ public static class MatchDisplayQuery
             Array.AsReadOnly(identity.ElementKeys.ToArray()), Array.Empty<QuestProgressSnapshot>())
         {
             SetKey = identity.SetKey,
+            Illustration = identity.Illustration,
+            Description = identity.Description,
             Tags = Array.AsReadOnly(definition.Tags.ToArray()),
             BaseValues = values.SnapshotFinalValues(), CurrentValues = values.SnapshotFinalValues(),
             Abilities = MatchSnapshot.CopyAbilities(level?.Abilities ?? definition.Abilities),

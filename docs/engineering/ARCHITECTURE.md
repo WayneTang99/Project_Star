@@ -58,6 +58,8 @@ flowchart TB
 4. `Presentation` 只能通过应用层操作模型。
 5. `Content` 依赖领域定义基类和通用能力，不依赖 UI。
 
+卡牌展示描述存放于只读身份属性 `CardIdentityAttributes.Description`（`string`），正式内容定义与 `CardDataTable.csv` 的“描述”列保持一致。实例复用该身份属性；应用层将描述传入卡牌快照和商店展示快照，表现层直接读取并按发动、回响、光环分段。文本不解析为能力或战斗规则；等级数值仍由能力定义与属性计算。
+
 ## 3. 生命周期与所有权
 
 ```mermaid
@@ -114,6 +116,10 @@ flowchart LR
 ### 3.3 战斗
 
 对局生成不可变 `BattleSetup`，`CombatSimulator` 据此创建 `BattleRuntime`。战斗只修改 Runtime，结束后返回 `BattleResult`。对局应用层负责奖励、惩罚、胜场、声望和永久变化。
+
+播放采用先结算后播放：`GameCoordinator.ResolveBattleForPlayback` 一次返回 `BattleResolution`，包含双方战前身份快照、`BattleResult` 和玩家结算后快照。`BattleResult.States` 保存英雄生命/护甲/魔法/状态、卡牌属性/冷却/疾速/迟缓/禁锢/摧毁的只读时间点；每份记录的 `EventCount` 指向原日志前缀，不添加或重排原事件。`BattlePlaybackPresenter` 按 Tick 和记录顺序消费，只维护播放游标、暂停、1×/2×速度与反馈，不持有可变 Session 或结算服务。播放中的身份取战前快照，永久摧毁卡牌仍可完成展示；自然结束或跳过后切到结算页面。播放期间交易、移动、遭遇、领奖和推进回合入口被门控，重开会清除旧播放。
+
+表现层 `MatchTheme` 集中创建 Godot Theme；`MatchShell` 与浮层继承同一套面板、文字、按钮与焦点样式。卡牌变化强调使用独立 Tween 装饰，不改变位置、命中或模型；重新强调先终止旧 Tween，取消、换页、节点退出清理。窗口变化只重算几何、限制浮层，不刷新或修改对局快照。开发工具折叠和结果日志可见性也只属于视图。
 
 `CombatManager` 只作为 Godot/应用层运行协调器，可在对局开始时创建、战斗时启动；它不拥有规则真相。
 
@@ -337,3 +343,22 @@ scripts/
 8. 所有随机行为来自显式 seed 随机源。
 9. UI、动画和 Godot 信号不能决定战斗结果。
 10. 标签进入代码；词条仅描述能力系统表达的行为。
+
+## 18. 当前试玩 UI 组件
+
+`MinimalPlaytest` 组装服务并连接一次 `MatchPresenter` 与 `MatchShell`。`MatchShell.Render` 只接收 `MatchPageViewModel`，将同次快照分发给 HUD、中央子视图和共享棋盘；子视图通过选项、报价版本、固定操作或区域格位事件返回意图，入口再调用协调器。
+
+`ContextHost` 在英雄选择、遭遇选择、商店、事件、敌方棋盘和结果之间互斥切换。英雄、遭遇、事件三个带 key 的选项页复用 `KeyedActionView`，商店独立保留报价版本；结果展示不结算战斗。主骨架负责共同列宽，组件负责自己的内部布局，`Resized` 不取得业务数据。
+
+`BoardZoneView` 按 `EntityId` 复用独立 `CardItemView`；外层处理输入，`CardFace` 装饰忽略鼠标。`CardDetailsView` 位于浮层且按视口限位，刷新时关闭旧详情。场景退出解除跨组件连接，动态按钮替换前解除订阅。`ComponentShowcase.tscn` 是只读组件检查入口，其长名示例仅修改展示快照。
+### 棋盘预览与输入
+
+`BoardService.PreviewPlaceCard` 只读取当前对局并返回完整只读 `BoardPlacementResult.Moves`。提交重新计算当前棋盘，不信任旧预览；推挤与任务/套装重算仍由 `PlaceCard` 执行。`MatchPresenter.PreviewMove` 不刷新页面，`MoveCard` 校验对局身份与页面权限后提交一次并统一刷新。
+
+拖拽载荷仅有MatchId、EntityId、抓取格偏移与占格数，不包含可变卡牌。BoardZoneView负责目标坐标换算与预览浮层，卡牌节点保持在原位；成功刷新后按新快照对齐。取消、失败、只读区域和旧对局载荷不修改棋盘。输入绑定、预览浮层与轮廓都属于表现层。
+
+### 构筑交易与二级入口
+
+`CardEconomyService.BuyAndPlace` 与 `AcquireAndPlace` 统一完整获得流程：先检查余额、售罄、合并计划与棋盘位置（包括消耗卡牌释放的占格），再同步获得/合并与放置；购买最后扣款、标记售罄。`SellFromBoard` 在移除之前检查最终价值、回补溢出和奖励依赖，按预检现值一次移除/回补/执行原有出售奖励。原游离库存BuyCard/SellCard入口仍供既有调用者使用，试玩不再编排分步交易。
+
+`ShopView` 使用CardItemView，报价与持有价值分别展示，报价批次防止旧商品操作新商店。`CardDetailsView` 的选中操作携带对局身份、卡牌、等级与金额，协调器重新核对后提交出售。`HeroDetailsView` 由左下英雄区打开，显示同次快照的技能、套装阈值或奖励；卡牌任务仍在详情。奖励索引和列表版本只标识当前操作上下文，MonsterRewardClaimService按成功结果删除对应待领项，失败完整保留。浮层领取后保持打开并读取最新反馈，重开关闭；不新增对局状态。`ResultView` 默认显示结算摘要，日志按需展开，不再次结算。

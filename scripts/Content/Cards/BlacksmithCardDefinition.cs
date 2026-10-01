@@ -17,7 +17,9 @@ public sealed class BlacksmithCardDefinition : CardDefinition
                     "铁匠铺",
                     new StringName("paladin"),
                     CardSize.Medium,
-                    [GameElements.General]),
+                    [GameElements.General],
+                    illustration: new StringName("res://art/ui/card-face/artwork/blacksmith-illustration.png"),
+                    description: "发动：冷却6秒，魔法消耗0，使己方战场区装备卡牌已有的攻击与护甲数值分别增加10/20/40；不会赋予原本不存在的攻击或护甲能力。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

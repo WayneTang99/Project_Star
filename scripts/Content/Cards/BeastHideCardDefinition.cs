@@ -17,7 +17,9 @@ public sealed class BeastHideCardDefinition : CardDefinition
                     "兽皮",
                     GameFactions.Neutral,
                     CardSize.Small,
-                    [GameElements.General]),
+                    [GameElements.General],
+                    illustration: new StringName("res://art/ui/card-face/artwork/beast_hide-illustration.png"),
+                    description: "回响：当获得此卡牌后，此卡牌价值增加2/4/8/16。"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

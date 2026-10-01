@@ -9,25 +9,20 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Presentation.CardFace;
 
-/// <summary>Formats captured effect semantics and resolves presentation resources by complete content key.</summary>
+// 格式化快照效果，并按卡牌插画属性加载表现资源。
 public sealed class CardDisplayAdapter
 {
     private readonly Dictionary<StringName, Texture2D> _artwork = new();
-    private readonly Dictionary<StringName, string> _paths = new()
-    {
-        [new StringName("card.armguard")] = "res://art/ui/card-face/artwork/armguard.png",
-        [new StringName("card.boar")] = "res://art/ui/card-face/artwork/boar.png",
-        [new StringName("card.judgment_hammer")] = "res://art/ui/card-face/artwork/judgment_hammer.png",
-    };
     private Texture2D? _placeholder;
 
-    public Texture2D Artwork(StringName key)
+    // 插画字段为空或资源不存在时使用共用占位图。
+    public Texture2D Artwork(StringName illustration)
     {
-        if (_artwork.TryGetValue(key, out var cached)) return cached;
-        if (_paths.TryGetValue(key, out var path))
+        if (_artwork.TryGetValue(illustration, out var cached)) return cached;
+        if (!illustration.IsEmpty && ResourceLoader.Exists(illustration.ToString()))
         {
-            var texture = GD.Load<Texture2D>(path);
-            if (texture is not null) { _artwork.Add(key, texture); return texture; }
+            var texture = GD.Load<Texture2D>(illustration.ToString());
+            if (texture is not null) { _artwork.Add(illustration, texture); return texture; }
         }
         if (_placeholder is null)
         {
@@ -38,8 +33,9 @@ public sealed class CardDisplayAdapter
         return _placeholder;
     }
 
+    // 将卡牌快照转换为卡面视图，按自身插画属性解析原画。
     public CardFaceViewModel Build(CardSnapshot card) => new(card.Key, card.DisplayName,
-        card.FactionKey, card.Size, card.Level, card.Value, Artwork(card.Key), card.ElementKeys, FaceEffects(card));
+        card.FactionKey, card.Size, card.Level, card.Value, Artwork(card.Illustration), card.ElementKeys, FaceEffects(card));
 
     public static IReadOnlyList<CardFaceEffect> FaceEffects(CardSnapshot card)
     {
@@ -70,11 +66,14 @@ public sealed class CardDisplayAdapter
         return effects.AsReadOnly();
     }
 
+    // 正式卡牌显示内容定义中的描述，并另列实例当前值；无文案的验证夹具沿用能力说明。
     public static string Details(CardSnapshot card)
     {
         var lines = new List<string> { $"{card.DisplayName} · {card.Level}级 · 当前价值 {card.Value}",
             $"标签：{string.Join("、", card.Tags.Select(TagDisplayNames.Get))}" };
-        foreach (var ability in card.Abilities)
+        if (!string.IsNullOrWhiteSpace(card.Description))
+            lines.Add(card.Description.Replace("；发动：", "\n发动：").Replace("；回响：", "\n回响：").Replace("；光环：", "\n光环："));
+        else foreach (var ability in card.Abilities)
         {
             lines.Add($"{Activation(ability.Activation)} · {Target(ability.Target)} · 冷却 {ability.CooldownTicks / 10m:0.##}秒 · 魔法 {ability.ManaCost}");
             lines.AddRange(ability.Effects.Select(effect => Describe(card, effect)));
@@ -89,6 +88,22 @@ public sealed class CardDisplayAdapter
         foreach (var quest in card.Quests)
             lines.Add($"任务 {quest.Key}：{quest.Progress}/{quest.RequiredCount}{(quest.Unlocked ? " · 已解锁" : "")}");
         return string.Join("\n", lines);
+    }
+
+    // 技能复用卡牌的能力语义，不按内容名称推导规则。
+    public static string SkillDetails(SkillSnapshot skill) =>
+        $"{skill.DisplayName} · {skill.Level}级\n" + AbilityDetails(skill.Abilities, skill.CurrentValues);
+
+    // 描述非卡牌来源的只读能力，不创建运行时实体。
+    public static string AbilityDetails(IReadOnlyList<AbilityDefinition> abilities,
+        IReadOnlyDictionary<StringName, int>? values = null)
+    {
+        var card = new CardSnapshot(default, new StringName("ui.ability_description"), "", 1, 0, CardSize.Small, GameFactions.Neutral,
+            Array.Empty<StringName>(), Array.Empty<QuestProgressSnapshot>()) { Abilities = abilities };
+        if (values is not null) card = card with { CurrentValues = values };
+        return string.Join("\n", abilities.SelectMany(ability =>
+            new[] { $"{Activation(ability.Activation)} · {Target(ability.Target)}" }
+                .Concat(ability.Effects.Select(effect => Describe(card, effect)))));
     }
 
     private static int Value(CardSnapshot card, StringName key) => card.CurrentValues.TryGetValue(key, out var value) ? value : 0;

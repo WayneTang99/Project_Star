@@ -40,3 +40,4 @@ Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时
 - ✅ 设计阶段可以在不修改文件的前提下人工查看 `ref/`，仅将其作为视觉和文档参考
 - ✅ .NET SDK 版本必须 ≥ 8.0
 - ✅ 确保 `.gitignore` 包含 `bin/` 和 `obj/` 目录
+- ✅ 正式内容 CSV 的 `.csv.import` 使用 `importer="keep"`（保留原文件），不作为翻译表导入，不维护自动生成的 `.translation` 产物。此模式保留原始 CSV 供 `FileAccess` 读取；参见 [Godot FileAccess 文档](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#description)。

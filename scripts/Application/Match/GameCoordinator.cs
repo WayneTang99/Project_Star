@@ -9,7 +9,7 @@ using Project_Star.Domain.Match;
 
 namespace Project_Star.Application.Match;
 
-/// <summary>Coordinates match creation, encounter progression, battles, and settlement.</summary>
+// 应用层协调对局创建、遭遇推进和一次战斗结算。
 public sealed class GameCoordinator
 {
     private readonly CreateMatchService _matches;
@@ -40,18 +40,31 @@ public sealed class GameCoordinator
     public Result<EncounterSelectionResult> SelectEncounter(MatchSession session, Godot.StringName encounterKey) =>
         _encounters.Select(session, encounterKey);
 
+    // 返回同一次结算结果，沿用不需要播放数据的调用入口。
     public Result<BattleResult> ResolveBattle(
         MatchSession player,
         MatchSession opponent,
         MatchBattleKind kind,
         int battleRound)
     {
+        var resolution = ResolveBattleForPlayback(player, opponent, kind, battleRound);
+        return resolution.IsFailure ? Result<BattleResult>.Fail(resolution.Failure!)
+            : Result<BattleResult>.Success(resolution.Value!.Result);
+    }
+
+    // 一次完成结算并返回战前、战斗记录和结算后快照；回放不再执行本用例。
+    public Result<BattleResolution> ResolveBattleForPlayback(
+        MatchSession player, MatchSession opponent, MatchBattleKind kind, int battleRound)
+    {
+        var playerBefore = MatchSnapshot.From(player);
+        var opponentBefore = MatchSnapshot.From(opponent);
         var battle = _battles.StartBattle(player, opponent, player.Random.State);
-        if (battle.IsFailure) return Result<BattleResult>.Fail(battle.Failure!);
+        if (battle.IsFailure) return Result<BattleResolution>.Fail(battle.Failure!);
 
         var settlement = _results.Apply(player, battle.Value!, kind, battleRound, opponent);
-        if (settlement.IsFailure) return Result<BattleResult>.Fail(settlement.Failure!);
-        return Result<BattleResult>.Success(battle.Value!);
+        if (settlement.IsFailure) return Result<BattleResolution>.Fail(settlement.Failure!);
+        return Result<BattleResolution>.Success(new BattleResolution(playerBefore, opponentBefore,
+            battle.Value!, MatchSnapshot.From(player)));
     }
 
     public Result Surrender(MatchSession session, MatchBattleKind kind) =>

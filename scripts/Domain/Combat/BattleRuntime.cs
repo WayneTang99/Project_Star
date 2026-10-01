@@ -182,6 +182,7 @@ internal sealed class BattleRuntime
 {
     public BattleRuntime(BattleSetup setup)
     {
+        EclipseTime = setup.EclipseTime;
         RandomState = setup.Seed;
         PlayerHero = new HeroBattleState(setup.Player.Hero); OpponentHero = new HeroBattleState(setup.Opponent.Hero);
         AddCards(setup.Player.Cards, SideId.Player); AddCards(setup.Opponent.Cards, SideId.Opponent); Cards.Sort(CompareCards);
@@ -211,6 +212,8 @@ internal sealed class BattleRuntime
     }
     public AbilityQueue Queue { get; } = new();
     public List<BattleEvent> Events { get; } = [];
+    public BattleTick EclipseTime { get; }
+    public List<BattleStateSnapshot> States { get; } = [];
     public List<PermanentChange> PermanentChanges { get; } = [];
     private ulong RandomState { get; set; }
     public HeroBattleState GetHero(SideId side) => side == SideId.Player ? PlayerHero : OpponentHero;
