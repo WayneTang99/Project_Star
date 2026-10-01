@@ -23,7 +23,7 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
         AddEntry("技能", HeroSection.Skills); AddEntry("套装", HeroSection.Sets); AddEntry("奖励", HeroSection.Rewards);
     }
     // 使用快照中的英雄身份，不持有实体引用。
-    public void Render(HeroSnapshot? hero) { _name.Text = hero?.DisplayName ?? "英雄"; _buttons.Visible = hero is not null; }
+    public void Render(HeroSnapshot? hero) { _name.Text = hero is null ? "英雄" : PlaytestText.FormatHeroName(hero.DisplayName, hero.Title); _buttons.Visible = hero is not null; }
     // 战斗HUD只显示播放中的英雄数值，播放结束恢复构筑入口。
     public void RenderBattle(HeroBattleSnapshot? hero)
     {

@@ -36,7 +36,10 @@ public sealed record CardSnapshot(
 }
 
 public sealed record HeroSnapshot(EntityId Id, StringName Key, string DisplayName,
-    StringName FactionKey, int Level, IReadOnlyDictionary<StringName, int> CombatValues);
+    StringName FactionKey, int Level, IReadOnlyDictionary<StringName, int> CombatValues)
+{
+    public string Title { get; init; } = "";
+}
 
 public sealed record BoardPlacementSnapshot(EntityId CardId, BoardZone Zone, int Start, int EndExclusive);
 
@@ -137,7 +140,7 @@ public sealed record MatchSnapshot(
                 hero.Id, hero.Attributes.Identity.Key, hero.Attributes.Identity.DisplayName,
                 hero.Attributes.Identity.FactionKey,
                 hero.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level),
-                hero.Attributes.BaseCombat.SnapshotFinalValues()),
+                hero.Attributes.BaseCombat.SnapshotFinalValues()) { Title = hero.Attributes.Identity.Title },
             BattlefieldCapacity = session.Board.Battlefield.Capacity,
             BenchCapacity = session.Board.Bench.Capacity,
         };

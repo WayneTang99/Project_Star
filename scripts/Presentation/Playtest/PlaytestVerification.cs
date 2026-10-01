@@ -114,7 +114,7 @@ internal static class PlaytestVerification
         presenter.SellCard(session.Id, card.Id, card.Level, card.Value);
         presenter.SellCard(session.Id, card.Id, card.Level, card.Value);
         if (presenter.View.Player!.Cards.Count != 0 || presenter.View.Player.Wealth != wealth + card.Value) return false;
-        presenter.Reset(); presenter.SelectHero(presenter.View.Heroes[0].Key);
+        presenter.Reset(); presenter.SelectHero(new StringName("hero.paladin"));
         presenter.ClaimReward(session.Id, current.Index, current.Revision);
         return presenter.View.Player!.Cards.Count == 0;
     }
@@ -148,7 +148,7 @@ internal static class PlaytestVerification
         try
         {
             var presenter = (MatchPresenter)typeof(MinimalPlaytest).GetField("_presenter", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(scene)!;
-            presenter.SelectHero(presenter.View.Heroes[0].Key);
+            presenter.SelectHero(new StringName("hero.paladin"));
             var shop = presenter.View.Player!.EncounterChoices.First(item => item.Kind == EncounterKind.Shop);
             presenter.ChooseEncounter(shop.Key);
             var offer = presenter.View.Offers.First(item => item.Action.Enabled);
@@ -336,7 +336,7 @@ internal static class PlaytestVerification
         if (result.IsFailure || !ReferenceEquals(selected, presenter.View)) return false;
         presenter.CancelSelection();
         if (presenter.View.SelectedCardId is not null || !selected.Player.BoardPlacements.SequenceEqual(presenter.View.Player!.BoardPlacements)) return false;
-        presenter.Reset(); presenter.SelectHero(presenter.View.Heroes[0].Key);
+        presenter.Reset(); presenter.SelectHero(new StringName("hero.paladin"));
         var current = presenter.View.Player!;
         presenter.MoveCard(selected.Player.MatchId, card.Id, BoardZone.Bench, 0);
         return presenter.View.Player!.MatchId == current.MatchId && presenter.View.Player.Cards.Count == 0
@@ -469,7 +469,8 @@ internal static class PlaytestVerification
                 if (presenter.View.Page == MatchPage.HeroSelection)
                 {
                     var candidates = scene.GetNode<VBoxContainer>(main + "/ContextHost/HeroSelectionView/ActionScroll/Actions");
-                    Press(candidates.GetChild<Button>(0));
+                    var heroIndex = presenter.View.Heroes.ToList().FindIndex(hero => hero.Key == new StringName("hero.paladin"));
+                    Press(candidates.GetChild<Button>(heroIndex));
                 }
                 var choices = presenter.View.Choices;
                 var chosen = choices.FirstOrDefault(choice => !sawCardEvent && choice.Key == new StringName("encounter.landfill"))
@@ -604,7 +605,7 @@ internal static class PlaytestVerification
             new ResolveEncounterOptionService(factory, board, registry.Cards.Values),
             new MonsterRewardClaimService(registry, economy, new SkillAcquisitionService(factory), board), game);
         presenter.Reset();
-        presenter.SelectHero(presenter.View.Heroes[0].Key);
+        presenter.SelectHero(new StringName("hero.paladin"));
         return presenter;
     }
 
@@ -815,7 +816,7 @@ internal static class PlaytestVerification
         presenter.Reset();
         if (presenter.View.Player is not null || presenter.View.Enemy is not null || presenter.View.SelectedCardId is not null
             || presenter.View.EnemyVisible || presenter.View.Offers.Count != 0) return false;
-        presenter.SelectHero(presenter.View.Heroes[0].Key);
+        presenter.SelectHero(new StringName("hero.paladin"));
         return monsterSeen && pvpSeen && presenter.View.Player!.Wealth == 999
             && presenter.View.Player.Cards.Count == 0 && presenter.View.Player.BoardPlacements.Count == 0;
     }

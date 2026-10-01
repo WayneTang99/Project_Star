@@ -5,17 +5,17 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Heroes;
 
-// 帕拉帝恩英雄内容定义（内容层）。
-public sealed class PaladinHeroDefinition : HeroDefinition
+// 莫娜英雄内容定义（内容层）。
+public sealed class MonaHeroDefinition : HeroDefinition
 {
-    public PaladinHeroDefinition()
+    public MonaHeroDefinition()
         : base(
             new EntityAttributes<HeroIdentityAttributes>(
                 new HeroIdentityAttributes(
-                    new StringName("hero.paladin"),
-                    "帕拉帝恩",
-                    new StringName("paladin"),
-                    "圣骑士"),
+                    new StringName("hero.mona"),
+                    "莫娜",
+                    new StringName("mona"),
+                    "小魔女"),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.MaxHealth] = 100,

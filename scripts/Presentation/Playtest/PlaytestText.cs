@@ -12,6 +12,10 @@ namespace Project_Star.Presentation.Playtest;
 
 internal static class PlaytestText
 {
+    // 英雄称号与姓名组合展示，无称号的怪物仅显示姓名。
+    public static string FormatHeroName(string displayName, string title) =>
+        string.IsNullOrEmpty(title) ? displayName : $"{title}·{displayName}";
+
     // HUD 使用冻结的战斗状态，含当前生命、护甲、魔法和状态层数。
     public static string FormatHeroHud(HeroBattleSnapshot hero) =>
         $"生命 {hero.Health}/{hero.MaxHealth}\n护甲 {hero.Armor}\n魔法 {hero.Mana}/{hero.MaxMana}\n灼伤 {hero.Burn} · 中毒 {hero.Poison}";
@@ -49,7 +53,8 @@ internal static class PlaytestText
         };
         var faction = factionKey == GameFactions.Neutral
             ? "无阵营"
-            : factionKey == new StringName("paladin") ? "帕拉帝恩" : factionKey.ToString();
+            : factionKey == new StringName("paladin") ? "帕拉帝恩"
+            : factionKey == new StringName("mona") ? "莫娜" : factionKey.ToString();
         var elements = string.Join("、", elementKeys.Select(element => element switch
         {
             var key when key == GameElements.General => "通用",
