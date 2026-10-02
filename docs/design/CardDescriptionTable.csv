@@ -22,3 +22,9 @@ card.nun,1,keyword.activate,冷却6秒，消耗10魔法，治疗己方英雄10/2
 card.thorn_armor,1,keyword.activate,冷却8/7/6/5秒，己方英雄获得10/20/40/80护甲，再对敌方英雄造成等同于己方英雄当前护甲值加此卡牌攻击值的普通伤害（先扣敌方护甲）。
 card.flying_broom,1,keyword.activate,冷却5/4/3/2秒，魔法消耗0，此卡牌进入飞行。
 card.flying_broom,2,keyword.echo,当己方卡牌进入飞行时，该卡牌获得1秒疾速。
+card.small_red_potion,1,keyword.activate,冷却3秒，魔法消耗0，治疗己方英雄40/80/160/240生命。
+card.small_red_potion,2,keyword.consume,使用后摧毁此卡牌，仅本场战斗生效。
+card.alchemy_cauldron,1,keyword.activate,冷却6秒，魔法消耗0，对敌方英雄施加10中毒和10灼伤。
+card.alchemy_cauldron,2,keyword.passive,在战场区或备战区时，当你出售一张消耗品卡牌后，此卡牌施加的中毒和灼伤永久各增加6/12/20。
+card.small_mana_potion,1,keyword.activate,冷却3秒，魔法消耗0，恢复己方英雄40/80/160/240魔法。
+card.small_mana_potion,2,keyword.consume,使用后摧毁此卡牌，仅本场战斗生效。

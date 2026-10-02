@@ -28,13 +28,15 @@ public sealed class CardInstance
         TagSet tags,
         IReadOnlyList<AbilityDefinition> abilities,
         CardOnSellRewardDefinition? onSellReward,
-        IReadOnlyList<CardQuestDefinition>? quests = null)
+        IReadOnlyList<CardQuestDefinition>? quests = null,
+        IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null)
     {
         Id = id;
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
         Tags = tags ?? throw new ArgumentNullException(nameof(tags));
         Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
         OnSellReward = onSellReward;
+        SaleAttributeBonuses = saleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
         Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
     }
 
@@ -47,6 +49,7 @@ public sealed class CardInstance
     public IReadOnlyList<AbilityDefinition> Abilities { get; private set; }
 
     public CardOnSellRewardDefinition? OnSellReward { get; }
+    public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; private set; }
 
     public IReadOnlyList<CardQuestDefinition> Quests { get; }
 
@@ -74,6 +77,9 @@ public sealed class CardInstance
 
     internal void ReplaceAbilities(IReadOnlyList<AbilityDefinition> abilities) =>
         Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
+
+    internal void ReplaceSaleAttributeBonuses(IReadOnlyList<TaggedCardSaleAttributeBonus>? bonuses) =>
+        SaleAttributeBonuses = bonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
 }
 
 public sealed class SkillInstance

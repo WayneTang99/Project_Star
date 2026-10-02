@@ -7,6 +7,7 @@ public enum CardFaceEffectKind
     Armor,
     Poison,
     Burn,
+    Mana,
 }
 
 public sealed record CardFaceEffect(CardFaceEffectKind Kind, string Value);

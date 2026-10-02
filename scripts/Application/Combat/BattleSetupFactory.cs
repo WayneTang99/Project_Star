@@ -86,7 +86,7 @@ public sealed class BattleSetupFactory
                 Multicast: multicast,
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
-                ArmorAmount: armorAmount));
+                ArmorAmount: armorAmount) { CombatValues = card.Attributes.BaseCombat.SnapshotFinalValues() });
         }
 
         foreach (var placement in session.Board.Bench.Placements)

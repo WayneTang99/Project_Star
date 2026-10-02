@@ -97,6 +97,11 @@ internal static class BattleEffectResolver
             case HealEffectDefinition heal:
                 hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
                 break;
+            case RestoreManaEffectDefinition restoreMana:
+                var restored = (int)System.Math.Min(restoreMana.Amount, (long)hero.MaxMana - hero.Mana);
+                hero.Mana += restored;
+                runtime.Events.Add(new ManaChangedEvent(runtime.Tick, targetSide, restored, hero.Mana));
+                break;
             case ArmorEffectDefinition armor:
                 hero.Armor = checked(hero.Armor + armor.Amount);
                 break;
@@ -112,6 +117,10 @@ internal static class BattleEffectResolver
             case GainArmorEqualToManaSpentEffectDefinition:
                 var sourceHero = runtime.GetHero(pending.Source.Side);
                 sourceHero.Armor = checked(sourceHero.Armor + sourceHero.ManaSpent);
+                break;
+            case ApplyAttributeStatusEffectDefinition attributeStatus:
+                ApplyEffect(runtime, pending, new ApplyStatusEffectDefinition(attributeStatus.Status,
+                    pending.Source.GetCombatAttribute(attributeStatus.AttributeKey)));
                 break;
             case ApplyStatusEffectDefinition status:
                 var appliedStatus = status.Status is BattleStatus.Burn or BattleStatus.Poison

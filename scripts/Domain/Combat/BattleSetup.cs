@@ -30,7 +30,11 @@ public sealed record CardBattleSetup(
     int Multicast = 0,
     int OccupiedSlots = 1,
     IReadOnlyList<StringName>? ElementKeys = null,
-    int ArmorAmount = 0);
+    int ArmorAmount = 0)
+{
+    public IReadOnlyDictionary<StringName, int> CombatValues { get; init; } =
+        new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
+}
 
 public sealed record SkillBattleSetup(
     EntityId EntityId,

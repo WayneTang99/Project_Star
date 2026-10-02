@@ -74,6 +74,10 @@ internal sealed class CardBattleState : IBattleAbilitySource
         foreach (var effect in definition.Effects)
             switch (effect)
             {
+                case ApplyAttributeStatusEffectDefinition attributeStatus:
+                    SupportedCombatAttributes.Add(attributeStatus.AttributeKey);
+                    CombatAttributes[attributeStatus.AttributeKey] = setup.CombatValues.TryGetValue(attributeStatus.AttributeKey, out var amount) ? amount : 0;
+                    break;
                 case AttributeDamageEffectDefinition attributeDamage:
                     SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
                     break;

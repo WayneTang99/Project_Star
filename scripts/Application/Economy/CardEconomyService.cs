@@ -198,6 +198,14 @@ public sealed class CardEconomyService
             return Result<int>.Fail(new Failure(InvalidValue, "Selling this card would overflow player wealth."));
         }
 
+        foreach (var source in session.Player.Inventory.Cards)
+        {
+            if (source.Id == cardId || !session.Board.Contains(source.Id)) continue;
+            foreach (var bonuses in source.SaleAttributeBonuses.Where(bonus => card.Tags.Contains(bonus.RequiredTag))
+                .GroupBy(bonus => bonus.AttributeKey))
+                if ((long)source.Attributes.BaseCombat.GetFinalValue(bonuses.Key) + bonuses.Sum(bonus => (long)bonus.Amount) > int.MaxValue)
+                    return Result<int>.Fail(new Failure(InvalidValue, "Sale attribute bonus would overflow."));
+        }
         return Result<int>.Success(currentValue);
     }
 
@@ -215,8 +223,21 @@ public sealed class CardEconomyService
         if (fromBoard) _boardService!.RemoveFromBoard(session, cardId);
         session.Player.Inventory.Remove(cardId);
         session.Player.AddWealth(check.Value);
+        ApplySaleAttributeBonuses(session, card);
         ApplyOnSellReward(session, card);
         return check;
+    }
+
+    private static void ApplySaleAttributeBonuses(MatchSession session, CardInstance soldCard)
+    {
+        foreach (var source in session.Player.Inventory.Cards)
+        {
+            if (!session.Board.Contains(source.Id)) continue;
+            foreach (var bonus in source.SaleAttributeBonuses)
+                if (soldCard.Tags.Contains(bonus.RequiredTag))
+                    source.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                        ModifierId.New(), source.Id, bonus.AttributeKey, bonus.Amount));
+        }
     }
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)

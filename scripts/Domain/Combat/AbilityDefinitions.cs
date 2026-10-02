@@ -65,6 +65,9 @@ public sealed record SourceHeroArmorDamageEffectDefinition(
 
 public sealed record HealEffectDefinition(int Amount) : EffectDefinition;
 
+// 恢复目标英雄魔法，实际恢复受魔法上限限制（领域战斗层）。
+public sealed record RestoreManaEffectDefinition(int Amount) : EffectDefinition;
+
 public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record GainSourceHeroArmorEffectDefinition(int Amount) : EffectDefinition;
@@ -93,6 +96,9 @@ public sealed record IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition(
     int Amount) : EffectDefinition;
 
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+
+// 从来源战斗属性读取施加量，使状态可随实例永久加成成长（领域战斗层）。
+public sealed record ApplyAttributeStatusEffectDefinition(BattleStatus Status, StringName AttributeKey) : EffectDefinition;
 
 // 直接设置来源卡牌的布尔状态，不影响其他卡牌。
 public sealed record SetSourceCardStateEffectDefinition(StringName StateKey, bool Enabled) : EffectDefinition;
@@ -183,6 +189,9 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is ApplyAttributeStatusEffectDefinition attributeStatus
+                && (attributeStatus.AttributeKey.IsEmpty || attributeStatus.Status is not BattleStatus.Burn and not BattleStatus.Poison))
+                throw new ArgumentException("Attribute status requires a key and burn or poison.", nameof(effects));
             if (target == AbilityTarget.EventCard && effect is not ApplyStatusEffectDefinition)
                 throw new ArgumentException("Event card target currently supports status effects only.", nameof(effects));
             if ((activation == AbilityActivation.PassiveWhileEnabled) != (effect is ModifyAttributeEffectDefinition))
@@ -195,6 +204,7 @@ public sealed class AbilityDefinition
                 IncreaseSourceCooldownEffectDefinition value => value.AmountTicks,
                 ModifyTaggedAlliedCardsAttributeEffectDefinition value => value.Amount,
                 HealEffectDefinition value => value.Amount,
+                RestoreManaEffectDefinition value => value.Amount,
                 ArmorEffectDefinition value => value.Amount,
                 GainSourceHeroArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,

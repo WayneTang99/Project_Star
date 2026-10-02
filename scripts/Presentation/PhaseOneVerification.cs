@@ -158,6 +158,9 @@ public sealed partial class PhaseOneVerification : Control
         _groups.Add(new VerificationGroup("扩展边界与战斗记录", [
             ("飞行/狂暴为布尔状态，重复设置幂等且每场重置", CardStateChecks.BooleanLifecycle),
             ("飞天扫帚分级冷却、进入飞行与1秒疾速正确", FlyingBroomChecks.LevelsAndActivation),
+            ("小型生命药水分级治疗后仅本场摧毁并在下场恢复", SmallRedPotionChecks.HealingAndConsumption),
+            ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
+            ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("飞行回响准确定位己方事件卡牌、叠加且不连锁", FlyingBroomChecks.EventTargetsAndStacking),
             ("飞行减半新增迟缓/禁锢，兼容相邻倍率且不影响疾速", CardStateChecks.FlyingDurations),
             ("狂暴覆盖全部伤害公式及中毒/灼伤并在护甲前取整", CardStateChecks.BerserkDamageAndStatus),

@@ -82,3 +82,4 @@
 | BUG-062 | 2026-10-02 | `scripts/Domain/Combat/AbilityDefinitions.cs` / `BattleStateRecorder.cs` | 布尔状态接入首次构建失败。 | 新增状态key校验缺少 Common 引用，快照对象初始化前多保留一个 Select 闭合括号。 | 补齐引用并修正构造／初始化表达式，构建0警告0错误。 | Fixed |
 | BUG-063 | 2026-10-02 | `scripts/Presentation/Verification/CardStateChecks.cs` / BerserkActiveOnly | 狂暴被动与周期回归首次失败。 | 夹具忽略当前多重也重复战斗开始被动，低估初始伤害与中毒量。 | 保留现行多重规则，按两次未加成被动及14点周期中毒核对，并另验回响不加成。 | Fixed |
 | BUG-064 | 2026-10-02 | `scripts/Content/Cards/HolyGriffinCardDefinition.cs` / 发动描述 | 神圣狮鹫疾速文案限定人类，但实际作用于全部直接相邻己方卡牌。 | 文案未与通用相邻效果的实际筛选规则一致。 | 按确认的玩法保留全部相邻己方目标，同步定义与CSV描述，增加非人类邻居验证。 | Fixed |
+| BUG-065 | 2026-10-02 | `scripts/Presentation/Verification/SmallRedPotionChecks.cs` | 红药水验证首次构建失败。 | 发动事件来源字段误写为SourceId，实际字段为SourceCardId。 | 修正事件字段引用并重新构建与运行验证。 | Fixed |

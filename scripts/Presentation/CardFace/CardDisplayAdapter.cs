@@ -53,12 +53,15 @@ public sealed class CardDisplayAdapter
                         value.BonusAttributeKey is { } key && Value(card, key) != 0 ? $"护甲+{Value(card, key)}" : "己方护甲"),
                     SourceHeroLevelScaledDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, $"等级×{value.Multiplier}"),
                     HealEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Healing, value.Amount.ToString()),
+                    RestoreManaEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Mana, value.Amount.ToString()),
                     ArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroArmorFromAttributeEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, Value(card, value.AttributeKey).ToString()),
                     GainArmorEqualToManaSpentEffectDefinition => new CardFaceEffect(CardFaceEffectKind.Armor, "累计魔法"),
                     ApplyStatusEffectDefinition { Status: BattleStatus.Poison } value => new CardFaceEffect(CardFaceEffectKind.Poison, value.Amount.ToString()),
                     ApplyStatusEffectDefinition { Status: BattleStatus.Burn } value => new CardFaceEffect(CardFaceEffectKind.Burn, value.Amount.ToString()),
+                    ApplyAttributeStatusEffectDefinition { Status: BattleStatus.Poison } value => new CardFaceEffect(CardFaceEffectKind.Poison, Value(card, value.AttributeKey).ToString()),
+                    ApplyAttributeStatusEffectDefinition { Status: BattleStatus.Burn } value => new CardFaceEffect(CardFaceEffectKind.Burn, Value(card, value.AttributeKey).ToString()),
                     _ => null,
                 };
                 if (displayed is not null && !effects.Contains(displayed)) effects.Add(displayed);
@@ -134,6 +137,7 @@ public sealed class CardDisplayAdapter
         SourceHeroArmorDamageEffectDefinition value => $"伤害等于己方英雄当前护甲{(value.BonusAttributeKey is { } key ? $" + {Value(card, key)}" : "")}",
         SourceHeroLevelScaledDamageEffectDefinition value => $"伤害等于己方英雄等级 × {value.Multiplier}",
         HealEffectDefinition value => $"治疗 {value.Amount}",
+        RestoreManaEffectDefinition value => $"恢复 {value.Amount} 魔法",
         ArmorEffectDefinition value => $"获得护甲 {value.Amount}",
         GainSourceHeroArmorEffectDefinition value => $"己方英雄获得护甲 {value.Amount}",
         GainSourceHeroArmorFromAttributeEffectDefinition value => $"己方英雄获得护甲 {Value(card, value.AttributeKey)}",
@@ -143,6 +147,7 @@ public sealed class CardDisplayAdapter
         GrantTagToEnemySizeCardsEffectDefinition value => $"敌方 {value.Size} 卡牌获得 {TagDisplayNames.Get(value.Tag)} 标签",
         IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => $"每张存活敌方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {value.AttributeKey} +{value.Amount}",
         ApplyStatusEffectDefinition value => $"施加 {value.Status} {value.Amount}",
+        ApplyAttributeStatusEffectDefinition value => $"施加 {value.Status} {Value(card, value.AttributeKey)}",
         SetSourceCardStateEffectDefinition value =>
             $"{(value.Enabled ? "施加" : "移除")}此卡牌{AttributeName(value.StateKey)}状态",
         ApplyStatusToAdjacentAlliedCardsEffectDefinition value => $"相邻己方卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒，{TagDisplayNames.Get(value.BonusTag)} ×{value.BonusMultiplier}",

@@ -29,10 +29,10 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 |---|---|
 | CardKey | 对应 CardDataTable.csv 的卡牌 key |
 | 顺序 | 每张卡从1开始连续递增，不能重复 |
-| 词条 | `keyword.activate` 发动、`keyword.echo` 回响、`keyword.aura` 光环、`keyword.pickup` 拾取、`keyword.sell` 出售、`keyword.quest` 任务 |
+| 词条 | `keyword.activate` 发动、`keyword.echo` 回响、`keyword.aura` 光环、`keyword.pickup` 拾取、`keyword.sell` 出售、`keyword.quest` 任务、`keyword.consume` 消耗、`keyword.passive` 被动 |
 | 说明 | 此词条在该卡上的完整说明文字，使用 `string` |
 
-发动是自身CD结束触发；回响响应自身或其他卡牌发动所产生的事件，具体事件条件写在说明中；光环涵盖持续赋予及随状态计算，来源失效后的处理遵循该卡规则；拾取在获得此卡牌时结算；出售在出售此卡牌时结算。任务的实例进度与解锁机制保持独立。词条组织描述，不生成或改变能力队列、回响连锁规则及对局结算。
+发动是自身CD结束触发；回响响应自身或其他卡牌发动所产生的事件，具体事件条件写在说明中；光环涵盖持续赋予及随状态计算，来源失效后的处理遵循该卡规则；拾取在获得此卡牌时结算；出售在出售此卡牌时结算；消耗表示使用后摧毁自身，默认仅本场战斗生效，效果按治疗等使用效果在前、摧毁在后的顺序组合。任务的实例进度与解锁机制保持独立。词条组织描述，不生成或改变能力队列、回响连锁规则及对局结算。
 
 正式定义的词条 key、说明和顺序必须与描述CSV逐项一致。只读条目随实例身份和 `CardSnapshot.DescriptionEntries` 传递，商店、棋盘、奖励和详情共用；UI不维护按卡牌key的文案表，也不解析中文标点来分段。描述保留各等级数值，当前等级与实例基础/当前属性另列，不在升级时改写身份文本。无描述条目的内部验证夹具可沿用能力说明。
 
@@ -41,6 +41,12 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 `IsFlying` / `IsBerserk` 是动态布尔值，默认否，不放入只读身份或身份CSV。能力组合使用通用 `SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying / Berserk, true / false)` 设置来源卡牌状态；可组合进发动、战斗开始触发或回响，不放入仅查询的光环能力，也不能由非卡牌来源设置。状态字段、变化事件与冻结快照都由战斗层维护，回放投影读取记录，不写模型。
 
 具体减时长与数值加成规则见 [游戏规则](GAME_DESIGN.md)。状态仅由能力配置产生，不根据卡名或插画推断飞行／狂暴。进入状态回响使用 `EchoOnAlliedCardEnteredState` 与 `TriggerStateKey` 筛选真实的 false→true 变化，`EventCard` 指向该次事件中的卡牌；重复设置true不触发，回响产生的状态变化不再连锁。
+
+### 出售触发的永久加成
+
+等级定义的 `SaleAttributeBonuses` 使用通用 `TaggedCardSaleAttributeBonus` 配置出售目标标签、来源属性与增量。来源须仍位于战场区或备战区；成功出售后累加来源实例的永久 Modifier，失败或重复出售不结算，来源自身被出售后不再触发。升级按新等级更新增量，并保留之前的永久贡献。交易预检检查加成溢出后再提交，不转入战斗状态或战斗回响。
+
+卡牌的 `Poison` / `Burn` 基础属性在此表示施加量，区别于英雄已经受到的中毒／灼伤。`ApplyAttributeStatusEffectDefinition` 从来源卡牌的冻结战斗属性读取施加量，卡面显示实例现值；已有战斗输入不会被后续出售改写。恢复魔法使用通用 `RestoreManaEffectDefinition`，累计至最大魔法上限后不再增加。
 
 ### 通用价值表
 

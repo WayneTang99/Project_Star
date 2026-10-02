@@ -24,6 +24,7 @@ public sealed partial class CardEffectRow : HBoxContainer
             CardFaceEffectKind.Armor => "res://art/ui/card-face/icons/armor.svg",
             CardFaceEffectKind.Poison => "res://art/ui/card-face/icons/poison.svg",
             CardFaceEffectKind.Burn => "res://art/ui/card-face/icons/burn.svg",
+            CardFaceEffectKind.Mana => "res://art/ui/card-face/icons/mana.svg",
             _ => "res://art/ui/card-face/icons/damage.svg",
         };
         _icon.Texture = GD.Load<Texture2D>(iconPath);

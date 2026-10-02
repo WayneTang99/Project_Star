@@ -100,7 +100,7 @@ CardFace 只读取 CardFaceViewModel，显示身份、等级、插画、元素�
 
 示例价值从项目 `CardValueCalculator` 读取。效果数值只作为展示输入，不由卡面 UI 计算战斗结果。
 
-卡牌详情读取 `CardSnapshot.DescriptionEntries`，正式条目由卡牌只读身份 `CardIdentityAttributes.DescriptionEntries` 提供并与 CardDescriptionTable.csv 同步。按有序列表逐条显示“词条名称：说明”，名称由 `CardKeywords` 统一维护，包含发动、回响、光环、拾取、出售和任务；当前等级、价值和实例基础/当前数值另列。紧凑卡面仍只显示关键图标/数值，完整描述留在详情中，不覆盖整幅插画。
+卡牌详情读取 `CardSnapshot.DescriptionEntries`，正式条目由卡牌只读身份 `CardIdentityAttributes.DescriptionEntries` 提供并与 CardDescriptionTable.csv 同步。按有序列表逐条显示“词条名称：说明”，名称由 `CardKeywords` 统一维护，包含发动、回响、光环、拾取、出售、任务、消耗和被动；当前等级、价值和实例基础/当前数值另列。紧凑卡面仍只显示关键图标/数值，完整描述留在详情中，不覆盖整幅插画。
 
 详情的基础／当前属性按实际能力用途展示：只有具备发动能力才显示冷却，伤害效果读取攻击属性时才显示攻击。不能仅按数值是否为0判断，真实攻击为0仍需显示；辅助卡牌的占位攻击、无发动能力的冷却不显示。
 

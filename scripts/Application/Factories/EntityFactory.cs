@@ -54,7 +54,8 @@ public sealed class EntityFactory
             definition.Tags,
             levelDefinition?.Abilities ?? definition.Abilities,
             definition.OnSellReward,
-            definition.Quests);
+            definition.Quests,
+            levelDefinition?.SaleAttributeBonuses);
     }
 
     public SkillInstance CreateSkill(SkillDefinition definition, int? level = null)
@@ -103,6 +104,7 @@ public sealed class EntityFactory
         card.Attributes.BaseCombat.ReplaceBaseValues(baseCombat);
         card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
         card.ReplaceAbilities(levelDefinition?.Abilities ?? definition.Abilities);
+        card.ReplaceSaleAttributeBonuses(levelDefinition?.SaleAttributeBonuses);
     }
 
     private static EntityAttributes<TIdentity> Copy<TIdentity>(EntityAttributes<TIdentity> source)

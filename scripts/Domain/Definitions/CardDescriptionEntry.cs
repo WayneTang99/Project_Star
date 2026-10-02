@@ -12,10 +12,12 @@ public static class CardKeywords
     public static readonly StringName Quest = new("keyword.quest");
     public static readonly StringName Pickup = new("keyword.pickup");
     public static readonly StringName Sell = new("keyword.sell");
+    public static readonly StringName Consume = new("keyword.consume");
+    public static readonly StringName Passive = new("keyword.passive");
 
     public static string DisplayName(StringName key) => key == Activate ? "发动"
         : key == Echo ? "回响" : key == Aura ? "光环" : key == Quest ? "任务"
-        : key == Pickup ? "拾取" : key == Sell ? "出售"
+        : key == Pickup ? "拾取" : key == Sell ? "出售" : key == Consume ? "消耗" : key == Passive ? "被动"
         : throw new ArgumentException($"Unknown description keyword: {key}", nameof(key));
 }
 
