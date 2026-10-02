@@ -16,3 +16,6 @@ export_presets.cfg
 
 # 编排工件（计划/draft/ledger，不入库）
 .omo/
+
+# 本地验证与生成产物
+/output/

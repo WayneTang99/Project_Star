@@ -2,8 +2,8 @@ using System;
 using Godot;
 using Project_Star.Application.Board;
 using Project_Star.Application.Common;
+using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
-using Project_Star.Infrastructure.Definitions;
 
 namespace Project_Star.Application.Economy;
 
@@ -13,12 +13,12 @@ public sealed record MonsterRewardClaimResult(PendingMonsterReward Reward, int C
 public sealed class MonsterRewardClaimService
 {
     private static readonly StringName NoReward = new("reward.none_pending");
-    private readonly DefinitionRegistry _registry;
+    private readonly IDefinitionCatalog _registry;
     private readonly CardEconomyService _cards;
     private readonly SkillAcquisitionService _skills;
 
     public MonsterRewardClaimService(
-        DefinitionRegistry registry,
+        IDefinitionCatalog registry,
         CardEconomyService cards,
         SkillAcquisitionService skills,
         BoardService board)

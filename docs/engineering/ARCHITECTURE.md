@@ -1,364 +1,88 @@
-# Project_Star 架构说明
-
-本文档依据 `docs/design/GAME_DESIGN.md` 的玩法需求，定义代码边界、数据所有权、依赖方向和运行流程。`AGENTS.md` 是项目导航入口，术语以 `docs/design/GLOSSARY.md` 为准；本文不改变玩法规则。
-
-## 1. 架构目标
-
-- 对局状态不跨局泄漏，整局数据可整体创建和销毁。
-- 战斗只修改临时状态，通过结果显式回写永久变化。
-- 相同输入、配置和随机种子产生相同结果，支持异步 PvP 复算和回放。
-- 属性、经济、棋盘、排程和战斗可脱离 Godot 场景树测试。
-- 新增英雄、卡牌和遭遇主要增加内容定义，不修改核心引擎。
-- UI 提交意图并读取快照，不直接修改领域对象。
-
-## 2. 总体分层
-
-```mermaid
-flowchart TB
-    subgraph P["表现层 Presentation / Godot"]
-        UI["选角 / 局内 / 棋盘 / 战斗 UI"]
-    end
-    subgraph A["应用层 Application"]
-        Coordinator["GameCoordinator"]
-        Cases["对局 / 商店 / 棋盘 / 战斗用例"]
-    end
-    subgraph D["领域层 Domain"]
-        Session["MatchSession"]
-        Board["BoardState + PlacementSolver"]
-        Scheduler["EncounterScheduler"]
-        Combat["CombatSimulator + Resolver"]
-        Rules["Ability + Effect + Attribute + Tag"]
-    end
-    subgraph I["基础设施层 Infrastructure"]
-        Registry["DefinitionRegistry"]
-        Factory["EntityFactory"]
-        Random["SeededRandom"]
-        Storage["存档 / 异步阵容 / Godot Adapter"]
-    end
-    subgraph C["游戏内容 Content"]
-        Definitions["英雄 / 卡牌 / 遭遇定义子类"]
-    end
-    P --> A
-    A --> D
-    A --> I
-    Session --> Board
-    Session --> Scheduler
-    Combat --> Rules
-    Registry --> Definitions
-    Factory --> Registry
-    Scheduler --> Random
-    Combat --> Random
-```
-
-依赖规则：
-
-1. `Domain` 使用普通 C#，不得依赖 `Node`、场景树、渲染帧或 UI。
-2. `Application` 编排完整用例，但不实现游戏公式。
-3. `Infrastructure` 实现反射、随机、存储和 Godot 适配。
-4. `Presentation` 只能通过应用层操作模型。
-5. `Content` 依赖领域定义基类和通用能力，不依赖 UI。
-
-卡牌展示描述存放于只读身份属性 `CardIdentityAttributes.Description`（`string`），正式内容定义与 `CardDataTable.csv` 的“描述”列保持一致。实例复用该身份属性；应用层将描述传入卡牌快照和商店展示快照，表现层直接读取并按发动、回响、光环分段。文本不解析为能力或战斗规则；等级数值仍由能力定义与属性计算。
-
-## 3. 生命周期与所有权
-
-```mermaid
-flowchart LR
-    subgraph Global["全局"]
-        GC["GameCoordinator"]
-        DR["DefinitionRegistry"]
-        EF["EntityFactory"]
-    end
-    subgraph Match["一局对局"]
-        MS["MatchSession"]
-        MP["MatchProgress"]
-        PS["PlayerState"]
-        CI["OwnedCards（内部归属记录，不是放置区域）"]
-        BS["BoardState"]
-        ES["EncounterScheduleState"]
-        MR["MatchRandomState"]
-    end
-    subgraph Battle["一场战斗"]
-        Setup["BattleSetup"]
-        Runtime["BattleRuntime"]
-        Queue["AbilityQueue"]
-        Log["BattleEventLog"]
-        Result["BattleResult"]
-    end
-    GC --> MS
-    DR --> EF --> MS
-    MS --> MP
-    MS --> PS
-    MS --> CI
-    MS --> BS
-    MS --> ES
-    MS --> MR
-    MS -->|"生成不可变输入"| Setup
-    Setup --> Runtime
-    Runtime --> Queue
-    Runtime --> Log
-    Runtime --> Result
-    Result -->|"显式应用"| MS
-```
+# 架构说明
 
-### 3.1 全局
+玩法以 [游戏规则](../design/GAME_DESIGN.md) 为准，标识与身份等硬约束见 [AGENTS](../../AGENTS.md)，界面契约见 [UI 规范](../design/UI_SYSTEM.md)。本文只描述实现边界；未实现事项见 [当前计划](../planning/IMPLEMENTATION_PLAN.md)。
 
-- `GameCoordinator` 只协调选角、局内和结算阶段。
-- `GameCoordinator.GetSnapshot` 返回包含对局进度、资源、遭遇选择、卡牌身份、技能和双棋盘位置的只读 `MatchSnapshot`；表现层提交操作给应用用例，不直接读取聚合内部状态。
-- `DefinitionRegistry` 只保存不可变定义。
-- `EntityFactory` 根据定义创建独立实例。
-- 全局对象不得保存本局金钱、声望、卡池或棋盘。
+## 分层与依赖
 
-### 3.2 对局
+| 层 | 职责 |
+|---|---|
+| Domain | 普通 C# 的定义、实体属性、对局/棋盘模型、决策与确定性战斗；不依赖 Node、场景树或 UI |
+| Application | 创建对局、经济、棋盘、遭遇、奖励和战斗结算用例；协调完整事务，返回 Result 与 Snapshot |
+| Infrastructure | 定义反射扫描/校验、确定性随机和外部适配实现 |
+| Presentation | 服务组装、输入、只读 ViewModel、资源加载与 Godot 生命周期 |
+| Content | 独立的英雄、卡牌、技能、遭遇、怪物与套装定义，组合通用能力 |
 
-`MatchSession` 是整局聚合根和唯一事实来源，拥有进度、玩家状态、卡池、独立技能集合、双棋盘、遭遇历史和本局随机状态。新对局创建新 Session；对局结束整体销毁。所有技能来源通过 `SkillAcquisitionService.AcquireSkill` 获得或合并实例。
+所有代码和对应 `.cs.uid` 位于 `scripts/` 下的五层目录，层内按业务职责组织。Application 的内容访问依赖领域只读 `IDefinitionCatalog`；`DefinitionRegistry` 实现该契约并负责扫描与校验。具体基础设施在入口组装，UI 流程接收对手来源接口。当前 SeededRandom 是应用与战斗共用的确定性实现，保持显式 seed/状态；其他外部适配在出现实际替换需求时再引入契约。
 
-### 3.3 战斗
+## 生命周期与状态所有权
 
-对局生成不可变 `BattleSetup`，`CombatSimulator` 据此创建 `BattleRuntime`。战斗只修改 Runtime，结束后返回 `BattleResult`。对局应用层负责奖励、惩罚、胜场、声望和永久变化。
+- 全局：不可变内容目录、实体工厂与应用服务，不保存本局玩家资源。
+- 对局：`MatchSession` 聚合根拥有玩家、卡牌/技能实例、双棋盘、进度、奖励、遭遇历史、随机状态与对局事件。新局整体重建。
+- 战斗：`BattleSetup` 是冻结输入；`BattleRuntime` 只拥有本场临时状态；`BattleResult` 返回结果、永久变化、事件和播放状态，应用层负责回写。
+- 表现：只拥有页面、访问句柄、交互与播放状态；控件接收只读快照。
 
-播放采用先结算后播放：`GameCoordinator.ResolveBattleForPlayback` 一次返回 `BattleResolution`，包含双方战前身份快照、`BattleResult` 和玩家结算后快照。`BattleResult.States` 保存英雄生命/护甲/魔法/状态、卡牌属性/冷却/疾速/迟缓/禁锢/摧毁的只读时间点；每份记录的 `EventCount` 指向原日志前缀，不添加或重排原事件。`BattlePlaybackPresenter` 按 Tick 和记录顺序消费，只维护播放游标、暂停、1×/2×速度与反馈，不持有可变 Session 或结算服务。播放中的身份取战前快照，永久摧毁卡牌仍可完成展示；自然结束或跳过后切到结算页面。播放期间交易、移动、遭遇、领奖和推进回合入口被门控，重开会清除旧播放。
+定义、实例与运行态分开。Definition 不可变，EntityFactory 创建独立 EntityId 与属性集，实例之间不共享可变属性。身份在属性集只读分区，Persistent 保存对局内可变属性，BaseCombat 保存战斗基础值；战斗不直接写实例。
 
-表现层 `MatchTheme` 集中创建 Godot Theme；`MatchShell` 与浮层继承同一套面板、文字、按钮与焦点样式。卡牌变化强调使用独立 Tween 装饰，不改变位置、命中或模型；重新强调先终止旧 Tween，取消、换页、节点退出清理。窗口变化只重算几何、限制浮层，不刷新或修改对局快照。开发工具折叠和结果日志可见性也只属于视图。
+## 内容与扩展入口
 
-`CombatManager` 只作为 Godot/应用层运行协调器，可在对局开始时创建、战斗时启动；它不拥有规则真相。
+DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；验证 key 唯一、归属、套装、怪物卡组/技能、棋盘布局和遭遇选项引用。内部验证定义不进入正式池。注册不是实例池，不租借或复用实例。
 
-## 4. 定义、实例与属性
+| 扩展需求 | 入口 |
+|---|---|
+| 新英雄/卡牌/技能/怪物/遭遇/套装 | Content 下独立 Definition + 正式 CSV + 验证；不增加中央内容注册 switch |
+| 新卡牌行为 | 组合通用 AbilityDefinition / EffectDefinition；组合无法表达时才添加可复用机制 |
+| 新战斗效果 | BattleEffectResolver 与通用效果数据，更新行为和顺序验证 |
+| 新对手来源 | 实现 IOpponentProvider，在试玩入口注入；流程不创建具体 Provider |
+| 新玩家操作 | 应用用例 + Result + 必要查询，不让 UI 写模型 |
+| 新展示 | Snapshot / ViewModel / Adapter，领域对象不加载贴图或场景 |
 
-### 4.1 静态定义
+只为已确认需求建立抽象；出现实际复用或明确替换点时抽取。接口保持小而聚焦，不建立万能 Context、Manager、服务定位器或全局命令总线。Command 表示意图，Result 表示同步成功/失败，Domain Event 表示已发生事实；有返回值的操作不伪装成事件。Match Event 与 Combat Event 强类型隔离，不跨总线传播。
 
-- `HeroDefinition`、`CardDefinition`、`SkillDefinition`、`CardSetDefinition`、`EncounterDefinition`、`MonsterDefinition` 是抽象基类。
-- 每个具体内容是非抽象子类。英雄声明身份与初始属性；卡牌声明身份、初始属性、标签和能力组合；遭遇声明身份与排程配置；怪物声明固定战斗属性与卡组。
-- `DefinitionRegistry` 反射扫描并验证 key 唯一、展示名、归属、尺寸、元素属性、轮次范围和能力引用。
-- `ChoiceEncounterDefinition` 使用只读选项列表和固定/加权展示槽组合通用遭遇效果，并显式声明遭遇等级；`ResolveEncounterOptionService` 使用对局随机状态生成本次选项、校验一次性选择并结算通用奖励。表现层动态读取选项，不按具体遭遇 key 分支。
-- 卡牌归属 key 必须对应已有英雄阵营或统一的 `neutral`；归属用于内容池筛选，不作为运行时使用权限。
-- 使用 Registry 而非 Pool：定义不会被租借、归还或作为实例复用。
+CSV 与 Definition 的维护和一致性验证见 [内容数据规范](../design/CONTENT_DATA.md)。展示描述不参与规则解析。
 
-### 4.2 运行实例
+## 对局用例与事务
 
-- `HeroInstance`、`CardInstance` 和 `SkillInstance` 具有唯一 `EntityId`。
-- 英雄不持有 `TagSet`；标签只用于卡牌分类。
-- 选择、购买、掉落和奖励均通过 `EntityFactory` 创建独立实例及属性集。
-- 定义不可变，实例变化不得回写定义。
-- 怪物使用独立的静态定义，进入战斗后仍复用与玩家相同的战斗角色属性和卡牌实例模型，不进入玩家可选英雄列表。
+- GameCoordinator 协调创建、遭遇、战斗与结果；经济、棋盘、事件与奖励有明确应用入口。
+- BoardPlacementSolver 是纯函数，评估直接放置/左右推挤，返回完整计划。优先级为总距离短 → 影响卡牌少 → Right；评估前释放移动卡原位。
+- BoardService 验证归属，成功后一次提交同盘/跨区位移；预览不修改状态，提交重新计算。
+- CardMergeDecision 稳定选择合并目标，CardEconomyService 提交创建或升级。BuyAndPlace / AcquireAndPlace 预检金额、售罄、合并与完整放置，成功后扣款/标记；SellFromBoard 预检价值、溢出与奖励依赖后统一出售。
+- RoundIncomeService 在生成新轮遭遇前结算，并按轮次保证幂等；第一轮在创建对局后结算。
+- EncounterScheduler 稳定过滤/抽取候选，保存候选出现历史与随机状态。MonsterDefinition 自动投影为怪物遭遇；试玩允许内容不足三个，正式排程保持严格。
+- ResolveEncounterOptionService 创建本次固定/加权选项，一次性选择成功后提交通用效果。MonsterRewardClaimService 只在领取成功后移除奖励。
 
-### 4.3 属性分区
+失败不得留下扣款但没有卡牌、源棋盘移除但目标未加入等部分状态。同一实例只位于一个区域，棋盘实例必须属于本局卡池。外部读取用复制的 Snapshot / ViewModel，不暴露可变集合给 UI。
 
-```text
-EntityAttributes
-├── IdentityAttributes     只读：key、展示名、归属、尺寸、ElementKeys、可选 SetKey
-├── PersistentAttributes   对局内：等级、价值、金钱、声望等
-└── BaseCombatAttributes   派生战斗初始值的基础数值
-```
+## 属性、套装与任务
 
-身份字段仍位于实体属性集中，但属于只读分区。战斗状态单独存储在 `HeroBattleState` / `CardBattleState`，不写回实体本体。
+FinalValue = BaseValue + Sum(Modifiers)。Modifier 有唯一 ID、来源、目标属性与贡献；Apply 累加，移除按 ID 精确扣除。基础值可依赖自身等级、标签、位置、区域和符合条件的卡牌数量，不读取其他卡牌的最终值。战斗开始后使用冻结基础值，变化只在 Runtime。
 
-卡牌的 `ElementKeys` 使用只读集合表达：
+元素为规范顺序的 1～2 个不重复 StringName；General 是真实普通属性，不作空值哨兵。元素参与分类/筛选/条件，不计算克制。标签参与规则，词条是能力行为的文案语义。
 
-- 必须包含 1～2 个不重复的 `StringName`；
-- 合法值为 `General`、`Fire`、`Water`、`Wind`、`Earth`、`Lightning`、`Wood`、`Ice`、`Light`、`Dark`；
-- `General` 是普通属性值，不作为 null、空集合或默认哨兵；
-- 双属性无主次，比较和确定性序列化时使用固定规范顺序；
-- 当前只参与分类、筛选和能力条件，不参与克制计算。
+CardSetEvaluator 只按战场不同 CardKey 计数，并稳定输出达到的全部阈值；阈值解锁通用能力。CardSetBonusService 在棋盘变化时精确重算持续 Modifier，战斗能力由 BattleSetupFactory 冻结。战斗内摧毁不重新求值套装快照。
 
-### 4.4 Modifier
+CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括备战区。CardQuestBonusService 只为战场已解锁卡牌施加持续属性能力；移区/移除时精确撤销。其他解锁能力加入来源卡的战斗快照，随该来源被摧毁失效。
 
-每个 `StatModifier` 包含唯一 ID、来源实体、目标属性、贡献值和生命周期。
+## 战斗模块与固定顺序
 
-- Apply 按 ID 添加贡献，Remove 按 ID 精确移除。
-- 效果到期只移除自身贡献，不能清零整个属性。
-- 疾速与迟缓按最终属性值判断抵消。
+| 协作者 | 职责 |
+|---|---|
+| CombatSimulator | 创建 Runtime、推进 Tick、FIFO 入队/发动、魔法与冷却门控、回响截断及终止判定 |
+| BattleEffectResolver | 通用效果执行、伤害、卡牌属性/光环查询、充能与摧毁；只操作 Runtime |
+| BattleStatusResolver | 卡牌冷却与时长衰减、状态施加、相邻状态反应、英雄周期状态与日蚀 |
+| BattleStateRecorder | 冻结事件前缀对应的状态，生成结算结果；不推进随机或规则 |
 
-套装求值只读取战场区快照，先按卡牌 key 去重，再按套装 key 统计并稳定输出所有达到的阈值。阈值只解锁 `AbilityDefinition`，不另设套装专属效果执行路径；卡牌描述、技能和任务解锁也遵循同一能力模型。持续属性能力的目标默认仅为该套装的战场卡牌，特殊目标由能力目标显式指定。棋盘应用用例按稳定来源精确 Apply / Remove Modifier；战斗能力写入 `BattleSetup`，战斗内卡牌摧毁不重新计算该快照。套装效果所称“全部卡牌”仅指战场区。其他非数值效果待具体内容描述后接入，每条效果的生命周期由其描述指定。
+入口只接受 BattleSetup。所有协作者在 Domain/Combat 内部，不向 UI 暴露战斗写入口。卡牌/技能/套装共用 IBattleAbilitySource、PendingAbility 和效果解析，不复制独立模拟器。
 
-任务定义由 `CardQuestDefinition` 组合可复用条件与 `AbilityDefinition`；`CardInstance` 按任务 key 保存独立进度，`CardSnapshot` 提供只读进度。`CardQuestService` 在对局事件发生后检查当前拥有的卡牌，包括备战区；战斗胜利事件在结果结算时产生。`CardQuestBonusService` 只为战场上的已解锁卡牌施加持续属性能力，并在移区或移除时精确撤销贡献。其他已解锁能力由 `BattleSetupFactory` 加入来源卡牌的战斗快照，因此会随该卡牌在战斗中被摧毁而失效。
+初始化记录状态和 BattleStarted，然后结算 0 Tick 战斗开始被动并检查死亡。循环在 Tick 小于 Timeout 时进入下一 Tick，依次执行：日蚀 → 冷却/卡牌时长递减 → 主动入队 → 双方英雄状态 → 状态记录 → FIFO 能力结算 → 死亡检查。循环到期后双方生命置零并按寂灭规则生成结果。整数 Tick 与稳定来源顺序、FIFO、显式 seed 共同保证复算一致；不使用渲染帧决定结果。
 
-## 5. 标签与词条
+主动发动先验证来源和魔法，再扣魔法、重置冷却、发布发动事件并执行效果。多重从当前卡牌属性读取，额外发动不递归生成多重、不重复付魔法。光环按当前 Runtime 求值，来源离开战场或被摧毁即失效；技能来源不依赖棋盘。回响执行产生的事件不再次触发回响。每场首次己方卡牌发动触发由能力状态保证至多一次。
 
-- **标签 Tag**：`HashSet<StringName>`，进入代码，用于筛选、计数、位置依赖和数值计算。
-- **词条 Keyword**：发动、回响、任务等文案语义，不建立独立执行引擎；实际行为由能力、条件和效果组合表达。
+Runtime 只修改卡牌实际支持的属性，修改效果不能凭写属性赋予新能力。每次真实变化点记录冻结状态；同 Tick 保持原记录顺序，EventCount 对应原日志前缀。BattleResult 包含永久变化与只读播放状态，GameCoordinator.ResolveBattleForPlayback 通过 MatchResultService.Apply 一次结算，不因播放方式重跑。UI 回放细节见 UI 规范。
 
-标签模块包含 `GameTags`、`TagSet`、`TagDisplayNames`，并从尺寸自动推导 Small / Medium / Large；未知标签显示原始 key。
+## 验证与审查
 
-## 6. 用例、命令与事件
+Main.tscn 保留分类/全部验证及 headless --verify。Presentation/Verification 中按领域职责划分规则检查和共享夹具，PhaseOneVerification 只组装列表和显示结果；场景集成仍在 Godot 中验证。
 
-应用层入口包括 `SelectHero`、`ChooseEncounter`、`BuyCard`、`SellCard`、`AcquireCard`、`MoveCard`、`StartBattle` 和 `AdvanceTurn`。
+重点覆盖不可变定义与实例隔离、CSV 一致性、Modifier 精确堆叠/移除、经济失败原子性、棋盘推挤与回滚、遭遇随机/历史、FIFO/回响、状态周期、日蚀/寂灭、永久变化与确定性回放。架构迁移保留既有验证，并比较固定输入的结果、事件顺序和冻结状态。
 
-- Command：请求操作，可能失败。
-- Result：操作的同步结果。
-- Domain Event：已经发生的事实。
-
-对局事件与战斗事件分别实现 `IMatchEvent` 和 `ICombatEvent`，互不转发。事件用于通知和被动触发，不代替有返回值的领域操作。
-
-## 7. 卡牌经济
-
-```mermaid
-flowchart LR
-    Buy["点击购买"] --> Claim["交互领取"]
-    Reward["点击奖励"] --> Claim
-    Auto["出售触发 / 事件即时生成"] --> Capacity["检查双棋盘空间"]
-    Claim --> Capacity
-    Capacity --> Acquire["AcquireCard"]
-    Acquire -->|"购买成功时按初始价值"| Pay["扣 Wealth"]
-    Acquire --> Create["创建 CardInstance"]
-    Create --> Half["Value = InitialValue × 0.5"]
-    Half --> Bonus["累加该等级的获得时价值加成"]
-    Bonus --> Owned["登记卡牌归属"]
-    Owned --> AutoPlace["优先放入战场区，否则放入备战区"]
-```
-
-- 所有获得来源统一进入 `AcquireCard`。
-- 购买与奖励由玩家点击领取；其他自动获得在产生时立即尝试获取。
-- 获取前先检查双棋盘空间；战场区优先、备战区其次，无空间则不创建实例。
-- 购买按初始价值全额扣款；出售按当前价值全额回补。
-- 等级配置可以声明获得时价值加成；该加成在统一折半后累加，不改变商店初始价格。
-- `RoundIncomeService` 以已结算轮次保证收入幂等；第1轮在创建对局后结算，后续轮在首次生成该轮遭遇候选前结算，避免第8回合战斗完成前提前发放。
-- `CardMergeDecision` 纯函数按 key、等级和 `EntityId` 选择合并目标；`CardEconomyService` 原子提交创建或升级结果，只有创建新实例才进入自动放置。
-- 出售奖励由卡牌携带通用奖励定义；随机卡牌奖励按标签和等级筛选，并使用对局随机状态确定性抽取。
-- 交易是原子事务，失败不得留下部分修改。
-
-## 8. 棋盘系统
-
-- `BoardState`：纯数据，只保存卡牌实例 ID、顺序、起始格和占用格。
-- `BoardPlacementSolver`：纯函数，评估直接放置、左推和右推。
-- `BoardService`：验证所有权，协调同盘/跨区操作并原子提交。
-
-求解器返回包含失败原因、方向、总距离、影响数量和完整移动列表的 `PlacementPlan`，不直接写棋盘。择优固定为：总距离短 → 影响卡牌少 → Right。评估前先释放拖拽卡原位，只有完整方案成功才提交。
-
-## 9. 遭遇排程
-
-```mermaid
-flowchart TD
-    Start["生成当前回合遭遇"] --> T4{"第 4 回合？"}
-    T4 -->|是| Monster["三个怪物遭遇"]
-    T4 -->|否| T8{"第 8 回合？"}
-    T8 -->|是| Pvp["固定 PvP 遭遇"]
-    T8 -->|否| Filter["按轮次范围过滤"]
-    Filter --> Weight["基础权重 × 未出现倍率"]
-    Weight --> Shop["保证至少一个商店"]
-    Shop --> Others["抽取其余不重复遭遇"]
-    Monster --> Choices["EncounterChoiceSet"]
-    Pvp --> Choices
-    Others --> Choices
-```
-
-`EncounterScheduler` 输入当前进度、遭遇定义、已出现 key 和显式随机源，输出不重复候选组。候选进入列表时立即记为“已出现”；未出现权重乘数为 2。普通回合三选一且至少一个商店，第 4 回合固定三个不同怪物遭遇，第 8 回合固定 PvP 遭遇。
-
-型号商店通过 `ShopEncounterDefinition.CardSize` 声明商品尺寸，并通过只读 `Level` 声明商店等级。`ShopCardPoolService` 使用当前英雄归属和该尺寸生成商品池，表现层只消费筛选结果，不自行拼接筛选条件；商店等级暂不改写卡牌定义的初始等级。
-
-正式 `MonsterDefinition` 会自动投影为怪物遭遇候选；选择后，对手工厂按定义创建独立战斗角色和卡牌实例。试玩入口允许内容扩充期少于三个怪物时展示全部现有怪物，正式排程仍要求三个不同怪物。
-
-## 10. 战斗边界
-
-### 10.1 BattleSetup
-
-不可变输入包含战斗类型、双方英雄、双方战场与备战卡牌快照、双方技能快照、战斗配置和随机种子。
-
-### 10.2 BattleRuntime
-
-Runtime 拥有时钟、双方战斗状态、能力队列、战斗事件分发器、事件日志和永久变化收集器。所有影响结算的集合必须使用稳定顺序，不能依赖 HashSet 或 Dictionary 的遍历顺序。
-
-### 10.3 BattleResult
-
-结果包含 Winner、EndReason、双方幸存者、PermanentChanges，并可附统计和日志。战斗模拟器不得直接修改 `MatchSession`。
-
-## 11. 战斗时钟与逻辑步
-
-规则时间使用整数 tick，配置负责将秒转换为 tick，并验证周期是逻辑步长的整数倍。时间推进层只累计时钟，规则只在逻辑 tick 执行。
-
-```mermaid
-flowchart TD
-    Tick["逻辑步开始"] --> Eclipse["1. 日蚀检查"]
-    Eclipse --> Extinction["2. 寂灭检查"]
-    Extinction -->|"到期"| Timeout["强制结束"]
-    Extinction -->|"未到期"| Cooldown["3. 冷却递减"]
-    Cooldown --> Active["4. 主动能力入队"]
-    Active --> Status["5. 英雄状态结算"]
-    Status --> Queue["6. 处理能力队列"]
-    Queue --> Death["7. 检查死亡"]
-    Death --> End["8. 检查结束"]
-    End -->|继续| Tick
-    End -->|结束| Result["BattleResult"]
-```
-
-## 12. 能力、效果与 Resolver
-
-`AbilityDefinition` 由 ActivationRule、TargetSelector、ManaCost、Cooldown 和 EffectDefinition 列表组成。卡牌组合通用能力，能力只读取已计算属性，不感知等级。
-
-卡牌与技能通过通用能力来源进入同一战斗处理流程。发布战斗开始事件后，0 tick 的战斗开始被动能力按稳定来源顺序入队并结算，然后才进入首个逻辑 tick。主动能力和回响也转换为 `PendingAbility` 并进入 FIFO 队列。Resolver 检查来源是否仍有效、主动能力的魔法是否充足；通过后扣除魔法、执行效果并发布事件。被动光环按当前战斗状态求值；卡牌光环来源离开战场或被摧毁后立即失效，技能来源不依赖棋盘位置。`PendingAbility.IsEcho` 标记回响来源；回响产生的事件不再触发其他回响。己方卡牌首次发动触发器只匹配来源方的主动卡牌发动，使用单场 `BattleAbilityState` 标记保证每个能力来源至多触发一次。英雄等级在 `BattleSetup` 中冻结，由通用等级系数伤害效果在结算时读取来源方英雄等级。事件记录来源类型与实例 ID。
-
-## 13. 数值刷新
-
-`FinalValue = CardBaseValue + Sum(Modifiers)`。
-
-- 基础值可依赖自身等级、标签、区域、位置和符合条件的卡牌数量。
-- 外部影响通过 Modifier 主动施加。
-- 禁止读取其他卡牌的最终数值。
-- 非战斗时，棋盘或标签变化后清理布局来源 Modifier、重算基础值并重新施加。
-- 战斗开始后使用快照，变化只留在 Runtime。
-- Runtime 按能力效果登记卡牌实际支持的战斗属性；属性修改效果必须先检查对应能力，不能通过写入属性为卡牌新增能力。
-- 多重保存在卡牌 Runtime 战斗属性中，正常发动时读取当前值并排入额外发动；额外发动不再次进入冷却，也不会递归生成更多多重次数。
-
-## 14. UI 与 Godot
-
-试玩入口 `MinimalPlaytest` 组装服务与控件，`MatchPresenter` 独占页面和当前对局/访问上下文，通过应用用例执行操作；统一 `RefreshView` 捕获完整 `MatchPageViewModel`，根节点仅按该模型 Render。`MatchSnapshot` 复制卡牌基础/当前属性、能力及任务；`MatchDisplayQuery` 提供商品展示、购买条件和套装阈值，查询不创建实例或消耗随机状态。`CardDisplayAdapter` 按通用效果语义生成卡面与详情，并按完整 `StringName` key 缓存原画。商店与事件旧批次操作由 Presenter 拒绝；播放和完整经济事务分别在 UI P5/P4 接入。
-
-
-- UI 读取不可变 Snapshot 或只读 ViewModel。
-- 拖拽、购买和选择遭遇转换为 Command。
-- UI 不持有可修改的领域集合。
-- 视觉资源由表现层按 key 加载。
-- 战斗动画消费 `BattleEventLog`，不得反向驱动规则。
-
-## 15. 代码目录（强制）
-
-```text
-scripts/
-├── Domain/
-│   ├── Common/         # Identity / Attributes / Tags / Random
-│   ├── Definitions/
-│   ├── Match/          # Economy / Board / Events
-│   └── Combat/         # State / Abilities / Effects / Events / Resolution
-├── Application/        # Match / Shop / Board / Combat 用例
-├── Infrastructure/     # Reflection / Persistence / Godot
-├── Presentation/       # HeroSelection / InMatch / Board / Combat
-└── Content/            # Heroes / Cards / Encounters
-```
-
-所有 C# 源文件及对应 `.cs.uid` 必须位于项目根目录的 `scripts/` 下。目录表达依赖边界，不要求为每个概念创建空目录或单文件；不得在项目根目录建立与 `scripts/Domain`、`scripts/Application` 等并列的代码目录。
-
-## 16. 测试边界
-
-验证统一通过 Godot 内的手动测试入口执行，至少覆盖定义反射与实例隔离、标签、Modifier、经济事务、棋盘推挤与回滚、遭遇排程、能力队列与连锁、状态周期、日蚀与寂灭、对局胜负、永久变化和确定性复算。
-
-## 17. 关键不变量
-
-1. 定义不可变，运行实例互相独立。
-2. 全局层不拥有本局玩家状态。
-3. 棋盘卡牌必须存在于本局卡池，同一实例只能位于一个区域。
-4. 失败的经济或棋盘操作不得产生部分修改。
-5. 战斗模拟器不能直接修改对局对象。
-6. 永久变化只能通过 BattleResult 回写。
-7. 战斗规则不读取渲染帧时间。
-8. 所有随机行为来自显式 seed 随机源。
-9. UI、动画和 Godot 信号不能决定战斗结果。
-10. 标签进入代码；词条仅描述能力系统表达的行为。
-
-## 18. 当前试玩 UI 组件
-
-`MinimalPlaytest` 组装服务并连接一次 `MatchPresenter` 与 `MatchShell`。`MatchShell.Render` 只接收 `MatchPageViewModel`，将同次快照分发给 HUD、中央子视图和共享棋盘；子视图通过选项、报价版本、固定操作或区域格位事件返回意图，入口再调用协调器。
-
-`ContextHost` 在英雄选择、遭遇选择、商店、事件、敌方棋盘和结果之间互斥切换。英雄、遭遇、事件三个带 key 的选项页复用 `KeyedActionView`，商店独立保留报价版本；结果展示不结算战斗。主骨架负责共同列宽，组件负责自己的内部布局，`Resized` 不取得业务数据。
-
-`BoardZoneView` 按 `EntityId` 复用独立 `CardItemView`；外层处理输入，`CardFace` 装饰忽略鼠标。`CardDetailsView` 位于浮层且按视口限位，刷新时关闭旧详情。场景退出解除跨组件连接，动态按钮替换前解除订阅。`ComponentShowcase.tscn` 是只读组件检查入口，其长名示例仅修改展示快照。
-### 棋盘预览与输入
-
-`BoardService.PreviewPlaceCard` 只读取当前对局并返回完整只读 `BoardPlacementResult.Moves`。提交重新计算当前棋盘，不信任旧预览；推挤与任务/套装重算仍由 `PlaceCard` 执行。`MatchPresenter.PreviewMove` 不刷新页面，`MoveCard` 校验对局身份与页面权限后提交一次并统一刷新。
-
-拖拽载荷仅有MatchId、EntityId、抓取格偏移与占格数，不包含可变卡牌。BoardZoneView负责目标坐标换算与预览浮层，卡牌节点保持在原位；成功刷新后按新快照对齐。取消、失败、只读区域和旧对局载荷不修改棋盘。输入绑定、预览浮层与轮廓都属于表现层。
-
-### 构筑交易与二级入口
-
-`CardEconomyService.BuyAndPlace` 与 `AcquireAndPlace` 统一完整获得流程：先检查余额、售罄、合并计划与棋盘位置（包括消耗卡牌释放的占格），再同步获得/合并与放置；购买最后扣款、标记售罄。`SellFromBoard` 在移除之前检查最终价值、回补溢出和奖励依赖，按预检现值一次移除/回补/执行原有出售奖励。原游离库存BuyCard/SellCard入口仍供既有调用者使用，试玩不再编排分步交易。
-
-`ShopView` 使用CardItemView，报价与持有价值分别展示，报价批次防止旧商品操作新商店。`CardDetailsView` 的选中操作携带对局身份、卡牌、等级与金额，协调器重新核对后提交出售。`HeroDetailsView` 由左下英雄区打开，显示同次快照的技能、套装阈值或奖励；卡牌任务仍在详情。奖励索引和列表版本只标识当前操作上下文，MonsterRewardClaimService按成功结果删除对应待领项，失败完整保留。浮层领取后保持打开并读取最新反馈，重开关闭；不新增对局状态。`ResultView` 默认显示结算摘要，日志按需展开，不再次结算。
+审查时检查状态所有者、Match/Battle 生命周期、事务失败路径、随机/时间/遍历顺序、跨层写入、能力复用、快照隔离和实际扩展收益。BUG 登记及提交约定见 AGENTS 与开发约定。

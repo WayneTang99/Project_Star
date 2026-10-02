@@ -7,7 +7,6 @@ using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
-using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Random;
 
 namespace Project_Star.Application.Encounters;
@@ -19,10 +18,10 @@ public sealed class EncounterScheduler
     private static readonly StringName MissingSpecial = new("encounter.missing_special");
     private static readonly StringName InvalidChoice = new("encounter.invalid_choice");
 
-    private readonly DefinitionRegistry _registry;
+    private readonly IDefinitionCatalog _registry;
     private readonly bool _allowIncompleteMonsterChoices;
 
-    public EncounterScheduler(DefinitionRegistry registry, bool allowIncompleteMonsterChoices = false)
+    public EncounterScheduler(IDefinitionCatalog registry, bool allowIncompleteMonsterChoices = false)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _allowIncompleteMonsterChoices = allowIncompleteMonsterChoices;

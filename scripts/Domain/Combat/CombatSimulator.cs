@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
-// 战斗领域的确定性结算器，记录能力、状态、日蚀与只读播放快照。
+// 确定性战斗入口：固定 Tick 顺序、FIFO 发动与终止判定（领域战斗层）。
 public sealed class CombatSimulator
 {
     // 只计算一次战斗，结果包含原始日志和对应时间点的冻结状态。
@@ -14,7 +14,7 @@ public sealed class CombatSimulator
     {
         ArgumentNullException.ThrowIfNull(setup);
         var runtime = new BattleRuntime(setup);
-        CaptureState(runtime);
+        BattleStateRecorder.CaptureState(runtime);
         runtime.Events.Add(new BattleStartedEvent(runtime.Tick));
         EnqueueBattleStartAbilities(runtime);
         ResolveQueue(runtime);
@@ -23,11 +23,11 @@ public sealed class CombatSimulator
         while (runtime.Tick.Value < setup.Timeout.Value)
         {
             runtime.Tick += new BattleTick(1);
-            ApplyEclipse(runtime, setup);
-            AdvanceCooldowns(runtime);
+            BattleStatusResolver.ApplyEclipse(runtime, setup);
+            BattleStatusResolver.AdvanceCooldowns(runtime);
             EnqueueReadyActives(runtime);
-            SettleHeroStatuses(runtime);
-            CaptureState(runtime);
+            BattleStatusResolver.SettleHeroStatuses(runtime);
+            BattleStateRecorder.CaptureState(runtime);
             ResolveQueue(runtime);
             var result = TryCreateDefeatResult(runtime);
             if (result is not null) return result;
@@ -35,7 +35,7 @@ public sealed class CombatSimulator
 
         runtime.PlayerHero.Health = 0;
         runtime.OpponentHero.Health = 0;
-        return CreateResult(runtime, BattleOutcome.PlayerVictory, BattleEndReason.Extinction);
+        return BattleStateRecorder.CreateResult(runtime, BattleOutcome.PlayerVictory, BattleEndReason.Extinction);
     }
 
     private static void EnqueueBattleStartAbilities(BattleRuntime runtime)
@@ -46,25 +46,6 @@ public sealed class CombatSimulator
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.PassiveOnBattleStart)
                 Enqueue(runtime, source, ability, false);
-        }
-    }
-
-    private static void AdvanceCooldowns(BattleRuntime runtime)
-    {
-        foreach (var card in runtime.Cards)
-        {
-            if (card.Destroyed) continue;
-            var speed = card.ImmobilizeDuration > 0 ? 0
-                : card.HasteDuration > 0 && card.SlowDuration == 0 ? 4
-                : card.SlowDuration > 0 && card.HasteDuration == 0 ? 1 : 2;
-            foreach (var ability in card.Abilities)
-            {
-                if (ability.Definition.Activation == AbilityActivation.Active)
-                    ability.RemainingCooldownUnits = Math.Max(0, ability.RemainingCooldownUnits - speed);
-            }
-            card.HasteDuration = Math.Max(0, card.HasteDuration - 1);
-            card.SlowDuration = Math.Max(0, card.SlowDuration - 1);
-            card.ImmobilizeDuration = Math.Max(0, card.ImmobilizeDuration - 1);
         }
     }
 
@@ -79,7 +60,8 @@ public sealed class CombatSimulator
         }
     }
 
-    private static void Enqueue(
+    // 将发动追加到 FIFO，并按原顺序记录排队事件。
+    internal static void Enqueue(
         BattleRuntime runtime,
         IBattleAbilitySource card,
         BattleAbilityState ability,
@@ -91,7 +73,7 @@ public sealed class CombatSimulator
             runtime.Tick,
             card.EntityId,
             card.Side,
-            GetAbilitySourceKind(card)));
+            BattleEffectResolver.GetAbilitySourceKind(card)));
     }
 
     private static void ResolveQueue(BattleRuntime runtime)
@@ -118,41 +100,19 @@ public sealed class CombatSimulator
                 pending.Source.EntityId,
                 pending.Source.Side,
                 pending.IsEcho,
-                GetAbilitySourceKind(pending.Source)));
-            CaptureState(runtime);
+                BattleEffectResolver.GetAbilitySourceKind(pending.Source)));
+            BattleStateRecorder.CaptureState(runtime);
             if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
-                for (var repeat = 0; repeat < GetEffectiveMulticast(runtime, cardSource); repeat++)
+                for (var repeat = 0; repeat < BattleEffectResolver.GetEffectiveMulticast(runtime, cardSource); repeat++)
                     Enqueue(runtime, cardSource, pending.Ability, false, true);
             foreach (var effect in definition.Effects)
             {
-                ApplyEffect(runtime, pending, effect);
-                CaptureState(runtime);
+                BattleEffectResolver.ApplyEffect(runtime, pending, effect);
+                BattleStateRecorder.CaptureState(runtime);
             }
             if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
         }
-    }
-
-    private static int GetEffectiveMulticast(BattleRuntime runtime, CardBattleState card)
-    {
-        var multicast = card.GetCombatAttribute(GameAttributeKeys.Multicast);
-        foreach (var source in runtime.AbilitySources)
-        {
-            if (source.Side != card.Side || source.Destroyed || source.IsOnBench) continue;
-            foreach (var ability in source.Abilities)
-            {
-                if (ability.Definition.Activation != AbilityActivation.PassiveAura) continue;
-                foreach (var effect in ability.Definition.Effects)
-                {
-                    if (effect is GrantMulticastToAlliedElementCardsEffectDefinition aura
-                        && card.ElementKeys.Contains(aura.ElementKey))
-                    {
-                        multicast = checked(multicast + aura.Amount);
-                    }
-                }
-            }
-        }
-        return multicast;
     }
 
     private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin)
@@ -176,398 +136,8 @@ public sealed class CombatSimulator
         }
     }
 
-    private static void ApplyEffect(BattleRuntime runtime, PendingAbility pending, EffectDefinition effect)
-    {
-        var definition = pending.Ability.Definition;
-        var targetSide = definition.Target == AbilityTarget.EnemyHero
-            ? Opposite(pending.Source.Side) : pending.Source.Side;
-        var hero = runtime.GetHero(targetSide);
-        switch (effect)
-        {
-            case DamageEffectDefinition damage:
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor,
-                    GetDamageSourceKind(pending.Source));
-                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
-                break;
-            case SourceHeroLevelScaledDamageEffectDefinition levelDamage:
-                var sourceLevel = runtime.GetHero(pending.Source.Side).Level;
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero,
-                    checked(sourceLevel * levelDamage.Multiplier), levelDamage.BypassArmor,
-                    GetDamageSourceKind(pending.Source));
-                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
-                break;
-            case MaxHealthPercentDamageEffectDefinition percentDamage:
-                var amount = checked((int)((long)hero.MaxHealth * percentDamage.Percent / 100));
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor,
-                    GetDamageSourceKind(pending.Source));
-                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
-                break;
-            case AttributeDamageEffectDefinition attributeDamage:
-                ApplyDamage(
-                    runtime,
-                    pending.Source.EntityId,
-                    targetSide,
-                    hero,
-                    GetEffectiveCombatAttribute(runtime, pending.Source, attributeDamage.AttributeKey),
-                    attributeDamage.BypassArmor,
-                    GetDamageSourceKind(pending.Source));
-                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
-                break;
-            case SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage:
-                var healthSourceHero = runtime.GetHero(pending.Source.Side);
-                var scaledAmount = checked((int)((long)GetEffectiveCombatAttribute(
-                    runtime, pending.Source, scaledDamage.AttributeKey) * healthSourceHero.Health / healthSourceHero.MaxHealth));
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, scaledAmount,
-                    scaledDamage.BypassArmor,
-                    GetDamageSourceKind(pending.Source));
-                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
-                break;
-            case SourceHeroArmorDamageEffectDefinition heroArmorDamage:
-                var armorSourceHero = runtime.GetHero(pending.Source.Side);
-                var bonusDamage = heroArmorDamage.BonusAttributeKey is not { IsEmpty: false } bonusAttributeKey
-                    ? 0
-                    : GetEffectiveCombatAttribute(runtime, pending.Source, bonusAttributeKey);
-                ApplyDamage(
-                    runtime,
-                    pending.Source.EntityId,
-                    targetSide,
-                    hero,
-                    checked(armorSourceHero.Armor + bonusDamage),
-                    heroArmorDamage.BypassArmor,
-                    GetDamageSourceKind(pending.Source));
-                if (!pending.IsEcho) EnqueueDamageEchoes(runtime);
-                break;
-            case HealEffectDefinition heal:
-                hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
-                break;
-            case ArmorEffectDefinition armor:
-                hero.Armor = checked(hero.Armor + armor.Amount);
-                break;
-            case GainSourceHeroArmorEffectDefinition sourceArmor:
-                var alliedHero = runtime.GetHero(pending.Source.Side);
-                alliedHero.Armor = checked(alliedHero.Armor + sourceArmor.Amount);
-                break;
-            case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
-                var armorTarget = runtime.GetHero(pending.Source.Side);
-                armorTarget.Armor = checked(
-                    armorTarget.Armor + pending.Source.GetCombatAttribute(attributeArmor.AttributeKey));
-                break;
-            case GainArmorEqualToManaSpentEffectDefinition:
-                var sourceHero = runtime.GetHero(pending.Source.Side);
-                sourceHero.Armor = checked(sourceHero.Armor + sourceHero.ManaSpent);
-                break;
-            case ApplyStatusEffectDefinition status:
-                ApplyStatus(pending.Source, hero, status);
-                runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, status.Amount));
-                if (pending.Source is CardBattleState statusCard)
-                    ApplyAdjacentStatusReactions(runtime, statusCard, status.Status);
-                break;
-            case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
-                if (pending.Source is not CardBattleState adjacentSource)
-                    throw new InvalidOperationException("Adjacent card effects require a card source.");
-                ApplyStatusToAdjacentAlliedCards(runtime, adjacentSource, adjacent);
-                break;
-            case ChargeRandomOtherAlliedElementCardEffectDefinition charge:
-                if (pending.Source is not CardBattleState chargeSource)
-                    throw new InvalidOperationException("Random card charge requires a card source.");
-                ChargeRandomOtherAlliedElementCard(runtime, chargeSource, charge);
-                break;
-            case DestroyCardEffectDefinition destroy:
-                if (pending.Source is not CardBattleState destroySource)
-                    throw new InvalidOperationException("Self-destruction requires a card source.");
-                DestroyCard(runtime, destroySource, pending.Source.EntityId, destroy.Permanent);
-                break;
-            case DestroyRandomEnemyCardEffectDefinition randomDestroy:
-                DestroyRandomEnemyCard(runtime, pending.Source, randomDestroy);
-                break;
-            case IncreaseSourceCooldownEffectDefinition cooldown:
-                if (!cooldown.FirstActivationOnly || pending.Source.ActivationCount == 0)
-                {
-                    pending.Source.CooldownBonusTicks = checked(
-                        pending.Source.CooldownBonusTicks + cooldown.AmountTicks);
-                    foreach (var ability in pending.Source.Abilities)
-                    {
-                        if (ability.Definition.Activation == AbilityActivation.Active)
-                            ability.RemainingCooldownUnits = checked(
-                                ability.RemainingCooldownUnits + cooldown.AmountTicks * 2);
-                    }
-                }
-                break;
-            case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
-                foreach (var card in runtime.Cards)
-                {
-                    if (card.Side != pending.Source.Side || card.Destroyed || card.IsOnBench
-                        || !card.Tags.Contains(modifier.RequiredTag)
-                        || !card.SupportsCombatAttribute(modifier.AttributeKey))
-                    {
-                        continue;
-                    }
-                    var currentValue = card.AddCombatAttribute(modifier.AttributeKey, modifier.Amount);
-                    runtime.Events.Add(new CardAttributeChangedEvent(
-                        runtime.Tick,
-                        card.EntityId,
-                        modifier.AttributeKey,
-                        modifier.Amount,
-                        currentValue));
-                }
-                break;
-        }
-    }
-
-    private static int GetEffectiveCombatAttribute(BattleRuntime runtime, IBattleAbilitySource source, StringName key)
-    {
-        var value = source.GetCombatAttribute(key);
-        foreach (var ability in source.Abilities)
-        foreach (var effect in ability.Definition.Effects)
-        {
-            if (ability.Definition.Activation != AbilityActivation.PassiveAura
-                || effect is not MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition multiplier
-                || multiplier.AttributeKey != key)
-            {
-                continue;
-            }
-            foreach (var card in runtime.Cards)
-            {
-                if (card.Destroyed && ContainsAnyTag(card, multiplier.RequiredAnyTags))
-                    value = checked(value * multiplier.Multiplier);
-            }
-        }
-        foreach (var ability in source.Abilities)
-        foreach (var effect in ability.Definition.Effects)
-        {
-            if (ability.Definition.Activation != AbilityActivation.PassiveAura
-                || effect is not IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition increase
-                || increase.AttributeKey != key)
-            {
-                continue;
-            }
-            foreach (var card in runtime.Cards)
-            {
-                if (card.Side != source.Side && !card.Destroyed && !card.IsOnBench
-                    && HasEffectiveTag(runtime, card, increase.RequiredTag))
-                {
-                    value = checked(value + increase.Amount);
-                }
-            }
-        }
-        return value;
-    }
-
-    private static AbilitySourceKind GetAbilitySourceKind(IBattleAbilitySource source) => source switch
-    {
-        SkillBattleState => AbilitySourceKind.Skill,
-        CardSetBattleState => AbilitySourceKind.CardSet,
-        _ => AbilitySourceKind.Card,
-    };
-
-    private static DamageSourceKind GetDamageSourceKind(IBattleAbilitySource source) => source switch
-    {
-        SkillBattleState => DamageSourceKind.Skill,
-        CardSetBattleState => DamageSourceKind.CardSet,
-        _ => DamageSourceKind.Card,
-    };
-
-    private static void DestroyRandomEnemyCard(
-        BattleRuntime runtime,
-        IBattleAbilitySource source,
-        DestroyRandomEnemyCardEffectDefinition effect)
-    {
-        var candidates = new System.Collections.Generic.List<CardBattleState>();
-        foreach (var card in runtime.Cards)
-        {
-            if (card.Side == source.Side || card.Destroyed || card.IsOnBench
-                || !effect.AllowedSizes.Contains((CardSize)card.OccupiedSlots)
-                || !ContainsAnyEffectiveTag(runtime, card, effect.RequiredAnyTags))
-            {
-                continue;
-            }
-            candidates.Add(card);
-        }
-        if (candidates.Count == 0) return;
-        DestroyCard(runtime, candidates[runtime.NextRandomIndex(candidates.Count)], source.EntityId, effect.Permanent);
-    }
-
-    private static void ChargeRandomOtherAlliedElementCard(
-        BattleRuntime runtime,
-        CardBattleState source,
-        ChargeRandomOtherAlliedElementCardEffectDefinition effect)
-    {
-        var candidates = new System.Collections.Generic.List<CardBattleState>();
-        foreach (var card in runtime.Cards)
-        {
-            if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench
-                || !card.ElementKeys.Contains(effect.ElementKey)
-                || !card.Abilities.Any(ability =>
-                    ability.Definition.Activation == AbilityActivation.Active
-                    && ability.RemainingCooldownUnits > 0))
-            {
-                continue;
-            }
-            candidates.Add(card);
-        }
-        if (candidates.Count == 0) return;
-        var target = candidates[runtime.NextRandomIndex(candidates.Count)];
-        foreach (var ability in target.Abilities)
-        {
-            if (ability.Definition.Activation != AbilityActivation.Active
-                || ability.RemainingCooldownUnits == 0)
-            {
-                continue;
-            }
-            ability.RemainingCooldownUnits = Math.Max(
-                0,
-                ability.RemainingCooldownUnits - effect.AmountTicks * 2);
-            if (ability.RemainingCooldownUnits == 0)
-                Enqueue(runtime, target, ability, false);
-        }
-        runtime.Events.Add(new CardChargedEvent(
-            runtime.Tick,
-            source.EntityId,
-            target.EntityId,
-            effect.AmountTicks));
-    }
-
-    private static bool ContainsAnyTag(CardBattleState card, System.Collections.Generic.IReadOnlyList<StringName> tags)
-    {
-        foreach (var tag in tags)
-            if (card.Destroyed ? card.DestroyedTags.Contains(tag) : card.Tags.Contains(tag)) return true;
-        return false;
-    }
-
-    private static bool ContainsAnyEffectiveTag(
-        BattleRuntime runtime,
-        CardBattleState card,
-        System.Collections.Generic.IReadOnlyList<StringName> tags)
-    {
-        foreach (var tag in tags)
-            if (HasEffectiveTag(runtime, card, tag)) return true;
-        return false;
-    }
-
-    private static bool HasEffectiveTag(BattleRuntime runtime, CardBattleState card, StringName tag)
-    {
-        if (card.Destroyed) return card.DestroyedTags.Contains(tag);
-        if (card.Tags.Contains(tag)) return true;
-        foreach (var source in runtime.AbilitySources)
-        {
-            if (source.Side == card.Side || source.Destroyed || source.IsOnBench) continue;
-            foreach (var ability in source.Abilities)
-            foreach (var effect in ability.Definition.Effects)
-            {
-                if (ability.Definition.Activation == AbilityActivation.PassiveAura
-                    && effect is GrantTagToEnemySizeCardsEffectDefinition aura
-                    && aura.Tag == tag
-                    && (int)aura.Size == card.OccupiedSlots)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent)
-    {
-        if (target.Destroyed) return;
-        foreach (var tag in target.Tags) target.DestroyedTags.Add(tag);
-        foreach (var source in runtime.AbilitySources)
-        {
-            if (source.Side == target.Side || source.Destroyed || source.IsOnBench) continue;
-            foreach (var ability in source.Abilities)
-            foreach (var effect in ability.Definition.Effects)
-            {
-                if (ability.Definition.Activation == AbilityActivation.PassiveAura
-                    && effect is GrantTagToEnemySizeCardsEffectDefinition aura
-                    && (int)aura.Size == target.OccupiedSlots)
-                {
-                    target.DestroyedTags.Add(aura.Tag);
-                }
-            }
-        }
-        target.Destroyed = true;
-        runtime.Events.Add(new CardDestroyedEvent(runtime.Tick, target.EntityId, target.Side, sourceId));
-        if (permanent) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
-    }
-
-    private static void ApplyStatus(IBattleAbilitySource source, HeroBattleState hero, ApplyStatusEffectDefinition effect)
-    {
-        switch (effect.Status)
-        {
-            case BattleStatus.Burn: hero.Burn = checked(hero.Burn + effect.Amount); break;
-            case BattleStatus.Poison: hero.Poison = checked(hero.Poison + effect.Amount); break;
-            case BattleStatus.HealthRegen: hero.HealthRegen = checked(hero.HealthRegen + effect.Amount); break;
-            case BattleStatus.ManaRegen: hero.ManaRegen = checked(hero.ManaRegen + effect.Amount); break;
-            case BattleStatus.HasteDuration when source is CardBattleState card:
-                card.HasteDuration = checked(card.HasteDuration + effect.Amount); break;
-            case BattleStatus.SlowDuration when source is CardBattleState card:
-                card.SlowDuration = checked(card.SlowDuration + effect.Amount); break;
-            case BattleStatus.ImmobilizeDuration when source is CardBattleState card:
-                card.ImmobilizeDuration = checked(card.ImmobilizeDuration + effect.Amount); break;
-            case BattleStatus.HasteDuration or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration:
-                throw new InvalidOperationException("Card status requires a card source.");
-        }
-    }
-
-    private static void ApplyStatusToAdjacentAlliedCards(
-        BattleRuntime runtime,
-        CardBattleState source,
-        ApplyStatusToAdjacentAlliedCardsEffectDefinition effect)
-    {
-        var sourceEnd = source.BoardStart + source.OccupiedSlots;
-        foreach (var card in runtime.Cards)
-        {
-            if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench)
-                continue;
-            var cardEnd = card.BoardStart + card.OccupiedSlots;
-            if (cardEnd != source.BoardStart && card.BoardStart != sourceEnd)
-                continue;
-            var amount = card.Tags.Contains(effect.BonusTag)
-                ? checked(effect.Amount * effect.BonusMultiplier)
-                : effect.Amount;
-            ApplyStatus(card, runtime.GetHero(card.Side), new ApplyStatusEffectDefinition(effect.Status, amount));
-            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, amount));
-            ApplyAdjacentStatusReactions(runtime, card, effect.Status);
-        }
-    }
-
-    private static void ApplyAdjacentStatusReactions(
-        BattleRuntime runtime,
-        CardBattleState target,
-        BattleStatus status)
-    {
-        foreach (var source in runtime.Cards)
-        {
-            if (source.Side != target.Side || source.EntityId == target.EntityId
-                || source.Destroyed || source.IsOnBench)
-            {
-                continue;
-            }
-            var sourceEnd = source.BoardStart + source.OccupiedSlots;
-            var targetEnd = target.BoardStart + target.OccupiedSlots;
-            if (targetEnd != source.BoardStart && target.BoardStart != sourceEnd) continue;
-            foreach (var ability in source.Abilities)
-            foreach (var effect in ability.Definition.Effects)
-            {
-                if (ability.Definition.Activation != AbilityActivation.PassiveAura
-                    || effect is not ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition reaction
-                    || reaction.Status != status
-                    || !target.Tags.Contains(reaction.RequiredTag)
-                    || !target.SupportsCombatAttribute(reaction.AttributeKey))
-                {
-                    continue;
-                }
-                var currentValue = target.AddCombatAttribute(reaction.AttributeKey, reaction.Amount);
-                runtime.Events.Add(new CardAttributeChangedEvent(
-                    runtime.Tick,
-                    target.EntityId,
-                    reaction.AttributeKey,
-                    reaction.Amount,
-                    currentValue));
-            }
-        }
-    }
-
-    private static void EnqueueDamageEchoes(BattleRuntime runtime)
+    // 在非回响伤害发生后按稳定能力来源顺序排入回响。
+    internal static void EnqueueDamageEchoes(BattleRuntime runtime)
     {
         foreach (var source in runtime.AbilitySources)
         foreach (var ability in source.Abilities)
@@ -578,96 +148,15 @@ public sealed class CombatSimulator
         }
     }
 
-    private static void SettleHeroStatuses(BattleRuntime runtime)
-    {
-        SettleHero(runtime, SideId.Player, runtime.PlayerHero);
-        CaptureState(runtime);
-        SettleHero(runtime, SideId.Opponent, runtime.OpponentHero);
-        CaptureState(runtime);
-    }
-
-    private static void SettleHero(BattleRuntime runtime, SideId side, HeroBattleState hero)
-    {
-        if (runtime.Tick.Value % 10 == 0)
-        {
-            if (hero.Burn > 0) ApplyDamage(runtime, hero.EntityId, side, hero, hero.Burn, false, DamageSourceKind.Status);
-            if (hero.Poison > 0) ApplyDamage(runtime, hero.EntityId, side, hero, hero.Poison, true, DamageSourceKind.Status);
-            hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + hero.HealthRegen));
-            hero.Mana = Math.Min(hero.MaxMana, checked(hero.Mana + hero.ManaRegen));
-            hero.Poison /= 2;
-        }
-        if (runtime.Tick.Value % 2 == 0) hero.Burn = Math.Max(0, hero.Burn - 1);
-    }
-
-    private static void ApplyEclipse(BattleRuntime runtime, BattleSetup setup)
-    {
-        if (runtime.Tick.Value < setup.EclipseTime.Value || runtime.Tick.Value % 10 != 0) return;
-        var seconds = (runtime.Tick.Value - setup.EclipseTime.Value) / 10;
-        var damage = 1 << (int)Math.Min(seconds, 30);
-        ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero, damage, true, DamageSourceKind.Eclipse);
-        ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero, damage, true, DamageSourceKind.Eclipse);
-    }
-
-    private static void ApplyDamage(
-        BattleRuntime runtime,
-        EntityId source,
-        SideId targetSide,
-        HeroBattleState target,
-        int amount,
-        bool bypassArmor,
-        DamageSourceKind sourceKind = DamageSourceKind.Card)
-    {
-        var absorbed = bypassArmor ? 0 : Math.Min(target.Armor, amount);
-        target.Armor -= absorbed;
-        var healthDamage = amount - absorbed;
-        target.Health = Math.Max(0, target.Health - healthDamage);
-        runtime.Events.Add(new DamageDealtEvent(
-            runtime.Tick,
-            source,
-            targetSide,
-            amount,
-            absorbed,
-            healthDamage,
-            target.Health,
-            sourceKind));
-        CaptureState(runtime);
-    }
-
     private static BattleResult? TryCreateDefeatResult(BattleRuntime runtime)
     {
         var player = runtime.PlayerHero.Health <= 0; var opponent = runtime.OpponentHero.Health <= 0;
         if (!player && !opponent) return null;
         if (player) runtime.Events.Add(new HeroDefeatedEvent(runtime.Tick, SideId.Player));
         if (opponent) runtime.Events.Add(new HeroDefeatedEvent(runtime.Tick, SideId.Opponent));
-        if (player && opponent) return CreateResult(runtime, BattleOutcome.PlayerVictory, BattleEndReason.SimultaneousDefeat);
-        return CreateResult(runtime, opponent ? BattleOutcome.PlayerVictory : BattleOutcome.OpponentVictory, BattleEndReason.HeroDefeated);
+        if (player && opponent) return BattleStateRecorder.CreateResult(runtime, BattleOutcome.PlayerVictory, BattleEndReason.SimultaneousDefeat);
+        return BattleStateRecorder.CreateResult(runtime, opponent ? BattleOutcome.PlayerVictory : BattleOutcome.OpponentVictory, BattleEndReason.HeroDefeated);
     }
 
-    private static BattleResult CreateResult(BattleRuntime runtime, BattleOutcome outcome, BattleEndReason reason)
-    {
-        runtime.Events.Add(new BattleEndedEvent(runtime.Tick, reason));
-        CaptureState(runtime);
-        return new BattleResult(outcome, reason, runtime.Tick, runtime.PlayerHero.Health, runtime.OpponentHero.Health,
-            runtime.Events.AsReadOnly(), runtime.PermanentChanges.AsReadOnly(), runtime.States.AsReadOnly());
-    }
 
-    // 只记录战斗层已经计算出的结果，不推进冷却、随机数或任何玩法状态。
-    private static void CaptureState(BattleRuntime runtime)
-    {
-        var cards = runtime.Cards.Select(card => new CardBattleSnapshot(card.EntityId, card.Side, card.Destroyed,
-            card.HasteDuration, card.SlowDuration, card.ImmobilizeDuration,
-            Array.AsReadOnly(card.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.Active)
-                .Select(ability => ability.RemainingCooldownUnits).ToArray()),
-            new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(card.CombatAttributes.Keys
-                .ToDictionary(key => key, key => key == GameAttributeKeys.Multicast
-                    ? GetEffectiveMulticast(runtime, card) : GetEffectiveCombatAttribute(runtime, card, key))))).ToArray();
-        runtime.States.Add(new BattleStateSnapshot(runtime.Tick, runtime.Events.Count,
-            runtime.Tick.Value >= runtime.EclipseTime.Value, Hero(runtime.PlayerHero), Hero(runtime.OpponentHero),
-            Array.AsReadOnly(cards)));
-
-        static HeroBattleSnapshot Hero(HeroBattleState hero) => new(hero.Health, hero.MaxHealth, hero.Armor,
-            hero.Mana, hero.MaxMana, hero.Burn, hero.Poison, hero.HealthRegen, hero.ManaRegen);
-    }
-
-    private static SideId Opposite(SideId side) => side == SideId.Player ? SideId.Opponent : SideId.Player;
 }

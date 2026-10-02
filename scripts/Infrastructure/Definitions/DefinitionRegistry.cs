@@ -8,7 +8,7 @@ using Project_Star.Domain.Match;
 namespace Project_Star.Infrastructure.Definitions;
 
 /// <summary>Discovers immutable content definitions and validates their cross-references.</summary>
-public sealed class DefinitionRegistry
+public sealed class DefinitionRegistry : IDefinitionCatalog
 {
     private DefinitionRegistry(
         Dictionary<StringName, HeroDefinition> heroes,

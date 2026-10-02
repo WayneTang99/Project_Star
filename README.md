@@ -21,16 +21,13 @@
 - **8 回合为 1 轮**，每轮**最后一回合（第 8 回合）固定为异步玩家对战遭遇**。
 - 玩家对战遭遇与怪物遭遇点击后**进入战斗**，战斗使用**战场区卡牌**自动进行。
 
-## 详细需求
+## 开发入口
 
-游戏设计规则见 `docs/design/GAME_DESIGN.md`，架构实现见 `docs/engineering/ARCHITECTURE.md`，术语定义见 `docs/design/GLOSSARY.md`。
+- Playtest.tscn：默认试玩入口。
+- Main.tscn：规则分类验证，支持 headless --verify。
+- scripts/Presentation/CardFace/CardFaceShowcase.tscn：三尺寸卡面展示。
+- scripts/Presentation/Playtest/ComponentShowcase.tscn：组件与全卡池展示。
 
-## 项目文件
+构建：`dotnet build Project_Star.csproj`。文档职责与规则入口统一见 [AGENTS.md](AGENTS.md)；当前工作见 [实施计划](docs/planning/IMPLEMENTATION_PLAN.md)，验证步骤见 [验收清单](docs/quality/MANUAL_ACCEPTANCE.md)。
 
-- `README.md` — 本文件，项目概览（人看）
-- `AGENTS.md` — AI 代理入口：行为准则、硬约束、文档导航
-- `docs/design/` — 游戏规则、卡牌/技能/遭遇/英雄数据、术语
-- `docs/engineering/` — 架构、设计原则、开发约定
-- `docs/planning/` — 实现与内容扩充计划
-- `docs/quality/` — 人工验收与 BUG 记录
-- `ref/` — 只读设计参考区；仅供人工查看，不参与构建或打包，项目不得引用其中资源
+源码在 scripts/ 五层目录；运行资源在 art/；本地日志与草稿在忽略的 output/；参考区仅供设计时人工查看，不作为项目依赖。

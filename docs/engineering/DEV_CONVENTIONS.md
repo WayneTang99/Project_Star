@@ -27,17 +27,12 @@ Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时
 - **注释语言**：一律使用中文，术语引用 `docs/design/GLOSSARY.md` 中的英文名（如 `StringName` / `ApplyModifier`）。
 - **格式**：保持简洁，单行 `//` 注释为主，不展开长段说明。
 
-## 项目约束
+## 工具与产物约定
 
-- ✅ 所有 C# 源文件及对应 `.cs.uid` 统一放在项目根目录的 `scripts/` 下，并按 `Domain`、`Application`、`Infrastructure`、`Presentation`、`Content` 分层
-- ❌ 不得在项目根目录建立与 `scripts/` 内分层并列的代码目录
-- ❌ 不要直接修改 `.godot/` 文件夹内容
-- ❌ 不要提交 `export_presets.cfg` 到仓库（除非需要）
-- ❌ `ref/` 是参考区，仅允许新增、修改、删除、移动和重命名文档文件；不得修改其他类型的文件
-- ❌ 不得从代码、场景、资源、配置或项目文档链接引用 `ref/` 内文件
-- ❌ 不得将 `ref/` 加入 `.csproj`、`project.godot`、Godot 导入链、构建流程、导出配置或发布包
-- ❌ 不得在 `ref/` 内生成 `.gdignore`、`.import`、缓存、缩略图或其他辅助文件
-- ✅ 设计阶段可以在不修改文件的前提下人工查看 `ref/`，仅将其作为视觉和文档参考
-- ✅ .NET SDK 版本必须 ≥ 8.0
-- ✅ 确保 `.gitignore` 包含 `bin/` 和 `obj/` 目录
-- ✅ 正式内容 CSV 的 `.csv.import` 使用 `importer="keep"`（保留原文件），不作为翻译表导入，不维护自动生成的 `.translation` 产物。此模式保留原始 CSV 供 `FileAccess` 读取；参见 [Godot FileAccess 文档](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#description)。
+项目硬约束见 [AGENTS](../../AGENTS.md)，不在此复制。
+
+- 不直接修改 `.godot/`；导入/构建由工具管理缓存。
+- .NET SDK ≥ 8.0；bin/、obj/ 和 output/ 不提交。
+- output/ 保存日志、截图临时输出与生成草稿，并用 .gdignore 隔离导入；验收所需代表截图位于 docs/quality/。
+- 正式内容 CSV 使用 keep 导入模式，保留原文件供 FileAccess 读取，不维护自动生成的翻译产物。
+- 默认不提交 export_presets.cfg；需要版本管理导出配置时按任务范围决定。

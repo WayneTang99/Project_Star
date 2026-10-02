@@ -12,6 +12,7 @@ using Project_Star.Domain.Combat;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
+using Project_Star.Infrastructure.Encounters;
 using Project_Star.Presentation.CardFace;
 using Project_Star.Presentation.Playtest;
 
@@ -38,7 +39,7 @@ public sealed partial class MinimalPlaytest : Control
             new EncounterScheduler(registry, allowIncompleteMonsterChoices: true),
             new StartBattleService(new BattleSetupFactory(registry.Sets), new CombatSimulator()),
             new MatchResultService(board));
-        _presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(), events, rewards, game);
+        _presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(), events, rewards, game, new LocalTestOpponentProvider(registry));
         _shell = GetNode<MatchShell>("MatchShell");
         _shell.ChoiceSelected += Choose;
         _shell.BuyRequested += _presenter.BuyCard;

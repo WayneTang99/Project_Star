@@ -3,10 +3,10 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Application.Encounters;
 
-// 创建试玩战斗对手的应用层接口。
+// 应用层对手来源接口，具体创建方式由基础设施适配。
 public interface IOpponentProvider
 {
-    // 创建本地 PvP 测试对手。
+    // 按显式随机种子创建 PvP 对手。
     MatchSession CreateOpponent(ulong seed);
 
     // 按正式怪物定义创建怪物对手。

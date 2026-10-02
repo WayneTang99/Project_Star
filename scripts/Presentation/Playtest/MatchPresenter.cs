@@ -9,7 +9,6 @@ using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
-using Project_Star.Infrastructure.Definitions;
 using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Playtest;
@@ -17,13 +16,14 @@ namespace Project_Star.Presentation.Playtest;
 /// <summary>Owns UI flow and calls application use cases; never owns controls or renders game state.</summary>
 public sealed class MatchPresenter
 {
-    private readonly DefinitionRegistry _registry;
+    private readonly IDefinitionCatalog _registry;
     private readonly BoardService _board;
     private readonly CardEconomyService _economy;
     private readonly ShopCardPoolService _shops;
     private readonly ResolveEncounterOptionService _events;
     private readonly MonsterRewardClaimService _rewards;
     private readonly GameCoordinator _game;
+    private readonly IOpponentProvider _opponents;
     private MatchSession? _player;
     private MatchSession? _enemy;
     private ShopStock? _stock;
@@ -42,12 +42,13 @@ public sealed class MatchPresenter
     private string _battleLog = "";
     private BattlePlaybackPresenter? _playback;
 
-    public MatchPresenter(DefinitionRegistry registry, BoardService board, CardEconomyService economy,
+    public MatchPresenter(IDefinitionCatalog registry, BoardService board, CardEconomyService economy,
         ShopCardPoolService shops, ResolveEncounterOptionService events,
-        MonsterRewardClaimService rewards, GameCoordinator game)
+        MonsterRewardClaimService rewards, GameCoordinator game, IOpponentProvider opponents)
     {
         _registry = registry; _board = board; _economy = economy;
         _shops = shops; _events = events; _rewards = rewards; _game = game;
+        _opponents = opponents ?? throw new ArgumentNullException(nameof(opponents));
     }
 
     public event Action<MatchPageViewModel>? ViewChanged;
@@ -109,10 +110,9 @@ public sealed class MatchPresenter
             case EncounterKind.Monster:
             case EncounterKind.Pvp:
                 _page = MatchPage.Preparation;
-                var opponents = new LocalTestOpponentProvider(_registry);
                 _enemy = choice.Kind == EncounterKind.Monster
-                    ? opponents.CreateMonsterOpponent(_player, _registry.Monsters[key])
-                    : opponents.CreateOpponent(_player);
+                    ? _opponents.CreateMonsterOpponent(_player.Random.State, _registry.Monsters[key])
+                    : _opponents.CreateOpponent(_player.Random.State);
                 _battleKind = choice.Kind == EncounterKind.Pvp ? MatchBattleKind.Pvp : MatchBattleKind.Monster;
                 _message = "可以调整双棋盘，然后开始战斗；空战场也允许开始。";
                 break;

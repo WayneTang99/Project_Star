@@ -16,6 +16,7 @@ using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
+using Project_Star.Infrastructure.Encounters;
 using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Playtest;
@@ -591,7 +592,7 @@ internal static class PlaytestVerification
                 new TrainingGroundEncounterDefinition(), new PvpEncounterDefinition() }));
     }
 
-    internal static MatchPresenter CreatePresenter(bool mediumShop = false)
+    internal static MatchPresenter CreatePresenter(bool mediumShop = false, IOpponentProvider? opponents = null)
     {
         var registry = Registry(mediumShop);
         var factory = new EntityFactory();
@@ -603,10 +604,54 @@ internal static class PlaytestVerification
             new MatchResultService(board));
         var presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(),
             new ResolveEncounterOptionService(factory, board, registry.Cards.Values),
-            new MonsterRewardClaimService(registry, economy, new SkillAcquisitionService(factory), board), game);
+            new MonsterRewardClaimService(registry, economy, new SkillAcquisitionService(factory), board), game,
+            opponents ?? new LocalTestOpponentProvider(registry));
         presenter.Reset();
         presenter.SelectHero(new StringName("hero.paladin"));
         return presenter;
+    }
+
+    // 怪物与 PvP 都使用注入来源，页面切换不创建具体适配器或重复请求。
+    public static bool OpponentProviderInjection()
+    {
+        var source = new RecordingOpponentProvider();
+        var presenter = CreatePresenter(opponents: source);
+        for (var turn = 1; turn <= 8; turn++)
+        {
+            var choice = presenter.View.Choices.First(item => turn is 4 or 8
+                || item.Key.ToString().StartsWith("encounter.shop.", StringComparison.Ordinal));
+            presenter.ChooseEncounter(choice.Key);
+            if (turn is 4 or 8)
+            {
+                if (presenter.View.Page != MatchPage.Preparation || presenter.View.Enemy?.Wealth != 777) return false;
+                presenter.StartBattle();
+                presenter.SkipPlayback();
+            }
+            presenter.ContinueMatch();
+        }
+        return source.MonsterRequests == 1 && source.PvpRequests == 1;
+    }
+
+    // 用可辨认的对手快照验证来源替换，保持正式定义池不变。
+    private sealed class RecordingOpponentProvider : IOpponentProvider
+    {
+        public int MonsterRequests { get; private set; }
+        public int PvpRequests { get; private set; }
+
+        public MatchSession CreateOpponent(ulong seed)
+        {
+            PvpRequests++;
+            return Create(seed);
+        }
+
+        public MatchSession CreateMonsterOpponent(ulong seed, MonsterDefinition definition)
+        {
+            MonsterRequests++;
+            return Create(seed);
+        }
+
+        private static MatchSession Create(ulong seed) =>
+            new CreateMatchService(new EntityFactory()).Create(seed, 772, new PaladinHeroDefinition());
     }
 
     public static bool SnapshotIsolation()

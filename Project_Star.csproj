@@ -12,8 +12,10 @@
     <Content Include="docs\design\GAME_DESIGN.md" />
     <Content Include="docs\design\GLOSSARY.md" />
     <Content Include="docs\planning\IMPLEMENTATION_PLAN.md" />
-    <Content Include="docs\engineering\DESIGN_PRINCIPLES.md" />
     <Content Include="docs\engineering\DEV_CONVENTIONS.md" />
+    <Content Include="docs\design\CONTENT_DATA.md" />
+    <Content Include="docs\design\UI_SYSTEM.md" />
+    <Content Include="docs\quality\MANUAL_ACCEPTANCE.md" />
     <Content Include="README.md" />
   </ItemGroup>
 </Project>

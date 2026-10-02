@@ -27,7 +27,7 @@ Turn a content request into a complete, reviewable Project Star definition: form
 - Keep identity in the read-only identity attributes, identifiers as `Godot.StringName`, and display text as `string`.
 - Put C# and matching `.cs.uid` files under the correct `scripts/Content/` directory. Do not manually register public parameterless definitions when `DefinitionRegistry.Scan` can discover them.
 - Update the matching file under `docs/design/` in the same change. Add new terminology or tags to `GLOSSARY.md` and their code-side key/display-name mappings when needed.
-- Add a focused check to `scripts/Presentation/PhaseOneVerification.cs`. Verify identity and level data plus at least one observable gameplay outcome for behavioral content.
+- Add a focused check to the appropriate module under `scripts/Presentation/Verification/` and register it in `PhaseOneVerification.cs`. Verify identity and level data plus at least one observable gameplay outcome for behavioral content.
 - If implementation exposes an existing defect, record it in `docs/quality/BUG_LOG.md`; do not log the absence of a newly requested feature as a bug.
 
 ## Validation
