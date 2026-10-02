@@ -56,7 +56,8 @@ public sealed partial class BoardZoneView : Control
             ?? Array.Empty<BoardPlacementSnapshot>();
         var capacity = snapshot is null ? 0 : zone == BoardZone.Battlefield ? snapshot.BattlefieldCapacity : snapshot.BenchCapacity;
         var used = _placements.Sum(item => item.EndExclusive - item.Start);
-        _caption = $"{title}　{used}/{capacity}格 · {_placements.Count}张　右键详情 / Escape取消选择";
+        _caption = $"{title}　{used}/{capacity}格 · {_placements.Count}张　右键详情"
+            + (interactive ? " / 拖到上方出售 / Escape取消选择" : "");
         _title.Text = _caption;
         while (_slots.Count > capacity)
         {

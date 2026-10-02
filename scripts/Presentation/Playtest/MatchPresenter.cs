@@ -249,15 +249,30 @@ public sealed class MatchPresenter
     });
 
     // 出售确认带上卡牌、等级与金额，刷新后过期的确认不能出售其他卡牌。
-    public void SellCard(Guid matchId, EntityId cardId, int level, int value) => Execute(() =>
+    public void SellCard(Guid matchId, EntityId cardId, int level, int value) =>
+        Execute(() => SellCard(matchId, cardId, level, value, requireSelection: true));
+
+    // 拖入出售区无需预先点击选中，松开时仍核对身份、等级与金额。
+    public void SellDraggedCard(Guid matchId, EntityId cardId, int level, int value) =>
+        Execute(() => SellCard(matchId, cardId, level, value, requireSelection: false));
+
+    public Project_Star.Application.Common.Result<int> PreviewSale(Guid matchId, EntityId cardId)
     {
-        if (_player is null || _player.Id != matchId || !View.BoardEnabled || _selected != cardId) return;
+        if (_player is null || _player.Id != matchId || !View.BoardEnabled)
+            return Project_Star.Application.Common.Result<int>.Fail(
+                new Project_Star.Application.Common.Failure(new StringName("ui.invalid_sale"), "本次出售拖拽已失效。"));
+        return _economy.CheckSale(_player, cardId);
+    }
+
+    private void SellCard(Guid matchId, EntityId cardId, int level, int value, bool requireSelection)
+    {
+        if (_player is null || _player.Id != matchId || !View.BoardEnabled || requireSelection && _selected != cardId) return;
         var card = Snapshot(_player).Cards.FirstOrDefault(item => item.Id == cardId);
         if (card is null || card.Level != level || card.Value != value) { _message = "卡牌信息已变化，请重新确认出售。"; return; }
         var result = _economy.SellFromBoard(_player, cardId);
         if (result.IsFailure) { _message = result.Failure!.Message; return; }
         _selected = null; _message = $"已出售 {card.DisplayName}，金钱 +{result.Value}。";
-    });
+    }
 
     public void ContinueMatch()
     {

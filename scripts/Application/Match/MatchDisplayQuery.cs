@@ -68,7 +68,7 @@ public static class MatchDisplayQuery
         {
             SetKey = identity.SetKey,
             Illustration = identity.Illustration,
-            Description = identity.Description,
+            DescriptionEntries = Array.AsReadOnly(identity.DescriptionEntries.ToArray()),
             Tags = Array.AsReadOnly(definition.Tags.ToArray()),
             BaseValues = values.SnapshotFinalValues(), CurrentValues = values.SnapshotFinalValues(),
             Abilities = MatchSnapshot.CopyAbilities(level?.Abilities ?? definition.Abilities),

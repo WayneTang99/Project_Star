@@ -1,18 +1,18 @@
-CardKey,名称,归属,尺寸,元素,额外标签,初始等级,描述,插画
-card.judgment_hammer,审判之锤,paladin,Large,Light,Equipment,3,发动：冷却6/5秒，对敌方英雄造成目标最大生命的 20% 普通伤害（小数向下取整，先扣护甲）。,res://art/ui/card-face/artwork/judgment_hammer-illustration-v2.png
-card.beast_hide,兽皮,neutral,Small,General,Material,1,回响：当获得此卡牌后，此卡牌价值增加2/4/8/16。,res://art/ui/card-face/artwork/beast_hide-illustration.png
-card.boar,野猪,neutral,Medium,General,Beast,1,发动：冷却6秒，对敌方英雄造成20/30/50/100 × 己方英雄当前生命比例的普通伤害（小数向下取整，先扣护甲）。,res://art/ui/card-face/artwork/boar-illustration.png
-card.diamond,钻石,neutral,Small,General,Material,4,回响：当获得此卡牌后，此卡牌价值增加20。,res://art/ui/card-face/artwork/diamond-illustration-v2.png
-card.jewelry_bag,珠宝袋,neutral,Small,General,—,2,回响：当出售此卡牌后，随机获得一张与此卡牌同等级的材料卡；双棋盘已满时不获得。,res://art/ui/card-face/artwork/jewelry_bag-illustration.png
-card.light_cavalry,轻骑兵,paladin,Medium,General,Human,1,发动：冷却3秒，对敌方英雄造成10/20/40/60伤害，并使己方战场区具备攻击能力的人类卡牌攻击增加10/20/40/60（包括此卡牌，可累计）；首次发动时，此卡牌冷却增加2秒。,res://art/ui/card-face/artwork/light_cavalry-illustration.png
-card.armguard,臂铠,paladin,Small,General,Equipment,1,光环：此卡牌具有1层多重（每层多重额外发动一次）；发动：冷却5秒，每次发动对敌方英雄造成5/10/15/20伤害，并使己方英雄获得5/10/15/20护甲。,res://art/ui/card-face/artwork/armguard-illustration.png
-card.arcane_shield,魔能盾,paladin,Medium,Light,Equipment,2,发动：冷却8/7/6秒，消耗20/40/80魔法，己方英雄获得等同于本场战斗累计魔法消耗的护甲（包含本次消耗），并叠加此卡牌的护甲数值加成。,res://art/ui/card-face/artwork/arcane_shield-illustration.png
-card.military_boots,军靴,paladin,Small,General,Equipment,1,发动：冷却5秒，魔法消耗0，使左右直接相邻的己方战场卡牌获得1/2/3/4秒疾速；相邻卡牌具有人类标签时，持续时间翻倍。,res://art/ui/card-face/artwork/military_boots-illustration.png
-card.cathedral,大教堂,paladin,Large,Light,Location,4,光环：己方战场区光属性卡牌获得1层多重；此卡牌被摧毁后失效，多张大教堂可叠加。,res://art/ui/card-face/artwork/cathedral-illustration.png
-card.blacksmith,铁匠铺,paladin,Medium,General,Location,2,发动：冷却6秒，魔法消耗0，使己方战场区装备卡牌已有的攻击与护甲数值分别增加10/20/40；不会赋予原本不存在的攻击或护甲能力。,res://art/ui/card-face/artwork/blacksmith-illustration.png
-card.treasure_chest,百宝箱,neutral,Medium,General,—,3,回响：当出售此卡牌后，获得3件与此卡牌同等级的随机小型材料；每件奖励独立结算自动放置与合并，无法创建时跳过该件。,res://art/ui/card-face/artwork/treasure_chest-illustration.png
-card.holy_slashing_blade,黎明之剑,paladin,Large,Light,Equipment,4,发动：冷却10秒，对敌方英雄造成200伤害，并随机本场摧毁敌方一件小型恶魔或亡灵卡牌；光环：本场战斗双方每有一件已被摧毁的恶魔或亡灵卡牌，此卡牌攻击翻倍（本次发动摧毁的卡牌立即计数）。,res://art/ui/card-face/artwork/holy_slashing_blade-illustration.png
-card.order_crusader,教团远征军,paladin,Large,Light,Human,2,发动：冷却8秒，对敌方英雄造成40/80/120伤害；光环：敌方小型卡牌在战斗中视为恶魔，敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害增加10/20/40；此卡牌被摧毁后，赋予的恶魔标签立即失效。,res://art/ui/card-face/artwork/order_crusader-illustration.png
-card.holy_griffin,神圣狮鹫,paladin,Large,Light,"Beast, Mount",2,发动：冷却5秒，使相邻己方人类卡牌获得1秒疾速；回响：当相邻己方人类卡牌获得疾速后，该卡牌攻击增加10/20/30。,res://art/ui/card-face/artwork/holy_griffin-illustration.png
-card.nun,修女,paladin,Small,Light,Human,1,发动：冷却6秒，消耗10魔法，治疗己方英雄10/20/40/80生命，并随机充能己方另一件光属性卡牌1秒（不包括此卡牌）。,res://art/ui/card-face/artwork/nun-illustration.png
-card.thorn_armor,荆棘甲,paladin,Medium,General,Equipment,1,发动：冷却8/7/6/5秒，己方英雄获得10/20/40/80护甲，再对敌方英雄造成等同于己方英雄当前护甲值加此卡牌攻击值的普通伤害（先扣敌方护甲）。,res://art/ui/card-face/artwork/thorn_armor-illustration.png
+CardKey,名称,归属,尺寸,元素,额外标签,初始等级,插画
+card.judgment_hammer,审判之锤,paladin,Large,Light,Equipment,3,res://art/ui/card-face/artwork/judgment_hammer-illustration-v2.png
+card.beast_hide,兽皮,neutral,Small,General,Material,1,res://art/ui/card-face/artwork/beast_hide-illustration.png
+card.boar,野猪,neutral,Medium,General,Beast,1,res://art/ui/card-face/artwork/boar-illustration.png
+card.diamond,钻石,neutral,Small,General,Material,4,res://art/ui/card-face/artwork/diamond-illustration-v2.png
+card.jewelry_bag,珠宝袋,neutral,Small,General,—,2,res://art/ui/card-face/artwork/jewelry_bag-illustration.png
+card.light_cavalry,轻骑兵,paladin,Medium,General,Human,1,res://art/ui/card-face/artwork/light_cavalry-illustration.png
+card.armguard,臂铠,paladin,Small,General,Equipment,1,res://art/ui/card-face/artwork/armguard-illustration.png
+card.arcane_shield,魔能盾,paladin,Medium,Light,Equipment,2,res://art/ui/card-face/artwork/arcane_shield-illustration.png
+card.military_boots,军靴,paladin,Small,General,Equipment,1,res://art/ui/card-face/artwork/military_boots-illustration.png
+card.cathedral,大教堂,paladin,Large,Light,Location,4,res://art/ui/card-face/artwork/cathedral-illustration.png
+card.blacksmith,铁匠铺,paladin,Medium,General,Location,2,res://art/ui/card-face/artwork/blacksmith-illustration.png
+card.treasure_chest,百宝箱,neutral,Medium,General,—,3,res://art/ui/card-face/artwork/treasure_chest-illustration.png
+card.holy_slashing_blade,黎明之剑,paladin,Large,Light,Equipment,4,res://art/ui/card-face/artwork/holy_slashing_blade-illustration.png
+card.order_crusader,教团远征军,paladin,Large,Light,Human,2,res://art/ui/card-face/artwork/order_crusader-illustration.png
+card.holy_griffin,神圣狮鹫,paladin,Large,Light,"Beast, Mount",2,res://art/ui/card-face/artwork/holy_griffin-illustration.png
+card.nun,修女,paladin,Small,Light,Human,1,res://art/ui/card-face/artwork/nun-illustration.png
+card.thorn_armor,荆棘甲,paladin,Medium,General,Equipment,1,res://art/ui/card-face/artwork/thorn_armor-illustration.png

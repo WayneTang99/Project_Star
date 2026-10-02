@@ -19,7 +19,11 @@ public sealed class HolyGriffinCardDefinition : CardDefinition
                     CardSize.Large,
                     [GameElements.Light],
                     illustration: new StringName("res://art/ui/card-face/artwork/holy_griffin-illustration.png"),
-                    description: "发动：冷却5秒，使相邻己方人类卡牌获得1秒疾速；回响：当相邻己方人类卡牌获得疾速后，该卡牌攻击增加10/20/30。"),
+                    descriptionEntries:
+                    [
+                        new(CardKeywords.Activate, "冷却5秒，使相邻己方人类卡牌获得1秒疾速"),
+                        new(CardKeywords.Echo, "当相邻己方人类卡牌获得疾速后，该卡牌攻击增加10/20/30。"),
+                    ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

@@ -19,6 +19,8 @@ public sealed partial class MatchShell : Control
     public event Func<BoardDragData, BoardZone, int, Result<BoardPlacementResult>>? MovePreviewRequested;
     public event Action? CancelRequested;
     public event Action<Guid, Project_Star.Domain.Common.EntityId, int, int>? SellRequested;
+    public event Action<Guid, Project_Star.Domain.Common.EntityId, int, int>? DragSellRequested;
+    public event Func<BoardDragData, Result<int>>? SellPreviewRequested;
     public event Action<Guid, int, long>? ClaimRequested;
     private TopBar _top = null!;
     private ContextPortrait _portrait = null!;
@@ -36,6 +38,7 @@ public sealed partial class MatchShell : Control
     private BoardZoneView _enemy = null!;
     private CardDetailsView _details = null!;
     private HeroDetailsView _secondary = null!;
+    private SellDropZone _sellDrop = null!;
     private MatchPage? _page;
 
     public override void _Ready()
@@ -63,6 +66,9 @@ public sealed partial class MatchShell : Control
         _bench = Add(GetNode<Control>("BenchRow/Content"), new BoardZoneView { Name = "Board" });
         _details = Add(this, new CardDetailsView { Name = "CardDetails", ZIndex = 10 });
         _secondary = Add(this, new HeroDetailsView { Name = "HeroDetails", ZIndex = 9 });
+        _sellDrop = Add(this, new SellDropZone { Name = "SellDropZone", ZIndex = 20 });
+        _sellDrop.PreviewRequested = PreviewSale;
+        _sellDrop.DropRequested += DropSale;
         _heroes.Selected += SelectHero; _encounters.Selected += SelectEncounter; _events.Selected += SelectEvent;
         _shop.BuyRequested += Buy; _leave.Requested += RequestAction;
         _shop.DetailsRequested += ShowDetails; _details.SellRequested += Sell;
@@ -78,6 +84,7 @@ public sealed partial class MatchShell : Control
     public void Render(MatchPageViewModel view)
     {
         _details.Hide();
+        _sellDrop.Render(view.Player, view.BoardEnabled);
         _secondary.Render(view);
         _top.Render(view.Player); _portrait.Render(view.Playback is null ? view.Title
             : $"{view.Enemy?.Hero?.DisplayName ?? "敌方"}\n{PlaytestText.FormatHeroHud(view.Playback.State.Opponent)}");
@@ -123,6 +130,8 @@ public sealed partial class MatchShell : Control
         _battlefield.PreviewRequested = null; _bench.PreviewRequested = null;
         _battlefield.DropRequested -= DropMove; _bench.DropRequested -= DropMove;
         _battlefield.DetailsRequested -= ShowDetails; _bench.DetailsRequested -= ShowDetails; _enemy.DetailsRequested -= ShowDetails;
+        _sellDrop.PreviewRequested = null;
+        _sellDrop.DropRequested -= DropSale;
     }
 
     private void SelectHero(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.HeroSelection, key, revision);
@@ -140,6 +149,10 @@ public sealed partial class MatchShell : Control
     private void BenchSlot(int slot) => BoardSlotPressed?.Invoke(BoardZone.Bench, slot);
     private void ShowDetails(CardSnapshot card) => _details.ShowCard(card, GetLocalMousePosition(), Size);
     private void DropMove(BoardDragData data, BoardZone zone, int start) => MoveRequested?.Invoke(data, zone, start);
+    private void DropSale(BoardDragData data, CardSnapshot card) =>
+        DragSellRequested?.Invoke(data.MatchId, data.CardId, card.Level, card.Value);
+    private Result<int> PreviewSale(BoardDragData data) => SellPreviewRequested?.Invoke(data)
+        ?? Result<int>.Fail(new Failure(new StringName("ui.sale_unavailable"), "当前不可出售。"));
     private Result<BoardPlacementResult> PreviewMove(BoardDragData data, BoardZone zone, int start) =>
         MovePreviewRequested?.Invoke(data, zone, start) ?? Result<BoardPlacementResult>.Fail(
             new Failure(new StringName("ui.preview_unavailable"), "当前区域不可移动。"));
@@ -174,6 +187,8 @@ public sealed partial class MatchShell : Control
         foreach (var view in new Control[] { _heroes, _encounters, _events, _shop, _result, _enemy, _battlefield, _bench })
             view.Size = new Vector2(center, rowHeight);
         _details.ClampTo(Size);
+        _sellDrop.Position = Vector2.Zero;
+        _sellDrop.Size = new Vector2(Size.X, 64 + rowHeight);
         _secondary.ClampTo(Size);
         QueueRedraw();
     }

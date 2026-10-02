@@ -77,3 +77,5 @@
 | BUG-057 | 2026-10-01 | scripts/Presentation/CardFace/CardFace.cs / 基准卡面叠加顺序 | 400高基准卡面的效果和价值被金色边框覆盖。 | 信息ZIndex仅在紧凑布局设置，基准布局信息与装饰同层，底部间距不足。 | 在组件初始化统一抬高标题/效果/价值层级；为基准效果及价值保留安全间距，三尺寸原生截图核对可读。 | Fixed |
 | BUG-058 | 2026-10-01 | `scripts/Presentation/CardFace/CardDisplayAdapter.cs` / 卡牌详情 | 兽皮、钻石的获得效果及珠宝袋、百宝箱的出售效果未显示；狮鹫的事件触发效果显示为泛化被动光环。 | 详情只按战斗能力枚举拼接文本，正式描述未进入属性与快照，无法完整表达获得、出售及事件触发条件。 | 增加只读 Description 属性，同步17张正式卡牌与CSV，经实例/商店/对局快照传给详情；按效果语义整理发动、回响、光环。构建通过、118/118验证通过，三类描述原生截图核对无裁切。 | Fixed |
 | BUG-059 | 2026-10-01 | `scripts/Presentation/Playtest/PlaytestVerification.cs` | 新增莫娜后6项依赖帕拉帝恩卡池的验证失败。 | 用例按列表下标选择英雄，按key排序后第一位变为尚无专属卡牌的莫娜。 | 相关验证显式选择 `hero.paladin`，消除英雄排序依赖。 | Fixed |
+| BUG-060 | 2026-10-02 | `scripts/Presentation/CardFace/CardDisplayAdapter.cs` / Details | 大教堂、狮鹫、铁匠铺等卡牌显示无关的攻击0，无发动能力的卡牌仍显示冷却占位值。 | 详情无条件遍历 CurrentValues，没有根据能力判断属性用途；内容中的占位字段被当作有效展示属性。 | 仅有 Active 能力时显示冷却，仅伤害效果读取攻击属性时显示攻击；保留真实零值攻击，不修改属性或战斗规则。新增辅助卡、材料卡、零攻击及护甲公式回归检查。 | Fixed |
+| BUG-061 | 2026-10-02 | `scripts/Presentation/PhaseOneVerification.cs` / 拖拽出售检查注册 | 新增场景验证首次构建报 CS0027。 | 在字段初始化表达式中用 lambda 捕获 this，C# 不允许此处引用实例。 | 按现有场景验证方式在 _Ready 中注册检查。 | Fixed |

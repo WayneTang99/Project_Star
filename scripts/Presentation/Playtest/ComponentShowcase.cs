@@ -8,6 +8,7 @@ using Project_Star.Content.Cards;
 using Project_Star.Content.Heroes;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Presentation.CardFace;
 
@@ -214,7 +215,11 @@ public sealed partial class ComponentShowcase : Control
         if (OS.GetCmdlineUserArgs().Contains("--capture-keywords"))
         {
             shell.Render(view);
-            var sample = card with { Description = "发动：攻击造成伤害，并获得护甲、治疗。\n回响：当中毒、灼伤生效后，获得疾速、充能，施加禁锢。" };
+            var sample = card with { DescriptionEntries = Array.AsReadOnly(new CardDescriptionEntry[]
+            {
+                new(CardKeywords.Activate, "攻击造成伤害，并获得护甲、治疗。"),
+                new(CardKeywords.Echo, "当中毒、灼伤生效后，获得疾速、充能，施加禁锢。"),
+            }) };
             shell.GetNode<CardDetailsView>("CardDetails").ShowCard(sample, new Vector2(280, 90), shell.Size);
             var item = new CardItemView();
             var tooltip = (Control)item._MakeCustomTooltip(CardDisplayAdapter.Details(sample)); item.Free();

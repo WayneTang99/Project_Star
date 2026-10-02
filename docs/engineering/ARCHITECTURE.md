@@ -38,7 +38,7 @@ DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；�
 
 只为已确认需求建立抽象；出现实际复用或明确替换点时抽取。接口保持小而聚焦，不建立万能 Context、Manager、服务定位器或全局命令总线。Command 表示意图，Result 表示同步成功/失败，Domain Event 表示已发生事实；有返回值的操作不伪装成事件。Match Event 与 Combat Event 强类型隔离，不跨总线传播。
 
-CSV 与 Definition 的维护和一致性验证见 [内容数据规范](../design/CONTENT_DATA.md)。展示描述不参与规则解析。
+CSV 与 Definition 的维护和一致性验证见 [内容数据规范](../design/CONTENT_DATA.md)。卡牌展示描述保存为只读有序 `CardDescriptionEntry`（StringName KeywordKey + string Text），随身份传入快照；UI按条目渲染，不参与规则解析或能力生成。
 
 ## 对局用例与事务
 

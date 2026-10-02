@@ -694,21 +694,36 @@ internal static class PlaytestVerification
             && adapter.Artwork(new StringName("")) == adapter.Artwork(new StringName("res://missing-illustration.png"));
     }
 
-    // 描述作为只读卡牌属性贯穿正式CSV、所有等级的实例/报价和对局快照。
+    // 详情按能力用途显示属性；不把辅助卡的占位值当作攻击/冷却。
+    public static bool RelevantDetailAttributes()
+    {
+        foreach (var definition in new CardDefinition[]
+            { new CathedralCardDefinition(), new BeastHideCardDefinition(), new DiamondCardDefinition(),
+                new JewelryBagCardDefinition(), new TreasureChestCardDefinition() })
+        {
+            var text = CardDisplayAdapter.Details(MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)));
+            if (text.Contains("\n攻击：") || text.Contains("\n冷却：")) return false;
+        }
+        foreach (var definition in new CardDefinition[]
+            { new HolyGriffinCardDefinition(), new BlacksmithCardDefinition(), new NunCardDefinition() })
+        {
+            var text = CardDisplayAdapter.Details(MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)));
+            if (text.Contains("\n攻击：") || !text.Contains("\n冷却：")) return false;
+        }
+        var boar = MatchDisplayQuery.FromOffer(ShopOffer.Create(new BoarCardDefinition()));
+        var zeroAttack = boar with { CurrentValues = new System.Collections.Generic.Dictionary<StringName, int>
+            { [GameAttributeKeys.AttackDamage] = 0, [GameAttributeKeys.CooldownTicks] = 60 } };
+        var thorn = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ThornArmorCardDefinition()));
+        return CardDisplayAdapter.Details(zeroAttack).Contains("攻击：基础 20 / 当前 0")
+            && CardDisplayAdapter.Details(zeroAttack).Contains("冷却：基础 6秒 / 当前 6秒")
+            && CardDisplayAdapter.Details(thorn).Contains("攻击：基础 0 / 当前 0")
+            && CardDisplayAdapter.Details(thorn).Contains("护甲：基础 10 / 当前 10");
+    }
+
+    // 有序词条贯穿正式CSV、所有等级的实例/报价和对局快照。
     public static bool FormalDescriptions()
     {
-        if (typeof(CardIdentityAttributes).GetProperty(nameof(CardIdentityAttributes.Description))!.CanWrite) return false;
-        using var csv = FileAccess.Open("res://docs/design/CardDataTable.csv", FileAccess.ModeFlags.Read);
-        var header = csv.GetCsvLine(); var column = Array.IndexOf(header, "描述");
-        if (column < 0) return false;
-        var rows = new System.Collections.Generic.Dictionary<StringName, string>();
-        while (!csv.EofReached())
-        {
-            var row = csv.GetCsvLine();
-            if (row.Length == 1 && string.IsNullOrWhiteSpace(row[0])) continue;
-            if (row.Length != header.Length) return false;
-            rows.Add(new StringName(row[0]), row[column]);
-        }
+        var rows = Project_Star.Presentation.Verification.ContentDataChecks.DescriptionRows();
         var registry = Registry(); var factory = new EntityFactory();
         var economy = new CardEconomyService(factory);
         var session = new CreateMatchService(factory).Create(42, 100, new PaladinHeroDefinition());
@@ -716,23 +731,30 @@ internal static class PlaytestVerification
         foreach (var definition in registry.Cards.Values)
         {
             var identity = definition.Attributes.Identity;
-            if (!rows.TryGetValue(identity.Key, out var expected) || string.IsNullOrWhiteSpace(expected)
-                || identity.Description != expected || !(expected.StartsWith("发动：")
-                    || expected.StartsWith("回响：当") || expected.StartsWith("光环："))
-                || expected.Contains("被动：") || expected.Contains("被动光环：")) return false;
+            if (!rows.TryGetValue(identity.Key, out var expected)
+                || !identity.DescriptionEntries.SequenceEqual(expected)) return false;
+            var text = string.Join("\n", expected.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}：{entry.Text}"));
             foreach (var level in definition.Levels.Keys.DefaultIfEmpty(definition.InitialLevel))
             {
                 var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
-                if (offer.Description != expected || factory.CreateCard(definition, level).Attributes.Identity.Description != expected
-                    || !CardDisplayAdapter.Details(offer).Contains(expected.Replace("；发动：", "\n发动：")
-                        .Replace("；回响：", "\n回响：").Replace("；光环：", "\n光环："))) return false;
-                const string marker = "回响：当验证事件完成后，显示快照描述。";
-                if (!CardDisplayAdapter.Details(offer with { Description = marker }).Contains(marker)) return false;
+                if (!offer.DescriptionEntries.SequenceEqual(expected)
+                    || !factory.CreateCard(definition, level).Attributes.Identity.DescriptionEntries.SequenceEqual(expected)
+                    || !CardDisplayAdapter.Details(offer).Contains(text)) return false;
+                var markers = Array.AsReadOnly(new CardDescriptionEntry[]
+                {
+                    new(CardKeywords.Echo, "当验证事件完成后，显示快照描述；发动：正文不分段。"),
+                    new(CardKeywords.Echo, "第二条回响。"),
+                });
+                if (!CardDisplayAdapter.Details(offer with { DescriptionEntries = markers }).Contains(
+                    "回响：当验证事件完成后，显示快照描述；发动：正文不分段。\n回响：第二条回响。")) return false;
+                try { ((System.Collections.Generic.IList<CardDescriptionEntry>)offer.DescriptionEntries).Clear(); return false; }
+                catch (NotSupportedException) { }
             }
             if (economy.AcquireCard(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure) return false;
         }
         var snapshot = MatchSnapshot.From(session);
-        return snapshot.Cards.Count == rows.Count && snapshot.Cards.All(card => card.Description == rows[card.Key]);
+        return snapshot.Cards.Count == rows.Count
+            && snapshot.Cards.All(card => card.DescriptionEntries.SequenceEqual(rows[card.Key]));
     }
 
     // 核对全部正式插画的 CSV、只读身份、实例、报价与对局快照，以及实际纹理加载。

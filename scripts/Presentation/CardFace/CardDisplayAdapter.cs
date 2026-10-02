@@ -71,8 +71,8 @@ public sealed class CardDisplayAdapter
     {
         var lines = new List<string> { $"{card.DisplayName} · {card.Level}级 · 当前价值 {card.Value}",
             $"标签：{string.Join("、", card.Tags.Select(TagDisplayNames.Get))}" };
-        if (!string.IsNullOrWhiteSpace(card.Description))
-            lines.Add(card.Description.Replace("；发动：", "\n发动：").Replace("；回响：", "\n回响：").Replace("；光环：", "\n光环："));
+        if (card.DescriptionEntries.Count > 0)
+            lines.AddRange(card.DescriptionEntries.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}：{entry.Text}"));
         else foreach (var ability in card.Abilities)
         {
             lines.Add($"{Activation(ability.Activation)} · {Target(ability.Target)} · 冷却 {ability.CooldownTicks / 10m:0.##}秒 · 魔法 {ability.ManaCost}");
@@ -80,6 +80,16 @@ public sealed class CardDisplayAdapter
         }
         foreach (var (key, current) in card.CurrentValues)
         {
+            if (key == GameAttributeKeys.CooldownTicks
+                && !card.Abilities.Any(ability => ability.Activation == AbilityActivation.Active)) continue;
+            if (key == GameAttributeKeys.AttackDamage
+                && !card.Abilities.SelectMany(ability => ability.Effects).Any(effect => effect switch
+                {
+                    AttributeDamageEffectDefinition damage => damage.AttributeKey == key,
+                    SourceHeroHealthScaledAttributeDamageEffectDefinition damage => damage.AttributeKey == key,
+                    SourceHeroArmorDamageEffectDefinition damage => damage.BonusAttributeKey == key,
+                    _ => false,
+                })) continue;
             var basic = card.BaseValues.TryGetValue(key, out var value) ? value : 0;
             lines.Add(key == GameAttributeKeys.CooldownTicks
                 ? $"冷却：基础 {basic / 10m:0.##}秒 / 当前 {current / 10m:0.##}秒"

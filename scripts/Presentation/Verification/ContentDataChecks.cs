@@ -16,6 +16,77 @@ internal static class ContentDataChecks
     // 核对卡牌身份、分类、初始等级与完整 key 集合。
     internal static bool Cards() => CardsMatch(Load("CardDataTable.csv"), Catalog());
 
+    // 词条与说明逐行核对；每张卡的顺序从1连续递增，不解析正文。
+    internal static bool Descriptions() => DescriptionsMatch(Load("CardDescriptionTable.csv"), Catalog());
+
+    internal static IReadOnlyDictionary<StringName, IReadOnlyList<CardDescriptionEntry>> DescriptionRows()
+    {
+        var table = Load("CardDescriptionTable.csv");
+        return table.Rows.GroupBy(row => new StringName(table.Value(row, "CardKey")))
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<CardDescriptionEntry>)Array.AsReadOnly(
+                group.OrderBy(row => table.Number(row, "顺序")).Select(row => new CardDescriptionEntry(
+                    new StringName(table.Value(row, "词条")), table.Value(row, "说明"))).ToArray()));
+    }
+
+    private static bool DescriptionsMatch(CsvTable table, IDefinitionCatalog catalog)
+    {
+        var groups = table.Rows.GroupBy(row => new StringName(table.Value(row, "CardKey"))).ToArray();
+        if (!groups.Select(group => group.Key).ToHashSet().SetEquals(catalog.Cards.Keys)) return false;
+        foreach (var group in groups)
+        {
+            var rows = group.OrderBy(row => table.Number(row, "顺序")).ToArray();
+            var expected = catalog.Cards[group.Key].Attributes.Identity.DescriptionEntries;
+            if (rows.Length != expected.Count) return false;
+            for (var index = 0; index < rows.Length; index++)
+                if (table.Number(rows[index], "顺序") != index + 1
+                    || table.Value(rows[index], "词条") != expected[index].KeywordKey.ToString()
+                    || table.Value(rows[index], "说明") != expected[index].Text) return false;
+        }
+        return true;
+    }
+
+    internal static bool RejectsDescriptionDrift()
+    {
+        var catalog = Catalog();
+        var changed = Load("CardDescriptionTable.csv");
+        changed.Rows[0][Array.IndexOf(changed.Header, "词条")] = "keyword.unknown";
+        var missing = Load("CardDescriptionTable.csv");
+        missing.Rows.RemoveAt(0);
+        var duplicateOrder = Load("CardDescriptionTable.csv");
+        duplicateOrder.Rows[0][Array.IndexOf(duplicateOrder.Header, "顺序")] = "2";
+        var empty = Load("CardDescriptionTable.csv");
+        empty.Rows[0][Array.IndexOf(empty.Header, "说明")] = "";
+        return !DescriptionsMatch(changed, catalog) && !DescriptionsMatch(missing, catalog)
+            && !DescriptionsMatch(duplicateOrder, catalog) && !DescriptionsMatch(empty, catalog);
+    }
+
+    // 输入集合变更不影响只读身份；同类词条可重复，正文标点不影响分段。
+    internal static bool DescriptionEntryBoundaries()
+    {
+        var entries = new List<CardDescriptionEntry>
+        {
+            new(CardKeywords.Activate, "原样保留；发动：这仍是正文。"),
+            new(CardKeywords.Activate, "第二条发动。"), new(CardKeywords.Echo, "回响说明。"),
+            new(CardKeywords.Aura, "光环说明。"), new(CardKeywords.Quest, "任务说明。"),
+            new(CardKeywords.Pickup, "拾取说明。"), new(CardKeywords.Sell, "出售说明。"),
+        };
+        var identity = new CardIdentityAttributes(new StringName("card.description_fixture"), "描述夹具",
+            GameFactions.Neutral, CardSize.Small, [GameElements.General], descriptionEntries: entries);
+        entries.Clear();
+        if (identity.DescriptionEntries.Count != 7
+            || typeof(CardIdentityAttributes).GetProperty(nameof(CardIdentityAttributes.DescriptionEntries))!.CanWrite
+            || typeof(CardDescriptionEntry).GetProperty(nameof(CardDescriptionEntry.KeywordKey))!.CanWrite
+            || typeof(CardDescriptionEntry).GetProperty(nameof(CardDescriptionEntry.Text))!.CanWrite) return false;
+        try { ((IList<CardDescriptionEntry>)identity.DescriptionEntries).Clear(); return false; }
+        catch (NotSupportedException) { }
+        try { _ = new CardDescriptionEntry(new StringName("keyword.unknown"), "说明"); return false; }
+        catch (ArgumentException) { }
+        try { _ = new CardDescriptionEntry(CardKeywords.Activate, " "); return false; }
+        catch (ArgumentException) { }
+        return identity.DescriptionEntries.Select(entry => CardKeywords.DisplayName(entry.KeywordKey))
+            .SequenceEqual(new[] { "发动", "发动", "回响", "光环", "任务", "拾取", "出售" });
+    }
+
     private static bool CardsMatch(CsvTable table, IDefinitionCatalog catalog)
     {
         if (table.Rows.Count != catalog.Cards.Count
@@ -31,7 +102,6 @@ internal static class ContentDataChecks
                 || !GameElements.Normalize(Keys(table.Value(row, "元素"))).SequenceEqual(identity.ElementKeys)
                 || !tags.SetEquals(definition.Tags.Where(tag => tag != GameTags.FromSize(identity.Size)))
                 || table.Number(row, "初始等级") != definition.InitialLevel
-                || table.Value(row, "描述") != identity.Description
                 || table.Value(row, "插画") != identity.Illustration.ToString()) return false;
         }
         return true;

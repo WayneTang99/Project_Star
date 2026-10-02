@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Project_Star.Domain.Definitions;
@@ -53,7 +54,7 @@ public sealed class CardIdentityAttributes : IdentityAttributes
         IEnumerable<StringName> elementKeys,
         StringName? setKey = null,
         StringName? illustration = null,
-        string description = "")
+        IEnumerable<CardDescriptionEntry>? descriptionEntries = null)
         : base(key, displayName)
     {
         if (!Enum.IsDefined(size))
@@ -68,7 +69,10 @@ public sealed class CardIdentityAttributes : IdentityAttributes
         ElementKeys = GameElements.Normalize(elementKeys);
         SetKey = setKey;
         Illustration = illustration ?? new StringName("");
-        Description = description ?? throw new ArgumentNullException(nameof(description));
+        var entries = (descriptionEntries ?? []).ToArray();
+        if (entries.Any(entry => entry is null))
+            throw new ArgumentException("Description entries cannot contain null.", nameof(descriptionEntries));
+        DescriptionEntries = Array.AsReadOnly(entries);
     }
 
     public StringName FactionKey { get; }
@@ -85,7 +89,7 @@ public sealed class CardIdentityAttributes : IdentityAttributes
     public StringName Illustration { get; }
 
     // 展示描述属于只读文本，由内容定义提供，不参与规则计算。
-    public string Description { get; }
+    public IReadOnlyList<CardDescriptionEntry> DescriptionEntries { get; }
 }
 
 // 套装只读身份字段（领域定义层）。

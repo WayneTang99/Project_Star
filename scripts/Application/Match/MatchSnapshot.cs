@@ -26,7 +26,7 @@ public sealed record CardSnapshot(
 {
     public StringName? SetKey { get; init; }
     public StringName Illustration { get; init; } = new("");
-    public string Description { get; init; } = "";
+    public IReadOnlyList<CardDescriptionEntry> DescriptionEntries { get; init; } = Array.Empty<CardDescriptionEntry>();
     public IReadOnlyList<StringName> Tags { get; init; } = Array.Empty<StringName>();
     public IReadOnlyDictionary<StringName, int> BaseValues { get; init; } =
         new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
@@ -107,7 +107,7 @@ public sealed record MatchSnapshot(
             {
                 SetKey = identity.SetKey,
                 Illustration = identity.Illustration,
-                Description = identity.Description,
+                DescriptionEntries = Array.AsReadOnly(identity.DescriptionEntries.ToArray()),
                 Tags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
                 BaseValues = card.Attributes.BaseCombat.CreateMutableCopy().SnapshotFinalValues(),
                 CurrentValues = card.Attributes.BaseCombat.SnapshotFinalValues(),

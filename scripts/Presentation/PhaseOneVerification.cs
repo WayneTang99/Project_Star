@@ -22,8 +22,9 @@ public sealed partial class PhaseOneVerification : Control
             ("回放暂停、倍速与跳过结果一致且冻结旧画面", BattlePlaybackVerification.ControlsAndIsolation),
             ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
             ("卡面保留治疗/百分比语义并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
+            ("卡牌详情隐藏无关攻击/冷却并保留真实零值攻击", PlaytestVerification.RelevantDetailAttributes),
             ("全部正式插画与 CSV、实例、快照和卡面一致", PlaytestVerification.FormalIllustrations),
-            ("全部卡牌描述作为只读属性贯穿CSV、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
+            ("全部卡牌词条描述贯穿CSV、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
             ("重复刷新不重抽且旧商品不能重复交易", PlaytestVerification.RefreshAndStaleOffers),
             ("事件获得卡牌在同次刷新中进入棋盘且不重复领取", PlaytestVerification.EventAcquisitionRefresh),
             ("校场实例加成在同次刷新中进入卡面", PlaytestVerification.EventModifierRefresh),
@@ -145,6 +146,9 @@ public sealed partial class PhaseOneVerification : Control
     {
         _groups.Add(new VerificationGroup("正式 CSV 一致性", [
             ("卡牌 CSV 身份、分类、等级与定义一致", ContentDataChecks.Cards),
+            ("卡牌词条、说明及顺序与正式 CSV 一致", ContentDataChecks.Descriptions),
+            ("词条校验拒绝未知词条、缺失、顺序错误及空说明", ContentDataChecks.RejectsDescriptionDrift),
+            ("词条身份只读隔离、合法名称及输入边界", ContentDataChecks.DescriptionEntryBoundaries),
             ("英雄 CSV 身份、收入及战斗初值与定义一致", ContentDataChecks.Heroes),
             ("技能 CSV 身份与全部支持等级一致", ContentDataChecks.Skills),
             ("遭遇 CSV 排程字段及选项归属与定义一致", ContentDataChecks.Encounters),
@@ -155,6 +159,7 @@ public sealed partial class PhaseOneVerification : Control
             ("固定战斗的结果、事件和回放状态保留基线", CombatTraceChecks.PreservesTraces),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("上方拖拽出售贯穿真实入口、奖励、失效与战斗限制", () => DragSaleChecks.Transactions(this)),
             ("真实场景事件刷新、敌方可见性与重开事件连接", () => PlaytestVerification.RenderedScene(this)),
             ("独立组件渲染无命令、页面互斥与旧按钮解绑", () => PlaytestVerification.IsolatedComponents(this)),
             ("棋盘预览无副作用并在提交时重新验证阻挡", PlaytestVerification.BoardPreviewAndCommit),
@@ -205,7 +210,7 @@ public sealed partial class PhaseOneVerification : Control
             {
                 try
                 {
-                    var passed = await PlaytestVerification.NativeDrag(this);
+                    var passed = await PlaytestVerification.NativeDrag(this) && await DragSaleChecks.Native(this);
                     GD.Print($"原生拖拽输入验证：{(passed ? "通过" : "失败")}");
                     GetTree().Quit(passed ? 0 : 1);
                 }

@@ -18,7 +18,10 @@ public sealed class DiamondCardDefinition : CardDefinition
                     CardSize.Small,
                     [GameElements.General],
                     illustration: new StringName("res://art/ui/card-face/artwork/diamond-illustration-v2.png"),
-                    description: "回响：当获得此卡牌后，此卡牌价值增加20。"),
+                    descriptionEntries:
+                    [
+                        new(CardKeywords.Pickup, "当获得此卡牌后，此卡牌价值增加20。"),
+                    ]),
                 baseCombat: new ModifiableAttributeSet()),
             new TagSet([GameTags.Material]),
             initialLevel: 4,

@@ -18,7 +18,10 @@ public sealed class JewelryBagCardDefinition : CardDefinition
                     CardSize.Small,
                     [GameElements.General],
                     illustration: new StringName("res://art/ui/card-face/artwork/jewelry_bag-illustration.png"),
-                    description: "回响：当出售此卡牌后，随机获得一张与此卡牌同等级的材料卡；双棋盘已满时不获得。"),
+                    descriptionEntries:
+                    [
+                        new(CardKeywords.Sell, "当出售此卡牌后，随机获得一张与此卡牌同等级的材料卡；双棋盘已满时不获得。"),
+                    ]),
                 baseCombat: new ModifiableAttributeSet()),
             new TagSet(),
             initialLevel: 2,

@@ -49,6 +49,8 @@ public sealed partial class MinimalPlaytest : Control
         _shell.MovePreviewRequested += Preview;
         _shell.CancelRequested += _presenter.CancelSelection;
         _shell.SellRequested += _presenter.SellCard;
+        _shell.DragSellRequested += _presenter.SellDraggedCard;
+        _shell.SellPreviewRequested += PreviewSale;
         _shell.ClaimRequested += _presenter.ClaimReward;
         _presenter.ViewChanged += Render;
         _presenter.Reset();
@@ -66,10 +68,14 @@ public sealed partial class MinimalPlaytest : Control
             _shell.MovePreviewRequested -= Preview;
             _shell.CancelRequested -= _presenter.CancelSelection;
             _shell.SellRequested -= _presenter.SellCard;
+            _shell.DragSellRequested -= _presenter.SellDraggedCard;
+            _shell.SellPreviewRequested -= PreviewSale;
             _shell.ClaimRequested -= _presenter.ClaimReward;
         }
     }
     private void Render(MatchPageViewModel view) => _shell.Render(view);
+    private Project_Star.Application.Common.Result<int> PreviewSale(BoardDragData data) =>
+        _presenter.PreviewSale(data.MatchId, data.CardId);
     private void Move(BoardDragData data, BoardZone zone, int start) => _presenter.MoveCard(data.MatchId, data.CardId, zone, start);
     private Project_Star.Application.Common.Result<BoardPlacementResult> Preview(BoardDragData data, BoardZone zone, int start) =>
         _presenter.PreviewMove(data.MatchId, data.CardId, zone, start);

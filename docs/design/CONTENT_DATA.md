@@ -1,6 +1,6 @@
 # 内容数据规范
 
-正式数据行分别维护在 [卡牌](CardDataTable.csv)、[技能](SkillDataTable.csv)、[英雄](HeroDataTable.csv)、[遭遇](EncounterDataTable.csv) CSV 中；运行时来源是 `scripts/Content/` 的 Definition。玩法以 [游戏规则](GAME_DESIGN.md) 为准，命名以 [术语表](GLOSSARY.md) 为准。
+正式数据行分别维护在 [卡牌身份](CardDataTable.csv)、[卡牌词条描述](CardDescriptionTable.csv)、[技能](SkillDataTable.csv)、[英雄](HeroDataTable.csv)、[遭遇](EncounterDataTable.csv) CSV 中；运行时来源是 `scripts/Content/` 的 Definition。玩法以 [游戏规则](GAME_DESIGN.md) 为准，命名以 [术语表](GLOSSARY.md) 为准。
 
 CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示文本，不从中文描述解析能力；行为继续组合通用 Ability / Effect。修改内容时同步更新 CSV、Definition 和有意义的行为验证。CSV 使用 keep 导入模式，保留原文件，不生成翻译资源。
 
@@ -16,14 +16,25 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 | 元素 | 1～2 个元素属性；`General` 表示无属性，不表示空值 |
 | 额外标签 | 尺寸标签以外的卡牌标签 |
 | 初始等级 | 默认创建、商店报价和普通获得时使用的等级 |
-| 描述 | `CardIdentityAttributes.Description`：只读 `string` 展示文本；按发动/回响/光环格式书写，数值按等级顺序，UI读取此字段 |
+| 词条描述 | 在 `CardDescriptionTable.csv` 中按 CardKey 关联，定义保存为只读 `CardIdentityAttributes.DescriptionEntries` 列表 |
 | 插画 | `CardIdentityAttributes.Illustration`：只读 `StringName` 资源标识，指向项目内原画的 `res://` 路径；由表现层加载纹理 |
 
 斜杠分隔的数值从初始等级开始，依次对应到4级，不再重复标注等级。例如初始2级卡牌的 `8/7/6秒` 对应2/3/4级；初始3级卡牌的 `6/5秒` 对应3/4级。5级卡牌只记录5级数值。`—` 表示没有该项。
 
-描述统一格式：主动效果为“发动：……”，有条件的被动触发为“回响：当……后，……”，始终生效或按当前战斗状态持续求值的效果为“光环：……”。一张卡可有多类效果，CSV用“；”分隔，详情按类别换行；冷却、魔法消耗、条件、目标、分级数值和限制保留完整。获得与出售触发也用回响句式。文案按效果语义分类，不由 `AbilityActivation` 的枚举名称直接拼接，更不改变原能力队列或触发规则。
+描述每条保存“词条 key + 说明文字”，列表顺序就是展示顺序；一张卡允许多条相同词条。词条名称由 `CardKeywords` 统一维护，说明不重复写词条前缀，也不加入富文本标记。冷却、魔法消耗、条件、目标、分级数值和限制保留在说明中。
 
-正式定义的描述必须与CSV逐字一致。该字段随实例的只读身份和 `CardSnapshot` 传递，商店、棋盘、奖励和详情共用；UI不维护按卡牌key的文案表。描述保留各等级的分级数值，当前等级与实例基础/当前属性另列，不从描述解析规则，也不在升级时改写身份文本。无描述的内部验证夹具可沿用能力说明。
+`CardDescriptionTable.csv` 每行保存一条描述：
+
+| 字段 | 含义 |
+|---|---|
+| CardKey | 对应 CardDataTable.csv 的卡牌 key |
+| 顺序 | 每张卡从1开始连续递增，不能重复 |
+| 词条 | `keyword.activate` 发动、`keyword.echo` 回响、`keyword.aura` 光环、`keyword.pickup` 拾取、`keyword.sell` 出售、`keyword.quest` 任务 |
+| 说明 | 此词条在该卡上的完整说明文字，使用 `string` |
+
+发动是自身CD结束触发；回响响应自身或其他卡牌发动所产生的事件，具体事件条件写在说明中；光环涵盖持续赋予及随状态计算，来源失效后的处理遵循该卡规则；拾取在获得此卡牌时结算；出售在出售此卡牌时结算。任务的实例进度与解锁机制保持独立。词条组织描述，不生成或改变能力队列、回响连锁规则及对局结算。
+
+正式定义的词条 key、说明和顺序必须与描述CSV逐项一致。只读条目随实例身份和 `CardSnapshot.DescriptionEntries` 传递，商店、棋盘、奖励和详情共用；UI不维护按卡牌key的文案表，也不解析中文标点来分段。描述保留各等级数值，当前等级与实例基础/当前属性另列，不在升级时改写身份文本。无描述条目的内部验证夹具可沿用能力说明。
 
 ### 通用价值表
 
@@ -31,7 +42,7 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 
 ### 内容维护约定
 
-新增或修改正式卡牌时必须同步更新 CardDataTable.csv，并检查：
+新增或修改正式卡牌时必须同步更新 CardDataTable.csv 和 CardDescriptionTable.csv，并检查：
 
 1. CardKey 全局唯一，使用 `StringName`。
 2. 归属 key 对应已有英雄阵营或 `neutral`。

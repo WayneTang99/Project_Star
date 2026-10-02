@@ -19,7 +19,10 @@ public sealed class CathedralCardDefinition : CardDefinition
                     CardSize.Large,
                     [GameElements.Light],
                     illustration: new StringName("res://art/ui/card-face/artwork/cathedral-illustration.png"),
-                    description: "光环：己方战场区光属性卡牌获得1层多重；此卡牌被摧毁后失效，多张大教堂可叠加。"),
+                    descriptionEntries:
+                    [
+                        new(CardKeywords.Aura, "己方战场区光属性卡牌获得1层多重；此卡牌被摧毁后失效，多张大教堂可叠加。"),
+                    ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,

@@ -19,7 +19,10 @@ public sealed class JudgmentHammerCardDefinition : CardDefinition
                     CardSize.Large,
                     [GameElements.Light],
                     illustration: new StringName("res://art/ui/card-face/artwork/judgment_hammer-illustration-v2.png"),
-                    description: "发动：冷却6/5秒，对敌方英雄造成目标最大生命的 20% 普通伤害（小数向下取整，先扣护甲）。"),
+                    descriptionEntries:
+                    [
+                        new(CardKeywords.Activate, "冷却6/5秒，对敌方英雄造成目标最大生命的 20% 普通伤害（小数向下取整，先扣护甲）。"),
+                    ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 0,
