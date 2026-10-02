@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
@@ -14,6 +15,7 @@ public enum AbilityActivation
     PassiveOnBattleStart = 4,
     PassiveWhileEnabled = 5,
     EchoOnFirstAlliedCardActivated = 6,
+    EchoOnAlliedCardEnteredState = 7,
 }
 
 public enum AbilityTarget
@@ -24,6 +26,7 @@ public enum AbilityTarget
     SourceGroupCards = 3,
     OtherBattlefieldCards = 4,
     AllBattlefieldCards = 5,
+    EventCard = 6,
 }
 
 public enum BattleStatus
@@ -91,6 +94,13 @@ public sealed record IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition(
 
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
+// 直接设置来源卡牌的布尔状态，不影响其他卡牌。
+public sealed record SetSourceCardStateEffectDefinition(StringName StateKey, bool Enabled) : EffectDefinition;
+
+// 随机选择一张直接相邻的己方指定标签卡牌，设置其布尔战斗状态。
+public sealed record SetRandomAdjacentAlliedTaggedCardStateEffectDefinition(
+    StringName RequiredTag, StringName StateKey, bool Enabled) : EffectDefinition;
+
 public sealed record ApplyStatusToAdjacentAlliedCardsEffectDefinition(
     BattleStatus Status,
     int Amount,
@@ -135,9 +145,16 @@ public sealed class AbilityDefinition
         int manaCost,
         int cooldownTicks,
         IReadOnlyList<EffectDefinition> effects,
-        bool allowsBench = false)
+        bool allowsBench = false,
+        StringName? triggerStateKey = null)
     {
         ArgumentNullException.ThrowIfNull(effects);
+        if (activation == AbilityActivation.EchoOnAlliedCardEnteredState
+            ? triggerStateKey != GameAttributeKeys.Flying && triggerStateKey != GameAttributeKeys.Berserk
+            : triggerStateKey is not null)
+            throw new ArgumentException("State entry trigger requires a known state key.", nameof(triggerStateKey));
+        if (target == AbilityTarget.EventCard && activation != AbilityActivation.EchoOnAlliedCardEnteredState)
+            throw new ArgumentException("Event card target requires a state entry trigger.", nameof(target));
         if (key.IsEmpty || manaCost < 0 || cooldownTicks < 0 || effects.Count == 0)
         {
             throw new ArgumentException("Ability configuration is invalid.");
@@ -166,6 +183,8 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (target == AbilityTarget.EventCard && effect is not ApplyStatusEffectDefinition)
+                throw new ArgumentException("Event card target currently supports status effects only.", nameof(effects));
             if ((activation == AbilityActivation.PassiveWhileEnabled) != (effect is ModifyAttributeEffectDefinition))
                 throw new ArgumentException("Persistent abilities require attribute modifiers only.", nameof(effects));
             var amount = effect switch
@@ -187,6 +206,15 @@ public sealed class AbilityDefinition
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
+            if (effect is SetSourceCardStateEffectDefinition state
+                && (state.StateKey != GameAttributeKeys.Flying && state.StateKey != GameAttributeKeys.Berserk
+                    || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Card state requires a known key and an executed ability.", nameof(effects));
+            if (effect is SetRandomAdjacentAlliedTaggedCardStateEffectDefinition adjacentState
+                && (adjacentState.RequiredTag.IsEmpty
+                    || adjacentState.StateKey != GameAttributeKeys.Flying && adjacentState.StateKey != GameAttributeKeys.Berserk
+                    || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Adjacent card state requires a tag, known state and executed ability.", nameof(effects));
             if (effect is MaxHealthPercentDamageEffectDefinition percentDamage
                 && percentDamage.Percent is < 1 or > 100)
             {
@@ -266,6 +294,7 @@ public sealed class AbilityDefinition
         }
         Effects = new List<EffectDefinition>(effects).AsReadOnly();
         AllowsBench = allowsBench;
+        TriggerStateKey = triggerStateKey;
     }
 
     public StringName Key { get; }
@@ -275,6 +304,7 @@ public sealed class AbilityDefinition
     public int CooldownTicks { get; }
     public IReadOnlyList<EffectDefinition> Effects { get; }
     public bool AllowsBench { get; }
+    public StringName? TriggerStateKey { get; }
 
     private static bool HasEmptyKey(IReadOnlyList<StringName> keys)
     {

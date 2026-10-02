@@ -97,6 +97,8 @@ public sealed class CardDisplayAdapter
         }
         foreach (var quest in card.Quests)
             lines.Add($"任务 {quest.Key}：{quest.Progress}/{quest.RequiredCount}{(quest.Unlocked ? " · 已解锁" : "")}");
+        var states = new[] { card.IsFlying ? "飞行" : "", card.IsBerserk ? "狂暴" : "" }.Where(text => text.Length > 0);
+        if (states.Any()) lines.Add($"状态：{string.Join("、", states)}");
         return string.Join("\n", lines);
     }
 
@@ -118,6 +120,7 @@ public sealed class CardDisplayAdapter
 
     private static int Value(CardSnapshot card, StringName key) => card.CurrentValues.TryGetValue(key, out var value) ? value : 0;
     private static string AttributeName(StringName key) => key == GameAttributeKeys.AttackDamage ? "攻击"
+        : key == GameAttributeKeys.Flying ? "飞行" : key == GameAttributeKeys.Berserk ? "狂暴"
         : key == GameAttributeKeys.Armor ? "护甲" : key == GameAttributeKeys.CooldownTicks ? "冷却"
         : key == GameAttributeKeys.Multicast ? "多重" : key == GameAttributeKeys.Burn ? "灼伤"
         : key == GameAttributeKeys.Poison ? "中毒" : key.ToString();
@@ -140,6 +143,8 @@ public sealed class CardDisplayAdapter
         GrantTagToEnemySizeCardsEffectDefinition value => $"敌方 {value.Size} 卡牌获得 {TagDisplayNames.Get(value.Tag)} 标签",
         IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => $"每张存活敌方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {value.AttributeKey} +{value.Amount}",
         ApplyStatusEffectDefinition value => $"施加 {value.Status} {value.Amount}",
+        SetSourceCardStateEffectDefinition value =>
+            $"{(value.Enabled ? "施加" : "移除")}此卡牌{AttributeName(value.StateKey)}状态",
         ApplyStatusToAdjacentAlliedCardsEffectDefinition value => $"相邻己方卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒，{TagDisplayNames.Get(value.BonusTag)} ×{value.BonusMultiplier}",
         ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => $"相邻 {TagDisplayNames.Get(value.RequiredTag)} 获得 {value.Status} 时，{value.AttributeKey} +{value.Amount}",
         DestroyCardEffectDefinition value => value.Permanent ? "永久摧毁卡牌" : "本场摧毁卡牌",

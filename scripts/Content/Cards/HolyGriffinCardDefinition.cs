@@ -21,7 +21,7 @@ public sealed class HolyGriffinCardDefinition : CardDefinition
                     illustration: new StringName("res://art/ui/card-face/artwork/holy_griffin-illustration.png"),
                     descriptionEntries:
                     [
-                        new(CardKeywords.Activate, "冷却5秒，使相邻己方人类卡牌获得1秒疾速"),
+                        new(CardKeywords.Activate, "冷却5秒，魔法消耗0，使相邻己方卡牌获得1秒疾速；此卡牌和随机一张相邻己方人类卡牌进入飞行。"),
                         new(CardKeywords.Echo, "当相邻己方人类卡牌获得疾速后，该卡牌攻击增加10/20/30。"),
                     ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
@@ -57,6 +57,9 @@ public sealed class HolyGriffinCardDefinition : CardDefinition
                             10,
                             GameTags.Human,
                             1),
+                        new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true),
+                        new SetRandomAdjacentAlliedTaggedCardStateEffectDefinition(
+                            GameTags.Human, GameAttributeKeys.Flying, true),
                     ]),
                 new AbilityDefinition(
                     new StringName("ability.holy_griffin_empower_hastened_humans"),

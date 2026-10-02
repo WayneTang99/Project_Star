@@ -27,6 +27,7 @@ internal static class CombatTraceChecks
         for (var index = 0; index < setups.Length; index++)
         {
             var simulator = new CombatSimulator();
+            if (simulator.Simulate(setups[index]).States.Any(frame => frame.Cards.Any(card => card.IsFlying || card.IsBerserk))) return false;
             var actual = Fingerprint(simulator.Simulate(setups[index]));
             if (actual != Fingerprint(simulator.Simulate(setups[index]))) return false;
             if (actual != Baseline[index]) return false;

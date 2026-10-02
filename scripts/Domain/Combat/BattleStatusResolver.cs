@@ -30,23 +30,27 @@ internal static class BattleStatusResolver
     }
 
     // 累加英雄或来源卡牌的对应状态贡献。
-    internal static void ApplyStatus(IBattleAbilitySource source, HeroBattleState hero, ApplyStatusEffectDefinition effect)
+    internal static int ApplyStatus(IBattleAbilitySource source, HeroBattleState hero, ApplyStatusEffectDefinition effect)
     {
+        var amount = source is CardBattleState { IsFlying: true }
+            && effect.Status is BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration
+                ? effect.Amount / 2 : effect.Amount;
         switch (effect.Status)
         {
-            case BattleStatus.Burn: hero.Burn = checked(hero.Burn + effect.Amount); break;
-            case BattleStatus.Poison: hero.Poison = checked(hero.Poison + effect.Amount); break;
-            case BattleStatus.HealthRegen: hero.HealthRegen = checked(hero.HealthRegen + effect.Amount); break;
-            case BattleStatus.ManaRegen: hero.ManaRegen = checked(hero.ManaRegen + effect.Amount); break;
+            case BattleStatus.Burn: hero.Burn = checked(hero.Burn + amount); break;
+            case BattleStatus.Poison: hero.Poison = checked(hero.Poison + amount); break;
+            case BattleStatus.HealthRegen: hero.HealthRegen = checked(hero.HealthRegen + amount); break;
+            case BattleStatus.ManaRegen: hero.ManaRegen = checked(hero.ManaRegen + amount); break;
             case BattleStatus.HasteDuration when source is CardBattleState card:
-                card.HasteDuration = checked(card.HasteDuration + effect.Amount); break;
+                card.HasteDuration = checked(card.HasteDuration + amount); break;
             case BattleStatus.SlowDuration when source is CardBattleState card:
-                card.SlowDuration = checked(card.SlowDuration + effect.Amount); break;
+                card.SlowDuration = checked(card.SlowDuration + amount); break;
             case BattleStatus.ImmobilizeDuration when source is CardBattleState card:
-                card.ImmobilizeDuration = checked(card.ImmobilizeDuration + effect.Amount); break;
+                card.ImmobilizeDuration = checked(card.ImmobilizeDuration + amount); break;
             case BattleStatus.HasteDuration or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration:
                 throw new InvalidOperationException("Card status requires a card source.");
         }
+        return amount;
     }
 
     // 对直接相邻卡牌施加状态，再按稳定顺序处理状态获得反应。
@@ -66,9 +70,9 @@ internal static class BattleStatusResolver
             var amount = card.Tags.Contains(effect.BonusTag)
                 ? checked(effect.Amount * effect.BonusMultiplier)
                 : effect.Amount;
-            ApplyStatus(card, runtime.GetHero(card.Side), new ApplyStatusEffectDefinition(effect.Status, amount));
-            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, amount));
-            ApplyAdjacentStatusReactions(runtime, card, effect.Status);
+            var applied = ApplyStatus(card, runtime.GetHero(card.Side), new ApplyStatusEffectDefinition(effect.Status, amount));
+            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, applied));
+            if (applied > 0) ApplyAdjacentStatusReactions(runtime, card, effect.Status);
         }
     }
 

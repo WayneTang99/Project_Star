@@ -16,7 +16,9 @@ card.holy_slashing_blade,1,keyword.activate,冷却10秒，对敌方英雄造成2
 card.holy_slashing_blade,2,keyword.aura,本场战斗双方每有一件已被摧毁的恶魔或亡灵卡牌，此卡牌攻击翻倍（本次发动摧毁的卡牌立即计数）。
 card.order_crusader,1,keyword.activate,冷却8秒，对敌方英雄造成40/80/120伤害
 card.order_crusader,2,keyword.aura,敌方小型卡牌在战斗中视为恶魔，敌方每有一件未被摧毁的恶魔卡牌，此卡牌伤害增加10/20/40；此卡牌被摧毁后，赋予的恶魔标签立即失效。
-card.holy_griffin,1,keyword.activate,冷却5秒，使相邻己方人类卡牌获得1秒疾速
+card.holy_griffin,1,keyword.activate,冷却5秒，魔法消耗0，使相邻己方卡牌获得1秒疾速；此卡牌和随机一张相邻己方人类卡牌进入飞行。
 card.holy_griffin,2,keyword.echo,当相邻己方人类卡牌获得疾速后，该卡牌攻击增加10/20/30。
 card.nun,1,keyword.activate,冷却6秒，消耗10魔法，治疗己方英雄10/20/40/80生命，并随机充能己方另一件光属性卡牌1秒（不包括此卡牌）。
 card.thorn_armor,1,keyword.activate,冷却8/7/6/5秒，己方英雄获得10/20/40/80护甲，再对敌方英雄造成等同于己方英雄当前护甲值加此卡牌攻击值的普通伤害（先扣敌方护甲）。
+card.flying_broom,1,keyword.activate,冷却5/4/3/2秒，魔法消耗0，此卡牌进入飞行。
+card.flying_broom,2,keyword.echo,当己方卡牌进入飞行时，该卡牌获得1秒疾速。

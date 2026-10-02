@@ -42,20 +42,20 @@ internal static class BattleEffectResolver
         switch (effect)
         {
             case DamageEffectDefinition damage:
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, damage.Amount, damage.BypassArmor,
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, damage.Amount), damage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case SourceHeroLevelScaledDamageEffectDefinition levelDamage:
                 var sourceLevel = runtime.GetHero(pending.Source.Side).Level;
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero,
-                    checked(sourceLevel * levelDamage.Multiplier), levelDamage.BypassArmor,
+                    BerserkAmount(pending, checked(sourceLevel * levelDamage.Multiplier)), levelDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case MaxHealthPercentDamageEffectDefinition percentDamage:
                 var amount = checked((int)((long)hero.MaxHealth * percentDamage.Percent / 100));
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, amount, percentDamage.BypassArmor,
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, amount), percentDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
@@ -65,7 +65,7 @@ internal static class BattleEffectResolver
                     pending.Source.EntityId,
                     targetSide,
                     hero,
-                    GetEffectiveCombatAttribute(runtime, pending.Source, attributeDamage.AttributeKey),
+                    BerserkAmount(pending, GetEffectiveCombatAttribute(runtime, pending.Source, attributeDamage.AttributeKey)),
                     attributeDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
@@ -74,7 +74,7 @@ internal static class BattleEffectResolver
                 var healthSourceHero = runtime.GetHero(pending.Source.Side);
                 var scaledAmount = checked((int)((long)GetEffectiveCombatAttribute(
                     runtime, pending.Source, scaledDamage.AttributeKey) * healthSourceHero.Health / healthSourceHero.MaxHealth));
-                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, scaledAmount,
+                ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, scaledAmount),
                     scaledDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
@@ -89,7 +89,7 @@ internal static class BattleEffectResolver
                     pending.Source.EntityId,
                     targetSide,
                     hero,
-                    checked(armorSourceHero.Armor + bonusDamage),
+                    BerserkAmount(pending, checked(armorSourceHero.Armor + bonusDamage)),
                     heroArmorDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
@@ -114,10 +114,30 @@ internal static class BattleEffectResolver
                 sourceHero.Armor = checked(sourceHero.Armor + sourceHero.ManaSpent);
                 break;
             case ApplyStatusEffectDefinition status:
-                BattleStatusResolver.ApplyStatus(pending.Source, hero, status);
-                runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, status.Amount));
-                if (pending.Source is CardBattleState statusCard)
+                var appliedStatus = status.Status is BattleStatus.Burn or BattleStatus.Poison
+                    ? status with { Amount = BerserkAmount(pending, status.Amount) } : status;
+                var statusTarget = definition.Target == AbilityTarget.EventCard ? pending.EventCard! : pending.Source;
+                var appliedAmount = BattleStatusResolver.ApplyStatus(statusTarget, hero, appliedStatus);
+                runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, appliedAmount));
+                if (appliedAmount > 0 && statusTarget is CardBattleState statusCard)
                     BattleStatusResolver.ApplyAdjacentStatusReactions(runtime, statusCard, status.Status);
+                break;
+            case SetSourceCardStateEffectDefinition state:
+                if (pending.Source is not CardBattleState stateSource)
+                    throw new InvalidOperationException("Card state requires a card source.");
+                SetCardState(runtime, pending, stateSource, state.StateKey, state.Enabled);
+                break;
+            case SetRandomAdjacentAlliedTaggedCardStateEffectDefinition adjacentState:
+                if (pending.Source is not CardBattleState adjacentStateSource)
+                    throw new InvalidOperationException("Adjacent card state requires a card source.");
+                var candidates = runtime.Cards.Where(card => card.Side == adjacentStateSource.Side
+                    && card.EntityId != adjacentStateSource.EntityId && !card.Destroyed && !card.IsOnBench
+                    && HasEffectiveTag(runtime, card, adjacentState.RequiredTag)
+                    && (card.BoardStart + card.OccupiedSlots == adjacentStateSource.BoardStart
+                        || card.BoardStart == adjacentStateSource.BoardStart + adjacentStateSource.OccupiedSlots)).ToArray();
+                if (candidates.Length > 0)
+                    SetCardState(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)],
+                        adjacentState.StateKey, adjacentState.Enabled);
                 break;
             case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
                 if (pending.Source is not CardBattleState adjacentSource)
@@ -170,6 +190,12 @@ internal static class BattleEffectResolver
                 break;
         }
     }
+
+    // 只放大狂暴来源的发动数值，整数结果向下取整，不改变来源属性。
+    private static int BerserkAmount(PendingAbility pending, int amount) =>
+        pending.Source is CardBattleState { IsBerserk: true }
+            && pending.Ability.Definition.Activation == AbilityActivation.Active
+                ? checked((int)((long)amount * 120 / 100)) : amount;
 
     // 查询来源的基础属性与当前有效光环贡献，不提交属性写入。
     internal static int GetEffectiveCombatAttribute(BattleRuntime runtime, IBattleAbilitySource source, StringName key)
@@ -284,6 +310,18 @@ internal static class BattleEffectResolver
             source.EntityId,
             target.EntityId,
             effect.AmountTicks));
+    }
+
+    private static void SetCardState(BattleRuntime runtime, PendingAbility pending,
+        CardBattleState target, StringName stateKey, bool enabled)
+    {
+        var previous = stateKey == GameAttributeKeys.Flying ? target.IsFlying : target.IsBerserk;
+        if (stateKey == GameAttributeKeys.Flying) target.IsFlying = enabled;
+        else target.IsBerserk = enabled;
+        if (previous == enabled) return;
+        runtime.Events.Add(new CardStateChangedEvent(runtime.Tick, target.EntityId, stateKey, enabled));
+        if (enabled && !pending.IsEcho)
+            CombatSimulator.EnqueueStateEntryEchoes(runtime, target, stateKey);
     }
 
     private static bool ContainsAnyTag(CardBattleState card, System.Collections.Generic.IReadOnlyList<StringName> tags)

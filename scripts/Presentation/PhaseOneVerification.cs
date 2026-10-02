@@ -123,7 +123,8 @@ public sealed partial class PhaseOneVerification : Control
             ("荆棘甲先获得护甲再按英雄当前护甲造成伤害", CardCombatChecks.CheckThornArmor),
             ("魔能盾按己方累计魔法消耗获得护甲", CardCombatChecks.CheckArcaneShield),
             ("军靴使相邻卡牌疾速且对人类翻倍", CardCombatChecks.CheckMilitaryBoots),
-            ("神圣狮鹫使相邻人类疾速并在其获得疾速时强化攻击", CardCombatChecks.CheckHolyGriffin),
+            ("神圣狮鹫使相邻己方卡牌疾速并强化获疾速的人类", CardCombatChecks.CheckHolyGriffin),
+            ("神圣狮鹫使全部相邻己方卡牌疾速并随机带一张人类飞行", GriffinFlightChecks.TargetsAndReplay),
             ("修女治疗己方英雄并充能另一件光属性卡牌", CardCombatChecks.CheckNun),
             ("大教堂光环为己方光属性卡牌提供可移除的多重", CardCombatChecks.CheckCathedral),
             ("铁匠铺强化装备已有的攻击与护甲能力", CardCombatChecks.CheckBlacksmith),
@@ -155,10 +156,17 @@ public sealed partial class PhaseOneVerification : Control
             ("一致性校验拒绝文案漂移、缺失及重复 key", ContentDataChecks.RejectsDrift),
         ]));
         _groups.Add(new VerificationGroup("扩展边界与战斗记录", [
+            ("飞行/狂暴为布尔状态，重复设置幂等且每场重置", CardStateChecks.BooleanLifecycle),
+            ("飞天扫帚分级冷却、进入飞行与1秒疾速正确", FlyingBroomChecks.LevelsAndActivation),
+            ("飞行回响准确定位己方事件卡牌、叠加且不连锁", FlyingBroomChecks.EventTargetsAndStacking),
+            ("飞行减半新增迟缓/禁锢，兼容相邻倍率且不影响疾速", CardStateChecks.FlyingDurations),
+            ("狂暴覆盖全部伤害公式及中毒/灼伤并在护甲前取整", CardStateChecks.BerserkDamageAndStatus),
+            ("狂暴仅加成发动与多重，不重复加成被动或周期伤害", CardStateChecks.BerserkActiveOnly),
             ("怪物与 PvP 使用注入的对手来源", PlaytestVerification.OpponentProviderInjection),
             ("固定战斗的结果、事件和回放状态保留基线", CombatTraceChecks.PreservesTraces),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),
             ("上方拖拽出售贯穿真实入口、奖励、失效与战斗限制", () => DragSaleChecks.Transactions(this)),
             ("真实场景事件刷新、敌方可见性与重开事件连接", () => PlaytestVerification.RenderedScene(this)),
             ("独立组件渲染无命令、页面互斥与旧按钮解绑", () => PlaytestVerification.IsolatedComponents(this)),

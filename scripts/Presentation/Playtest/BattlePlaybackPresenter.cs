@@ -108,7 +108,8 @@ public sealed class BattlePlaybackPresenter
         return before with { Cards = Array.AsReadOnly(before.Cards.Select(card =>
         {
             var state = _state.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == side);
-            return state is null ? card : card with { CurrentValues = state.Values };
+            return state is null ? card : card with
+                { CurrentValues = state.Values, IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
         }).ToArray()) };
     }
 }

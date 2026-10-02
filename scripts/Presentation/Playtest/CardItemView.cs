@@ -68,6 +68,7 @@ public sealed partial class CardItemView : Button
         if (state is null) return;
         var cooldown = state.CooldownUnits.Count == 0 ? "" : $"{System.Linq.Enumerable.Max(state.CooldownUnits) / 20m:0.0}s";
         var status = string.Join(" · ", Array.FindAll(new[] {
+            state.IsFlying ? "飞行" : "", state.IsBerserk ? "狂暴" : "",
             state.Immobilize > 0 ? $"禁锢 {state.Immobilize / 10m:0.0}s" : "",
             state.Haste > 0 ? $"疾速 {state.Haste / 10m:0.0}s" : "",
             state.Slow > 0 ? $"迟缓 {state.Slow / 10m:0.0}s" : "" }, text => text.Length > 0));

@@ -16,3 +16,4 @@ card.order_crusader,教团远征军,paladin,Large,Light,Human,2,res://art/ui/car
 card.holy_griffin,神圣狮鹫,paladin,Large,Light,"Beast, Mount",2,res://art/ui/card-face/artwork/holy_griffin-illustration.png
 card.nun,修女,paladin,Small,Light,Human,1,res://art/ui/card-face/artwork/nun-illustration.png
 card.thorn_armor,荆棘甲,paladin,Medium,General,Equipment,1,res://art/ui/card-face/artwork/thorn_armor-illustration.png
+card.flying_broom,飞天扫帚,mona,Medium,General,"Equipment, Mount",1,res://art/ui/card-face/artwork/placeholder.svg

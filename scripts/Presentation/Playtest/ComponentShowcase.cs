@@ -23,7 +23,8 @@ public sealed partial class ComponentShowcase : Control
         if (OS.GetCmdlineUserArgs().Contains("--capture-card-pool"))
         { Callable.From(CaptureCardPool).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-p4") || OS.GetCmdlineUserArgs().Contains("--capture-p6-transactions")
-            || OS.GetCmdlineUserArgs().Contains("--capture-descriptions") || OS.GetCmdlineUserArgs().Contains("--capture-keywords"))
+            || OS.GetCmdlineUserArgs().Contains("--capture-descriptions") || OS.GetCmdlineUserArgs().Contains("--capture-keywords")
+            || OS.GetCmdlineUserArgs().Contains("--capture-card-states"))
         { Callable.From(CaptureTransactions).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-p5") || OS.GetCmdlineUserArgs().Contains("--capture-p6-playback"))
         { Callable.From(CapturePlayback).CallDeferred(); return; }
@@ -212,20 +213,21 @@ public sealed partial class ComponentShowcase : Control
                 new RewardItemViewModel(1, 1, $"技能 · {skill.Attributes.Identity.DisplayName} · {skill.InitialLevel}级", null,
                     CardDisplayAdapter.SkillDetails(MatchDisplayQuery.FromSkill(skill, skill.InitialLevel))) }),
         };
-        if (OS.GetCmdlineUserArgs().Contains("--capture-keywords"))
+        if (OS.GetCmdlineUserArgs().Contains("--capture-keywords") || OS.GetCmdlineUserArgs().Contains("--capture-card-states"))
         {
             shell.Render(view);
             var sample = card with { DescriptionEntries = Array.AsReadOnly(new CardDescriptionEntry[]
             {
                 new(CardKeywords.Activate, "攻击造成伤害，并获得护甲、治疗。"),
                 new(CardKeywords.Echo, "当中毒、灼伤生效后，获得疾速、充能，施加禁锢。"),
-            }) };
+            }), IsFlying = OS.GetCmdlineUserArgs().Contains("--capture-card-states"),
+                IsBerserk = OS.GetCmdlineUserArgs().Contains("--capture-card-states") };
             shell.GetNode<CardDetailsView>("CardDetails").ShowCard(sample, new Vector2(280, 90), shell.Size);
             var item = new CardItemView();
             var tooltip = (Control)item._MakeCustomTooltip(CardDisplayAdapter.Details(sample)); item.Free();
             var tooltipPanel = new PanelContainer(); shell.AddChild(tooltipPanel);
             tooltipPanel.AddChild(tooltip); tooltipPanel.Position = new Vector2(760, 330);
-            await Save("keywords");
+            await Save(OS.GetCmdlineUserArgs().Contains("--capture-card-states") ? "card-states" : "keywords");
             GetTree().Quit(); return;
         }
         if (OS.GetCmdlineUserArgs().Contains("--capture-descriptions"))
@@ -260,7 +262,8 @@ public sealed partial class ComponentShowcase : Control
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            var directory = OS.GetCmdlineUserArgs().Contains("--capture-keywords") ? "res://docs/quality/card-keywords"
+            var directory = OS.GetCmdlineUserArgs().Contains("--capture-card-states") ? "res://output"
+                : OS.GetCmdlineUserArgs().Contains("--capture-keywords") ? "res://docs/quality/card-keywords"
                 : OS.GetCmdlineUserArgs().Contains("--capture-descriptions") ? "res://docs/quality/card-description"
                 : OS.GetCmdlineUserArgs().Contains("--capture-p6-transactions") ? "res://docs/quality/ui-p6" : "res://docs/quality/ui-p4";
             DirAccess.MakeDirRecursiveAbsolute(directory);

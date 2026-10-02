@@ -66,9 +66,10 @@ public sealed class CombatSimulator
         IBattleAbilitySource card,
         BattleAbilityState ability,
         bool echo,
-        bool multicast = false)
+        bool multicast = false,
+        CardBattleState? eventCard = null)
     {
-        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick));
+        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick, eventCard));
         runtime.Events.Add(new AbilityQueuedEvent(
             runtime.Tick,
             card.EntityId,
@@ -82,6 +83,8 @@ public sealed class CombatSimulator
         {
             var pending = runtime.Queue.Dequeue();
             if (pending.Source.Destroyed) continue;
+            if (pending.Ability.Definition.Target == AbilityTarget.EventCard
+                && (pending.EventCard is null || pending.EventCard.Destroyed || pending.EventCard.IsOnBench)) continue;
             var hero = runtime.GetHero(pending.Source.Side);
             var definition = pending.Ability.Definition;
             var paysMana = definition.Activation == AbilityActivation.Active && !pending.IsMulticast;
@@ -145,6 +148,19 @@ public sealed class CombatSimulator
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnDamageDealt)
                 Enqueue(runtime, source, ability, true);
+        }
+    }
+
+    // 真实进入布尔状态后，按稳定来源顺序排入己方回响并保存事件目标。
+    internal static void EnqueueStateEntryEchoes(BattleRuntime runtime, CardBattleState target, StringName stateKey)
+    {
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
+        {
+            if (source.Side != target.Side || source.Destroyed || source.IsOnBench) continue;
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardEnteredState
+                && ability.Definition.TriggerStateKey == stateKey)
+                Enqueue(runtime, source, ability, true, eventCard: target);
         }
     }
 

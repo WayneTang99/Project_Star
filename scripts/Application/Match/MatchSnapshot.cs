@@ -33,6 +33,8 @@ public sealed record CardSnapshot(
     public IReadOnlyDictionary<StringName, int> CurrentValues { get; init; } =
         new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = Array.Empty<AbilityDefinition>();
+    public bool IsFlying { get; init; }
+    public bool IsBerserk { get; init; }
 }
 
 public sealed record HeroSnapshot(EntityId Id, StringName Key, string DisplayName,
@@ -160,7 +162,7 @@ public sealed record MatchSnapshot(
                 MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => value with
                 { RequiredAnyTags = Array.AsReadOnly(value.RequiredAnyTags.ToArray()) },
                 _ => effect,
-            }).ToArray()), ability.AllowsBench)).ToArray());
+            }).ToArray()), ability.AllowsBench, ability.TriggerStateKey)).ToArray());
 
     private static void AddPlacements(
         BoardZoneState zoneState,

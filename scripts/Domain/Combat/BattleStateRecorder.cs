@@ -27,7 +27,8 @@ internal static class BattleStateRecorder
                 .Select(ability => ability.RemainingCooldownUnits).ToArray()),
             new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(card.CombatAttributes.Keys
                 .ToDictionary(key => key, key => key == GameAttributeKeys.Multicast
-                    ? BattleEffectResolver.GetEffectiveMulticast(runtime, card) : BattleEffectResolver.GetEffectiveCombatAttribute(runtime, card, key))))).ToArray();
+                    ? BattleEffectResolver.GetEffectiveMulticast(runtime, card) : BattleEffectResolver.GetEffectiveCombatAttribute(runtime, card, key))))
+            { IsFlying = card.IsFlying, IsBerserk = card.IsBerserk }).ToArray();
         runtime.States.Add(new BattleStateSnapshot(runtime.Tick, runtime.Events.Count,
             runtime.Tick.Value >= runtime.EclipseTime.Value, Hero(runtime.PlayerHero), Hero(runtime.OpponentHero),
             Array.AsReadOnly(cards)));

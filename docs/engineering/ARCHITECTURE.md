@@ -79,6 +79,8 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 
 Runtime 只修改卡牌实际支持的属性，修改效果不能凭写属性赋予新能力。每次真实变化点记录冻结状态；同 Tick 保持原记录顺序，EventCount 对应原日志前缀。BattleResult 包含永久变化与只读播放状态，GameCoordinator.ResolveBattleForPlayback 通过 MatchResultService.Apply 一次结算，不因播放方式重跑。UI 回放细节见 UI 规范。
 
+飞行／狂暴独立存为 Runtime 的布尔字段，不进入数值属性字典。通用来源卡牌状态设置效果发布 CardStateChangedEvent，CardBattleSnapshot 冻结两个布尔值，回放投影传给 CardSnapshot。飞行减时长在目标状态施加处统一处理；狂暴只在发动的伤害公式结果与中毒／灼伤施加量处增加20%，不修改基础属性或周期结算。
+
 ## 验证与审查
 
 Main.tscn 保留分类/全部验证及 headless --verify。Presentation/Verification 中按领域职责划分规则检查和共享夹具，PhaseOneVerification 只组装列表和显示结果；场景集成仍在 Godot 中验证。

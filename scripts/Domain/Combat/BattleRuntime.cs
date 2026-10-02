@@ -103,6 +103,8 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public int HasteDuration { get; set; }
     public int SlowDuration { get; set; }
     public int ImmobilizeDuration { get; set; }
+    public bool IsFlying { get; set; }
+    public bool IsBerserk { get; set; }
     public List<BattleAbilityState> Abilities { get; } = [];
     public Dictionary<StringName, int> CombatAttributes { get; } = [];
     public HashSet<StringName> SupportedCombatAttributes { get; } = [];
@@ -168,7 +170,8 @@ internal sealed record PendingAbility(
     BattleAbilityState Ability,
     bool IsEcho,
     bool IsMulticast,
-    BattleTick EnqueuedAt);
+    BattleTick EnqueuedAt,
+    CardBattleState? EventCard = null);
 
 internal sealed class AbilityQueue
 {

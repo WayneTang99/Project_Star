@@ -31,6 +31,8 @@ public sealed record ManaChangedEvent(BattleTick Tick, SideId Side, int Amount, 
 
 public sealed record StatusChangedEvent(BattleTick Tick, BattleStatus Status, int Amount) : BattleEvent(Tick);
 
+public sealed record CardStateChangedEvent(BattleTick Tick, EntityId CardId, StringName StateKey, bool Enabled) : BattleEvent(Tick);
+
 public sealed record CardAttributeChangedEvent(
     BattleTick Tick,
     EntityId CardId,

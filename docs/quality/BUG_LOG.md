@@ -79,3 +79,6 @@
 | BUG-059 | 2026-10-01 | `scripts/Presentation/Playtest/PlaytestVerification.cs` | 新增莫娜后6项依赖帕拉帝恩卡池的验证失败。 | 用例按列表下标选择英雄，按key排序后第一位变为尚无专属卡牌的莫娜。 | 相关验证显式选择 `hero.paladin`，消除英雄排序依赖。 | Fixed |
 | BUG-060 | 2026-10-02 | `scripts/Presentation/CardFace/CardDisplayAdapter.cs` / Details | 大教堂、狮鹫、铁匠铺等卡牌显示无关的攻击0，无发动能力的卡牌仍显示冷却占位值。 | 详情无条件遍历 CurrentValues，没有根据能力判断属性用途；内容中的占位字段被当作有效展示属性。 | 仅有 Active 能力时显示冷却，仅伤害效果读取攻击属性时显示攻击；保留真实零值攻击，不修改属性或战斗规则。新增辅助卡、材料卡、零攻击及护甲公式回归检查。 | Fixed |
 | BUG-061 | 2026-10-02 | `scripts/Presentation/PhaseOneVerification.cs` / 拖拽出售检查注册 | 新增场景验证首次构建报 CS0027。 | 在字段初始化表达式中用 lambda 捕获 this，C# 不允许此处引用实例。 | 按现有场景验证方式在 _Ready 中注册检查。 | Fixed |
+| BUG-062 | 2026-10-02 | `scripts/Domain/Combat/AbilityDefinitions.cs` / `BattleStateRecorder.cs` | 布尔状态接入首次构建失败。 | 新增状态key校验缺少 Common 引用，快照对象初始化前多保留一个 Select 闭合括号。 | 补齐引用并修正构造／初始化表达式，构建0警告0错误。 | Fixed |
+| BUG-063 | 2026-10-02 | `scripts/Presentation/Verification/CardStateChecks.cs` / BerserkActiveOnly | 狂暴被动与周期回归首次失败。 | 夹具忽略当前多重也重复战斗开始被动，低估初始伤害与中毒量。 | 保留现行多重规则，按两次未加成被动及14点周期中毒核对，并另验回响不加成。 | Fixed |
+| BUG-064 | 2026-10-02 | `scripts/Content/Cards/HolyGriffinCardDefinition.cs` / 发动描述 | 神圣狮鹫疾速文案限定人类，但实际作用于全部直接相邻己方卡牌。 | 文案未与通用相邻效果的实际筛选规则一致。 | 按确认的玩法保留全部相邻己方目标，同步定义与CSV描述，增加非人类邻居验证。 | Fixed |
