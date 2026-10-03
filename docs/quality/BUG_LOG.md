@@ -91,3 +91,5 @@
 | BUG-071 | 2026-10-03 | `project.godot` / 游戏窗口显示 | 用户报告运行游戏时肉眼可见黑色闪烁，电脑录屏未捕获；关闭HDR后仍发生，用户确认未启用G-Sync。 | 用户确认切换Vulkan后不再闪烁，问题与当前环境的DX12渲染路径相关；具体驱动或显示链路根因未确认。 | 保持HDR输出关闭，Windows渲染驱动使用Vulkan；用户重启Godot运行后确认不再闪烁。 | Fixed（用户确认） |
 | BUG-072 | 2026-10-03 | `scripts/Presentation/Playtest/PlaytestVerification.cs` / 插画验证 | 未配置插画的合法卡牌无法通过验证，尽管卡面已有缺图占位。 | 验证强制要求每张卡牌配置正式原画，未覆盖空插画标识的展示契约。 | 空插画验证占位纹理与身份传递；已配置原画继续校验资源路径和尺寸。 | Fixed |
 | BUG-073 | 2026-10-03 | `scripts/Domain/Combat/AbilityDefinitions.cs` / 冷却光环配置验证 | 新机制首次构建失败。 | 引用了不存在的GameElements.IsKnown方法。 | 改为沿用效果定义的非空元素key校验，元素身份仍由正式卡牌定义验证。 | Fixed |
+| BUG-074 | 2026-10-03 | `scripts/Presentation/Playtest/KeyedActionView.cs` / 英雄缩略图初版 | 初版构建失败。 | 将Godot的icon_max_width主题常量误用为Button属性。 | 修正后按用户要求将英雄选角改为独立原画浏览组件，不再使用按钮图标。 | Fixed |
+| BUG-075 | 2026-10-03 | `scripts/Presentation/Playtest/PlayerHeroPanel.cs` / 姓名布局 | 原画接入后英雄姓名未在截图中显示。 | 自动换行且裁切的Label在HBox内未得到有效最小高度。 | 为姓名设置48像素最小高度及垂直居中，1280×720截图确认恢复显示。 | Fixed |

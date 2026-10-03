@@ -5,17 +5,17 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Heroes;
 
-// 莫娜英雄内容定义（内容层）。
-public sealed class MonaHeroDefinition : HeroDefinition
+// 极云英雄内容定义（内容层）。
+public sealed class JiyunHeroDefinition : HeroDefinition
 {
-    public MonaHeroDefinition()
+    public JiyunHeroDefinition()
         : base(
             new EntityAttributes<HeroIdentityAttributes>(
                 new HeroIdentityAttributes(
-                    new StringName("hero.mona"),
-                    "莫娜",
-                    new StringName("mona"),
-                    "小魔女", new StringName("res://art/ui/heroes/mona-illustration.png")),
+                    new StringName("hero.jiyun"),
+                    "极云",
+                    new StringName("jiyun"),
+                    "熊猫人", new StringName("res://art/ui/heroes/jiyun-illustration.png")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.MaxHealth] = 100,

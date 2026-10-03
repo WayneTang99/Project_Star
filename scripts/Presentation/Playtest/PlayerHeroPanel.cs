@@ -7,7 +7,7 @@ using Project_Star.Domain.Combat;
 
 namespace Project_Star.Presentation.Playtest;
 
-// 左下英雄身份区域，正式画像接入前使用名称占位。
+// 左下英雄身份区域及详情入口分类。
 public enum HeroSection { Skills, Sets, Rewards }
 
 // 英雄快照与技能、套装、奖励入口共用左下区域。
@@ -19,9 +19,17 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
     private HFlowContainer _buttons = null!;
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
+    private TextureRect _portrait = null!;
     public override void _Ready()
     {
-        _name = new Label { ClipText = true }; AddChild(_name);
+        var identity = new HBoxContainer { Name = "Identity" }; AddChild(identity);
+        _portrait = new TextureRect { Name = "Portrait", CustomMinimumSize = new Vector2(64, 64),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = MouseFilterEnum.Ignore };
+        identity.AddChild(_portrait);
+        _name = new Label { Name = "HeroName", ClipText = true, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 48), VerticalAlignment = VerticalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart }; identity.AddChild(_name);
         _health = new ResourceBar("HealthBar", new Color("86bf8c")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("88c4eb")); AddChild(_mana);
         _battle = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Visible = false }; AddChild(_battle);
@@ -33,6 +41,9 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
     {
         _name.Text = hero is null ? "英雄" : PlaytestText.FormatHeroName(hero.DisplayName, hero.Title);
         _buttons.Visible = _health.Visible = _mana.Visible = hero is not null;
+        _portrait.Texture = hero is not null && !hero.Illustration.IsEmpty && ResourceLoader.Exists(hero.Illustration.ToString())
+            ? GD.Load<Texture2D>(hero.Illustration.ToString()) : null;
+        _portrait.Visible = _portrait.Texture is not null;
         if (hero is null) return;
         var health = hero.CombatValues.GetValueOrDefault(GameAttributeKeys.MaxHealth);
         _health.Render("生命", health, health);

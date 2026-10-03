@@ -20,6 +20,8 @@ public sealed partial class ComponentShowcase : Control
     private CardDetailsView _details = null!;
     public override void _Ready()
     {
+        if (OS.GetCmdlineUserArgs().Contains("--capture-heroes"))
+        { Callable.From(CaptureHeroes).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-gem-sockets"))
         { Callable.From(CaptureGemSockets).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-card-pool"))
@@ -85,6 +87,33 @@ public sealed partial class ComponentShowcase : Control
     public override void _ExitTree() { if (_details is not null) Resized -= ClampDetails; }
     private void ShowDetails(CardSnapshot card) => _details.ShowCard(card, GetLocalMousePosition(), Size);
     private void ClampDetails() => _details.ClampTo(Size);
+
+    // 捕获真实选角入口与选中英雄的头像、资源条布局。
+    private async void CaptureHeroes()
+    {
+        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var shell = root.GetNode<MatchShell>("MatchShell");
+        var selector = shell.GetNode<HeroSelectionView>("ContextRow/ContextHost/HeroSelectionView");
+        await Save("selection");
+        selector.GetNode<Button>("Next").EmitSignal(Button.SignalName.Pressed);
+        await Save("next");
+        selector.GetNode<Button>("Previous").EmitSignal(Button.SignalName.Pressed);
+        selector.GetNode<Button>("Choose").EmitSignal(Button.SignalName.Pressed);
+        await Save("selected");
+        GetTree().Quit();
+
+        async System.Threading.Tasks.Task Save(string name)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            DirAccess.MakeDirRecursiveAbsolute("res://output/heroes");
+            using var image = GetViewport().GetTexture().GetImage();
+            if (image.SavePng($"res://output/heroes/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)
+                throw new InvalidOperationException("英雄截图保存失败。");
+        }
+    }
 
     // 宝石展示使用冻结夹具，不向正式卡池添加宝石或获取渠道。
     private async void CaptureGemSockets()

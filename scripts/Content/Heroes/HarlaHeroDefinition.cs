@@ -5,17 +5,17 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Heroes;
 
-// 莫娜英雄内容定义（内容层）。
-public sealed class MonaHeroDefinition : HeroDefinition
+// 哈尔拉女性机械师英雄内容定义（内容层）。
+public sealed class HarlaHeroDefinition : HeroDefinition
 {
-    public MonaHeroDefinition()
+    public HarlaHeroDefinition()
         : base(
             new EntityAttributes<HeroIdentityAttributes>(
                 new HeroIdentityAttributes(
-                    new StringName("hero.mona"),
-                    "莫娜",
-                    new StringName("mona"),
-                    "小魔女", new StringName("res://art/ui/heroes/mona-illustration.png")),
+                    new StringName("hero.harla"),
+                    "哈尔拉",
+                    new StringName("harla"),
+                    "机械师", new StringName("res://art/ui/heroes/harla-illustration.png")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.MaxHealth] = 100,

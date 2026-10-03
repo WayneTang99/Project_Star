@@ -9,7 +9,10 @@ namespace Project_Star.Presentation.Playtest;
 public enum MatchPage { HeroSelection, EncounterChoice, Shop, Event, Preparation, BattleResult, MatchEnded, BattlePlayback }
 
 public sealed record UiAction(string Text, bool Visible = true, bool Enabled = true, string Reason = "");
-public sealed record KeyedAction(StringName Key, UiAction Action);
+public sealed record KeyedAction(StringName Key, UiAction Action)
+{
+    public StringName Illustration { get; init; } = new("");
+}
 public sealed record ShopItemViewModel(int Index, long Revision, UiAction Action, CardSnapshot Card)
 {
     public int Price { get; init; }

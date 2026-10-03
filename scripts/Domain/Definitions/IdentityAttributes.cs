@@ -30,16 +30,18 @@ public abstract class IdentityAttributes
 
 public sealed class HeroIdentityAttributes : IdentityAttributes
 {
-    public HeroIdentityAttributes(StringName key, string displayName, StringName factionKey, string title = "")
+    public HeroIdentityAttributes(StringName key, string displayName, StringName factionKey, string title = "", StringName? illustration = null)
         : base(key, displayName)
     {
         FactionKey = factionKey;
         Title = title ?? throw new ArgumentNullException(nameof(title));
+        Illustration = illustration ?? new StringName("");
     }
 
     public StringName FactionKey { get; }
 
     public string Title { get; }
+    public StringName Illustration { get; }
 }
 
 // 卡牌只读身份字段（领域定义层）。

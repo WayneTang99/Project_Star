@@ -182,6 +182,7 @@ public sealed partial class PhaseOneVerification : Control
             ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
             ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
+            ("四位英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
         ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();

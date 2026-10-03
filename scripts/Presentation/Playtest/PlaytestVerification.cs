@@ -469,9 +469,10 @@ internal static class PlaytestVerification
             {
                 if (presenter.View.Page == MatchPage.HeroSelection)
                 {
-                    var candidates = scene.GetNode<VBoxContainer>(main + "/ContextHost/HeroSelectionView/ActionScroll/Actions");
+                    var candidates = scene.GetNode<HeroSelectionView>(main + "/ContextHost/HeroSelectionView");
                     var heroIndex = presenter.View.Heroes.ToList().FindIndex(hero => hero.Key == new StringName("hero.paladin"));
-                    Press(candidates.GetChild<Button>(heroIndex));
+                    for (var index = 0; index < heroIndex; index++) Press(candidates.GetNode<Button>("Next"));
+                    Press(candidates.GetNode<Button>("Choose"));
                 }
                 var choices = presenter.View.Choices;
                 var chosen = choices.FirstOrDefault(choice => !sawCardEvent && choice.Key == new StringName("encounter.landfill"))

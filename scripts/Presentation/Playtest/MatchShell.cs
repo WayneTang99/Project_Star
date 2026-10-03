@@ -28,7 +28,7 @@ public sealed partial class MatchShell : Control
     private PlayerProgressPanel _progress = null!;
     private LeavePanel _leave = null!;
     private ScrollContainer _leaveScroll = null!;
-    private KeyedActionView _heroes = null!;
+    private HeroSelectionView _heroes = null!;
     private KeyedActionView _encounters = null!;
     private KeyedActionView _events = null!;
     private ShopView _shop = null!;
@@ -56,7 +56,7 @@ public sealed partial class MatchShell : Control
             { Name = "LeaveScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled });
         _leave = Add(_leaveScroll, new LeavePanel { Name = "LeavePanel", SizeFlagsHorizontal = SizeFlags.ExpandFill });
         var host = GetNode<Control>("ContextRow/ContextHost");
-        _heroes = Add(host, new KeyedActionView { Name = "HeroSelectionView" });
+        _heroes = Add(host, new HeroSelectionView { Name = "HeroSelectionView" });
         _encounters = Add(host, new KeyedActionView { Name = "EncounterChoiceView" });
         _events = Add(host, new KeyedActionView { Name = "EventView" });
         _shop = Add(host, new ShopView { Name = "ShopView" });
@@ -109,7 +109,9 @@ public sealed partial class MatchShell : Control
                 : $"战斗 {view.Playback.Tick / 10m:0.0}s{(view.Playback.Paused ? " · 暂停" : "")}{(view.Playback.State.Eclipse ? " · 日蚀" : "")}");
         _battlefield.RenderBattle(view.Playback); _enemy.RenderBattle(view.Playback); _bench.RenderBattle(view.Playback);
         if (_page != view.Page) { _battlefield.ClearFeedback(); _bench.ClearFeedback(); _enemy.ClearFeedback(); }
+        var pageChanged = _page != view.Page;
         _page = view.Page;
+        if (pageChanged) LayoutShell();
         if (view.Playback is not null) _progress.RenderPlayback(string.Join("\n", view.Playback.Feedback));
         var selected = view.Player?.Cards.FirstOrDefault(card => card.Id == view.SelectedCardId);
         if (selected is not null)
@@ -186,6 +188,15 @@ public sealed partial class MatchShell : Control
         _portrait.Size = _hero.Size = _progress.Size = _leaveScroll.Size = new Vector2(side, rowHeight);
         foreach (var view in new Control[] { _heroes, _encounters, _events, _shop, _result, _enemy, _battlefield, _bench })
             view.Size = new Vector2(center, rowHeight);
+        var choosing = _page == MatchPage.HeroSelection;
+        GetNode<Control>("BattlefieldRow").Visible = GetNode<Control>("BenchRow").Visible = !choosing;
+        GetNode<Control>("ContextRow/Portrait").Visible = GetNode<Control>("ContextRow/Leave").Visible = !choosing;
+        if (choosing)
+        {
+            var host = GetNode<Control>("ContextRow/ContextHost");
+            host.Position = Vector2.Zero; host.Size = new Vector2(Size.X - margin * 2, Size.Y - 80);
+            _heroes.Size = host.Size;
+        }
         _details.ClampTo(Size);
         _sellDrop.Position = Vector2.Zero;
         _sellDrop.Size = new Vector2(Size.X, 64 + rowHeight);
@@ -201,6 +212,7 @@ public sealed partial class MatchShell : Control
         foreach (var path in new[] { "ContextRow/Portrait", "ContextRow/ContextHost", "ContextRow/Leave", "BenchRow/Hero", "BenchRow/Progress" })
         {
             var cell = GetNode<Control>(path);
+            if (!cell.IsVisibleInTree()) continue;
             DrawStyleBox(panel, new Rect2(cell.GlobalPosition - GlobalPosition - Vector2.One * 6, cell.Size + Vector2.One * 12));
         }
     }
