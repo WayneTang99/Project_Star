@@ -86,6 +86,7 @@ public sealed class MatchProgress
     public int PvpWins { get; internal set; }
 
     public int IncomeSettledThroughRound { get; internal set; }
+    public int ExperienceSettledThroughTurn { get; internal set; }
 }
 
 public sealed class PlayerState
@@ -135,7 +136,25 @@ public sealed class PlayerState
     internal void AddExperience(int amount)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
-        Resources.SetBaseValue(GameAttributeKeys.Experience, checked(Experience + amount));
+        var experience = checked(Experience + amount);
+        if (Hero is not null)
+        {
+            var previousLevel = Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
+            var levelsGained = experience / 10;
+            var level = checked(previousLevel + levelsGained);
+            // 连续升级逐级贡献新等级×20；用等差和一次计算，提交前检查两项上限。
+            var growth = checked((int)(((long)previousLevel + 1 + level) * levelsGained * 10));
+            _ = checked(Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) + growth);
+            _ = checked(Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana) + growth);
+            if (growth > 0)
+            {
+                Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), Hero.Id, GameAttributeKeys.MaxHealth, growth));
+                Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), Hero.Id, GameAttributeKeys.MaxMana, growth));
+            }
+            Hero.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
+            experience %= 10;
+        }
+        Resources.SetBaseValue(GameAttributeKeys.Experience, experience);
     }
 
     internal void LoseReputation(int amount)

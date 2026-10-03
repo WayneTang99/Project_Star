@@ -113,8 +113,7 @@ public sealed record MatchSnapshot(
                 Tags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
                 BaseValues = card.Attributes.BaseCombat.CreateMutableCopy().SnapshotFinalValues(),
                 CurrentValues = card.Attributes.BaseCombat.SnapshotFinalValues(),
-                Abilities = CopyAbilities(card.Abilities.Concat(card.Quests
-                    .Where(card.IsQuestUnlocked).SelectMany(quest => quest.Abilities))),
+                Abilities = CopyAbilities(CardAbilityComposer.Compose(card, includePersistent: true)),
             });
         }
         var placements = new List<BoardPlacementSnapshot>();

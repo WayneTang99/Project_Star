@@ -34,6 +34,8 @@ public sealed class EncounterScheduler
         {
             var income = new RoundIncomeService().SettleCurrentRound(session);
             if (income.IsFailure) return Fail(income.Failure!.Code, income.Failure.Message);
+            var experience = new TurnExperienceService().SettleCurrentTurn(session);
+            if (experience.IsFailure) return Fail(experience.Failure!.Code, experience.Failure.Message);
         }
         var random = new SeededRandom(session.Random.State);
         var available = _registry.Encounters.Values

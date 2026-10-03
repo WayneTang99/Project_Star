@@ -206,7 +206,7 @@ public sealed class MatchPresenter
         _rewardRevision++;
         _message = _battleLog.Split('\n').Last();
         if (_battleKind == MatchBattleKind.Monster)
-            _message += $"\n金钱 +{after.Wealth - before.Wealth}，经验 +{after.Experience - before.Experience}。";
+            _message += $"\n金钱 +{after.Wealth - before.Wealth}，经验 +{after.Experience - before.Experience + 10L * ((after.Hero?.Level ?? 0) - (before.Hero?.Level ?? 0))}。";
         _playback = new BattlePlaybackPresenter(result.Value);
         _page = MatchPage.BattlePlayback;
     });

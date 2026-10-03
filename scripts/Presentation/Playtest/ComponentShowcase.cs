@@ -26,7 +26,8 @@ public sealed partial class ComponentShowcase : Control
             || OS.GetCmdlineUserArgs().Contains("--capture-descriptions") || OS.GetCmdlineUserArgs().Contains("--capture-keywords")
             || OS.GetCmdlineUserArgs().Contains("--capture-card-states"))
         { Callable.From(CaptureTransactions).CallDeferred(); return; }
-        if (OS.GetCmdlineUserArgs().Contains("--capture-p5") || OS.GetCmdlineUserArgs().Contains("--capture-p6-playback"))
+        if (OS.GetCmdlineUserArgs().Contains("--capture-p5") || OS.GetCmdlineUserArgs().Contains("--capture-p6-playback")
+            || OS.GetCmdlineUserArgs().Contains("--capture-resource-bars"))
         { Callable.From(CapturePlayback).CallDeferred(); return; }
         var scroll = new ScrollContainer { Name = "Scroll" }; AddChild(scroll);
         scroll.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -157,7 +158,8 @@ public sealed partial class ComponentShowcase : Control
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            var directory = OS.GetCmdlineUserArgs().Contains("--capture-p6-playback") ? "res://docs/quality/ui-p6" : "res://docs/quality/ui-p5";
+            var directory = OS.GetCmdlineUserArgs().Contains("--capture-resource-bars") ? "res://output/resource-bars"
+                : OS.GetCmdlineUserArgs().Contains("--capture-p6-playback") ? "res://docs/quality/ui-p6" : "res://docs/quality/ui-p5";
             DirAccess.MakeDirRecursiveAbsolute(directory);
             using var image = GetViewport().GetTexture().GetImage();
             if (image.SavePng($"{directory}/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)

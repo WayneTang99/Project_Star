@@ -28,3 +28,7 @@ card.alchemy_cauldron,1,keyword.activate,冷却6秒，魔法消耗0，对敌方�
 card.alchemy_cauldron,2,keyword.passive,在战场区或备战区时，当你出售一张消耗品卡牌后，此卡牌施加的中毒和灼伤永久各增加6/12/20。
 card.small_mana_potion,1,keyword.activate,冷却3秒，魔法消耗0，恢复己方英雄40/80/160/240魔法。
 card.small_mana_potion,2,keyword.consume,使用后摧毁此卡牌，仅本场战斗生效。
+card.log_staff,1,keyword.activate,冷却8秒，消耗10魔法，对敌方英雄造成10/20/40/80伤害。
+card.log_staff,2,keyword.quest,拾取5张火属性卡牌，解锁：发动时额外施加8/12/20/32灼伤。
+card.log_staff,3,keyword.quest,拾取5张木属性卡牌，解锁：发动时额外施加8/12/20/32中毒。
+card.log_staff,4,keyword.quest,拾取10张无属性卡牌，解锁：此卡牌冷却减少3秒。

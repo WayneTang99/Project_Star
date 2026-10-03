@@ -53,6 +53,7 @@ public sealed partial class PhaseOneVerification : Control
             ("定义中的初始属性不可修改", DefinitionChecks.CheckFrozenDefinition),
         ]),
         new("对局与卡牌经济", [
+            ("每回合经验幂等、每10经验升级及怪物奖励和重开正确", HeroExperienceChecks.TurnsAndThresholds),
             ("工厂创建完全独立的卡牌实例", EconomyChecks.CheckIndependentInstances),
             ("新对局可以选择英雄并生成卡牌", EconomyChecks.CheckMatchCreation),
             ("不同对局之间不共享状态", EconomyChecks.CheckSessionIsolation),
@@ -161,6 +162,7 @@ public sealed partial class PhaseOneVerification : Control
             ("小型生命药水分级治疗后仅本场摧毁并在下场恢复", SmallRedPotionChecks.HealingAndConsumption),
             ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
+            ("原木法杖拾取含合并、备战累计、统一发动与升级正确", LogStaffChecks.AcquisitionAndActivation),
             ("飞行回响准确定位己方事件卡牌、叠加且不连锁", FlyingBroomChecks.EventTargetsAndStacking),
             ("飞行减半新增迟缓/禁锢，兼容相邻倍率且不影响疾速", CardStateChecks.FlyingDurations),
             ("狂暴覆盖全部伤害公式及中毒/灼伤并在护甲前取整", CardStateChecks.BerserkDamageAndStatus),

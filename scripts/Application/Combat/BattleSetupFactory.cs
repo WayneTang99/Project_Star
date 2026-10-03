@@ -69,18 +69,13 @@ public sealed class BattleSetupFactory
                 throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             }
 
-            var abilities = new List<AbilityDefinition>(card.Abilities);
-            foreach (var quest in card.Quests)
-                if (card.IsQuestUnlocked(quest))
-                    foreach (var ability in quest.Abilities)
-                        if (ability.Activation != AbilityActivation.PassiveWhileEnabled)
-                            abilities.Add(ability);
+            var abilities = CardAbilityComposer.Compose(card);
             cards.Add(new CardBattleSetup(
                 card.Id,
                 placement.Start,
                 damage,
                 cooldown,
-                abilities.AsReadOnly(),
+                abilities,
                 UseLegacyAttack: false,
                 Tags: card.Tags,
                 Multicast: multicast,

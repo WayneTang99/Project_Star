@@ -20,3 +20,4 @@ card.flying_broom,飞天扫帚,mona,Medium,General,"Equipment, Mount",1,res://ar
 card.small_red_potion,小型生命药水,mona,Small,General,Consumable,1,res://art/ui/card-face/artwork/placeholder.svg
 card.alchemy_cauldron,炼金釜,mona,Medium,General,—,2,res://art/ui/card-face/artwork/placeholder.svg
 card.small_mana_potion,小型魔法药水,mona,Small,General,Consumable,1,res://art/ui/card-face/artwork/placeholder.svg
+card.log_staff,原木法杖,mona,Medium,General,Equipment,1,res://art/ui/card-face/artwork/placeholder.svg

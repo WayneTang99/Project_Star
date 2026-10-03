@@ -20,6 +20,7 @@ public sealed class CreateMatchService
         var session = new MatchSession(seed, startingWealth);
         session.Player.SelectHero(_entityFactory.CreateHero(heroDefinition));
         _ = new RoundIncomeService().SettleCurrentRound(session);
+        _ = new TurnExperienceService().SettleCurrentTurn(session);
         return session;
     }
 }

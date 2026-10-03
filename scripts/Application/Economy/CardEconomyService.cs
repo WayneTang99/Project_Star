@@ -5,6 +5,7 @@ using Godot;
 using Project_Star.Application.Board;
 using Project_Star.Application.Common;
 using Project_Star.Application.Factories;
+using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
@@ -285,6 +286,8 @@ public sealed class CardEconomyService
         {
             var created = CreateAcquiredCard(definition, level);
             session.Player.Inventory.Add(created);
+            new CardQuestService(_boardService).ProcessEvent(session,
+                new CardAcquiredQuestEvent(definition.Attributes.Identity.ElementKeys, created.Id));
             return new CardAcquisitionResult(created, true, level, level);
         }
 
@@ -300,6 +303,8 @@ public sealed class CardEconomyService
         var target = session.Player.Inventory.Find(plan.TargetId.Value)
             ?? throw new InvalidOperationException("Merge target is not owned by the player.");
         _entityFactory.ApplyCardLevel(target, definition, plan.FinalLevel);
+        new CardQuestService(_boardService).ProcessEvent(session,
+            new CardAcquiredQuestEvent(definition.Attributes.Identity.ElementKeys));
         return new CardAcquisitionResult(target, false, level, plan.FinalLevel);
     }
 

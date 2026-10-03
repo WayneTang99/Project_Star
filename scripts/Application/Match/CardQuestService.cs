@@ -8,10 +8,9 @@ namespace Project_Star.Application.Match;
 // 将对局事件交给每张现存卡牌的任务条件，保留实例独立进度（应用对局层）。
 public sealed class CardQuestService
 {
-    private readonly BoardService _boardService;
+    private readonly BoardService? _boardService;
 
-    public CardQuestService(BoardService boardService) =>
-        _boardService = boardService ?? throw new ArgumentNullException(nameof(boardService));
+    public CardQuestService(BoardService? boardService = null) => _boardService = boardService;
 
     // 战场和备战区的卡牌均可累计进度，只有新解锁时刷新战场数值。
     public void ProcessEvent(MatchSession session, QuestEvent questEvent)
@@ -20,7 +19,14 @@ public sealed class CardQuestService
         ArgumentNullException.ThrowIfNull(questEvent);
         var unlocked = false;
         foreach (var card in session.Player.Inventory.Cards)
+        {
+            if (questEvent is CardAcquiredQuestEvent acquired && acquired.ExcludedCardId == card.Id) continue;
             unlocked |= card.ApplyQuestEvent(questEvent);
-        if (unlocked) _boardService.RefreshQuestAbilities(session);
+        }
+        if (unlocked)
+        {
+            if (_boardService is not null) _boardService.RefreshQuestAbilities(session);
+            else new CardQuestBonusService().Recalculate(session);
+        }
     }
 }

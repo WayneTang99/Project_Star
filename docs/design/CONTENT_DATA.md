@@ -137,6 +137,8 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 
 ## 扩展与验证
 
+拾取任务用 `CardAcquiredQuestEvent` 与 `AcquiredElementCardQuestConditionDefinition` 表达，统一由获得／合并入口发布。任务的 `AdditionalActiveEffects` 追加到原发动；`CardAbilityComposer` 为展示与战斗合成当前解锁效果和冷却属性加成，不创建独立冷却或魔法消耗。成长数值放入每级战斗属性，追加效果读取对应属性，因此升级保留进度并更新效果数值。
+
 每个具体内容保持独立文件，由 `DefinitionRegistry.Scan` 发现公开、非抽象、无参定义。验证夹具保持 internal，不进入正式内容池。共享构造辅助只在有实际复用时建立。
 
 - 卡牌：身份、初始等级、额外标签、插画与描述和 CSV 一致；尺寸标签自动推导。全部支持等级都应能实例化，并验证实际效果。
