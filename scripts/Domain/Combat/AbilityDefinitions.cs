@@ -17,6 +17,7 @@ public enum AbilityActivation
     EchoOnFirstAlliedCardActivated = 6,
     EchoOnAlliedCardEnteredState = 7,
     EchoOnMatchingAlliedCardActivated = 8,
+    EchoOnSourceCardActivated = 9,
 }
 
 public enum AbilityTarget
@@ -43,7 +44,13 @@ public enum BattleStatus
 
 public abstract record EffectDefinition;
 
+// 将同尺寸敌方战场卡牌临时替换为指定定义，保留目标等级（领域战斗层）。
+public sealed record TransformRandomEnemyCardEffectDefinition(CardDefinition Replacement) : EffectDefinition;
+
 public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
+
+// 累加来源卡牌已支持的战斗属性（领域战斗层）。
+public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
 
@@ -214,6 +221,12 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is IncreaseSourceCardAttributeEffectDefinition increase
+                && (increase.AttributeKey.IsEmpty || increase.Amount < 1 || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Source attribute increase requires a key, positive amount and executed ability.", nameof(effects));
+            if (effect is TransformRandomEnemyCardEffectDefinition transform
+                && (transform.Replacement is null || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Card transformation requires a replacement and an executed ability.", nameof(effects));
             if (effect is ApplyAttributeStatusEffectDefinition attributeStatus
                 && (attributeStatus.AttributeKey.IsEmpty || attributeStatus.Status is not BattleStatus.Burn and not BattleStatus.Poison))
                 throw new ArgumentException("Attribute status requires a key and burn or poison.", nameof(effects));

@@ -82,6 +82,8 @@ public sealed class BattlePlaybackPresenter
                         Add($"{Side(damage.TargetSide)}受伤 {damage.HealthDamage} · 护甲抵消 {damage.ArmorAbsorbed}"
                             + (damage.SourceKind == DamageSourceKind.Eclipse ? " · 日蚀" : "")); break;
                     case CardDestroyedEvent destroyed: Add($"{Name(destroyed.CardId)}已摧毁"); break;
+                    case CardTransformedEvent transformed:
+                        Add($"{Name(transformed.TargetCardId)}转变为{next.Cards.First(card => card.Id == transformed.TargetCardId).TransformedIdentity!.DisplayName}"); break;
                     case CardChargedEvent charged: Add($"{Name(charged.TargetCardId)}充能 {charged.AmountTicks / 10m:0.0}秒"); break;
                 }
             }
@@ -97,7 +99,8 @@ public sealed class BattlePlaybackPresenter
         if (after.Armor > before.Armor) Add($"{side}护甲 +{after.Armor - before.Armor}");
     }
     private void Add(string text) { _feedback.Add(text); if (_feedback.Count > 4) _feedback.RemoveAt(0); }
-    private string Name(EntityId id) => _source.PlayerBefore.Cards.Concat(_source.OpponentBefore.Cards)
+    private string Name(EntityId id) => _state.Cards.FirstOrDefault(card => card.Id == id)?.TransformedIdentity?.DisplayName
+        ?? _source.PlayerBefore.Cards.Concat(_source.OpponentBefore.Cards)
         .FirstOrDefault(card => card.Id == id)?.DisplayName ?? "技能/套装";
     private static string Side(SideId side) => side == SideId.Player ? "我方" : "敌方";
 
@@ -108,6 +111,18 @@ public sealed class BattlePlaybackPresenter
         return before with { Cards = Array.AsReadOnly(before.Cards.Select(card =>
         {
             var state = _state.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == side);
+            if (state?.TransformedIdentity is { } identity)
+                return card with
+                {
+                    Key = identity.Key, DisplayName = identity.DisplayName, Level = state.Level,
+                    Size = identity.Size, FactionKey = identity.FactionKey, ElementKeys = identity.ElementKeys,
+                    SetKey = identity.SetKey, Illustration = identity.Illustration,
+                    DescriptionEntries = identity.DescriptionEntries, Tags = state.TransformedTags,
+                    BaseValues = state.Values, CurrentValues = state.Values, Abilities = state.TransformedAbilities,
+                    IsFlying = state.IsFlying, IsBerserk = state.IsBerserk, CooldownMultiplier = 1m,
+                    Quests = Array.Empty<QuestProgressSnapshot>(),
+                    GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
+                };
             return state is null ? card : card with
                 { CurrentValues = state.Values, IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
         }).ToArray()) };

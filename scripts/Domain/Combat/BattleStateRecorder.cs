@@ -33,7 +33,12 @@ internal static class BattleStateRecorder
                     .Where(ability => ability.Definition.Activation == AbilityActivation.Active)
                     .Select(ability => (ability.Definition.CooldownTicks + card.CooldownBonusTicks) * 2
                         * card.CooldownMultiplier).ToArray()),
-                IsFlying = card.IsFlying, IsBerserk = card.IsBerserk, IsOnBench = card.IsOnBench
+                IsFlying = card.IsFlying, IsBerserk = card.IsBerserk, IsOnBench = card.IsOnBench,
+                TransformedIdentity = card.TransformedIdentity, Level = card.Level,
+                TransformedTags = card.TransformedIdentity is null ? Array.Empty<StringName>()
+                    : Array.AsReadOnly(card.Tags.ToArray()),
+                TransformedAbilities = card.TransformedIdentity is null ? Array.Empty<AbilityDefinition>()
+                    : Array.AsReadOnly(card.Abilities.Select(ability => ability.Definition).ToArray())
             }).ToArray();
         runtime.States.Add(new BattleStateSnapshot(runtime.Tick, runtime.Events.Count,
             runtime.Tick.Value >= runtime.EclipseTime.Value, Hero(runtime.PlayerHero), Hero(runtime.OpponentHero),

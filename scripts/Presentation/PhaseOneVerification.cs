@@ -129,6 +129,8 @@ public sealed partial class PhaseOneVerification : Control
             ("修女治疗己方英雄并充能另一件光属性卡牌", CardCombatChecks.CheckNun),
             ("大教堂光环为己方光属性卡牌提供可移除的多重", CardCombatChecks.CheckCathedral),
             ("铁匠铺强化装备已有的攻击与护甲能力", CardCombatChecks.CheckBlacksmith),
+            ("风之刃分级伤害、自身及多重发动回响按1/2/4/8增长", WindBladeChecks.LevelsAndEchoes),
+            ("风之刃多重回放冻结且不带入下场战斗", WindBladeChecks.PlaybackAndReset),
             ("黎明之剑随机摧毁邪恶卡牌并按双方摧毁数倍增攻击", CardCombatChecks.CheckHolySlashingBlade),
             ("教团远征军赋予临时恶魔标签并按存活恶魔增加伤害", CardCombatChecks.CheckOrderCrusader),
             ("无攻击来源时由日蚀结束战斗", CombatChecks.CheckBattleTimeout),
@@ -152,6 +154,9 @@ public sealed partial class PhaseOneVerification : Control
         _groups.Add(new VerificationGroup("扩展边界与战斗记录", [
             ("飞行/狂暴为布尔状态，重复设置幂等且每场重置", CardStateChecks.BooleanLifecycle),
             ("飞天扫帚分级冷却、进入飞行与1秒疾速正确", FlyingBroomChecks.LevelsAndActivation),
+            ("咩咩羊分级疾速、变羊魔棒分级冷却及注册引用正确", PolymorphChecks.LevelsAndHaste),
+            ("转变随机筛选、等级保留、完整冷却与旧能力状态清除", PolymorphChecks.TargetsAndReset),
+            ("变羊回放身份冻结且下场恢复原卡与位置等级", PolymorphChecks.PlaybackAndRestoration),
             ("小型生命药水分级治疗后仅本场摧毁并在下场恢复", SmallRedPotionChecks.HealingAndConsumption),
             ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),

@@ -32,6 +32,7 @@ public sealed record CardBattleSetup(
     IReadOnlyList<StringName>? ElementKeys = null,
     int ArmorAmount = 0)
 {
+    public int Level { get; init; } = 1;
     public decimal CooldownMultiplier { get; init; } = 1m;
     public IReadOnlyDictionary<StringName, int> CombatValues { get; init; } =
         new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());

@@ -51,6 +51,7 @@ public abstract class SkillDefinition
             foreach (var effect in ability.Effects)
             {
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition
+                    or IncreaseSourceCardAttributeEffectDefinition
                     or SetSourceCardStateEffectDefinition
                     or SetRandomAdjacentAlliedTaggedCardStateEffectDefinition
                     or DestroyCardEffectDefinition

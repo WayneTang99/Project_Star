@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Combat;
 
@@ -13,6 +14,10 @@ public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed
     int Haste, int Slow, int Immobilize, IReadOnlyList<decimal> CooldownUnits,
     IReadOnlyDictionary<StringName, int> Values)
 {
+    public CardIdentityAttributes? TransformedIdentity { get; init; }
+    public IReadOnlyList<StringName> TransformedTags { get; init; } = System.Array.Empty<StringName>();
+    public int Level { get; init; } = 1;
+    public IReadOnlyList<AbilityDefinition> TransformedAbilities { get; init; } = System.Array.Empty<AbilityDefinition>();
     public IReadOnlyList<decimal> CooldownDurationUnits { get; init; } = System.Array.Empty<decimal>();
     public bool IsFlying { get; init; }
     public bool IsOnBench { get; init; }

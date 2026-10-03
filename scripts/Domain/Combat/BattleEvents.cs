@@ -33,6 +33,10 @@ public sealed record StatusChangedEvent(BattleTick Tick, BattleStatus Status, in
 
 public sealed record CardStateChangedEvent(BattleTick Tick, EntityId CardId, StringName StateKey, bool Enabled) : BattleEvent(Tick);
 
+// 本场卡牌转变事实；不作为永久对局变化回写（领域战斗层）。
+public sealed record CardTransformedEvent(BattleTick Tick, EntityId SourceCardId,
+    EntityId TargetCardId, StringName ReplacementKey) : BattleEvent(Tick);
+
 public sealed record CardAttributeChangedEvent(
     BattleTick Tick,
     EntityId CardId,

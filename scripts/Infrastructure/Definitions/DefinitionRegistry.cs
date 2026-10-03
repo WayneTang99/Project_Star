@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Godot;
 using Project_Star.Domain.Definitions;
+using Project_Star.Domain.Combat;
 using Project_Star.Domain.Match;
 
 namespace Project_Star.Infrastructure.Definitions;
@@ -115,6 +116,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
 
         ValidateContentFactions(heroes, cards, skills);
         ValidateCardSets(cards, sets);
+        ValidateTransformations(cards);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
         return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters, gems);
@@ -128,6 +130,22 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         || typeof(EncounterDefinition).IsAssignableFrom(type)
         || typeof(MonsterDefinition).IsAssignableFrom(type)
         || typeof(GemDefinition).IsAssignableFrom(type);
+
+    // 校验转变使用的替换卡定义存在于正式目录。
+    private static void ValidateTransformations(IReadOnlyDictionary<StringName, CardDefinition> cards)
+    {
+        foreach (var card in cards.Values)
+        {
+            var abilities = new List<AbilityDefinition>(card.Abilities);
+            foreach (var level in card.Levels.Values) abilities.AddRange(level.Abilities);
+            foreach (var ability in abilities)
+            foreach (var effect in ability.Effects)
+                if (effect is TransformRandomEnemyCardEffectDefinition transform
+                    && !cards.ContainsKey(transform.Replacement.Attributes.Identity.Key))
+                    throw new DefinitionValidationException(
+                        $"Card '{card.Attributes.Identity.Key}' references unknown transformation '{transform.Replacement.Attributes.Identity.Key}'.");
+        }
+    }
 
     private static void ValidateCardSets(
         IReadOnlyDictionary<StringName, CardDefinition> cards,

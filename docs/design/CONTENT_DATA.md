@@ -38,6 +38,10 @@
 
 `EchoOnMatchingAlliedCardActivated` 配置 `TriggerCardTag` / `TriggerCardElement`，匹配己方战场卡牌的主动发动；任一条件成立即触发一次，两项同时满足不重复触发。包含来源自身及多重额外发动，排除敌方、技能、备战区与回响产生的被动发动。`ChargeSourceCardEffectDefinition` 缩短来源主动能力剩余冷却，到零时立即排队发动；不改变基础冷却，不触发被动能力的冷却。
 
+### 自身发动后的属性成长回响
+
+`EchoOnSourceCardActivated` 仅响应来源卡牌自己的主动发动，包含多重额外发动；不响应其他卡牌、技能或回响发动。`IncreaseSourceCardAttributeEffectDefinition` 累加来源已支持的战斗属性，发布属性变化事件，仅本场生效。当前整组多重次数在正常发动时确定，回响新增多重从下一组发动生效。
+
 ### 按己方标签数量增加来源属性
 
 `IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition` 通过光环按己方存活战场卡牌的有效标签数量增加来源属性，包含满足标签的来源自身；备战区和被摧毁卡牌不计数。不写入永久属性或反复累加临时值，数量变化时重新求值。护甲发动使用 `GainSourceHeroArmorFromAttributeEffectDefinition` 读取含光环贡献的有效属性，已获得的英雄护甲不因卡牌数量下降而扣回。
@@ -47,6 +51,10 @@
 `IsFlying` / `IsBerserk` 是动态布尔值，默认否，不放入只读身份。能力组合使用通用 `SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying / Berserk, true / false)` 设置来源卡牌状态；可组合进发动、战斗开始触发或回响，不放入仅查询的光环能力，也不能由非卡牌来源设置。状态字段、变化事件与冻结快照都由战斗层维护，回放投影读取记录，不写模型。
 
 具体减时长与数值加成规则见 [游戏规则](GAME_DESIGN.md)。状态仅由能力配置产生，不根据卡名或插画推断飞行／狂暴。进入状态回响使用 `EchoOnAlliedCardEnteredState` 与 `TriggerStateKey` 筛选真实的 false→true 变化，`EventCard` 指向该次事件中的卡牌；重复设置true不触发，回响产生的状态变化不再连锁。
+
+### 战斗内转变
+
+`TransformRandomEnemyCardEffectDefinition` 引用替换卡的不可变 Definition，随机选择同尺寸、替换定义支持其等级的存活敌方战场卡牌。新状态仅存在于 Runtime，保留目标等级和位置，清除旧能力、加成及状态并重新开始冷却。注册表校验替换内容已注册；冻结快照携带转变身份、标签和能力，回放直接投影，不修改对局实例。具体生命周期见 [游戏规则](GAME_DESIGN.md)。
 
 ### 参战胜利的永久加成
 

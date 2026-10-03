@@ -59,6 +59,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
         if (setup.CooldownMultiplier is < 0m or > 1m)
             throw new ArgumentOutOfRangeException(nameof(setup), "Cooldown multiplier must be between zero and one.");
         CooldownMultiplier = setup.CooldownMultiplier;
+        Level = setup.Level;
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
         OccupiedSlots = setup.OccupiedSlots;
         Tags = setup.Tags ?? new TagSet();
@@ -99,6 +100,8 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public EntityId EntityId { get; }
     public SideId Side { get; }
     public int BoardStart { get; }
+    public int Level { get; }
+    public CardIdentityAttributes? TransformedIdentity { get; init; }
     public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
     public TagSet Tags { get; }

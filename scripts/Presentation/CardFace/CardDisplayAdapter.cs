@@ -168,6 +168,7 @@ public sealed class CardDisplayAdapter
         MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => $"每张已摧毁的 {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))} 卡牌使 {value.AttributeKey} ×{value.Multiplier}",
         IncreaseSourceCooldownEffectDefinition value => $"{(value.FirstActivationOnly ? "首次发动" : "发动后")}增加冷却 {value.AmountTicks / 10m:0.##}秒",
         ModifyTaggedAlliedCardsAttributeEffectDefinition value => $"己方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌 {value.AttributeKey} +{value.Amount}",
+        IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         _ => throw new NotSupportedException($"No display formatter for {effect.GetType().Name}."),
     };
 
@@ -177,6 +178,7 @@ public sealed class CardDisplayAdapter
         AbilityActivation.PassiveOnBattleStart => "战斗开始", AbilityActivation.PassiveWhileEnabled => "持续加成",
         AbilityActivation.EchoOnFirstAlliedCardActivated => "己方首张卡牌发动后回响",
         AbilityActivation.EchoOnMatchingAlliedCardActivated => "己方符合条件的卡牌发动后回响",
+        AbilityActivation.EchoOnSourceCardActivated => "此卡牌发动后回响",
         AbilityActivation.EchoOnAbilityActivated => "发动后回响", AbilityActivation.EchoOnDamageDealt => "伤害后回响",
         _ => value.ToString(),
     };

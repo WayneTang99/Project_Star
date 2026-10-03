@@ -84,8 +84,10 @@ public sealed class CombatSimulator
         {
             var pending = runtime.Queue.Dequeue();
             if (pending.Source.Destroyed) continue;
+            if (pending.Source is CardBattleState queuedCard && !runtime.Cards.Contains(queuedCard)) continue;
             if (pending.Ability.Definition.Target == AbilityTarget.EventCard
-                && (pending.EventCard is null || pending.EventCard.Destroyed || pending.EventCard.IsOnBench)) continue;
+                && (pending.EventCard is null || pending.EventCard.Destroyed || pending.EventCard.IsOnBench
+                    || !runtime.Cards.Contains(pending.EventCard))) continue;
             var hero = runtime.GetHero(pending.Source.Side);
             var definition = pending.Ability.Definition;
             var paysMana = definition.Activation == AbilityActivation.Active && !pending.IsMulticast;
@@ -128,6 +130,10 @@ public sealed class CombatSimulator
         {
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
+                Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnSourceCardActivated
+                && ReferenceEquals(source, origin.Source) && source is CardBattleState
+                && origin.Ability.Definition.Activation == AbilityActivation.Active)
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
                 && source.Side == origin.Source.Side

@@ -82,7 +82,8 @@ public sealed class BattleSetupFactory
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount)
-                { CombatValues = card.Attributes.BaseCombat.SnapshotFinalValues(), CooldownMultiplier = card.CooldownMultiplier });
+                { CombatValues = card.Attributes.BaseCombat.SnapshotFinalValues(), CooldownMultiplier = card.CooldownMultiplier,
+                    Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) });
         }
 
         foreach (var placement in session.Board.Bench.Placements)
@@ -105,7 +106,8 @@ public sealed class BattleSetupFactory
                 Multicast: multicast,
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
-                ArmorAmount: armorAmount) { CooldownMultiplier = card.CooldownMultiplier });
+                ArmorAmount: armorAmount) { CooldownMultiplier = card.CooldownMultiplier,
+                    Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) });
         }
 
         var skills = new List<SkillBattleSetup>();

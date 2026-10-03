@@ -41,6 +41,17 @@ internal static class BattleEffectResolver
         var hero = runtime.GetHero(targetSide);
         switch (effect)
         {
+            case IncreaseSourceCardAttributeEffectDefinition increase:
+                if (pending.Source is not CardBattleState attributeSource)
+                    throw new InvalidOperationException("Source attribute increase requires a card source.");
+                if (!attributeSource.SupportsCombatAttribute(increase.AttributeKey)) break;
+                var increasedValue = attributeSource.AddCombatAttribute(increase.AttributeKey, increase.Amount);
+                runtime.Events.Add(new CardAttributeChangedEvent(runtime.Tick, attributeSource.EntityId,
+                    increase.AttributeKey, increase.Amount, increasedValue));
+                break;
+            case TransformRandomEnemyCardEffectDefinition transform:
+                TransformRandomEnemyCard(runtime, pending.Source, transform);
+                break;
             case DamageEffectDefinition damage:
                 ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, damage.Amount), damage.BypassArmor,
                     GetDamageSourceKind(pending.Source));
@@ -300,6 +311,32 @@ internal static class BattleEffectResolver
         }
         if (candidates.Count == 0) return;
         DestroyCard(runtime, candidates[runtime.NextRandomIndex(candidates.Count)], source.EntityId, effect.Permanent);
+    }
+
+    // 以新的 Runtime 状态替换目标；旧队列来源失效，对局实例不受影响。
+    private static void TransformRandomEnemyCard(BattleRuntime runtime, IBattleAbilitySource source,
+        TransformRandomEnemyCardEffectDefinition effect)
+    {
+        var definition = effect.Replacement;
+        var identity = definition.Attributes.Identity;
+        var candidates = runtime.Cards.Where(card => card.Side != source.Side && !card.Destroyed && !card.IsOnBench
+            && card.OccupiedSlots == identity.OccupiedSlots && definition.SupportsLevel(card.Level)).ToArray();
+        if (candidates.Length == 0) return;
+        var target = candidates[runtime.NextRandomIndex(candidates.Length)];
+        var level = definition.GetLevel(target.Level);
+        var values = definition.Attributes.BaseCombat.CreateMutableCopy();
+        if (level is not null)
+            foreach (var entry in level.BaseCombatValues) values.SetBaseValue(entry.Key, entry.Value);
+        var replacement = new CardBattleSetup(target.EntityId, target.BoardStart,
+            values.GetFinalValue(GameAttributeKeys.AttackDamage), values.GetFinalValue(GameAttributeKeys.CooldownTicks),
+            level?.Abilities ?? definition.Abilities, UseLegacyAttack: false, Tags: definition.Tags,
+            Multicast: values.GetFinalValue(GameAttributeKeys.Multicast), OccupiedSlots: identity.OccupiedSlots,
+            ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
+            { Level = target.Level, CombatValues = values.SnapshotFinalValues() };
+        var transformed = new CardBattleState(replacement, target.Side) { TransformedIdentity = identity };
+        foreach (var entry in replacement.CombatValues) transformed.CombatAttributes[entry.Key] = entry.Value;
+        runtime.Cards[runtime.Cards.IndexOf(target)] = transformed;
+        runtime.Events.Add(new CardTransformedEvent(runtime.Tick, source.EntityId, target.EntityId, identity.Key));
     }
 
     private static void ChargeRandomOtherAlliedElementCard(
