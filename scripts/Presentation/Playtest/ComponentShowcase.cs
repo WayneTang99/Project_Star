@@ -20,6 +20,8 @@ public sealed partial class ComponentShowcase : Control
     private CardDetailsView _details = null!;
     public override void _Ready()
     {
+        if (OS.GetCmdlineUserArgs().Contains("--capture-gem-sockets"))
+        { Callable.From(CaptureGemSockets).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-card-pool"))
         { Callable.From(CaptureCardPool).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-p4") || OS.GetCmdlineUserArgs().Contains("--capture-p6-transactions")
@@ -83,6 +85,40 @@ public sealed partial class ComponentShowcase : Control
     public override void _ExitTree() { if (_details is not null) Resized -= ClampDetails; }
     private void ShowDetails(CardSnapshot card) => _details.ShowCard(card, GetLocalMousePosition(), Size);
     private void ClampDetails() => _details.ClampTo(Size);
+
+    // 宝石展示使用冻结夹具，不向正式卡池添加宝石或获取渠道。
+    private async void CaptureGemSockets()
+    {
+        Theme = MatchTheme.Create();
+        var background = new ColorRect { Color = MatchTheme.Background, MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(background); background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var column = new VBoxContainer { Position = new Vector2(24, 20) }; AddChild(column);
+        column.AddChild(new Label { Text = "宝石孔 UI 验证 · ◇空孔 / ◆已镶嵌 · 测试宝石不属于正式内容" });
+        var row = new HBoxContainer(); column.AddChild(row);
+        var sample = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ArmguardCardDefinition()));
+        var samples = new[]
+        {
+            sample,
+            sample with { GemSockets = Array.AsReadOnly(new GemSnapshot?[] { new(new StringName("verification.gem.red"), "测试红宝石", "展示夹具") }) },
+            sample with { GemSockets = Array.AsReadOnly(new GemSnapshot?[] { null, new(new StringName("verification.gem.blue"), "测试蓝宝石", "展示夹具"), null }) },
+        };
+        var adapter = new CardDisplayAdapter();
+        foreach (var card in samples)
+        {
+            var cell = new VBoxContainer(); row.AddChild(cell);
+            var face = new CardItemView { CustomMinimumSize = new Vector2(220, 310) };
+            cell.AddChild(face); face.Render(card, adapter);
+            cell.AddChild(new Label { Text = string.Join("\n", CardDisplayAdapter.Details(card).Split('\n')
+                .Where(line => line.StartsWith("宝石孔") || line.StartsWith("孔"))) });
+        }
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        DirAccess.MakeDirRecursiveAbsolute("res://output/gem-sockets");
+        using var image = GetViewport().GetTexture().GetImage();
+        var result = image.SavePng($"res://output/gem-sockets/sockets-{image.GetWidth()}x{image.GetHeight()}.png");
+        GetTree().Quit(result == Error.Ok ? 0 : 1);
+    }
 
     // 直接从正式定义与插画属性生成全卡池卡面截图，检查真实加载与裁切。
     private async void CaptureCardPool()

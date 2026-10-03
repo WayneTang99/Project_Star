@@ -16,7 +16,8 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         Dictionary<StringName, CardSetDefinition> sets,
         Dictionary<StringName, SkillDefinition> skills,
         Dictionary<StringName, EncounterDefinition> encounters,
-        Dictionary<StringName, MonsterDefinition> monsters)
+        Dictionary<StringName, MonsterDefinition> monsters,
+        Dictionary<StringName, GemDefinition> gems)
     {
         Heroes = heroes;
         Cards = cards;
@@ -24,6 +25,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         Skills = skills;
         Encounters = encounters;
         Monsters = monsters;
+        Gems = gems;
     }
 
     public IReadOnlyDictionary<StringName, HeroDefinition> Heroes { get; }
@@ -37,6 +39,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
     public IReadOnlyDictionary<StringName, EncounterDefinition> Encounters { get; }
 
     public IReadOnlyDictionary<StringName, MonsterDefinition> Monsters { get; }
+    public IReadOnlyDictionary<StringName, GemDefinition> Gems { get; }
 
     public static DefinitionRegistry Scan(Assembly assembly)
     {
@@ -77,11 +80,15 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         var skills = new Dictionary<StringName, SkillDefinition>();
         var encounters = new Dictionary<StringName, EncounterDefinition>();
         var monsters = new Dictionary<StringName, MonsterDefinition>();
+        var gems = new Dictionary<StringName, GemDefinition>();
 
         foreach (var definition in definitions)
         {
             switch (definition)
             {
+                case GemDefinition gem:
+                    AddUnique(gems, gem.Attributes.Identity.Key, gem, "gem");
+                    break;
                 case HeroDefinition hero:
                     AddUnique(heroes, hero.Attributes.Identity.Key, hero, "hero");
                     break;
@@ -110,7 +117,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         ValidateCardSets(cards, sets);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
-        return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters);
+        return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters, gems);
     }
 
     private static bool IsDefinitionType(Type type) =>
@@ -119,7 +126,8 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         || typeof(CardSetDefinition).IsAssignableFrom(type)
         || typeof(SkillDefinition).IsAssignableFrom(type)
         || typeof(EncounterDefinition).IsAssignableFrom(type)
-        || typeof(MonsterDefinition).IsAssignableFrom(type);
+        || typeof(MonsterDefinition).IsAssignableFrom(type)
+        || typeof(GemDefinition).IsAssignableFrom(type);
 
     private static void ValidateCardSets(
         IReadOnlyDictionary<StringName, CardDefinition> cards,

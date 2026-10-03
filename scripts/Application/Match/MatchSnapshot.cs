@@ -13,6 +13,9 @@ namespace Project_Star.Application.Match;
 // 单张卡牌的只读任务进度（应用快照层）。
 public sealed record QuestProgressSnapshot(StringName Key, int Progress, int RequiredCount, bool Unlocked);
 
+// 镶嵌宝石的冻结展示数据；空孔在卡牌快照中以null保留位置。
+public sealed record GemSnapshot(StringName Key, string DisplayName, string Description);
+
 public sealed record CardSnapshot(
     EntityId Id,
     StringName Key,
@@ -36,6 +39,7 @@ public sealed record CardSnapshot(
     public bool IsFlying { get; init; }
     public bool IsBerserk { get; init; }
     public decimal CooldownMultiplier { get; init; } = 1m;
+    public IReadOnlyList<GemSnapshot?> GemSockets { get; init; } = Array.AsReadOnly(new GemSnapshot?[1]);
 }
 
 public sealed record HeroSnapshot(EntityId Id, StringName Key, string DisplayName,
@@ -116,6 +120,8 @@ public sealed record MatchSnapshot(
                 CurrentValues = card.Attributes.BaseCombat.SnapshotFinalValues(),
                 Abilities = CopyAbilities(CardAbilityComposer.Compose(card, includePersistent: true)),
                 CooldownMultiplier = card.CooldownMultiplier,
+                GemSockets = Array.AsReadOnly(card.GemSockets.Select(gem => gem is null ? null
+                    : new GemSnapshot(gem.Key, gem.DisplayName, gem.Description)).ToArray()),
             });
         }
         var placements = new List<BoardPlacementSnapshot>();

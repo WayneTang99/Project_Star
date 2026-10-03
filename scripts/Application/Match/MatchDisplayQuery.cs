@@ -68,6 +68,7 @@ public static class MatchDisplayQuery
         {
             SetKey = identity.SetKey,
             Illustration = identity.Illustration,
+            GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
             DescriptionEntries = Array.AsReadOnly(identity.DescriptionEntries.ToArray()),
             Tags = Array.AsReadOnly(definition.Tags.ToArray()),
             BaseValues = values.SnapshotFinalValues(), CurrentValues = values.SnapshotFinalValues(),

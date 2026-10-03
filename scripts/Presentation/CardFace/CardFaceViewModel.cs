@@ -53,4 +53,5 @@ public sealed class CardFaceViewModel
     public Texture2D? Artwork { get; }
     public IReadOnlyList<StringName> ElementKeys { get; }
     public IReadOnlyList<CardFaceEffect> Effects { get; }
+    public IReadOnlyList<string?> GemNames { get; init; } = Array.AsReadOnly(new string?[1]);
 }

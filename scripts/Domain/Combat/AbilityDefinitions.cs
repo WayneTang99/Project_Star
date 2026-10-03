@@ -108,7 +108,11 @@ public sealed record IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition(
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
 // 随机对一张存活敌方战场卡牌累加持续状态（领域战斗层）。
-public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus Status, int Amount, int TargetCount = 1) : EffectDefinition;
+
+// 按双方存活战场指定元素卡牌数量动态延长来源冷却（领域战斗层）。
+public sealed record IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition(
+    StringName ElementKey, int AmountTicks) : EffectDefinition;
 
 // 从来源战斗属性读取施加量，使状态可随实例永久加成成长（领域战斗层）。
 public sealed record ApplyAttributeStatusEffectDefinition(BattleStatus Status, StringName AttributeKey) : EffectDefinition;
@@ -240,6 +244,12 @@ public sealed class AbilityDefinition
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
+            if (effect is IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition cooldownAura
+                && (activation != AbilityActivation.PassiveAura || cooldownAura.ElementKey.IsEmpty
+                    || cooldownAura.AmountTicks < 1))
+                throw new ArgumentException("Element cooldown aura requires a known element and positive duration.", nameof(effects));
+            if (effect is ApplyStatusToRandomEnemyCardEffectDefinition { TargetCount: < 1 })
+                throw new ArgumentException("Random status target count must be positive.", nameof(effects));
             if (effect is ChargeSourceCardEffectDefinition sourceCharge
                 && (sourceCharge.AmountTicks < 1 || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Source card charge requires a positive amount and an executed ability.", nameof(effects));

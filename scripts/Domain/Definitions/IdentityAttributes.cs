@@ -54,7 +54,8 @@ public sealed class CardIdentityAttributes : IdentityAttributes
         IEnumerable<StringName> elementKeys,
         StringName? setKey = null,
         StringName? illustration = null,
-        IEnumerable<CardDescriptionEntry>? descriptionEntries = null)
+        IEnumerable<CardDescriptionEntry>? descriptionEntries = null,
+        int gemSocketCount = 1)
         : base(key, displayName)
     {
         if (!Enum.IsDefined(size))
@@ -73,6 +74,8 @@ public sealed class CardIdentityAttributes : IdentityAttributes
         if (entries.Any(entry => entry is null))
             throw new ArgumentException("Description entries cannot contain null.", nameof(descriptionEntries));
         DescriptionEntries = Array.AsReadOnly(entries);
+        ArgumentOutOfRangeException.ThrowIfNegative(gemSocketCount);
+        GemSocketCount = gemSocketCount;
     }
 
     public StringName FactionKey { get; }
@@ -90,6 +93,15 @@ public sealed class CardIdentityAttributes : IdentityAttributes
 
     // 展示描述属于只读文本，由内容定义提供，不参与规则计算。
     public IReadOnlyList<CardDescriptionEntry> DescriptionEntries { get; }
+    public int GemSocketCount { get; }
+}
+
+// 宝石只读身份及展示说明（领域定义层）。
+public sealed class GemIdentityAttributes : IdentityAttributes
+{
+    public GemIdentityAttributes(StringName key, string displayName, string description = "") : base(key, displayName)
+        => Description = description ?? throw new ArgumentNullException(nameof(description));
+    public string Description { get; }
 }
 
 // 套装只读身份字段（领域定义层）。

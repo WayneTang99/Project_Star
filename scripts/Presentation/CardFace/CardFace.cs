@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 using Project_Star.Domain.Definitions;
 
@@ -16,6 +17,7 @@ public sealed partial class CardFace : Control
     private Panel _innerFrame = null!;
     private Panel _header = null!;
     private Label _title = null!;
+    private Label _sockets = null!;
     private Panel _artFrame = null!;
     private Panel _artInnerRim = null!;
     private TextureRect _artwork = null!;
@@ -42,6 +44,13 @@ public sealed partial class CardFace : Control
         _title = GetNode<Label>("Title");
         _title.ClipText = true;
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _sockets = new Label { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1,
+            ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
+        _sockets.AddThemeFontSizeOverride("font_size", 12);
+        _sockets.AddThemeColorOverride("font_color", Colors.White);
+        _sockets.AddThemeColorOverride("font_outline_color", Colors.Black);
+        _sockets.AddThemeConstantOverride("outline_size", 3);
+        AddChild(_sockets);
         _artFrame = GetNode<Panel>("ArtFrame");
         _artwork = GetNode<TextureRect>("ArtFrame/Artwork");
         _artInnerRim = GetNode<Panel>("ArtFrame/InnerRim");
@@ -92,6 +101,7 @@ public sealed partial class CardFace : Control
         CustomMinimumSize = _displaySize is null ? new Vector2(width, BaseHeight) : Vector2.Zero;
         Size = _displaySize ?? CustomMinimumSize;
         _title.Text = viewModel.DisplayName;
+        _sockets.Text = $"孔{viewModel.GemNames.Count} " + string.Join(" ", viewModel.GemNames.Select(name => name is null ? "◇" : $"◆{name}"));
         _artwork.Texture = viewModel.Artwork;
         _levelGem.SetLevel(viewModel.Level);
         _valueBadge.SetValue(viewModel.CurrentValue);
@@ -117,6 +127,8 @@ public sealed partial class CardFace : Control
         _artFrame.Size = _artwork.Size = Size;
         _artInnerRim.Position = new Vector2(6, 6);
         _artInnerRim.Size = Size - new Vector2(12, 12);
+        _sockets.Position = new Vector2(8, _displaySize is null ? 74 : Mathf.Clamp(Size.Y * .1f, 18, 40) * .55f + Mathf.Clamp(Mathf.RoundToInt(Size.Y * .06f), 13, 24) + 12);
+        _sockets.Size = new Vector2(Mathf.Max(1, width - 16), 20);
         if (_displaySize is not null) { LayoutCompact(width, Size.Y); return; }
         const float height = BaseHeight;
         _frame.Position = Vector2.Zero;

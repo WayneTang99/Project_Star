@@ -23,7 +23,7 @@ public sealed partial class PhaseOneVerification : Control
             ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
             ("卡面保留治疗/百分比语义并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
             ("卡牌详情隐藏无关攻击/冷却并保留真实零值攻击", PlaytestVerification.RelevantDetailAttributes),
-            ("全部正式插画从定义传入实例、快照和卡面", PlaytestVerification.FormalIllustrations),
+            ("插画从定义传入实例、快照和卡面，未配图使用占位", PlaytestVerification.FormalIllustrations),
             ("全部卡牌词条描述贯穿定义、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
             ("重复刷新不重抽且旧商品不能重复交易", PlaytestVerification.RefreshAndStaleOffers),
             ("事件获得卡牌在同次刷新中进入棋盘且不重复领取", PlaytestVerification.EventAcquisitionRefresh),
@@ -157,6 +157,7 @@ public sealed partial class PhaseOneVerification : Control
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("原木法杖拾取含合并、备战累计、统一发动与升级正确", LogStaffChecks.AcquisitionAndActivation),
             ("黑犀金龟等级、随机迟缓目标、叠加及飞行减时长正确", BlackRhinocerosBeetleChecks.LevelsAndSlow),
+            ("破誓者分级随机不重复迟缓、双方光牌动态冷却及倍率正确", OathbreakerChecks.TargetsAndAura),
             ("出售从左查找战场土属性目标，倍率永久累乘且升级保留", BlackRhinocerosBeetleChecks.SaleTargetsAndPersistence),
             ("小数冷却倍率用于首发和重置，兼容增时长、疾速及充能", BlackRhinocerosBeetleChecks.MultiplierBattleTiming),
             ("飞行回响准确定位己方事件卡牌、叠加且不连锁", FlyingBroomChecks.EventTargetsAndStacking),
@@ -180,6 +181,7 @@ public sealed partial class PhaseOneVerification : Control
             ("指定技能奖励、过期领取与出售确认隔离", PlaytestVerification.RewardSelectionAndStaleSale),
             ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
             ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
+            ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
         ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();

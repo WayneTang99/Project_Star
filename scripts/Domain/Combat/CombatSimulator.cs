@@ -14,6 +14,7 @@ public sealed class CombatSimulator
     {
         ArgumentNullException.ThrowIfNull(setup);
         var runtime = new BattleRuntime(setup);
+        BattleStatusResolver.RefreshCooldownAuras(runtime);
         BattleStateRecorder.CaptureState(runtime);
         runtime.Events.Add(new BattleStartedEvent(runtime.Tick));
         EnqueueBattleStartAbilities(runtime);
@@ -112,6 +113,7 @@ public sealed class CombatSimulator
             foreach (var effect in definition.Effects)
             {
                 BattleEffectResolver.ApplyEffect(runtime, pending, effect);
+                BattleStatusResolver.RefreshCooldownAuras(runtime);
                 BattleStateRecorder.CaptureState(runtime);
             }
             if (!pending.IsEcho) pending.Source.ActivationCount++;

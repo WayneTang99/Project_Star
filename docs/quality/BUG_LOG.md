@@ -89,3 +89,5 @@
 | BUG-069 | 2026-10-03 | `scripts/Presentation/Playtest/MatchPresenter.cs` / 怪物奖励提示 | 引入经验升级后，跨升级阈值的怪物奖励可能显示负经验。 | 原提示直接用结算前后的经验余数相减，忽略升级消耗。 | 提示将等级增加折算为10经验后再计算本次获得量，实际经验由统一入口升级并保留余数。 | Fixed |
 | BUG-070 | 2026-10-03 | `scripts/Domain/Combat/BattleStatusResolver.cs` / 日蚀伤害 | 日蚀伤害绕过护甲，与确认的护甲优先规则不符。 | 日蚀调用通用伤害结算时将 BypassArmor 设为 true。 | 双方日蚀伤害均改为 BypassArmor=false，沿用伤害曲线、频率和日蚀来源标记；同步玩法及术语文档。 | Fixed（未运行对战验证） |
 | BUG-071 | 2026-10-03 | `project.godot` / 游戏窗口显示 | 用户报告运行游戏时肉眼可见黑色闪烁，电脑录屏未捕获；关闭HDR后仍发生，用户确认未启用G-Sync。 | 用户确认切换Vulkan后不再闪烁，问题与当前环境的DX12渲染路径相关；具体驱动或显示链路根因未确认。 | 保持HDR输出关闭，Windows渲染驱动使用Vulkan；用户重启Godot运行后确认不再闪烁。 | Fixed（用户确认） |
+| BUG-072 | 2026-10-03 | `scripts/Presentation/Playtest/PlaytestVerification.cs` / 插画验证 | 未配置插画的合法卡牌无法通过验证，尽管卡面已有缺图占位。 | 验证强制要求每张卡牌配置正式原画，未覆盖空插画标识的展示契约。 | 空插画验证占位纹理与身份传递；已配置原画继续校验资源路径和尺寸。 | Fixed |
+| BUG-073 | 2026-10-03 | `scripts/Domain/Combat/AbilityDefinitions.cs` / 冷却光环配置验证 | 新机制首次构建失败。 | 引用了不存在的GameElements.IsKnown方法。 | 改为沿用效果定义的非空元素key校验，元素身份仍由正式卡牌定义验证。 | Fixed |

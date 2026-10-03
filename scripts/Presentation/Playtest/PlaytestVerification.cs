@@ -768,14 +768,19 @@ internal static class PlaytestVerification
         {
             var identity = definition.Attributes.Identity;
             var expected = identity.Illustration;
-            if (expected.IsEmpty || !expected.ToString().StartsWith("res://art/ui/card-face/artwork/")) return false;
+            if (!expected.IsEmpty && !expected.ToString().StartsWith("res://art/ui/card-face/artwork/")) return false;
             foreach (var level in Enumerable.Range(1, 5).Where(definition.SupportsLevel))
             {
                 var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
                 var instance = factory.CreateCard(definition, level);
                 if (offer.Illustration != expected || instance.Attributes.Identity.Illustration != expected) return false;
                 var texture = adapter.Build(offer).Artwork;
-                if (texture is null || texture.ResourcePath != expected.ToString()
+                if (texture is null) return false;
+                if (expected.IsEmpty)
+                {
+                    if (texture.GetWidth() != 32 || texture.GetHeight() != 32) return false;
+                }
+                else if (texture.ResourcePath != expected.ToString()
                     || texture.GetWidth() < 512 || texture.GetHeight() < 512) return false;
             }
             if (economy.AcquireCard(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure) return false;

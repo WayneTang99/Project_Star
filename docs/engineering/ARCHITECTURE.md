@@ -23,6 +23,8 @@
 
 定义、实例与运行态分开。Definition 不可变，EntityFactory 创建独立 EntityId 与属性集，实例之间不共享可变属性。身份在属性集只读分区，Persistent 保存对局内可变属性，BaseCombat 保存战斗基础值；战斗不直接写实例。
 
+宝石孔数位于卡牌只读身份，镶嵌结果由卡牌实例独立保存。渠道用例负责宝石获取、费用和当前阶段的操作授权，再通过 `SocketGemService` / `SocketGemCommand` 校验对局、卡牌归属及空孔并提交；当前没有独立宝石库存或获取渠道。合并保留原目标实例，材料实例移除时连同其宝石消失。UI读取 `CardSnapshot.GemSockets` 的冻结副本，不写孔位。
+
 ## 内容与扩展入口
 
 DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；验证 key 唯一、归属、套装、怪物卡组/技能、棋盘布局和遭遇选项引用。内部验证定义不进入正式池。注册不是实例池，不租借或复用实例。

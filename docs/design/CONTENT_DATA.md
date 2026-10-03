@@ -4,6 +4,8 @@
 
 描述是展示文本，不从中文描述解析能力；行为组合通用 Ability / Effect。修改内容时更新对应 Definition 和有意义的行为验证，字段或维护规则变化时更新本文。Godot 验证入口检查注册、只读隔离、实例与快照传递、资源存在性和实际效果。
 
+随机敌方持续状态效果可配置目标数量，一次效果不重复选择，候选不足时影响全部可选卡牌；备战区和已摧毁卡牌不参与抽选。双方战场元素冷却光环在战斗层动态计数，以贡献差值调整来源冷却，不回写卡牌实例。
+
 内容增删改查使用项目内的 [project-star-content-definition Skill](../../.codex/skills/project-star-content-definition/SKILL.md)：查询从当前定义读取数据，修改和删除追踪实际引用，内容变更执行构建与行为验证。查询结果可以临时展示或按需导出，内容数据仍统一维护在 Definition。
 
 ## 卡牌
@@ -20,6 +22,9 @@
 | 初始等级 | 默认创建、商店报价和普通获得时使用的等级 |
 | 词条描述 | 定义保存为只读 `CardIdentityAttributes.DescriptionEntries` 列表 |
 | 插画 | `CardIdentityAttributes.Illustration`：只读 `StringName` 资源标识，指向项目内原画的 `res://` 路径；由表现层加载纹理 |
+| 宝石孔数 | `CardIdentityAttributes.GemSocketCount`：默认1，可显式指定非负孔数；非默认孔数需在卡牌自身说明中注明 |
+
+宝石基础定义使用 `GemDefinition` / `GemIdentityAttributes`，key为 `gem.` 前缀；后续正式宝石置于 `scripts/Content/Gems/`，注册表扫描并校验重复key。当前尚无具体宝石与效果。卡牌实例独立保存有序孔位，快照逐孔复制名称、key和说明，不持有实例的可变数组；报价展示定义孔数及空孔。
 
 斜杠分隔的数值从初始等级开始，依次对应到4级，不再重复标注等级。例如初始2级卡牌的 `8/7/6秒` 对应2/3/4级；初始3级卡牌的 `6/5秒` 对应3/4级。5级卡牌只记录5级数值。`—` 表示没有该项。
 

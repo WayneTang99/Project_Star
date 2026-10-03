@@ -40,6 +40,8 @@ public sealed class CardInstance
         SaleAttributeBonuses = saleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
         BattleVictoryBonuses = battleVictoryBonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
         Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
+        _gemSockets = new GemIdentityAttributes?[attributes.Identity.GemSocketCount];
+        GemSockets = Array.AsReadOnly(_gemSockets);
     }
 
     public EntityId Id { get; }
@@ -47,6 +49,17 @@ public sealed class CardInstance
     public EntityAttributes<CardIdentityAttributes> Attributes { get; }
 
     public TagSet Tags { get; }
+    private readonly GemIdentityAttributes?[] _gemSockets;
+    public IReadOnlyList<GemIdentityAttributes?> GemSockets { get; }
+
+    // 镶嵌只允许写入空孔，升级不重建宝石数组。
+    internal void SocketGem(int index, GemIdentityAttributes gem)
+    {
+        ArgumentNullException.ThrowIfNull(gem);
+        if (index < 0 || index >= _gemSockets.Length || _gemSockets[index] is not null)
+            throw new InvalidOperationException("Gem socket is unavailable.");
+        _gemSockets[index] = gem;
+    }
 
     public IReadOnlyList<AbilityDefinition> Abilities { get; private set; }
 

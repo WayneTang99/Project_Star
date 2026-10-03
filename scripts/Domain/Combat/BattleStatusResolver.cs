@@ -82,10 +82,38 @@ internal static class BattleStatusResolver
     {
         var candidates = runtime.Cards.Where(card => card.Side != source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
         if (candidates.Length == 0) return;
-        var target = candidates[runtime.NextRandomIndex(candidates.Length)];
-        var applied = ApplyStatus(target, runtime.GetHero(target.Side), new ApplyStatusEffectDefinition(effect.Status, effect.Amount));
-        runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, applied));
-        if (applied > 0) ApplyAdjacentStatusReactions(runtime, target, effect.Status);
+        for (var selected = 0; selected < Math.Min(effect.TargetCount, candidates.Length); selected++)
+        {
+            var index = selected + runtime.NextRandomIndex(candidates.Length - selected);
+            var target = candidates[index];
+            (candidates[selected], candidates[index]) = (candidates[index], candidates[selected]);
+            var applied = ApplyStatus(target, runtime.GetHero(target.Side), new ApplyStatusEffectDefinition(effect.Status, effect.Amount));
+            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, applied));
+            if (applied > 0) ApplyAdjacentStatusReactions(runtime, target, effect.Status);
+        }
+    }
+
+    // 光环变动只加减自身贡献，同时调整当前剩余冷却，保留已走过的进度。
+    internal static void RefreshCooldownAuras(BattleRuntime runtime)
+    {
+        foreach (var source in runtime.Cards)
+        {
+            var bonus = 0;
+            if (!source.Destroyed && !source.IsOnBench)
+                foreach (var ability in source.Abilities)
+                foreach (var effect in ability.Definition.Effects)
+                    if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                        && effect is IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition aura)
+                        bonus = checked(bonus + runtime.Cards.Count(card => !card.Destroyed && !card.IsOnBench
+                            && card.ElementKeys.Contains(aura.ElementKey)) * aura.AmountTicks);
+            var delta = bonus - source.CooldownAuraBonusTicks;
+            if (delta == 0) continue;
+            source.CooldownBonusTicks = checked(source.CooldownBonusTicks + delta);
+            source.CooldownAuraBonusTicks = bonus;
+            foreach (var ability in source.Abilities)
+                if (ability.Definition.Activation == AbilityActivation.Active)
+                    ability.RemainingCooldownUnits = Math.Max(0, ability.RemainingCooldownUnits + delta * 2 * source.CooldownMultiplier);
+        }
     }
 
     // 在真实状态获得后执行相邻光环的通用属性反应。

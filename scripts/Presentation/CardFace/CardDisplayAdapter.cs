@@ -35,7 +35,8 @@ public sealed class CardDisplayAdapter
 
     // 将卡牌快照转换为卡面视图，按自身插画属性解析原画。
     public CardFaceViewModel Build(CardSnapshot card) => new(card.Key, card.DisplayName,
-        card.FactionKey, card.Size, card.Level, card.Value, Artwork(card.Illustration), card.ElementKeys, FaceEffects(card));
+        card.FactionKey, card.Size, card.Level, card.Value, Artwork(card.Illustration), card.ElementKeys, FaceEffects(card))
+        { GemNames = Array.AsReadOnly(card.GemSockets.Select(gem => gem?.DisplayName).ToArray()) };
 
     public static IReadOnlyList<CardFaceEffect> FaceEffects(CardSnapshot card)
     {
@@ -74,6 +75,12 @@ public sealed class CardDisplayAdapter
     {
         var lines = new List<string> { $"{card.DisplayName} · {card.Level}级 · 当前价值 {card.Value}",
             $"标签：{string.Join("、", card.Tags.Select(TagDisplayNames.Get))}" };
+        lines.Add($"宝石孔：{card.GemSockets.Count}个（已镶嵌 {card.GemSockets.Count(gem => gem is not null)}个）");
+        for (var index = 0; index < card.GemSockets.Count; index++)
+        {
+            var gem = card.GemSockets[index];
+            lines.Add(gem is null ? $"孔{index + 1}：空孔" : $"孔{index + 1}：{gem.DisplayName} {gem.Description}");
+        }
         if (card.DescriptionEntries.Count > 0)
             lines.AddRange(card.DescriptionEntries.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}：{entry.Text}"));
         else foreach (var ability in card.Abilities)
