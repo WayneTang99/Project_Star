@@ -16,6 +16,7 @@ public enum AbilityActivation
     PassiveWhileEnabled = 5,
     EchoOnFirstAlliedCardActivated = 6,
     EchoOnAlliedCardEnteredState = 7,
+    EchoOnMatchingAlliedCardActivated = 8,
 }
 
 public enum AbilityTarget
@@ -85,6 +86,9 @@ public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
     StringName ElementKey,
     int AmountTicks) : EffectDefinition;
 
+// 缩短来源卡牌主动能力的剩余冷却（领域战斗层）。
+public sealed record ChargeSourceCardEffectDefinition(int AmountTicks) : EffectDefinition;
+
 // 使敌方指定尺寸卡牌在战斗中获得标签（领域战斗层）。
 public sealed record GrantTagToEnemySizeCardsEffectDefinition(CardSize Size, StringName Tag)
     : EffectDefinition;
@@ -95,7 +99,16 @@ public sealed record IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition(
     StringName RequiredTag,
     int Amount) : EffectDefinition;
 
+// 按己方存活战场卡牌的标签数量增加来源属性，包含来源自身（领域战斗层）。
+public sealed record IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition(
+    StringName AttributeKey,
+    StringName RequiredTag,
+    int Amount) : EffectDefinition;
+
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+
+// 随机对一张存活敌方战场卡牌累加持续状态（领域战斗层）。
+public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
 // 从来源战斗属性读取施加量，使状态可随实例永久加成成长（领域战斗层）。
 public sealed record ApplyAttributeStatusEffectDefinition(BattleStatus Status, StringName AttributeKey) : EffectDefinition;
@@ -152,9 +165,17 @@ public sealed class AbilityDefinition
         int cooldownTicks,
         IReadOnlyList<EffectDefinition> effects,
         bool allowsBench = false,
-        StringName? triggerStateKey = null)
+        StringName? triggerStateKey = null,
+        StringName? triggerCardTag = null,
+        StringName? triggerCardElement = null)
     {
         ArgumentNullException.ThrowIfNull(effects);
+        if (activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
+            ? triggerCardTag is null && triggerCardElement is null
+                || triggerCardTag is { IsEmpty: true } || triggerCardElement is { IsEmpty: true }
+            : triggerCardTag is not null || triggerCardElement is not null)
+            throw new ArgumentException("Matching card trigger requires a nonempty tag or element filter.");
+        if (triggerCardElement is { } elementKey) _ = GameElements.Normalize([elementKey]);
         if (activation == AbilityActivation.EchoOnAlliedCardEnteredState
             ? triggerStateKey != GameAttributeKeys.Flying && triggerStateKey != GameAttributeKeys.Berserk
             : triggerStateKey is not null)
@@ -208,14 +229,24 @@ public sealed class AbilityDefinition
                 ArmorEffectDefinition value => value.Amount,
                 GainSourceHeroArmorEffectDefinition value => value.Amount,
                 ApplyStatusEffectDefinition value => value.Amount,
+                ApplyStatusToRandomEnemyCardEffectDefinition value => value.Amount,
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
                 ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => value.Amount,
                 GrantMulticastToAlliedElementCardsEffectDefinition value => value.Amount,
                 ChargeRandomOtherAlliedElementCardEffectDefinition value => value.AmountTicks,
+                ChargeSourceCardEffectDefinition value => value.AmountTicks,
                 IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => value.Amount,
+                IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition value => value.Amount,
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
+            if (effect is ChargeSourceCardEffectDefinition sourceCharge
+                && (sourceCharge.AmountTicks < 1 || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Source card charge requires a positive amount and an executed ability.", nameof(effects));
+            if (effect is ApplyStatusToRandomEnemyCardEffectDefinition randomStatus
+                && randomStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
+                    and not BattleStatus.ImmobilizeDuration)
+                throw new ArgumentException("Random enemy card status requires a duration status.", nameof(effects));
             if (effect is SetSourceCardStateEffectDefinition state
                 && (state.StateKey != GameAttributeKeys.Flying && state.StateKey != GameAttributeKeys.Berserk
                     || activation == AbilityActivation.PassiveAura))
@@ -286,6 +317,10 @@ public sealed class AbilityDefinition
             {
                 throw new ArgumentException("Enemy tagged card attribute increase keys cannot be empty.", nameof(effects));
             }
+            if (effect is IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition alliedIncrease
+                && (activation != AbilityActivation.PassiveAura || alliedIncrease.AttributeKey.IsEmpty
+                    || alliedIncrease.RequiredTag.IsEmpty || alliedIncrease.Amount < 1))
+                throw new ArgumentException("Allied tagged card attribute increase requires an aura, nonempty keys and a positive amount.", nameof(effects));
             if (effect is DestroyRandomEnemyCardEffectDefinition randomDestroy
                 && (randomDestroy.RequiredAnyTags.Count == 0
                     || randomDestroy.AllowedSizes.Count == 0
@@ -305,6 +340,8 @@ public sealed class AbilityDefinition
         Effects = new List<EffectDefinition>(effects).AsReadOnly();
         AllowsBench = allowsBench;
         TriggerStateKey = triggerStateKey;
+        TriggerCardTag = triggerCardTag;
+        TriggerCardElement = triggerCardElement;
     }
 
     public StringName Key { get; }
@@ -315,6 +352,8 @@ public sealed class AbilityDefinition
     public IReadOnlyList<EffectDefinition> Effects { get; }
     public bool AllowsBench { get; }
     public StringName? TriggerStateKey { get; }
+    public StringName? TriggerCardTag { get; }
+    public StringName? TriggerCardElement { get; }
 
     private static bool HasEmptyKey(IReadOnlyList<StringName> keys)
     {

@@ -112,7 +112,7 @@ internal static class BattleEffectResolver
             case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
                 var armorTarget = runtime.GetHero(pending.Source.Side);
                 armorTarget.Armor = checked(
-                    armorTarget.Armor + pending.Source.GetCombatAttribute(attributeArmor.AttributeKey));
+                    armorTarget.Armor + GetEffectiveCombatAttribute(runtime, pending.Source, attributeArmor.AttributeKey));
                 break;
             case GainArmorEqualToManaSpentEffectDefinition:
                 var sourceHero = runtime.GetHero(pending.Source.Side);
@@ -153,10 +153,18 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Adjacent card effects require a card source.");
                 BattleStatusResolver.ApplyStatusToAdjacentAlliedCards(runtime, adjacentSource, adjacent);
                 break;
+            case ApplyStatusToRandomEnemyCardEffectDefinition randomStatus:
+                BattleStatusResolver.ApplyStatusToRandomEnemyCard(runtime, pending.Source, randomStatus);
+                break;
             case ChargeRandomOtherAlliedElementCardEffectDefinition charge:
                 if (pending.Source is not CardBattleState chargeSource)
                     throw new InvalidOperationException("Random card charge requires a card source.");
                 ChargeRandomOtherAlliedElementCard(runtime, chargeSource, charge);
+                break;
+            case ChargeSourceCardEffectDefinition sourceCharge:
+                if (pending.Source is not CardBattleState selfChargeSource)
+                    throw new InvalidOperationException("Source card charge requires a card source.");
+                ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks);
                 break;
             case DestroyCardEffectDefinition destroy:
                 if (pending.Source is not CardBattleState destroySource)
@@ -175,7 +183,8 @@ internal static class BattleEffectResolver
                     {
                         if (ability.Definition.Activation == AbilityActivation.Active)
                             ability.RemainingCooldownUnits = checked(
-                                ability.RemainingCooldownUnits + cooldown.AmountTicks * 2);
+                                ability.RemainingCooldownUnits + cooldown.AmountTicks * 2
+                                    * (pending.Source is CardBattleState cooldownCard ? cooldownCard.CooldownMultiplier : 1m));
                     }
                 }
                 break;
@@ -243,6 +252,18 @@ internal static class BattleEffectResolver
                 }
             }
         }
+        foreach (var ability in source.Abilities)
+        foreach (var effect in ability.Definition.Effects)
+        {
+            if (ability.Definition.Activation != AbilityActivation.PassiveAura
+                || effect is not IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition increase
+                || increase.AttributeKey != key)
+                continue;
+            foreach (var card in runtime.Cards)
+                if (card.Side == source.Side && !card.Destroyed && !card.IsOnBench
+                    && HasEffectiveTag(runtime, card, increase.RequiredTag))
+                    value = checked(value + increase.Amount);
+        }
         return value;
     }
 
@@ -301,6 +322,12 @@ internal static class BattleEffectResolver
         }
         if (candidates.Count == 0) return;
         var target = candidates[runtime.NextRandomIndex(candidates.Count)];
+        ChargeCard(runtime, source, target, effect.AmountTicks);
+    }
+
+    // 共用充能结算，降至零时只对原本尚在冷却的主动能力排队。
+    private static void ChargeCard(BattleRuntime runtime, CardBattleState source, CardBattleState target, int amountTicks)
+    {
         foreach (var ability in target.Abilities)
         {
             if (ability.Definition.Activation != AbilityActivation.Active
@@ -310,7 +337,7 @@ internal static class BattleEffectResolver
             }
             ability.RemainingCooldownUnits = Math.Max(
                 0,
-                ability.RemainingCooldownUnits - effect.AmountTicks * 2);
+                ability.RemainingCooldownUnits - amountTicks * 2);
             if (ability.RemainingCooldownUnits == 0)
                 CombatSimulator.Enqueue(runtime, target, ability, false);
         }
@@ -318,7 +345,7 @@ internal static class BattleEffectResolver
             runtime.Tick,
             source.EntityId,
             target.EntityId,
-            effect.AmountTicks));
+            amountTicks));
     }
 
     private static void SetCardState(BattleRuntime runtime, PendingAbility pending,

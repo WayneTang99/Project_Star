@@ -20,7 +20,6 @@ config/icon="res://icon.svg"
 window/size/borderless=true
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/hdr/request_hdr_output=true
 
 [dotnet]
 
@@ -32,7 +31,6 @@ project/assembly_name="Project_Star"
 
 [rendering]
 
-rendering_device/driver.windows="d3d12"
 viewport/hdr_2d=true
 anti_aliasing/quality/use_taa=true
 2d/snap/snap_2d_transforms_to_pixel=true

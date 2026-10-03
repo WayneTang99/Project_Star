@@ -18,7 +18,7 @@ public sealed class ThornArmorCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Medium,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/thorn_armor-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/thorn_armor-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却8/7/6/5秒，己方英雄获得10/20/40/80护甲，再对敌方英雄造成等同于己方英雄当前护甲值加此卡牌攻击值的普通伤害（先扣敌方护甲）。"),

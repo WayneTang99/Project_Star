@@ -2,7 +2,7 @@
 
 ## 必读位置
 
-- 正式数据：`docs/design/CONTENT_DATA.md`（字段与规则）和 `docs/design/CardDataTable.csv`（身份数据行）、`docs/design/CardDescriptionTable.csv`（有序词条与说明）
+- 正式数据：`scripts/Content/Cards/` 中的 CardDefinition；字段与规则见 `docs/design/CONTENT_DATA.md`
 - 玩法语义：`docs/design/GAME_DESIGN.md`
 - 架构与能力系统：`docs/engineering/ARCHITECTURE.md`
 - 代码范式：`scripts/Content/Cards/`
@@ -15,7 +15,7 @@
 - 主动能力明确冷却、魔法消耗、目标和效果。被动能力必须选用与触发语义一致的 `AbilityActivation`。
 - 需要攻击力、护甲等可成长数值时，将基值放入战斗属性并让能力读取属性，避免把同一数值分别硬编码在属性和效果中。
 - 施加效果应累加；持续效果到期只扣除该实例贡献，不得直接清零目标属性。
-- 新卡牌应生成 `scripts/Content/Cards/<Name>CardDefinition.cs` 及对应 `.cs.uid`，并更新 `CardDataTable.csv` 与 `CardDescriptionTable.csv`；字段和维护规则有变化时同步更新 `CONTENT_DATA.md`。
+- 新卡牌应生成 `scripts/Content/Cards/<Name>CardDefinition.cs` 及对应 `.cs.uid`，身份、数值、描述与能力只在 Definition 中维护；字段和维护规则有变化时同步更新 `CONTENT_DATA.md`。
 
 ## 卡牌套装
 

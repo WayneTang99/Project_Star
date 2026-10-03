@@ -14,7 +14,7 @@ public sealed class FlyingBroomCardDefinition : CardDefinition
             new EntityAttributes<CardIdentityAttributes>(
                 new CardIdentityAttributes(new StringName("card.flying_broom"), "飞天扫帚",
                     new StringName("mona"), CardSize.Medium, [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/placeholder.svg"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/flying_broom-illustration.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却5/4/3/2秒，魔法消耗0，此卡牌进入飞行。"),

@@ -45,7 +45,7 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | docs/worldbuilding/README.md | 世界观入口、专题职责与维护规则 | 补充剧情、人物背景与世界设定 |
 | docs/design/GAME_DESIGN.md | 玩法规则 | 实现游戏功能 |
 | docs/design/GLOSSARY.md | 英中术语与定义 | 提出需求、命名和写代码前 |
-| docs/design/CONTENT_DATA.md + 五份正式 CSV | 内容字段与维护约定 / 正式数据行 | 新增、修改和核对内容 |
+| docs/design/CONTENT_DATA.md + scripts/Content/ | 内容字段与维护约定 / 正式定义 | 新增、修改和核对内容 |
 | docs/design/UI_SYSTEM.md | 现行组件、页面、交互与卡面规范 | 修改界面、棋盘和卡面 |
 | docs/engineering/ARCHITECTURE.md | 分层、所有权、事务、战斗与扩展入口 | 编码与架构审查 |
 | docs/engineering/DEV_CONVENTIONS.md | Git、注释、工具和产物约定 | 提交与工具操作 |
@@ -53,4 +53,4 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | docs/quality/MANUAL_ACCEPTANCE.md | 验证入口、当前证据与人工矩阵 | 验证试玩 |
 | docs/quality/BUG_LOG.md | BUG 编号、根因、修复和状态 | 发现和修复 BUG |
 
-正式 CSV 分别为 CardDataTable.csv、CardDescriptionTable.csv、SkillDataTable.csv、HeroDataTable.csv、EncounterDataTable.csv，位于 docs/design/。Markdown 解释规则，不重复维护数据行。现行规则只在上述权威位置维护，已完成计划的过程记录由 Git 保存。
+正式内容以 scripts/Content/ 下的 C# Definition 为唯一数据来源，按 Cards、Skills、Heroes、Encounters、Monsters 和 Sets 分类。Markdown 解释规则，不重复维护具体内容数据。现行规则只在上述权威位置维护，已完成计划的过程记录由 Git 保存。

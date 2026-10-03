@@ -18,7 +18,7 @@ public sealed class HolyGriffinCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Large,
                     [GameElements.Light],
-                    illustration: new StringName("res://art/ui/card-face/artwork/holy_griffin-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/holy_griffin-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却5秒，魔法消耗0，使相邻己方卡牌获得1秒疾速；此卡牌和随机一张相邻己方人类卡牌进入飞行。"),

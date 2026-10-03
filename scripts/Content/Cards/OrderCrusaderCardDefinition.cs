@@ -18,7 +18,7 @@ public sealed class OrderCrusaderCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Large,
                     [GameElements.Light],
-                    illustration: new StringName("res://art/ui/card-face/artwork/order_crusader-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/order_crusader-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却8秒，对敌方英雄造成40/80/120伤害"),

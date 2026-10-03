@@ -18,7 +18,7 @@ public sealed class BeastHideCardDefinition : CardDefinition
                     GameFactions.Neutral,
                     CardSize.Small,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/beast_hide-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/beast_hide-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Pickup, "当获得此卡牌后，此卡牌价值增加2/4/8/16。"),

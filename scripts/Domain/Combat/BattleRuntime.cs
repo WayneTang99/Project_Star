@@ -31,12 +31,12 @@ internal sealed class HeroBattleState
 
 internal sealed class BattleAbilityState
 {
-    public BattleAbilityState(AbilityDefinition definition)
+    public BattleAbilityState(AbilityDefinition definition, decimal cooldownMultiplier = 1m)
     {
-        Definition = definition; RemainingCooldownUnits = definition.CooldownTicks * 2;
+        Definition = definition; RemainingCooldownUnits = definition.CooldownTicks * 2 * cooldownMultiplier;
     }
     public AbilityDefinition Definition { get; }
-    public int RemainingCooldownUnits { get; set; }
+    public decimal RemainingCooldownUnits { get; set; }
     public bool Triggered { get; set; }
 }
 
@@ -56,6 +56,9 @@ internal sealed class CardBattleState : IBattleAbilitySource
 {
     public CardBattleState(CardBattleSetup setup, SideId side)
     {
+        if (setup.CooldownMultiplier is < 0m or > 1m)
+            throw new ArgumentOutOfRangeException(nameof(setup), "Cooldown multiplier must be between zero and one.");
+        CooldownMultiplier = setup.CooldownMultiplier;
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
         OccupiedSlots = setup.OccupiedSlots;
         Tags = setup.Tags ?? new TagSet();
@@ -69,7 +72,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
                 ? [new AbilityDefinition(new StringName("ability.legacy_attack"), AbilityActivation.Active,
                     AbilityTarget.EnemyHero, 0, setup.CooldownTicks, [new DamageEffectDefinition(setup.AttackDamage)])]
                 : Array.Empty<AbilityDefinition>();
-        foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition));
+        foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition, CooldownMultiplier));
         foreach (var definition in definitions)
         foreach (var effect in definition.Effects)
             switch (effect)
@@ -105,6 +108,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public int ActivationCount { get; set; }
     public int CooldownBonusTicks { get; set; }
     public int HasteDuration { get; set; }
+    public decimal CooldownMultiplier { get; }
     public int SlowDuration { get; set; }
     public int ImmobilizeDuration { get; set; }
     public bool IsFlying { get; set; }

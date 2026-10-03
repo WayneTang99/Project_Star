@@ -18,7 +18,7 @@ public sealed class CathedralCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Large,
                     [GameElements.Light],
-                    illustration: new StringName("res://art/ui/card-face/artwork/cathedral-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/cathedral-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Aura, "己方战场区光属性卡牌获得1层多重；此卡牌被摧毁后失效，多张大教堂可叠加。"),

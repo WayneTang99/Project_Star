@@ -76,6 +76,18 @@ internal static class BattleStatusResolver
         }
     }
 
+    // 只从存活敌方战场卡牌中按冻结顺序随机选择，复用飞行减时长与状态反应。
+    internal static void ApplyStatusToRandomEnemyCard(BattleRuntime runtime, IBattleAbilitySource source,
+        ApplyStatusToRandomEnemyCardEffectDefinition effect)
+    {
+        var candidates = runtime.Cards.Where(card => card.Side != source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
+        if (candidates.Length == 0) return;
+        var target = candidates[runtime.NextRandomIndex(candidates.Length)];
+        var applied = ApplyStatus(target, runtime.GetHero(target.Side), new ApplyStatusEffectDefinition(effect.Status, effect.Amount));
+        runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, applied));
+        if (applied > 0) ApplyAdjacentStatusReactions(runtime, target, effect.Status);
+    }
+
     // 在真实状态获得后执行相邻光环的通用属性反应。
     internal static void ApplyAdjacentStatusReactions(
         BattleRuntime runtime,
@@ -138,14 +150,14 @@ internal static class BattleStatusResolver
         }
     }
 
-    // 达到日蚀时间时对双方按原曲线结算无视护甲伤害。
+    // 达到日蚀时间时对双方按原曲线结算伤害，优先扣护甲。
     internal static void ApplyEclipse(BattleRuntime runtime, BattleSetup setup)
     {
         if (runtime.Tick.Value < setup.EclipseTime.Value || runtime.Tick.Value % 10 != 0) return;
         var seconds = (runtime.Tick.Value - setup.EclipseTime.Value) / 10;
         var damage = 1 << (int)Math.Min(seconds, 30);
-        BattleEffectResolver.ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero, damage, true, DamageSourceKind.Eclipse);
-        BattleEffectResolver.ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero, damage, true, DamageSourceKind.Eclipse);
+        BattleEffectResolver.ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero, damage, false, DamageSourceKind.Eclipse);
+        BattleEffectResolver.ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero, damage, false, DamageSourceKind.Eclipse);
     }
 
 

@@ -13,7 +13,7 @@ public sealed class LogStaffCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.log_staff"), "原木法杖", new StringName("mona"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/placeholder.svg"),
+                illustration: new StringName("res://art/ui/card-face/artwork/log_staff-illustration.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却8秒，消耗10魔法，对敌方英雄造成10/20/40/80伤害。"),

@@ -177,7 +177,7 @@ public sealed class CardEconomyService
         if (fromBoard && (_boardService is null || !session.Board.Contains(cardId)))
             return Result<int>.Fail(new Failure(CardOnBoard, "该卡牌不在可出售的棋盘上。"));
 
-        if (card.OnSellReward is not null && (_boardService is null || _cardDefinitions.Count == 0))
+        if (card.OnSellReward is RandomTaggedCardOnSellDefinition && (_boardService is null || _cardDefinitions.Count == 0))
         {
             return Result<int>.Fail(new Failure(
                 SaleRewardUnavailable,
@@ -243,6 +243,14 @@ public sealed class CardEconomyService
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
     {
+        if (soldCard.OnSellReward is ReduceLeftmostElementCardCooldownOnSellDefinition reduction)
+        {
+            var target = session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
+                .Select(placement => session.Player.Inventory.Find(placement.CardId))
+                .FirstOrDefault(card => card is not null && card.Attributes.Identity.ElementKeys.Contains(reduction.ElementKey));
+            target?.ReduceCooldown(reduction.Percent);
+            return;
+        }
         if (soldCard.OnSellReward is not RandomTaggedCardOnSellDefinition reward
             || _boardService is null)
         {

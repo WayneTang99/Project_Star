@@ -23,8 +23,8 @@ public sealed partial class PhaseOneVerification : Control
             ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
             ("卡面保留治疗/百分比语义并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
             ("卡牌详情隐藏无关攻击/冷却并保留真实零值攻击", PlaytestVerification.RelevantDetailAttributes),
-            ("全部正式插画与 CSV、实例、快照和卡面一致", PlaytestVerification.FormalIllustrations),
-            ("全部卡牌词条描述贯穿CSV、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
+            ("全部正式插画从定义传入实例、快照和卡面", PlaytestVerification.FormalIllustrations),
+            ("全部卡牌词条描述贯穿定义、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
             ("重复刷新不重抽且旧商品不能重复交易", PlaytestVerification.RefreshAndStaleOffers),
             ("事件获得卡牌在同次刷新中进入棋盘且不重复领取", PlaytestVerification.EventAcquisitionRefresh),
             ("校场实例加成在同次刷新中进入卡面", PlaytestVerification.EventModifierRefresh),
@@ -146,15 +146,8 @@ public sealed partial class PhaseOneVerification : Control
 
     public override void _Ready()
     {
-        _groups.Add(new VerificationGroup("正式 CSV 一致性", [
-            ("卡牌 CSV 身份、分类、等级与定义一致", ContentDataChecks.Cards),
-            ("卡牌词条、说明及顺序与正式 CSV 一致", ContentDataChecks.Descriptions),
-            ("词条校验拒绝未知词条、缺失、顺序错误及空说明", ContentDataChecks.RejectsDescriptionDrift),
+        _groups.Add(new VerificationGroup("内容词条边界", [
             ("词条身份只读隔离、合法名称及输入边界", ContentDataChecks.DescriptionEntryBoundaries),
-            ("英雄 CSV 身份、收入及战斗初值与定义一致", ContentDataChecks.Heroes),
-            ("技能 CSV 身份与全部支持等级一致", ContentDataChecks.Skills),
-            ("遭遇 CSV 排程字段及选项归属与定义一致", ContentDataChecks.Encounters),
-            ("一致性校验拒绝文案漂移、缺失及重复 key", ContentDataChecks.RejectsDrift),
         ]));
         _groups.Add(new VerificationGroup("扩展边界与战斗记录", [
             ("飞行/狂暴为布尔状态，重复设置幂等且每场重置", CardStateChecks.BooleanLifecycle),
@@ -163,6 +156,9 @@ public sealed partial class PhaseOneVerification : Control
             ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("原木法杖拾取含合并、备战累计、统一发动与升级正确", LogStaffChecks.AcquisitionAndActivation),
+            ("黑犀金龟等级、随机迟缓目标、叠加及飞行减时长正确", BlackRhinocerosBeetleChecks.LevelsAndSlow),
+            ("出售从左查找战场土属性目标，倍率永久累乘且升级保留", BlackRhinocerosBeetleChecks.SaleTargetsAndPersistence),
+            ("小数冷却倍率用于首发和重置，兼容增时长、疾速及充能", BlackRhinocerosBeetleChecks.MultiplierBattleTiming),
             ("飞行回响准确定位己方事件卡牌、叠加且不连锁", FlyingBroomChecks.EventTargetsAndStacking),
             ("飞行减半新增迟缓/禁锢，兼容相邻倍率且不影响疾速", CardStateChecks.FlyingDurations),
             ("狂暴覆盖全部伤害公式及中毒/灼伤并在护甲前取整", CardStateChecks.BerserkDamageAndStatus),

@@ -18,7 +18,7 @@ public sealed class MilitaryBootsCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Small,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/military_boots-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/military_boots-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却5秒，魔法消耗0，使左右直接相邻的己方战场卡牌获得1/2/3/4秒疾速；相邻卡牌具有人类标签时，持续时间翻倍。"),

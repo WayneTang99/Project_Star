@@ -97,7 +97,8 @@ public sealed class CombatSimulator
             if (definition.ManaCost > 0 && paysMana)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
             if (!pending.IsEcho && !pending.IsMulticast)
-                pending.Ability.RemainingCooldownUnits = (definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2;
+                pending.Ability.RemainingCooldownUnits = (definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2
+                    * (pending.Source is CardBattleState cooldownCard ? cooldownCard.CooldownMultiplier : 1m);
             runtime.Events.Add(new AbilityActivatedEvent(
                 runtime.Tick,
                 pending.Source.EntityId,
@@ -125,6 +126,13 @@ public sealed class CombatSimulator
         {
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
+                Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
+                && source.Side == origin.Source.Side
+                && origin.Source is CardBattleState { IsOnBench: false } originCard
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && (ability.Definition.TriggerCardTag is { } tag && originCard.Tags.Contains(tag)
+                    || ability.Definition.TriggerCardElement is { } element && originCard.ElementKeys.Contains(element)))
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
                 && !ability.Triggered

@@ -18,7 +18,7 @@ public sealed class LightCavalryCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Medium,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/light_cavalry-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/light_cavalry-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却3秒，对敌方英雄造成10/20/40/60伤害，并使己方战场区具备攻击能力的人类卡牌攻击增加10/20/40/60（包括此卡牌，可累计）；首次发动时，此卡牌冷却增加2秒。"),

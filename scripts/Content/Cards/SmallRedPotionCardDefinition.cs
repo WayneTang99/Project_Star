@@ -14,7 +14,7 @@ public sealed class SmallRedPotionCardDefinition : CardDefinition
             new EntityAttributes<CardIdentityAttributes>(
                 new CardIdentityAttributes(new StringName("card.small_red_potion"), "小型生命药水",
                     new StringName("mona"), CardSize.Small, [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/placeholder.svg"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/small_red_potion-illustration.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却3秒，魔法消耗0，治疗己方英雄40/80/160/240生命。"),

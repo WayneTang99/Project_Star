@@ -87,3 +87,5 @@
 | BUG-067 | 2026-10-02 | `scripts/Presentation/Verification/LogStaffChecks.cs` | 原木法杖验证首次构建失败。 | 伤害事件数值字段误写为Amount，实际为RawDamage。 | 修正引用，构建与143项回归通过。 | Fixed |
 | BUG-068 | 2026-10-03 | `scripts/Presentation/Verification/CombatChecks.cs` / 状态周期验证 | 新状态周期验证首次构建失败。 | 实际事件Tick为long，预期元组数组推断为int，SequenceEqual类型不匹配。 | 显式声明预期元组Tick为long，构建通过。 | Fixed |
 | BUG-069 | 2026-10-03 | `scripts/Presentation/Playtest/MatchPresenter.cs` / 怪物奖励提示 | 引入经验升级后，跨升级阈值的怪物奖励可能显示负经验。 | 原提示直接用结算前后的经验余数相减，忽略升级消耗。 | 提示将等级增加折算为10经验后再计算本次获得量，实际经验由统一入口升级并保留余数。 | Fixed |
+| BUG-070 | 2026-10-03 | `scripts/Domain/Combat/BattleStatusResolver.cs` / 日蚀伤害 | 日蚀伤害绕过护甲，与确认的护甲优先规则不符。 | 日蚀调用通用伤害结算时将 BypassArmor 设为 true。 | 双方日蚀伤害均改为 BypassArmor=false，沿用伤害曲线、频率和日蚀来源标记；同步玩法及术语文档。 | Fixed（未运行对战验证） |
+| BUG-071 | 2026-10-03 | `project.godot` / 游戏窗口显示 | 用户报告运行游戏时肉眼可见黑色闪烁，电脑录屏未捕获；关闭HDR后仍发生，用户确认未启用G-Sync。 | 用户确认切换Vulkan后不再闪烁，问题与当前环境的DX12渲染路径相关；具体驱动或显示链路根因未确认。 | 保持HDR输出关闭，Windows渲染驱动使用Vulkan；用户重启Godot运行后确认不再闪烁。 | Fixed（用户确认） |

@@ -18,7 +18,7 @@ public sealed class JudgmentHammerCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Large,
                     [GameElements.Light],
-                    illustration: new StringName("res://art/ui/card-face/artwork/judgment_hammer-illustration-v2.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/judgment_hammer-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却6/5秒，对敌方英雄造成目标最大生命的 20% 普通伤害（小数向下取整，先扣护甲）。"),

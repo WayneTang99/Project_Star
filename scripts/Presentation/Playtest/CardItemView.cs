@@ -20,6 +20,8 @@ public sealed partial class CardItemView : Button
     private bool _selected;
     private bool _hovered;
     private Label _battleStatus = null!;
+    private ColorRect _cooldownMask = null!;
+    private float _cooldownRemaining;
     private Panel _feedback = null!;
     private Tween? _feedbackTween;
     private Label _selectedMark = null!;
@@ -28,6 +30,9 @@ public sealed partial class CardItemView : Button
     {
         _face = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn").Instantiate<CardFaceControl>();
         AddChild(_face);
+        _cooldownMask = new ColorRect { Name = "CooldownMask", Visible = false,
+            MouseFilter = MouseFilterEnum.Ignore, Color = new Color(.15f, .15f, .15f, .6f), ZIndex = 2 };
+        AddChild(_cooldownMask);
         _battleStatus = new Label { Name = "BattleStatus", Visible = false, MouseFilter = MouseFilterEnum.Ignore,
             ClipText = true, HorizontalAlignment = HorizontalAlignment.Center, ZIndex = 3 };
         _battleStatus.AddThemeFontSizeOverride("font_size", 13);
@@ -35,10 +40,10 @@ public sealed partial class CardItemView : Button
         _battleStatus.AddThemeConstantOverride("outline_size", 5);
         _battleStatus.AddThemeColorOverride("font_outline_color", Colors.Black);
         AddChild(_battleStatus);
-        _feedback = new Panel { Name = "ChangeFeedback", MouseFilter = MouseFilterEnum.Ignore, Visible = false };
+        _feedback = new Panel { Name = "ChangeFeedback", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 3 };
         _feedback.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color(1, .9f, .55f, .3f), MatchTheme.Gold));
         AddChild(_feedback); _feedback.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _outline = new Panel { Name = "SelectionOutline", MouseFilter = MouseFilterEnum.Ignore, Visible = false };
+        _outline = new Panel { Name = "SelectionOutline", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 3 };
         AddChild(_outline); _outline.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _selectedMark = new Label { Text = "选", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 4 };
         _selectedMark.AddThemeFontSizeOverride("font_size", 13);
@@ -65,15 +70,28 @@ public sealed partial class CardItemView : Button
         _battleStatus.Visible = state is not null;
         _face.Modulate = state?.Destroyed == true ? new Color(.35f, .35f, .35f)
             : activated ? new Color(1.3f, 1.3f, .85f) : Colors.White;
+        _cooldownRemaining = 0;
+        if (state is { Destroyed: false, IsOnBench: false })
+        {
+            for (var index = 0; index < state.CooldownUnits.Count && index < state.CooldownDurationUnits.Count; index++)
+            {
+                var duration = state.CooldownDurationUnits[index];
+                if (duration > 0)
+                    _cooldownRemaining = Mathf.Max(_cooldownRemaining,
+                        (float)Math.Clamp(state.CooldownUnits[index] / duration, 0m, 1m));
+            }
+        }
+        _cooldownMask.Visible = _cooldownRemaining > 0;
+        LayoutFace();
         if (state is null) return;
-        var cooldown = state.CooldownUnits.Count == 0 ? "" : $"{System.Linq.Enumerable.Max(state.CooldownUnits) / 20m:0.0}s";
         var status = string.Join(" · ", Array.FindAll(new[] {
             state.IsFlying ? "飞行" : "", state.IsBerserk ? "狂暴" : "",
             state.Immobilize > 0 ? $"禁锢 {state.Immobilize / 10m:0.0}s" : "",
             state.Haste > 0 ? $"疾速 {state.Haste / 10m:0.0}s" : "",
             state.Slow > 0 ? $"迟缓 {state.Slow / 10m:0.0}s" : "" }, text => text.Length > 0));
-        _battleStatus.Text = state.Destroyed ? "已摧毁" : cooldown + (status.Length > 0 ? "\n" + status : "");
-        if (_card is not null) TooltipText = CardDisplayAdapter.Details(_card) + "\n战斗冷却 " + cooldown + "\n" + status
+        _battleStatus.Text = state.Destroyed ? "已摧毁" : status;
+        _battleStatus.Visible = _battleStatus.Text.Length > 0;
+        if (_card is not null) TooltipText = CardDisplayAdapter.Details(_card) + "\n" + status
             + (state.Destroyed ? "\n已摧毁" : "");
         LayoutFace();
     }
@@ -174,6 +192,8 @@ public sealed partial class CardItemView : Button
         if (_card is null) return;
         _face.SetDisplaySize(Size);
         _face.Position = Vector2.Zero;
+        _cooldownMask.Position = new Vector2(0, Size.Y * (1 - _cooldownRemaining));
+        _cooldownMask.Size = new Vector2(Size.X, Size.Y * _cooldownRemaining);
         _battleStatus.Position = new Vector2(0, Mathf.Max(24, Size.Y * .35f));
         _battleStatus.Size = new Vector2(Size.X, 36);
         _selectedMark.Position = new Vector2(4, Mathf.Max(0, Size.Y - 25));

@@ -18,7 +18,7 @@ public sealed class ArcaneShieldCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Medium,
                     [GameElements.Light],
-                    illustration: new StringName("res://art/ui/card-face/artwork/arcane_shield-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/arcane_shield-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却8/7/6秒，消耗20/40/80魔法，己方英雄获得等同于本场战斗累计魔法消耗的护甲（包含本次消耗），并叠加此卡牌的护甲数值加成。"),

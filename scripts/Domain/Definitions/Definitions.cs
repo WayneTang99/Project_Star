@@ -84,6 +84,21 @@ public abstract class CardDefinition
 
 public abstract record CardOnSellRewardDefinition;
 
+// 出售后从战场最左侧查找指定元素卡牌，永久降低其冷却倍率（领域定义层）。
+public sealed record ReduceLeftmostElementCardCooldownOnSellDefinition : CardOnSellRewardDefinition
+{
+    public ReduceLeftmostElementCardCooldownOnSellDefinition(StringName elementKey, int percent)
+    {
+        _ = GameElements.Normalize([elementKey]);
+        if (percent is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(percent));
+        ElementKey = elementKey;
+        Percent = percent;
+    }
+
+    public StringName ElementKey { get; }
+    public int Percent { get; }
+}
+
 // 出售时按标签、尺寸和数量随机获得卡牌的通用奖励定义（领域定义层）。
 public sealed record RandomTaggedCardOnSellDefinition(
     StringName RequiredTag,
@@ -101,7 +116,9 @@ public sealed class CardLevelDefinition
         IReadOnlyList<AbilityDefinition> abilities,
         int? initialValue = null,
         int acquiredValueBonus = 0,
-        IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null)
+        IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null,
+        CardOnSellRewardDefinition? onSellReward = null,
+        IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null)
     {
         if (level is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(level));
         ArgumentNullException.ThrowIfNull(abilities);
@@ -116,6 +133,9 @@ public sealed class CardLevelDefinition
         AcquiredValueBonus = acquiredValueBonus;
         SaleAttributeBonuses = saleAttributeBonuses is null ? Array.Empty<TaggedCardSaleAttributeBonus>()
             : new List<TaggedCardSaleAttributeBonus>(saleAttributeBonuses).AsReadOnly();
+        OnSellReward = onSellReward;
+        BattleVictoryBonuses = battleVictoryBonuses is null ? Array.Empty<BattleVictoryAttributeBonus>()
+            : new List<BattleVictoryAttributeBonus>(battleVictoryBonuses).AsReadOnly();
     }
 
     public int Level { get; }
@@ -128,6 +148,8 @@ public sealed class CardLevelDefinition
 
     public int AcquiredValueBonus { get; }
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; }
+    public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; }
+    public CardOnSellRewardDefinition? OnSellReward { get; }
 }
 
 public abstract class EncounterDefinition

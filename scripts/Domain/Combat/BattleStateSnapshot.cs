@@ -8,12 +8,14 @@ namespace Project_Star.Domain.Combat;
 public sealed record HeroBattleSnapshot(int Health, int MaxHealth, int Armor, int Mana, int MaxMana,
     int Burn, int Poison, int HealthRegen, int ManaRegen);
 
-// 单张卡牌的战斗状态；冷却使用半 Tick 单位，避免疾速/迟缓丢失精度。
+// 单张卡牌的战斗状态；冷却使用十进制半 Tick 单位，保留百分比缩减与疾速/迟缓精度。
 public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed,
-    int Haste, int Slow, int Immobilize, IReadOnlyList<int> CooldownUnits,
+    int Haste, int Slow, int Immobilize, IReadOnlyList<decimal> CooldownUnits,
     IReadOnlyDictionary<StringName, int> Values)
 {
+    public IReadOnlyList<decimal> CooldownDurationUnits { get; init; } = System.Array.Empty<decimal>();
     public bool IsFlying { get; init; }
+    public bool IsOnBench { get; init; }
     public bool IsBerserk { get; init; }
 }
 

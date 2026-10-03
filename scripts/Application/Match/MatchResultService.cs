@@ -46,7 +46,10 @@ public sealed class MatchResultService
 
         ApplyPermanentChanges(session, battle);
         if (battle.Outcome == BattleOutcome.PlayerVictory)
+        {
+            ApplyBattleVictoryBonuses(session, battle);
             _quests.ProcessEvent(session, new BattleWonQuestEvent());
+        }
         if (kind == MatchBattleKind.Monster)
         {
             SettleMonsterBattle(session, opponent!, battle);
@@ -60,6 +63,21 @@ public sealed class MatchResultService
         if (session.Progress.PvpWins >= 10) End(session, MatchStatus.Won);
         else if (session.Player.Reputation <= 0) End(session, MatchStatus.Lost);
         return Result.Success();
+    }
+
+    // 依据开战快照筛选实际参战卡牌，永久加成不读取本场临时数值。
+    private static void ApplyBattleVictoryBonuses(MatchSession session, BattleResult battle)
+    {
+        if (battle.States.Count == 0) return;
+        foreach (var participant in battle.States[0].Cards)
+        {
+            if (participant.Side != SideId.Player || participant.IsOnBench) continue;
+            var card = session.Player.Inventory.Find(participant.Id);
+            if (card is null) continue;
+            foreach (var bonus in card.BattleVictoryBonuses)
+                card.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                    ModifierId.New(), card.Id, bonus.AttributeKey, bonus.Amount));
+        }
     }
 
     private static void SettleMonsterBattle(MatchSession session, MatchSession opponent, BattleResult battle)

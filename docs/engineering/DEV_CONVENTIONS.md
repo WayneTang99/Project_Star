@@ -34,5 +34,5 @@ Project_Star 开发约定。供 AI 代理 / 开发者提交代码、写注释时
 - 不直接修改 `.godot/`；导入/构建由工具管理缓存。
 - .NET SDK ≥ 8.0；bin/、obj/ 和 output/ 不提交。
 - output/ 保存日志、截图临时输出与生成草稿，并用 .gdignore 隔离导入；验收所需代表截图位于 docs/quality/。
-- 正式内容 CSV 使用 keep 导入模式，保留原文件供 FileAccess 读取，不维护自动生成的翻译产物。
+- 正式内容数据以 scripts/Content/ 下的 Definition 为唯一来源，说明与能力组合随定义维护。
 - 默认不提交 export_presets.cfg；需要版本管理导出配置时按任务范围决定。

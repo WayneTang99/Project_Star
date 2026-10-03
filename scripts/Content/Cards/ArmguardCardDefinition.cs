@@ -18,7 +18,7 @@ public sealed class ArmguardCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Small,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/armguard-illustration.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/armguard-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Aura, "此卡牌具有1层多重（每层多重额外发动一次）"),

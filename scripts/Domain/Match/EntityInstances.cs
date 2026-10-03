@@ -29,7 +29,8 @@ public sealed class CardInstance
         IReadOnlyList<AbilityDefinition> abilities,
         CardOnSellRewardDefinition? onSellReward,
         IReadOnlyList<CardQuestDefinition>? quests = null,
-        IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null)
+        IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null,
+        IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null)
     {
         Id = id;
         Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
@@ -37,6 +38,7 @@ public sealed class CardInstance
         Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
         OnSellReward = onSellReward;
         SaleAttributeBonuses = saleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
+        BattleVictoryBonuses = battleVictoryBonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
         Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
     }
 
@@ -48,8 +50,10 @@ public sealed class CardInstance
 
     public IReadOnlyList<AbilityDefinition> Abilities { get; private set; }
 
-    public CardOnSellRewardDefinition? OnSellReward { get; }
+    public CardOnSellRewardDefinition? OnSellReward { get; private set; }
+    public decimal CooldownMultiplier { get; private set; } = 1m;
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; private set; }
+    public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; private set; }
 
     public IReadOnlyList<CardQuestDefinition> Quests { get; }
 
@@ -80,6 +84,18 @@ public sealed class CardInstance
 
     internal void ReplaceSaleAttributeBonuses(IReadOnlyList<TaggedCardSaleAttributeBonus>? bonuses) =>
         SaleAttributeBonuses = bonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
+
+    internal void ReplaceBattleVictoryBonuses(IReadOnlyList<BattleVictoryAttributeBonus>? bonuses) =>
+        BattleVictoryBonuses = bonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
+
+    // 累乘对局内永久冷却倍率，升级不重置已获得的缩减。
+    internal void ReduceCooldown(int percent)
+    {
+        if (percent is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(percent));
+        CooldownMultiplier *= (100 - percent) / 100m;
+    }
+
+    internal void ReplaceOnSellReward(CardOnSellRewardDefinition? reward) => OnSellReward = reward;
 }
 
 public sealed class SkillInstance

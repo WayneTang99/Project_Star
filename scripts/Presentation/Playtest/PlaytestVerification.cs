@@ -676,10 +676,10 @@ internal static class PlaytestVerification
     {
         var registry = Registry();
         foreach (var definition in registry.Cards.Values)
-            foreach (var level in definition.Levels.Keys.DefaultIfEmpty(definition.InitialLevel))
+            foreach (var level in Enumerable.Range(1, 5).Where(definition.SupportsLevel))
                 _ = CardDisplayAdapter.Details(MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level)));
         foreach (var definition in registry.Skills.Values)
-            foreach (var level in definition.Levels.Keys.DefaultIfEmpty(definition.InitialLevel))
+            foreach (var level in Enumerable.Range(1, 5).Where(definition.SupportsLevel))
                 _ = CardDisplayAdapter.SkillDetails(MatchDisplayQuery.FromSkill(definition, level));
         foreach (var threshold in registry.Sets.Values.SelectMany(set => set.Thresholds))
             _ = CardDisplayAdapter.AbilityDetails(threshold.Abilities);
@@ -720,21 +720,19 @@ internal static class PlaytestVerification
             && CardDisplayAdapter.Details(thorn).Contains("护甲：基础 10 / 当前 10");
     }
 
-    // 有序词条贯穿正式CSV、所有等级的实例/报价和对局快照。
+    // 定义中的有序词条贯穿所有等级的实例、报价、对局快照与详情。
     public static bool FormalDescriptions()
     {
-        var rows = Project_Star.Presentation.Verification.ContentDataChecks.DescriptionRows();
         var registry = Registry(); var factory = new EntityFactory();
         var economy = new CardEconomyService(factory);
         var session = new CreateMatchService(factory).Create(42, 100, new PaladinHeroDefinition());
-        if (rows.Count != registry.Cards.Count) return false;
         foreach (var definition in registry.Cards.Values)
         {
             var identity = definition.Attributes.Identity;
-            if (!rows.TryGetValue(identity.Key, out var expected)
-                || !identity.DescriptionEntries.SequenceEqual(expected)) return false;
+            var expected = identity.DescriptionEntries;
+            if (expected.Count == 0) return false;
             var text = string.Join("\n", expected.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}：{entry.Text}"));
-            foreach (var level in definition.Levels.Keys.DefaultIfEmpty(definition.InitialLevel))
+            foreach (var level in Enumerable.Range(1, 5).Where(definition.SupportsLevel))
             {
                 var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
                 if (!offer.DescriptionEntries.SequenceEqual(expected)
@@ -753,28 +751,15 @@ internal static class PlaytestVerification
             if (economy.AcquireCard(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure) return false;
         }
         var snapshot = MatchSnapshot.From(session);
-        return snapshot.Cards.Count == rows.Count
-            && snapshot.Cards.All(card => card.DescriptionEntries.SequenceEqual(rows[card.Key]));
+        return snapshot.Cards.Count == registry.Cards.Count
+            && snapshot.Cards.All(card => card.DescriptionEntries.SequenceEqual(registry.Cards[card.Key].Attributes.Identity.DescriptionEntries));
     }
 
-    // 核对全部正式插画的 CSV、只读身份、实例、报价与对局快照，以及实际纹理加载。
+    // 核对全部正式插画的只读身份、实例、报价与对局快照，以及实际纹理加载。
     public static bool FormalIllustrations()
     {
         if (typeof(CardIdentityAttributes).GetProperty(nameof(CardIdentityAttributes.Illustration))!.CanWrite) return false;
-        using var csv = FileAccess.Open("res://docs/design/CardDataTable.csv", FileAccess.ModeFlags.Read);
-        var header = csv.GetCsvLine();
-        var illustrationColumn = Array.IndexOf(header, "插画");
-        if (illustrationColumn < 0) return false;
-        var rows = new System.Collections.Generic.Dictionary<StringName, StringName>();
-        while (!csv.EofReached())
-        {
-            var row = csv.GetCsvLine();
-            if (row.Length == 1 && string.IsNullOrWhiteSpace(row[0])) continue;
-            if (row.Length != header.Length) return false;
-            rows.Add(new StringName(row[0]), new StringName(row[illustrationColumn]));
-        }
         var registry = Registry();
-        if (rows.Count != registry.Cards.Count) return false;
         var adapter = new CardDisplayAdapter();
         var factory = new EntityFactory();
         var economy = new CardEconomyService(factory);
@@ -782,9 +767,9 @@ internal static class PlaytestVerification
         foreach (var definition in registry.Cards.Values)
         {
             var identity = definition.Attributes.Identity;
-            if (identity.Illustration.IsEmpty || !rows.TryGetValue(identity.Key, out var expected)
-                || expected != identity.Illustration || !expected.ToString().StartsWith("res://art/ui/card-face/artwork/")) return false;
-            foreach (var level in definition.Levels.Keys.DefaultIfEmpty(definition.InitialLevel))
+            var expected = identity.Illustration;
+            if (expected.IsEmpty || !expected.ToString().StartsWith("res://art/ui/card-face/artwork/")) return false;
+            foreach (var level in Enumerable.Range(1, 5).Where(definition.SupportsLevel))
             {
                 var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
                 var instance = factory.CreateCard(definition, level);
@@ -796,7 +781,7 @@ internal static class PlaytestVerification
             if (economy.AcquireCard(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure) return false;
         }
         var snapshot = MatchSnapshot.From(session);
-        return snapshot.Cards.Count == registry.Cards.Count && snapshot.Cards.All(card => card.Illustration == rows[card.Key]);
+        return snapshot.Cards.Count == registry.Cards.Count && snapshot.Cards.All(card => card.Illustration == registry.Cards[card.Key].Attributes.Identity.Illustration);
     }
 
     public static bool RefreshAndStaleOffers()

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Project Star 卡牌原画"
+  short_description: "按卡牌实际尺寸生成或更新原画，统一指定画风并接入项目资源"

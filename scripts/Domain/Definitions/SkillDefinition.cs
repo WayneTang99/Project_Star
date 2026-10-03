@@ -56,6 +56,7 @@ public abstract class SkillDefinition
                     or DestroyCardEffectDefinition
                     or IncreaseSourceCooldownEffectDefinition
                     or ChargeRandomOtherAlliedElementCardEffectDefinition
+                    or ChargeSourceCardEffectDefinition
                     || effect is ApplyStatusEffectDefinition status
                         && status.Status is BattleStatus.HasteDuration or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration)
                 {

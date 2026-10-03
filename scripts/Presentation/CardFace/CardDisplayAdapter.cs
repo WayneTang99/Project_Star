@@ -78,7 +78,7 @@ public sealed class CardDisplayAdapter
             lines.AddRange(card.DescriptionEntries.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}：{entry.Text}"));
         else foreach (var ability in card.Abilities)
         {
-            lines.Add($"{Activation(ability.Activation)} · {Target(ability.Target)} · 冷却 {ability.CooldownTicks / 10m:0.##}秒 · 魔法 {ability.ManaCost}");
+            lines.Add($"{Activation(ability.Activation)} · {Target(ability.Target)} · 冷却 {ability.CooldownTicks / 10m * card.CooldownMultiplier:0.##}秒 · 魔法 {ability.ManaCost}");
             lines.AddRange(ability.Effects.Select(effect => Describe(card, effect)));
         }
         foreach (var (key, current) in card.CurrentValues)
@@ -95,11 +95,12 @@ public sealed class CardDisplayAdapter
                 })) continue;
             var basic = card.BaseValues.TryGetValue(key, out var value) ? value : 0;
             lines.Add(key == GameAttributeKeys.CooldownTicks
-                ? $"冷却：基础 {basic / 10m:0.##}秒 / 当前 {current / 10m:0.##}秒"
+                ? $"冷却：基础 {basic / 10m:0.##}秒 / 当前 {current / 10m * card.CooldownMultiplier:0.##}秒"
                 : $"{AttributeName(key)}：基础 {basic} / 当前 {current}");
         }
         foreach (var quest in card.Quests)
             lines.Add($"任务 {quest.Key}：{quest.Progress}/{quest.RequiredCount}{(quest.Unlocked ? " · 已解锁" : "")}");
+        if (card.CooldownMultiplier != 1m) lines.Add($"冷却倍率：{card.CooldownMultiplier:0.####}");
         var states = new[] { card.IsFlying ? "飞行" : "", card.IsBerserk ? "狂暴" : "" }.Where(text => text.Length > 0);
         if (states.Any()) lines.Add($"状态：{string.Join("、", states)}");
         return string.Join("\n", lines);
@@ -144,9 +145,12 @@ public sealed class CardDisplayAdapter
         GainArmorEqualToManaSpentEffectDefinition => "获得等同于本场累计魔法消耗的护甲",
         GrantMulticastToAlliedElementCardsEffectDefinition value => $"己方 {value.ElementKey} 属性卡牌多重 +{value.Amount}",
         ChargeRandomOtherAlliedElementCardEffectDefinition value => $"随机另一张己方 {value.ElementKey} 属性卡牌充能 {value.AmountTicks / 10m:0.##}秒",
+        ChargeSourceCardEffectDefinition value => $"此卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         GrantTagToEnemySizeCardsEffectDefinition value => $"敌方 {value.Size} 卡牌获得 {TagDisplayNames.Get(value.Tag)} 标签",
         IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => $"每张存活敌方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {value.AttributeKey} +{value.Amount}",
+        IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition value => $"每张存活己方战场 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（包含自身）",
         ApplyStatusEffectDefinition value => $"施加 {value.Status} {value.Amount}",
+        ApplyStatusToRandomEnemyCardEffectDefinition value => $"随机敌方战场卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒",
         ApplyAttributeStatusEffectDefinition value => $"施加 {value.Status} {Value(card, value.AttributeKey)}",
         SetSourceCardStateEffectDefinition value =>
             $"{(value.Enabled ? "施加" : "移除")}此卡牌{AttributeName(value.StateKey)}状态",
@@ -165,6 +169,7 @@ public sealed class CardDisplayAdapter
         AbilityActivation.Active => "发动", AbilityActivation.PassiveAura => "被动光环",
         AbilityActivation.PassiveOnBattleStart => "战斗开始", AbilityActivation.PassiveWhileEnabled => "持续加成",
         AbilityActivation.EchoOnFirstAlliedCardActivated => "己方首张卡牌发动后回响",
+        AbilityActivation.EchoOnMatchingAlliedCardActivated => "己方符合条件的卡牌发动后回响",
         AbilityActivation.EchoOnAbilityActivated => "发动后回响", AbilityActivation.EchoOnDamageDealt => "伤害后回响",
         _ => value.ToString(),
     };

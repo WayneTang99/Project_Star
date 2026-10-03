@@ -29,7 +29,7 @@ DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；�
 
 | 扩展需求 | 入口 |
 |---|---|
-| 新英雄/卡牌/技能/怪物/遭遇/套装 | Content 下独立 Definition + 正式 CSV + 验证；不增加中央内容注册 switch |
+| 新英雄/卡牌/技能/怪物/遭遇/套装 | Content 下独立 Definition + 验证；不增加中央内容注册 switch |
 | 新卡牌行为 | 组合通用 AbilityDefinition / EffectDefinition；组合无法表达时才添加可复用机制 |
 | 新战斗效果 | BattleEffectResolver 与通用效果数据，更新行为和顺序验证 |
 | 新对手来源 | 实现 IOpponentProvider，在试玩入口注入；流程不创建具体 Provider |
@@ -38,7 +38,7 @@ DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；�
 
 只为已确认需求建立抽象；出现实际复用或明确替换点时抽取。接口保持小而聚焦，不建立万能 Context、Manager、服务定位器或全局命令总线。Command 表示意图，Result 表示同步成功/失败，Domain Event 表示已发生事实；有返回值的操作不伪装成事件。Match Event 与 Combat Event 强类型隔离，不跨总线传播。
 
-CSV 与 Definition 的维护和一致性验证见 [内容数据规范](../design/CONTENT_DATA.md)。卡牌展示描述保存为只读有序 `CardDescriptionEntry`（StringName KeywordKey + string Text），随身份传入快照；UI按条目渲染，不参与规则解析或能力生成。
+Definition 的维护和行为验证见 [内容数据规范](../design/CONTENT_DATA.md)。卡牌展示描述保存为只读有序 `CardDescriptionEntry`（StringName KeywordKey + string Text），随身份传入快照；UI按条目渲染，不参与规则解析或能力生成。
 
 ## 对局用例与事务
 
@@ -58,9 +58,13 @@ FinalValue = BaseValue + Sum(Modifiers)。Modifier 有唯一 ID、来源、目�
 
 元素为规范顺序的 1～2 个不重复 StringName；General 是真实普通属性，不作空值哨兵。元素参与分类/筛选/条件，不计算克制。标签参与规则，词条是能力行为的文案语义。
 
+卡牌实例另存十进制 `CooldownMultiplier`，生命周期同任务进度，默认1且升级保留。经济用例成功出售后提交通用目标缩减；MatchSnapshot和BattleSetupFactory复制倍率，不把对局对象传入战斗。Runtime首次冷却与重置应用冻结倍率，剩余半Tick单位改为decimal以保留小数；整数Tick推进和既有无缩减战斗顺序保持一致。
+
 CardSetEvaluator 只按战场不同 CardKey 计数，并稳定输出达到的全部阈值；阈值解锁通用能力。CardSetBonusService 在棋盘变化时精确重算持续 Modifier，战斗能力由 BattleSetupFactory 冻结。战斗内摧毁不重新求值套装快照。
 
 CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括备战区。CardQuestBonusService 只为战场已解锁卡牌施加持续属性能力；移区/移除时精确撤销。其他解锁能力加入来源卡的战斗快照，随该来源被摧毁失效。
+
+卡牌等级的 BattleVictoryBonuses 是可复用的对局结算配置。MatchResultService 根据 BattleResult 的开战快照筛选己方非备战区卡牌，获胜后给仍在库存的实例累加永久 Modifier；不读取战斗临时属性，不复用一次性任务解锁。EntityFactory 在升级时刷新增量并保留 Modifier。
 
 ## 战斗模块与固定顺序
 
@@ -85,6 +89,6 @@ Runtime 只修改卡牌实际支持的属性，修改效果不能凭写属性赋
 
 Main.tscn 保留分类/全部验证及 headless --verify。Presentation/Verification 中按领域职责划分规则检查和共享夹具，PhaseOneVerification 只组装列表和显示结果；场景集成仍在 Godot 中验证。
 
-重点覆盖不可变定义与实例隔离、CSV 一致性、Modifier 精确堆叠/移除、经济失败原子性、棋盘推挤与回滚、遭遇随机/历史、FIFO/回响、状态周期、日蚀/寂灭、永久变化与确定性回放。架构迁移保留既有验证，并比较固定输入的结果、事件顺序和冻结状态。
+重点覆盖不可变定义与实例隔离、内容身份与快照传递、Modifier 精确堆叠/移除、经济失败原子性、棋盘推挤与回滚、遭遇随机/历史、FIFO/回响、状态周期、日蚀/寂灭、永久变化与确定性回放。架构迁移保留既有验证，并比较固定输入的结果、事件顺序和冻结状态。
 
 审查时检查状态所有者、Match/Battle 生命周期、事务失败路径、随机/时间/遍历顺序、跨层写入、能力复用、快照隔离和实际扩展收益。BUG 登记及提交约定见 AGENTS 与开发约定。

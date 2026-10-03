@@ -17,7 +17,7 @@ public sealed class DiamondCardDefinition : CardDefinition
                     GameFactions.Neutral,
                     CardSize.Small,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/diamond-illustration-v2.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/diamond-illustration-refresh.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Pickup, "当获得此卡牌后，此卡牌价值增加20。"),

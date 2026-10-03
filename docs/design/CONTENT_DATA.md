@@ -1,8 +1,10 @@
 # 内容数据规范
 
-正式数据行分别维护在 [卡牌身份](CardDataTable.csv)、[卡牌词条描述](CardDescriptionTable.csv)、[技能](SkillDataTable.csv)、[英雄](HeroDataTable.csv)、[遭遇](EncounterDataTable.csv) CSV 中；运行时来源是 `scripts/Content/` 的 Definition。玩法以 [游戏规则](GAME_DESIGN.md) 为准，命名以 [术语表](GLOSSARY.md) 为准。
+正式内容统一维护在 [scripts/Content/](../../scripts/Content/) 的 C# Definition 中，是运行时与编辑时的唯一数据来源。玩法以 [游戏规则](GAME_DESIGN.md) 为准，命名以 [术语表](GLOSSARY.md) 为准。
 
-CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示文本，不从中文描述解析能力；行为继续组合通用 Ability / Effect。修改内容时同步更新 CSV、Definition 和有意义的行为验证。CSV 使用 keep 导入模式，保留原文件，不生成翻译资源。
+描述是展示文本，不从中文描述解析能力；行为组合通用 Ability / Effect。修改内容时更新对应 Definition 和有意义的行为验证，字段或维护规则变化时更新本文。Godot 验证入口检查注册、只读隔离、实例与快照传递、资源存在性和实际效果。
+
+内容增删改查使用项目内的 [project-star-content-definition Skill](../../.codex/skills/project-star-content-definition/SKILL.md)：查询从当前定义读取数据，修改和删除追踪实际引用，内容变更执行构建与行为验证。查询结果可以临时展示或按需导出，内容数据仍统一维护在 Definition。
 
 ## 卡牌
 
@@ -16,31 +18,34 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 | 元素 | 1～2 个元素属性；`General` 表示无属性，不表示空值 |
 | 额外标签 | 尺寸标签以外的卡牌标签 |
 | 初始等级 | 默认创建、商店报价和普通获得时使用的等级 |
-| 词条描述 | 在 `CardDescriptionTable.csv` 中按 CardKey 关联，定义保存为只读 `CardIdentityAttributes.DescriptionEntries` 列表 |
+| 词条描述 | 定义保存为只读 `CardIdentityAttributes.DescriptionEntries` 列表 |
 | 插画 | `CardIdentityAttributes.Illustration`：只读 `StringName` 资源标识，指向项目内原画的 `res://` 路径；由表现层加载纹理 |
 
 斜杠分隔的数值从初始等级开始，依次对应到4级，不再重复标注等级。例如初始2级卡牌的 `8/7/6秒` 对应2/3/4级；初始3级卡牌的 `6/5秒` 对应3/4级。5级卡牌只记录5级数值。`—` 表示没有该项。
 
 描述每条保存“词条 key + 说明文字”，列表顺序就是展示顺序；一张卡允许多条相同词条。词条名称由 `CardKeywords` 统一维护，说明不重复写词条前缀，也不加入富文本标记。冷却、魔法消耗、条件、目标、分级数值和限制保留在说明中。
 
-`CardDescriptionTable.csv` 每行保存一条描述：
-
-| 字段 | 含义 |
-|---|---|
-| CardKey | 对应 CardDataTable.csv 的卡牌 key |
-| 顺序 | 每张卡从1开始连续递增，不能重复 |
-| 词条 | `keyword.activate` 发动、`keyword.echo` 回响、`keyword.aura` 光环、`keyword.pickup` 拾取、`keyword.sell` 出售、`keyword.quest` 任务、`keyword.consume` 消耗、`keyword.passive` 被动 |
-| 说明 | 此词条在该卡上的完整说明文字，使用 `string` |
-
 发动是自身CD结束触发；回响响应自身或其他卡牌发动所产生的事件，具体事件条件写在说明中；光环涵盖持续赋予及随状态计算，来源失效后的处理遵循该卡规则；拾取在获得此卡牌时结算；出售在出售此卡牌时结算；消耗表示使用后摧毁自身，默认仅本场战斗生效，效果按治疗等使用效果在前、摧毁在后的顺序组合。任务的实例进度与解锁机制保持独立。词条组织描述，不生成或改变能力队列、回响连锁规则及对局结算。
 
-正式定义的词条 key、说明和顺序必须与描述CSV逐项一致。只读条目随实例身份和 `CardSnapshot.DescriptionEntries` 传递，商店、棋盘、奖励和详情共用；UI不维护按卡牌key的文案表，也不解析中文标点来分段。描述保留各等级数值，当前等级与实例基础/当前属性另列，不在升级时改写身份文本。无描述条目的内部验证夹具可沿用能力说明。
+正式定义通过有序 `CardDescriptionEntry` 列表保存词条 key、说明和顺序。只读条目随实例身份和 `CardSnapshot.DescriptionEntries` 传递，商店、棋盘、奖励和详情共用；UI不维护按卡牌key的文案表，也不解析中文标点来分段。描述保留各等级数值，当前等级与实例基础/当前属性另列，不在升级时改写身份文本。无描述条目的内部验证夹具可沿用能力说明。
+
+### 按卡牌分类触发的充能回响
+
+`EchoOnMatchingAlliedCardActivated` 配置 `TriggerCardTag` / `TriggerCardElement`，匹配己方战场卡牌的主动发动；任一条件成立即触发一次，两项同时满足不重复触发。包含来源自身及多重额外发动，排除敌方、技能、备战区与回响产生的被动发动。`ChargeSourceCardEffectDefinition` 缩短来源主动能力剩余冷却，到零时立即排队发动；不改变基础冷却，不触发被动能力的冷却。
+
+### 按己方标签数量增加来源属性
+
+`IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition` 通过光环按己方存活战场卡牌的有效标签数量增加来源属性，包含满足标签的来源自身；备战区和被摧毁卡牌不计数。不写入永久属性或反复累加临时值，数量变化时重新求值。护甲发动使用 `GainSourceHeroArmorFromAttributeEffectDefinition` 读取含光环贡献的有效属性，已获得的英雄护甲不因卡牌数量下降而扣回。
 
 ### 布尔战斗状态
 
-`IsFlying` / `IsBerserk` 是动态布尔值，默认否，不放入只读身份或身份CSV。能力组合使用通用 `SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying / Berserk, true / false)` 设置来源卡牌状态；可组合进发动、战斗开始触发或回响，不放入仅查询的光环能力，也不能由非卡牌来源设置。状态字段、变化事件与冻结快照都由战斗层维护，回放投影读取记录，不写模型。
+`IsFlying` / `IsBerserk` 是动态布尔值，默认否，不放入只读身份。能力组合使用通用 `SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying / Berserk, true / false)` 设置来源卡牌状态；可组合进发动、战斗开始触发或回响，不放入仅查询的光环能力，也不能由非卡牌来源设置。状态字段、变化事件与冻结快照都由战斗层维护，回放投影读取记录，不写模型。
 
 具体减时长与数值加成规则见 [游戏规则](GAME_DESIGN.md)。状态仅由能力配置产生，不根据卡名或插画推断飞行／狂暴。进入状态回响使用 `EchoOnAlliedCardEnteredState` 与 `TriggerStateKey` 筛选真实的 false→true 变化，`EventCard` 指向该次事件中的卡牌；重复设置true不触发，回响产生的状态变化不再连锁。
+
+### 参战胜利的永久加成
+
+等级定义的 `BattleVictoryBonuses` 使用通用 `BattleVictoryAttributeBonus` 配置属性和增量。应用结算根据战斗初始快照筛选己方战场区参战实例；怪物战与 PvP 获胜均累加永久 Modifier，失败、平局及备战区不触发，不要求卡牌实际发动。战斗内被摧毁仍算参战；被永久摧毁并移出库存的实例不再获得加成。升级保留已有贡献，并采用新等级的胜利增量。
 
 ### 出售触发的永久加成
 
@@ -48,13 +53,19 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 
 卡牌的 `Poison` / `Burn` 基础属性在此表示施加量，区别于英雄已经受到的中毒／灼伤。`ApplyAttributeStatusEffectDefinition` 从来源卡牌的冻结战斗属性读取施加量，卡面显示实例现值；已有战斗输入不会被后续出售改写。恢复魔法使用通用 `RestoreManaEffectDefinition`，累计至最大魔法上限后不再增加。
 
+### 出售时缩减目标冷却
+
+等级定义可通过 `OnSellReward` 覆盖该等级的出售效果；未配置时沿用卡牌定义。`ReduceLeftmostElementCardCooldownOnSellDefinition` 指定元素与缩减百分比：成功出售并移除来源后，从己方战场最左侧向右查找第一张匹配元素的卡牌，仅对这一张生效。跳过非匹配元素，不查找备战区；无目标仍可成功出售。来源从战场、备战区或游离库存出售时共用此规则。
+
+目标实例的十进制 `CooldownMultiplier` 默认1.00，每次乘以 `(100 - Percent) / 100`；不提前取整，升级保留，新实例重置。`ApplyStatusToRandomEnemyCardEffectDefinition` 随机向存活敌方战场卡牌累加疾速／迟缓／禁锢时长，沿用飞行减半及状态反应，无目标时跳过。
+
 ### 通用价值表
 
 未显式覆写初始价值时遵循 [游戏价值规则](GAME_DESIGN.md)，此处不重复维护数值表。
 
 ### 内容维护约定
 
-新增或修改正式卡牌时必须同步更新 CardDataTable.csv 和 CardDescriptionTable.csv，并检查：
+新增或修改正式卡牌时更新对应 `CardDefinition`，并检查：
 
 1. CardKey 全局唯一，使用 `StringName`。
 2. 归属 key 对应已有英雄阵营或 `neutral`。
@@ -84,7 +95,7 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 1. SkillKey 全局唯一，使用 `StringName`；归属 key 对应已有英雄阵营或 `neutral`。
 2. 初始等级必须存在对应的等级配置；描述按支持等级顺序列出数值。
 3. 技能效果复用通用能力，不配置主动能力或要求卡牌自身作为来源的效果。
-4. 新增或修改正式技能时同步更新 `SkillDataTable.csv`，并核对 `SkillDefinition` 和验证入口。
+4. 新增或修改正式技能时更新对应 `SkillDefinition` 和行为验证。
 
 ## 英雄
 
@@ -105,7 +116,7 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 
 1. HeroKey 和归属 key 使用 `StringName`；HeroKey 全局唯一，归属 key 与卡牌、技能的归属保持一致。
 2. 只记录玩家可选的 `HeroDefinition`；怪物使用独立的 `MonsterDefinition`，不列为英雄。
-3. 新增或修改正式英雄时同步更新 `HeroDataTable.csv`，并核对英雄定义、内容归属和验证入口。
+3. 新增或修改正式英雄时更新对应 `HeroDefinition`，并验证内容归属、新局创建与战斗初值。
 
 ## 遭遇
 
@@ -122,18 +133,18 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 
 `—` 表示该类型没有对应等级。第4回合只抽怪物战，第8回合固定 PvP；其他回合从商店和可选项中生成候选，并保底至少一个商店。
 
-### 数据表说明
+### 定义组织
 
-`EncounterDataTable.csv` 用“记录类型”区分遭遇行与选项行。遭遇行保存排程、权重和配置；选项行用 EncounterKey 归属对应遭遇，并保存展示规则与效果。第4回合只抽怪物战，第8回合固定 PvP；其他回合从商店和可选项中生成候选，并保底至少一个商店。
+遭遇的排程、权重和配置保存在 `EncounterDefinition` 中；选项由 `ChoiceEncounterDefinition` 持有，保存展示槽、权重与通用效果。第4回合只抽怪物战，第8回合固定 PvP；其他回合从商店和可选项中生成候选，并保底至少一个商店。
 
-怪物由 `MonsterDefinition` 自动投影为遭遇，不额外维护同名遭遇定义。试玩允许怪物不足三个；正式排程要求三个不同怪物。具体卡组、奖励与选项效果见正式 CSV 与内容定义。
+怪物由 `MonsterDefinition` 自动投影为遭遇，不额外维护同名遭遇定义。试玩允许怪物不足三个；正式排程要求三个不同怪物。具体卡组、奖励与选项效果直接维护在对应内容定义中。
 
 ### 内容维护约定
 
 1. EncounterKey 在遭遇池唯一，选项 Key 在所属遭遇中唯一，均使用 `StringName`；怪物战的 EncounterKey 对应已注册的怪物 key。
 2. 明确类型、轮次、基础权重和各展示槽；随机选项写明同一槽内的权重。
 3. 商店等级与商品卡牌等级分开记录；怪物卡组和战斗属性以 `MonsterDefinition` 为准。
-4. 新增或修改正式遭遇及选项时同步更新 `EncounterDataTable.csv`，并核对定义注册、排程和选项结算。
+4. 新增或修改正式遭遇及选项时更新对应 Definition，并验证注册、排程和选项结算。
 
 ## 扩展与验证
 
@@ -141,10 +152,10 @@ CSV 与 Definition 的重叠字段由 Godot 验证入口核对。描述是展示
 
 每个具体内容保持独立文件，由 `DefinitionRegistry.Scan` 发现公开、非抽象、无参定义。验证夹具保持 internal，不进入正式内容池。共享构造辅助只在有实际复用时建立。
 
-- 卡牌：身份、初始等级、额外标签、插画与描述和 CSV 一致；尺寸标签自动推导。全部支持等级都应能实例化，并验证实际效果。
+- 卡牌：身份、初始等级、额外标签、插画与描述从定义正确传入实例和快照；尺寸标签自动推导。全部支持等级都应能实例化，并验证实际效果。
 - 英雄：身份、称号、收入和战斗初值一致；不将怪物列入可选英雄。
 - 技能：身份、初始等级和支持等级一致；仅用被动能力，并验证触发次数和目标。
 - 遭遇：key、类型、轮次、权重、等级、选项 key/名称一致；同一选项只属于一个展示槽。选项 key 在所属遭遇中唯一。
 - 套装：卡牌最多一个归属；计数、目标、阈值叠加和生命周期遵循游戏规则。正式套装与其他任务条件仍待具体内容需求。
 
-当前 CSV 的配置、触发、效果列含自然语言，不能直接作为能力配置载入。后续需要数据生成时，先确定结构化字段及单向生成方式；当前通过一致性验证防止两份数据漂移。
+内容注册与实例创建均直接使用 Definition；具体数值、词条说明和能力组合只在对应内容文件维护。
