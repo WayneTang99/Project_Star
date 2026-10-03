@@ -13,14 +13,14 @@ namespace Project_Star.Presentation.Verification;
 // 固定输入的完整战斗记录回归，保护结果、事件顺序与播放状态（表现层验证模块）。
 internal static class CombatTraceChecks
 {
-    // 指纹由职责拆分前的模拟器生成；变化时应先确认具体规则差异。
+    // 指纹记录已确认规则下的模拟结果；变化时应先确认具体规则差异。
     private static readonly string[] Baseline = [
-        "81B4CA1E935085DF5C69C20E5527E51F07CE298806E942AC629CFDD79657E080",
+        "1EBCBD4456C43A3F2FCE6A5054B5C7D6E90676AD9CEC76659A0A9FB6F5C9206C",
         "B8359B1F3BA79831BFB2EA8D0A9E63257243C4045BEAF71FEA429B105FF49AD0",
         "268BE18E8730015CAEB11AB497B8563CC062CEE5C3110DCBF03257F177D4D612",
     ];
 
-    // 同一输入复算一致，并与整理前记录逐字段一致。
+    // 同一输入复算一致，并与固定基线记录逐字段一致。
     internal static bool PreservesTraces()
     {
         var setups = Scenarios();

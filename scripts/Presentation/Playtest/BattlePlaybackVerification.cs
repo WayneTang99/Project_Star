@@ -41,7 +41,7 @@ internal static class BattlePlaybackVerification
         if (!states.Any(frame => frame.Cards.Any(card => card.Haste > 0))
             || !states.Any(frame => frame.Cards.Any(card => card.Destroyed))
             || !states.Any(frame => frame.Player.Armor > 0) || !states.Any(frame => frame.Player.Mana < 20)
-            || !states.Any(frame => frame.Player.Poison < 4) || !states.Any(frame => frame.Player.Burn < 3)
+            || states.Any(frame => frame.Player.Poison != 4) || !states.Any(frame => frame.Player.Burn < 3)
             || !states.Zip(states.Skip(1)).Any(pair => pair.Second.Player.Health > pair.First.Player.Health)
             || !result.Events.OfType<CardChargedEvent>().Any()
             || result.Events.OfType<DamageDealtEvent>().Count(item => item.Tick.Value == 2 && item.TargetSide == SideId.Opponent) != 2)

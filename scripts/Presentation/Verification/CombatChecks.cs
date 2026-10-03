@@ -160,20 +160,29 @@ internal static class CombatChecks
 
     internal static bool CheckBurnAndPoison()
     {
-        var ability = new AbilityDefinition(new StringName("test.status"), AbilityActivation.Active,
-            AbilityTarget.EnemyHero, 0, 1,
-            [new ApplyStatusEffectDefinition(BattleStatus.Burn, 10),
-             new ApplyStatusEffectDefinition(BattleStatus.Poison, 8),
+        var ability = new AbilityDefinition(new StringName("test.status"), AbilityActivation.PassiveOnBattleStart,
+            AbilityTarget.EnemyHero, 0, 0,
+            [new ApplyStatusEffectDefinition(BattleStatus.Burn, 1),
+             new ApplyStatusEffectDefinition(BattleStatus.Poison, 2),
              new DestroyCardEffectDefinition(false)]);
-        var result = SimulateAbilities([ability], timeout: 11, opponentArmor: 100);
-        var burnCorrect = false; var poisonCorrect = false;
-        foreach (var battleEvent in result.Events)
-        {
-            if (battleEvent is not DamageDealtEvent damage || damage.Tick.Value != 10) continue;
-            burnCorrect |= damage.RawDamage == 6 && damage.ArmorAbsorbed == 6 && damage.HealthDamage == 0;
-            poisonCorrect |= damage.RawDamage == 8 && damage.ArmorAbsorbed == 0 && damage.HealthDamage == 8;
-        }
-        return burnCorrect && poisonCorrect;
+        var setup = new BattleSetup(
+            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 100, 0),
+                [new CardBattleSetup(EntityId.New(), 0, 0, 1, [ability], UseLegacyAttack: false)]),
+            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 100, 6, Burn: 4, Poison: 3), []),
+            1, new BattleTick(37), new BattleTick(100));
+        var result = new CombatSimulator().Simulate(setup);
+        var damage = result.Events.OfType<DamageDealtEvent>()
+            .Select(item => (item.Tick.Value, item.RawDamage, item.ArmorAbsorbed, item.HealthDamage));
+        return damage.SequenceEqual(new (long, int, int, int)[]
+            {
+                (6, 5, 5, 0), (10, 5, 0, 5), (12, 4, 1, 3), (18, 3, 0, 3),
+                (20, 5, 0, 5), (24, 2, 0, 2), (30, 1, 0, 1), (30, 5, 0, 5),
+            })
+            && result.States.Last(frame => frame.Tick.Value == 5).Opponent.Burn == 5
+            && result.States.Last(frame => frame.Tick.Value == 6).Opponent.Burn == 4
+            && result.States.Last(frame => frame.Tick.Value == 11).Opponent.Burn == 4
+            && result.States[^1].Opponent.Burn == 0
+            && result.States.Where(frame => frame.Tick.Value > 0).All(frame => frame.Opponent.Poison == 5);
     }
 
     internal static bool CheckPermanentDestroy()

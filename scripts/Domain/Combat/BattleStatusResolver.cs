@@ -125,15 +125,17 @@ internal static class BattleStatusResolver
 
     private static void SettleHero(BattleRuntime runtime, SideId side, HeroBattleState hero)
     {
-        if (runtime.Tick.Value % 10 == 0)
+        if (runtime.Tick.Value % 6 == 0)
         {
             if (hero.Burn > 0) BattleEffectResolver.ApplyDamage(runtime, hero.EntityId, side, hero, hero.Burn, false, DamageSourceKind.Status);
+            hero.Burn = Math.Max(0, hero.Burn - 1);
+        }
+        if (runtime.Tick.Value % 10 == 0)
+        {
             if (hero.Poison > 0) BattleEffectResolver.ApplyDamage(runtime, hero.EntityId, side, hero, hero.Poison, true, DamageSourceKind.Status);
             hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + hero.HealthRegen));
             hero.Mana = Math.Min(hero.MaxMana, checked(hero.Mana + hero.ManaRegen));
-            hero.Poison /= 2;
         }
-        if (runtime.Tick.Value % 2 == 0) hero.Burn = Math.Max(0, hero.Burn - 1);
     }
 
     // 达到日蚀时间时对双方按原曲线结算无视护甲伤害。

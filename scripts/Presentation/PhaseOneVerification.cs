@@ -133,7 +133,7 @@ public sealed partial class PhaseOneVerification : Control
             ("无攻击来源时由日蚀结束战斗", CombatChecks.CheckBattleTimeout),
             ("魔法不足时不扣魔法也不发动", CombatChecks.CheckInsufficientMana),
             ("回响产生的事件不会触发其他回响", CombatChecks.CheckEchoDoesNotChain),
-            ("灼伤扣护甲且中毒无视护甲", CombatChecks.CheckBurnAndPoison),
+            ("灼伤每0.6秒先伤害后减1，中毒每秒穿甲且叠加不衰减", CombatChecks.CheckBurnAndPoison),
             ("永久摧毁只生成永久变化记录", CombatChecks.CheckPermanentDestroy),
         ]),
         new("技能", [
