@@ -210,7 +210,7 @@ internal static class BattleEffectResolver
                         if (ability.Definition.Activation == AbilityActivation.Active)
                             ability.RemainingCooldownUnits = checked(
                                 ability.RemainingCooldownUnits + cooldown.AmountTicks * 2
-                                    * (pending.Source is CardBattleState cooldownCard ? cooldownCard.CooldownMultiplier : 1m));
+                                    * (pending.Source is CardBattleState cooldownCard ? cooldownCard.EffectiveCooldownMultiplier : 1m));
                     }
                 }
                 break;

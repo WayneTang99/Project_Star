@@ -116,6 +116,8 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public int CooldownBonusTicks { get; set; }
     public int HasteDuration { get; set; }
     public decimal CooldownMultiplier { get; }
+    public int CooldownAuraReductionPercent { get; set; }
+    public decimal EffectiveCooldownMultiplier => CooldownMultiplier * (1m - CooldownAuraReductionPercent / 100m);
     public int CooldownAuraBonusTicks { get; set; }
     public int SlowDuration { get; set; }
     public int ImmobilizeDuration { get; set; }

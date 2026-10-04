@@ -33,7 +33,7 @@ internal static class BattleStateRecorder
                 CooldownDurationUnits = Array.AsReadOnly(card.Abilities
                     .Where(ability => ability.Definition.Activation == AbilityActivation.Active)
                     .Select(ability => (ability.Definition.CooldownTicks + card.CooldownBonusTicks) * 2
-                        * card.CooldownMultiplier).ToArray()),
+                        * card.EffectiveCooldownMultiplier).ToArray()),
                 IsFlying = card.IsFlying, IsBerserk = card.IsBerserk, IsOnBench = card.IsOnBench,
                 TransformedIdentity = card.TransformedIdentity, Level = card.Level,
                 SummonedCard = card.SummonedCard,

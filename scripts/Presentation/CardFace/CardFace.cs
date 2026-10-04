@@ -17,7 +17,7 @@ public sealed partial class CardFace : Control
     private Panel _innerFrame = null!;
     private Panel _header = null!;
     private Label _title = null!;
-    private Label _sockets = null!;
+    private Control _sockets = null!;
     private Panel _artFrame = null!;
     private Panel _artInnerRim = null!;
     private TextureRect _artwork = null!;
@@ -44,12 +44,7 @@ public sealed partial class CardFace : Control
         _title = GetNode<Label>("Title");
         _title.ClipText = true;
         _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _sockets = new Label { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1,
-            ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
-        _sockets.AddThemeFontSizeOverride("font_size", 12);
-        _sockets.AddThemeColorOverride("font_color", Colors.White);
-        _sockets.AddThemeColorOverride("font_outline_color", Colors.Black);
-        _sockets.AddThemeConstantOverride("outline_size", 3);
+        _sockets = new Control { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1 };
         AddChild(_sockets);
         _artFrame = GetNode<Panel>("ArtFrame");
         _artwork = GetNode<TextureRect>("ArtFrame/Artwork");
@@ -101,7 +96,7 @@ public sealed partial class CardFace : Control
         CustomMinimumSize = _displaySize is null ? new Vector2(width, BaseHeight) : Vector2.Zero;
         Size = _displaySize ?? CustomMinimumSize;
         _title.Text = viewModel.DisplayName;
-        _sockets.Text = $"孔{viewModel.GemNames.Count} " + string.Join(" ", viewModel.GemNames.Select(name => name is null ? "◇" : $"◆{name}"));
+        RebuildSockets(viewModel);
         _artwork.Texture = viewModel.Artwork;
         _levelGem.SetLevel(viewModel.Level);
         _valueBadge.SetValue(viewModel.CurrentValue);
@@ -129,6 +124,15 @@ public sealed partial class CardFace : Control
         _artInnerRim.Size = Size - new Vector2(12, 12);
         _sockets.Position = new Vector2(8, _displaySize is null ? 74 : Mathf.Clamp(Size.Y * .1f, 18, 40) * .55f + Mathf.Clamp(Mathf.RoundToInt(Size.Y * .06f), 13, 24) + 12);
         _sockets.Size = new Vector2(Mathf.Max(1, width - 16), 20);
+        var socketCount = _sockets.GetChildCount();
+        var diameter = Mathf.Min(_displaySize is null ? 16 : 12,
+            _sockets.Size.X / Math.Max(1, socketCount) * .8f);
+        for (var index = 0; index < socketCount; index++)
+        {
+            var socket = _sockets.GetChild<Panel>(index);
+            socket.Position = new Vector2(index * diameter * 1.25f, 0);
+            socket.Size = Vector2.One * diameter;
+        }
         if (_displaySize is not null) { LayoutCompact(width, Size.Y); return; }
         const float height = BaseHeight;
         _frame.Position = Vector2.Zero;
@@ -246,6 +250,27 @@ public sealed partial class CardFace : Control
             badge.SetElement(elementKey);
         }
         LayoutParts(Size.X);
+    }
+
+    // 圆形凹槽表示空孔，镶嵌后以明亮宝石填充；详细名称保留在卡牌详情。
+    private void RebuildSockets(CardFaceViewModel viewModel)
+    {
+        foreach (var child in _sockets.GetChildren())
+        {
+            _sockets.RemoveChild(child);
+            child.QueueFree();
+        }
+        foreach (var name in viewModel.GemNames)
+        {
+            var socket = new Panel { MouseFilter = MouseFilterEnum.Ignore };
+            var style = MakePanelStyle(name is null ? new Color("#17212b") : new Color("#52cfe7"),
+                new Color("#e9c77f"), 2, 20);
+            style.ShadowColor = new Color(0, 0, 0, .6f);
+            style.ShadowSize = 2;
+            socket.AddThemeStyleboxOverride("panel", style);
+            _sockets.AddChild(socket);
+        }
+        _sockets.Visible = viewModel.GemNames.Count > 0;
     }
 
     private void RebuildEffects(CardFaceViewModel viewModel)

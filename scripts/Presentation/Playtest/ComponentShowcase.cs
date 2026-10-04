@@ -202,7 +202,7 @@ public sealed partial class ComponentShowcase : Control
         var background = new ColorRect { Color = MatchTheme.Background, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(background); background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var column = new VBoxContainer { Position = new Vector2(24, 20) }; AddChild(column);
-        column.AddChild(new Label { Text = "宝石孔 UI 验证 · ◇空孔 / ◆已镶嵌 · 测试宝石不属于正式内容" });
+        column.AddChild(new Label { Text = "宝石孔 UI 验证 · 深色圆孔为空 / 明亮填充为已镶嵌 · 测试宝石不属于正式内容" });
         var row = new HBoxContainer(); column.AddChild(row);
         var sample = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ArmguardCardDefinition()));
         var samples = new[]

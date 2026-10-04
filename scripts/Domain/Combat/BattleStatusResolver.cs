@@ -106,13 +106,25 @@ internal static class BattleStatusResolver
                         && effect is IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition aura)
                         bonus = checked(bonus + runtime.Cards.Count(card => !card.Destroyed && !card.IsOnBench
                             && card.ElementKeys.Contains(aura.ElementKey)) * aura.AmountTicks);
+            var reduction = source.Destroyed || source.IsOnBench ? 0 : Math.Min(100, runtime.AbilitySources
+                .Where(provider => !provider.Destroyed && !provider.IsOnBench && provider.Side == source.Side)
+                .SelectMany(provider => provider.Abilities)
+                .Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
+                .SelectMany(ability => ability.Definition.Effects)
+                .OfType<ReduceAlliedElementCardCooldownAuraEffectDefinition>()
+                .Where(aura => source.ElementKeys.Contains(aura.ElementKey)).Sum(aura => aura.Percent));
             var delta = bonus - source.CooldownAuraBonusTicks;
-            if (delta == 0) continue;
+            if (delta == 0 && reduction == source.CooldownAuraReductionPercent) continue;
+            var oldMultiplier = source.EffectiveCooldownMultiplier;
+            var oldBonus = source.CooldownBonusTicks;
             source.CooldownBonusTicks = checked(source.CooldownBonusTicks + delta);
             source.CooldownAuraBonusTicks = bonus;
+            source.CooldownAuraReductionPercent = reduction;
             foreach (var ability in source.Abilities)
                 if (ability.Definition.Activation == AbilityActivation.Active)
-                    ability.RemainingCooldownUnits = Math.Max(0, ability.RemainingCooldownUnits + delta * 2 * source.CooldownMultiplier);
+                    ability.RemainingCooldownUnits = Math.Max(0, ability.RemainingCooldownUnits
+                        + (ability.Definition.CooldownTicks + source.CooldownBonusTicks) * 2 * source.EffectiveCooldownMultiplier
+                        - (ability.Definition.CooldownTicks + oldBonus) * 2 * oldMultiplier);
         }
     }
 

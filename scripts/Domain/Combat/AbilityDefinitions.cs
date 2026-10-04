@@ -51,6 +51,9 @@ public enum AdjacentCardSide { Left = 0, Right = 1 }
 // 在来源指定一侧的空位召唤同级卡牌，仅存在于战斗 Runtime。
 public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, AdjacentCardSide Side) : EffectDefinition;
 
+// 为己方匹配元素的战场卡牌提供可撤销的冷却百分比缩减。
+public sealed record ReduceAlliedElementCardCooldownAuraEffectDefinition(StringName ElementKey, int Percent) : EffectDefinition;
+
 // 从指定相邻空位可容纳的模板中随机召唤同级卡牌。
 public sealed record SummonRandomAdjacentCardEffectDefinition(
     IReadOnlyList<CardDefinition> Cards, AdjacentCardSide Side) : EffectDefinition;
@@ -245,6 +248,10 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is ReduceAlliedElementCardCooldownAuraEffectDefinition reduction
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || reduction.ElementKey.IsEmpty || reduction.Percent is < 1 or > 100))
+                throw new ArgumentException("Element cooldown reduction requires a battlefield self aura and a percentage from 1 to 100.", nameof(effects));
             if (effect is SummonRandomAdjacentCardEffectDefinition randomSummon
                 && (randomSummon.Cards is null || randomSummon.Cards.Count == 0
                     || randomSummon.Cards.Any(card => card is null) || !Enum.IsDefined(randomSummon.Side)

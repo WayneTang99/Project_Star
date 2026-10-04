@@ -57,12 +57,15 @@ internal static class GemSocketChecks
         try
         {
             face.SetCard(new CardDisplayAdapter().Build(snapshot));
-            var label = face.GetNode<Label>("GemSockets").Text;
+            var sockets = face.GetNode<Control>("GemSockets");
             var details = CardDisplayAdapter.Details(snapshot);
-            if (!label.Contains("孔3") || !label.Contains("测试红宝石") || label.Count(character => character == '◇') != 2
+            if (sockets.GetChildCount() != 3 || sockets.GetChildren().Any(child => child is not Panel)
+                || sockets.GetChild<Panel>(0).GetThemeStylebox("panel") is not StyleBoxFlat empty
+                || sockets.GetChild<Panel>(2).GetThemeStylebox("panel") is not StyleBoxFlat filledStyle
+                || empty.BgColor == filledStyle.BgColor
                 || !details.Contains("孔1：空孔") || !details.Contains("孔3：测试红宝石")) return false;
             face.SetCard(new CardDisplayAdapter().Build(MatchDisplayQuery.FromOffer(ShopOffer.Create(new SocketCard(0)))));
-            if (face.GetNode<Label>("GemSockets").Text != "孔0 ") return false;
+            if (sockets.GetChildCount() != 0 || sockets.Visible) return false;
         }
         finally { owner.RemoveChild(face); face.Free(); }
         session.Status = MatchStatus.Won;
