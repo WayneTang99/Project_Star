@@ -24,6 +24,7 @@ public sealed partial class PhaseOneVerification : Control
             ("卡面保留治疗/百分比语义并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
             ("卡牌详情隐藏无关攻击/冷却并保留真实零值攻击", PlaytestVerification.RelevantDetailAttributes),
             ("插画从定义传入实例、快照和卡面，未配图使用占位", PlaytestVerification.FormalIllustrations),
+            ("遭遇与怪物独立原画贯穿快照，商店等级在页面切换后正确保留", PlaytestVerification.EncounterArtwork),
             ("全部卡牌词条描述贯穿定义、等级、实例、快照与详情", PlaytestVerification.FormalDescriptions),
             ("重复刷新不重抽且旧商品不能重复交易", PlaytestVerification.RefreshAndStaleOffers),
             ("事件获得卡牌在同次刷新中进入棋盘且不重复领取", PlaytestVerification.EventAcquisitionRefresh),
@@ -70,6 +71,7 @@ public sealed partial class PhaseOneVerification : Control
             ("珠宝袋出售后自动获得同级材料卡", EconomyChecks.CheckJewelryBagSaleReward),
             ("百宝箱出售后获得三件同级小型材料", EconomyChecks.CheckTreasureChestSaleReward),
             ("型号商店只提供当前英雄归属的对应尺寸卡牌", EconomyChecks.CheckSizeShopCardPools),
+            ("商店商品不超过商店等级，首批及刷新共用上限且正确处理空池", EconomyChecks.CheckShopLevelLimit),
             ("购买按报价扣款并登记卡牌归属", EconomyChecks.CheckPurchase),
             ("余额不足时交易无任何修改", EconomyChecks.CheckInsufficientWealth),
             ("出售按现值回补且只能一次", EconomyChecks.CheckSale),
@@ -195,6 +197,7 @@ public sealed partial class PhaseOneVerification : Control
             ("指定技能奖励、过期领取与出售确认隔离", PlaytestVerification.RewardSelectionAndStaleSale),
             ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
             ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
+            ("真实遭遇原画图卡选择、商店晶体与旧按钮解绑", () => PlaytestVerification.EncounterArtworkScene(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
             ("四位英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
         ]));

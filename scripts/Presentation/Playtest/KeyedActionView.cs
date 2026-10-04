@@ -11,27 +11,37 @@ public sealed partial class KeyedActionView : Control
     private RichTextLabel _message = null!;
     private ScrollContainer _scroll = null!;
     private VBoxContainer _actions = null!;
+    private TextureRect _art = null!;
     private readonly List<(Button Button, Action Handler)> _bindings = new();
     public override void _Ready()
     {
         _message = new RichTextLabel { Name = "Message" }; AddChild(_message);
+        _art = new TextureRect { Name = "Illustration", ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered, MouseFilter = MouseFilterEnum.Ignore,
+            ClipContents = true }; AddChild(_art); _art.Hide();
         _scroll = new ScrollContainer { Name = "ActionScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(_scroll);
         _actions = new VBoxContainer { Name = "Actions", SizeFlagsHorizontal = SizeFlags.ExpandFill }; _scroll.AddChild(_actions);
         Resized += LayoutView; LayoutView();
     }
 
     // 快照版本随按钮绑定；过期选项交给协调器拒绝。
-    public void Render(string message, IReadOnlyList<KeyedAction> actions, long revision = 0)
+    public void Render(string message, IReadOnlyList<KeyedAction> actions, long revision = 0, StringName? illustration = null)
     {
         Clear(); _message.Text = message;
+        var path = illustration?.ToString() ?? "";
+        _art.Texture = path.Length > 0 && ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+        _art.Visible = _art.Texture is not null;
         foreach (var action in actions)
         {
-            var button = new Button { Name = $"Action{_actions.GetChildCount()}", Text = action.Action.Text,
+            var button = new Button { Name = $"Action{_actions.GetChildCount()}", Text = action.Action.Text
+                    + (action.Subtitle.Length > 0 ? "\n" + action.Subtitle : ""),
                 Visible = action.Action.Visible, Disabled = !action.Action.Enabled, ClipText = true,
+                CustomMinimumSize = new Vector2(0, 56),
                 TooltipText = action.Action.Text + "\n" + action.Action.Reason };
             Action handler = () => { if (!button.Disabled && button.Visible) Selected?.Invoke(action.Key, revision); };
             _actions.AddChild(button); button.Pressed += handler; _bindings.Add((button, handler));
         }
+        LayoutView();
     }
 
     public override void _ExitTree() { Resized -= LayoutView; Clear(); }
@@ -45,7 +55,9 @@ public sealed partial class KeyedActionView : Control
 
     private void LayoutView()
     {
-        _message.Size = new Vector2(Size.X, 50);
-        _scroll.Position = new Vector2(0, 54); _scroll.Size = new Vector2(Size.X, Mathf.Max(1, Size.Y - 54));
+        var inset = _art.Visible ? Size.X * .44f : 0;
+        _art.Position = Vector2.Zero; _art.Size = new Vector2(Mathf.Max(1, inset - 16), Size.Y);
+        _message.Position = new Vector2(inset, 0); _message.Size = new Vector2(Size.X - inset, 44);
+        _scroll.Position = new Vector2(inset, 48); _scroll.Size = new Vector2(Size.X - inset, Mathf.Max(1, Size.Y - 48));
     }
 }

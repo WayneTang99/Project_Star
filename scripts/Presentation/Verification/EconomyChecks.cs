@@ -170,11 +170,10 @@ internal static class EconomyChecks
             && small.All(card => card.Attributes.Identity.FactionKey == new StringName("paladin")
                 && card.Attributes.Identity.Size == CardSize.Small)
             && small.Any(card => card.Attributes.Identity.Key == new StringName("card.military_boots"))
-            && medium.Count == 2
+            && medium.Count == 1
             && medium.Any(card => card.Attributes.Identity.Key == new StringName("card.light_cavalry"))
-            && medium.Any(card => card.Attributes.Identity.Key == new StringName("card.arcane_shield"))
-            && large.Count == 1
-            && large[0].Attributes.Identity.Key == new StringName("card.judgment_hammer")
+            && !medium.Any(card => card.Attributes.Identity.Key == new StringName("card.arcane_shield"))
+            && large.Count == 0
             && stock.Offers.Count == 3
             && initialUnique
             && refreshed.IsSuccess
@@ -195,6 +194,49 @@ internal static class EconomyChecks
             && ShopCardPoolService.GetRefreshCost(2) == 4
             && ShopCardPoolService.GetRefreshCost(3) == 6
             && ShopCardPoolService.GetRefreshCost(4) == 8;
+    }
+
+    internal static bool CheckShopLevelLimit()
+    {
+        var faction = new StringName("paladin");
+        CardDefinition[] cards = Enumerable.Range(1, 5)
+            .Select(level => (CardDefinition)new ShopVerificationCardDefinition(CardSize.Small, faction, $"level{level}", level))
+            .Concat(Enumerable.Range(1, 3).Select(index =>
+                new ShopVerificationCardDefinition(CardSize.Small, faction, $"extra{index}"))).ToArray();
+        var service = new ShopCardPoolService();
+        for (var shopLevel = 1; shopLevel <= 4; shopLevel++)
+        {
+            var session = new MatchSession(42, 100);
+            session.Player.SelectHero(new EntityFactory().CreateHero(new PaladinHeroDefinition()));
+            var shop = new LevelShopVerificationDefinition(shopLevel);
+            var stock = service.CreateStock(session, shop, cards);
+            if (service.GetEligibleCards(session, shop, cards).Count != shopLevel + 3
+                || stock.Offers.Count != 3 || !stock.CanRefresh
+                || stock.Offers.Any(offer => offer.Level > shopLevel || offer.Level != offer.Definition.InitialLevel)
+                || service.CreateOffer(session, shop, cards) is not { } offer || offer.Level > shopLevel) return false;
+            var refresh = service.Refresh(session, stock);
+            if (refresh.IsFailure || stock.Offers.Any(item => item.Level > shopLevel)
+                || session.Player.Wealth != 100 - ShopCardPoolService.GetRefreshCost(shopLevel)) return false;
+            // 等级恰好等于上限可以出现，高于上限的卡池为空且不推进随机状态。
+            var boundary = cards[shopLevel - 1];
+            if (service.CreateOffer(session, shop, [boundary])?.Level != shopLevel) return false;
+            var randomBefore = session.Random.State;
+            if (service.CreateOffer(session, shop, [cards[shopLevel]]) is not null
+                || service.CreateStock(session, shop, [cards[shopLevel]]).Offers.Count != 0
+                || session.Random.State != randomBefore) return false;
+            // 刷新资格也只计算过滤后的商品池。
+            var limited = service.CreateStock(session, shop, [cards[0], cards[4]]);
+            if (limited.Offers.Count != 1 || limited.CanRefresh || limited.Offers[0].Level != 1) return false;
+        }
+        return true;
+    }
+
+    // 可指定等级的验证商店，不进入正式遭遇池（表现层验证模块）。
+    private sealed class LevelShopVerificationDefinition : ShopEncounterDefinition
+    {
+        public LevelShopVerificationDefinition(int level)
+            : base(new EntityAttributes<EncounterIdentityAttributes>(new EncounterIdentityAttributes(
+                new StringName("verification.shop.level_limit"), "等级上限验证商店")), CardSize.Small, level) { }
     }
 
     internal static bool CheckSpecialValueCoefficient()

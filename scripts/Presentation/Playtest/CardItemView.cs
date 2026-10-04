@@ -190,10 +190,13 @@ public sealed partial class CardItemView : Button
     private void LayoutFace()
     {
         if (_card is null) return;
-        _face.SetDisplaySize(Size);
-        _face.Position = Vector2.Zero;
-        _cooldownMask.Position = new Vector2(0, Size.Y * (1 - _cooldownRemaining));
-        _cooldownMask.Size = new Vector2(Size.X, Size.Y * _cooldownRemaining);
+        var ratio = (int)_card.Size / 2f;
+        var height = Mathf.Min(Size.Y, Size.X / ratio);
+        var faceSize = new Vector2(height * ratio, height);
+        _face.SetDisplaySize(faceSize);
+        _face.Position = (Size - faceSize) / 2;
+        _cooldownMask.Position = _face.Position + new Vector2(0, faceSize.Y * (1 - _cooldownRemaining));
+        _cooldownMask.Size = new Vector2(faceSize.X, faceSize.Y * _cooldownRemaining);
         _battleStatus.Position = new Vector2(0, Mathf.Max(24, Size.Y * .35f));
         _battleStatus.Size = new Vector2(Size.X, 36);
         _selectedMark.Position = new Vector2(4, Mathf.Max(0, Size.Y - 25));

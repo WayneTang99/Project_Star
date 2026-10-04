@@ -12,6 +12,23 @@ namespace Project_Star.Presentation.Playtest;
 
 internal static class PlaytestText
 {
+    // 事件说明直接读取通用效果与当前英雄等级，不按遭遇 key 维护文案表。
+    public static string FormatOption(EncounterOptionDefinition option, int heroLevel) =>
+        string.Join(" · ", option.Effects.Select(effect => effect switch
+        {
+            ModifyHeroCombatAttributeByLevelEffectDefinition value => $"永久增加 {value.AmountPerLevel * heroLevel} {Attribute(value.AttributeKey)}",
+            GainWealthEncounterOptionEffectDefinition value => $"+{value.Amount} 金币",
+            ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition value => $"现有战场卡牌 {Attribute(value.AttributeKey)} +{value.Amount}",
+            GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition value => $"下场战斗生命 +{value.AmountPerLevel * heroLevel}",
+            BuyRandomOtherFactionCardEncounterOptionEffectDefinition value => $"花费 {value.Cost} 金币，获得 {value.Level} 级其他阵营卡牌",
+            GrantRandomFactionCardEncounterOptionEffectDefinition value => $"获得 {value.Level} 级本阵营卡牌",
+            GrantRandomTaggedCardEncounterOptionEffectDefinition value => $"获得 {value.Level} 级{TagDisplayNames.Get(value.RequiredTag)}卡牌",
+            _ => "查看选项效果",
+        }));
+
+    private static string Attribute(StringName key) => key == GameAttributeKeys.MaxHealth ? "生命"
+        : key == GameAttributeKeys.AttackDamage ? "攻击" : key == GameAttributeKeys.Armor ? "护甲" : key.ToString();
+
     // 英雄称号与姓名组合展示，无称号的怪物仅显示姓名。
     public static string FormatHeroName(string displayName, string title) =>
         string.IsNullOrEmpty(title) ? displayName : $"{title}·{displayName}";

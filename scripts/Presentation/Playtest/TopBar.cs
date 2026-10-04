@@ -18,7 +18,7 @@ public sealed partial class TopBar : HBoxContainer
     // 刷新文本不读取可变对局。
     public void Render(MatchSnapshot? snapshot)
     {
-        _turn.Text = snapshot is null ? "Project Star　选择英雄开始对局" : $"轮次 {snapshot.Round}　回合 {snapshot.Turn}";
-        _economy.Text = snapshot is null ? "" : $"金钱 {snapshot.Wealth}　收入 {snapshot.Income}";
+        _turn.Text = snapshot is null ? "Project Star　选择英雄" : $"第 {snapshot.Round} 轮　·　回合 {snapshot.Turn}/8";
+        _economy.Text = snapshot is null ? "" : $"金币 {snapshot.Wealth}　·　收入 +{snapshot.Income}";
     }
 }

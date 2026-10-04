@@ -10,11 +10,12 @@ namespace Project_Star.Presentation.Playtest;
 // 左下英雄身份区域及详情入口分类。
 public enum HeroSection { Skills, Sets, Rewards }
 
-// 英雄快照与技能、套装、奖励入口共用左下区域。
+// 英雄侧栏展示身份、资源与技能、套装、奖励入口。
 public sealed partial class PlayerHeroPanel : VBoxContainer
 {
     public event Action<HeroSection>? SectionRequested;
     private Label _name = null!;
+    private Label _subtitle = null!;
     private Label _battle = null!;
     private HFlowContainer _buttons = null!;
     private ResourceBar _health = null!;
@@ -22,14 +23,18 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
     private TextureRect _portrait = null!;
     public override void _Ready()
     {
-        var identity = new HBoxContainer { Name = "Identity" }; AddChild(identity);
+        var identity = new VBoxContainer { Name = "Identity" }; AddChild(identity);
         _portrait = new TextureRect { Name = "Portrait", CustomMinimumSize = new Vector2(64, 64),
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            ClipContents = true,
             MouseFilter = MouseFilterEnum.Ignore };
         identity.AddChild(_portrait);
         _name = new Label { Name = "HeroName", ClipText = true, SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 48), VerticalAlignment = VerticalAlignment.Center,
+            CustomMinimumSize = new Vector2(120, 32), VerticalAlignment = VerticalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart }; identity.AddChild(_name);
+        _name.AddThemeFontSizeOverride("font_size", 22);
+        _subtitle = new Label { Name = "Subtitle", ClipText = true }; identity.AddChild(_subtitle);
+        _subtitle.AddThemeFontSizeOverride("font_size", 13);
         _health = new ResourceBar("HealthBar", new Color("86bf8c")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("88c4eb")); AddChild(_mana);
         _battle = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Visible = false }; AddChild(_battle);
@@ -39,7 +44,8 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
     // 使用快照中的英雄身份，不持有实体引用。
     public void Render(HeroSnapshot? hero)
     {
-        _name.Text = hero is null ? "英雄" : PlaytestText.FormatHeroName(hero.DisplayName, hero.Title);
+        _name.Text = hero?.DisplayName ?? "英雄";
+        _subtitle.Text = hero is null ? "" : $"{hero.Title} · 等级 {hero.Level}";
         _buttons.Visible = _health.Visible = _mana.Visible = hero is not null;
         _portrait.Texture = hero is not null && !hero.Illustration.IsEmpty && ResourceLoader.Exists(hero.Illustration.ToString())
             ? GD.Load<Texture2D>(hero.Illustration.ToString()) : null;
@@ -49,6 +55,11 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
         _health.Render("生命", health, health);
         _mana.Render("魔法", hero.CombatValues.GetValueOrDefault(GameAttributeKeys.Mana),
             hero.CombatValues.GetValueOrDefault(GameAttributeKeys.MaxMana));
+    }
+    // 侧栏随窗口调整肖像高度，不改变英雄快照。
+    public void SetPortraitHeight(float height)
+    {
+        _portrait.CustomMinimumSize = new Vector2(0, height);
     }
     // 战斗HUD只显示播放中的英雄数值，播放结束恢复构筑入口。
     public void RenderBattle(HeroBattleSnapshot? hero)

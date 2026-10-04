@@ -10,7 +10,7 @@ public sealed class PvpEncounterDefinition : EncounterDefinition
     public PvpEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.pvp"), "异步对战")),
+                new EncounterIdentityAttributes(new StringName("encounter.pvp"), "异步对战", new StringName("res://art/ui/encounters/artwork/pvp-illustration.png"), "挑战另一位玩家")),
             1,
             99,
             EncounterKind.Pvp)

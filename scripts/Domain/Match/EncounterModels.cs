@@ -3,7 +3,13 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Match;
 
-public sealed record EncounterChoice(StringName Key, string DisplayName, EncounterKind Kind);
+public sealed record EncounterChoice(StringName Key, string DisplayName, EncounterKind Kind)
+{
+    public StringName Illustration { get; init; } = new("");
+    public int ShopLevel { get; init; }
+    public int Level { get; init; }
+    public string Summary { get; init; } = "";
+}
 
 public interface IMatchEvent;
 

@@ -10,7 +10,7 @@ public sealed class LandfillEncounterDefinition : ChoiceEncounterDefinition
     public LandfillEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.landfill"), "垃圾场")),
+                new EncounterIdentityAttributes(new StringName("encounter.landfill"), "垃圾场", new StringName("res://art/ui/encounters/artwork/landfill-illustration.png"), "寻找零钱或材料")),
             1,
             99,
             [

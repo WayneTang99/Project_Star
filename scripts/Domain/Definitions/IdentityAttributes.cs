@@ -126,15 +126,24 @@ public sealed class SkillIdentityAttributes : IdentityAttributes
 
 public sealed class EncounterIdentityAttributes : IdentityAttributes
 {
-    public EncounterIdentityAttributes(StringName key, string displayName) : base(key, displayName)
+    public EncounterIdentityAttributes(StringName key, string displayName, StringName? illustration = null, string summary = "") : base(key, displayName)
     {
+        Illustration = illustration ?? new StringName("");
+        Summary = summary;
     }
+
+    // 遭遇原画资源属于只读身份，由表现层加载。
+    public StringName Illustration { get; }
+    public string Summary { get; }
 }
 
 // 怪物只读身份字段（领域定义层）。
 public sealed class MonsterIdentityAttributes : IdentityAttributes
 {
-    public MonsterIdentityAttributes(StringName key, string displayName) : base(key, displayName)
+    public MonsterIdentityAttributes(StringName key, string displayName, StringName? illustration = null) : base(key, displayName)
     {
+        Illustration = illustration ?? new StringName("");
     }
+
+    public StringName Illustration { get; }
 }

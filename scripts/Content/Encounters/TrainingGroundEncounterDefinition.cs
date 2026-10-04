@@ -10,7 +10,7 @@ public sealed class TrainingGroundEncounterDefinition : ChoiceEncounterDefinitio
     public TrainingGroundEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.training_ground"), "校场")),
+                new EncounterIdentityAttributes(new StringName("encounter.training_ground"), "校场", new StringName("res://art/ui/encounters/artwork/training_ground-illustration.png"), "强化英雄或战场卡牌")),
             1,
             99,
             [

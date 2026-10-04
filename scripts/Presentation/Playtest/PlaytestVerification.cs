@@ -24,6 +24,68 @@ namespace Project_Star.Presentation.Playtest;
 // Meaningful query and flow regression checks, executed by the existing Godot verification scene.
 internal static class PlaytestVerification
 {
+    // 遭遇与怪物原画资源贯穿排程快照，商店等级在选前与进入后保持一致。
+    public static bool EncounterArtwork()
+    {
+        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        if (registry.Encounters.Values.Any(item => string.IsNullOrWhiteSpace(item.Attributes.Identity.Summary))) return false;
+        var paths = registry.Encounters.Values.Select(item => item.Attributes.Identity.Illustration)
+            .Concat(registry.Monsters.Values.Select(item => item.Attributes.Identity.Illustration)).ToArray();
+        if (paths.Any(path => path.IsEmpty || !ResourceLoader.Exists(path.ToString())
+            || GD.Load<Texture2D>(path.ToString()) is null) || paths.Distinct().Count() != paths.Length) return false;
+        var presenter = CreatePresenter();
+        if (presenter.View.Choices.Any(choice => choice.Illustration.IsEmpty || choice.Level < 1)) return false;
+        var shop = presenter.View.Choices.First(choice => choice.ShopLevel > 0);
+        var snapshot = presenter.View.Player!.EncounterChoices.Single(choice => choice.Key == shop.Key);
+        if (snapshot.Illustration != shop.Illustration || snapshot.ShopLevel != shop.ShopLevel
+            || snapshot.Level != shop.Level || shop.Level != shop.ShopLevel
+            || snapshot.Summary != shop.Subtitle || shop.Subtitle.Length == 0) return false;
+        presenter.ChooseEncounter(shop.Key);
+        if (presenter.View.ShopLevel != shop.ShopLevel || presenter.View.ContextIllustration != shop.Illustration
+            || presenter.View.EncounterLevel != shop.Level) return false;
+        presenter.Reset();
+        if (!presenter.View.ContextIllustration.IsEmpty || presenter.View.ShopLevel != 0 || presenter.View.EncounterLevel != 0) return false;
+        var session = new CreateMatchService(new EntityFactory()).Create(42, 100, new PaladinHeroDefinition());
+        session.Progress.Turn = 4;
+        var result = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true).Generate(session);
+        return result.IsSuccess && result.Value!.All(choice => choice.Kind == EncounterKind.Monster
+            && choice.Illustration == registry.Monsters[choice.Key].Attributes.Identity.Illustration && choice.ShopLevel == 0
+            && choice.Level == registry.Monsters[choice.Key].Level);
+    }
+
+    // 真实图卡提交选择，刷新替换旧按钮后不再重复操作。
+    public static bool EncounterArtworkScene(Control owner)
+    {
+        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        owner.AddChild(scene);
+        try
+        {
+            var presenter = (MatchPresenter)typeof(MinimalPlaytest).GetField("_presenter",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(scene)!;
+            presenter.SelectHero(new StringName("hero.paladin"));
+            var index = presenter.View.Choices.ToList().FindIndex(choice => choice.ShopLevel > 0);
+            var choice = presenter.View.Choices[index];
+            var buttons = scene.GetNode<HBoxContainer>("MatchShell/ContextRow/ContextHost/EncounterChoiceView/Choices");
+            for (var item = 0; item < buttons.GetChildCount(); item++)
+            {
+                var tile = buttons.GetChild<Button>(item);
+                if (!tile.FindChild("EncounterLevelCrystal", true, false)!.IsClass("Control")
+                    || !tile.FindChild("EncounterLevel", true, false)!.Get("text").AsString()
+                        .Contains(presenter.View.Choices[item].Level.ToString())) return false;
+            }
+            var button = buttons.GetChild<Button>(index);
+            if (button.GetNode<TextureRect>("Illustration").Texture is null
+                || !button.TooltipText.Contains($"{choice.ShopLevel}级商店")) return false;
+            button.EmitSignal(Button.SignalName.Pressed);
+            if (presenter.View.Page != MatchPage.Shop || presenter.View.ShopLevel != choice.ShopLevel
+                || !scene.GetNode<CardLevelGem>("MatchShell/ContextRow/ContextHost/ShopView/ShopLevelCrystal").Visible) return false;
+            var turn = presenter.View.Player!.Turn;
+            button.EmitSignal(Button.SignalName.Pressed);
+            return presenter.View.Player.Turn == turn;
+        }
+        finally { owner.RemoveChild(scene); scene.Free(); }
+    }
+
     // 完整购买预检空间与余额；满盘合并可成功，失败与重复提交不留交易状态。
     public static bool CompletePurchases()
     {
@@ -153,7 +215,7 @@ internal static class PlaytestVerification
             var shop = presenter.View.Player!.EncounterChoices.First(item => item.Kind == EncounterKind.Shop);
             presenter.ChooseEncounter(shop.Key);
             var offer = presenter.View.Offers.First(item => item.Action.Enabled);
-            scene.GetNode<VBoxContainer>("MatchShell/ContextRow/ContextHost/ShopView/OfferScroll/Offers")
+            scene.GetNode<HBoxContainer>("MatchShell/ContextRow/ContextHost/ShopView/OfferScroll/Offers")
                 .GetChild<Node>(offer.Index).GetNode<Button>("Actions/Buy").EmitSignal(Button.SignalName.Pressed);
             var card = presenter.View.Player!.Cards.Single();
             var placement = presenter.View.Player.BoardPlacements.Single();
@@ -369,7 +431,7 @@ internal static class PlaytestVerification
             var item = board.GetNode<CardItemView>("Card_" + placement.CardId.Value.ToString("N"));
             var identity = item.GetInstanceId();
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080),
-                new Vector2I(2560, 1440), new Vector2I(2560, 1080) })
+                new Vector2I(2560, 1440), new Vector2I(2560, 1080), new Vector2I(1280, 720) })
             {
                 viewport.Size = size; shell.Size = size;
                 await Frame(); await Frame();
@@ -382,6 +444,20 @@ internal static class PlaytestVerification
                     if (cell.GlobalPosition.X < 0 || cell.GlobalPosition.X + cell.Size.X > shell.Size.X + 1
                         || cell.GlobalPosition.Y + cell.Size.Y > shell.Size.Y + 1) return Fail("主区域越界");
                 }
+                var hero = shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel");
+                var name = hero.GetNode<Label>("Identity/HeroName");
+                var host = shell.GetNode<Control>("ContextRow/ContextHost");
+                if (name.Size.X < 120 || name.Text != capture.Player!.Hero!.DisplayName
+                    || hero.GlobalPosition.X + hero.Size.X >= host.GlobalPosition.X)
+                    return Fail("英雄姓名被压缩或侧栏遮挡主内容");
+                var offers = shell.GetNode<HBoxContainer>("ContextRow/ContextHost/ShopView/OfferScroll/Offers");
+                var buys = offers.GetChildren().OfType<Control>().Select(row => row.GetNode<Button>("Actions/Buy")).ToArray();
+                if (buys.Any(buy => buy.Size.X < 100 || buy.GlobalPosition.Y + buy.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1)
+                    || buys.Any(buy => Mathf.Abs(buy.GlobalPosition.Y - buys[0].GlobalPosition.Y) > 1))
+                    return Fail("商品未横向排列或购买按钮被裁切");
+                foreach (var button in shell.GetNode<LeavePanel>("ContextRow/Leave/LeaveScroll/LeavePanel")
+                    .GetChildren().OfType<Button>().Where(button => button.Visible))
+                    if (button.Size.X < 40) return Fail("阶段按钮被压缩");
                 if (item.Position.X < 0 || item.Position.X + item.Size.X > board.Size.X + 1
                     || item.Position.Y + item.Size.Y > board.Size.Y + 1) return Fail("卡牌越界");
                 var details = shell.GetNode<CardDetailsView>("CardDetails");
@@ -436,7 +512,7 @@ internal static class PlaytestVerification
                 if (host.GetChildren().OfType<Control>().Count(view => view.Visible) != 1) return false;
             }
             shell.Render(capture);
-            var offers = host.GetNode<VBoxContainer>("ShopView/OfferScroll/Offers");
+            var offers = host.GetNode<HBoxContainer>("ShopView/OfferScroll/Offers");
             var old = offers.GetChild<Node>(0).GetNode<Button>("Actions/Buy");
             var count = 0; var index = -1; var revision = -1L;
             shell.BuyRequested += (selected, version) => { count++; index = selected; revision = version; };
@@ -479,14 +555,14 @@ internal static class PlaytestVerification
                     ?? choices.FirstOrDefault(choice => !sawModifier && choice.Key == new StringName("encounter.training_ground"))
                     ?? choices.First();
                 var choiceIndex = choices.ToList().IndexOf(chosen);
-                Press(scene.GetNode<VBoxContainer>($"{main}/ContextHost/EncounterChoiceView/ActionScroll/Actions").GetChild<Button>(choiceIndex));
+                Press(scene.GetNode<HBoxContainer>($"{main}/ContextHost/EncounterChoiceView/Choices").GetChild<Button>(choiceIndex));
                 switch (presenter.View.Page)
                 {
                     case MatchPage.Shop:
                         var offer = presenter.View.Offers.FirstOrDefault(item => item.Action.Enabled
                             && item.Card.Abilities.Any(ability => ability.Effects.Any(effect => effect is AttributeDamageEffectDefinition)))
                             ?? presenter.View.Offers.FirstOrDefault(item => item.Action.Enabled);
-                        if (offer is not null) Press(scene.GetNode<VBoxContainer>($"{main}/ContextHost/ShopView/OfferScroll/Offers").GetChild<Node>(offer.Index).GetNode<Button>("Actions/Buy"));
+                        if (offer is not null) Press(scene.GetNode<HBoxContainer>($"{main}/ContextHost/ShopView/OfferScroll/Offers").GetChild<Node>(offer.Index).GetNode<Button>("Actions/Buy"));
                         break;
                     case MatchPage.Event:
                         if (presenter.View.EventOptions.Count == 0) break;

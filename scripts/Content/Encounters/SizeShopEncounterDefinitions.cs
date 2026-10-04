@@ -10,7 +10,7 @@ public sealed class SmallShopEncounterDefinition : ShopEncounterDefinition
     public SmallShopEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.shop.small"), "小型商店")),
+                new EncounterIdentityAttributes(new StringName("encounter.shop.small"), "小型商店", new StringName("res://art/ui/encounters/artwork/small_shop-illustration.png"), "购买小型卡牌")),
             CardSize.Small,
             1)
     {
@@ -23,7 +23,7 @@ public sealed class MediumShopEncounterDefinition : ShopEncounterDefinition
     public MediumShopEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.shop.medium"), "中型商店")),
+                new EncounterIdentityAttributes(new StringName("encounter.shop.medium"), "中型商店", new StringName("res://art/ui/encounters/artwork/medium_shop-illustration.png"), "购买中型卡牌")),
             CardSize.Medium,
             1)
     {
@@ -36,7 +36,7 @@ public sealed class LargeShopEncounterDefinition : ShopEncounterDefinition
     public LargeShopEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.shop.large"), "大型商店")),
+                new EncounterIdentityAttributes(new StringName("encounter.shop.large"), "大型商店", new StringName("res://art/ui/encounters/artwork/large_shop-illustration.png"), "购买大型卡牌")),
             CardSize.Large,
             2)
     {

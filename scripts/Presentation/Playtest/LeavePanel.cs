@@ -8,7 +8,7 @@ namespace Project_Star.Presentation.Playtest;
 public enum MatchAction { Refresh, Battle, Continue, Reward, Reset, Verification, Showcase, Pause, Speed, Skip, Developer, Log }
 
 // 右侧操作区保留按钮节点，订阅仅在进入场景时建立。
-public sealed partial class LeavePanel : VBoxContainer
+public sealed partial class LeavePanel : HFlowContainer
 {
     public event Action<MatchAction>? Requested;
     private readonly Dictionary<MatchAction, Button> _buttons = new();
@@ -46,8 +46,8 @@ public sealed partial class LeavePanel : VBoxContainer
         Set(MatchAction.Pause, new UiAction(view.Playback?.Paused == true ? "继续播放" : "暂停", view.Playback is not null));
         Set(MatchAction.Speed, new UiAction($"速度 {view.Playback?.Speed ?? 1}×", view.Playback is not null));
         Set(MatchAction.Skip, new UiAction("跳过回放", view.Playback is not null));
-        Set(MatchAction.Reset, new UiAction("重新开始"));
-        Set(MatchAction.Developer, new UiAction(_expanded ? "开发工具 ▾" : "开发工具 ▸", Visible: view.Playback is null));
+        Set(MatchAction.Reset, new UiAction("重开"));
+        Set(MatchAction.Developer, new UiAction(_expanded ? "收起 ▴" : "•••", Visible: view.Playback is null));
         Set(MatchAction.Verification, new UiAction("规则验证", Visible: _expanded && view.Playback is null));
         Set(MatchAction.Showcase, new UiAction("组件展示", Visible: _expanded && view.Playback is null));
         Set(MatchAction.Log, new UiAction("展开 / 收起战斗日志",
@@ -62,6 +62,8 @@ public sealed partial class LeavePanel : VBoxContainer
     private void Set(MatchAction intent, UiAction action)
     {
         var button = _buttons[intent]; button.Text = action.Text; button.Visible = action.Visible;
+        button.CustomMinimumSize = new Vector2(Mathf.Max(40, button.GetThemeFont("font").GetStringSize(action.Text,
+            fontSize: button.GetThemeFontSize("font_size")).X + 24), 34);
         button.Disabled = !action.Enabled; button.TooltipText = action.Text + "\n" + action.Reason;
     }
 }

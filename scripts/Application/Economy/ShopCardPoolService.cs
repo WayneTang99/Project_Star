@@ -103,7 +103,7 @@ public sealed class ShopCardPoolService
         _ => throw new ArgumentOutOfRangeException(nameof(shopLevel)),
     };
 
-    // 按英雄归属与商店型号筛选可售卡牌。
+    // 按英雄归属、商店型号与商店等级上限筛选可售卡牌。
     public IReadOnlyList<CardDefinition> GetEligibleCards(
         MatchSession session,
         ShopEncounterDefinition shop,
@@ -117,7 +117,8 @@ public sealed class ShopCardPoolService
 
         return definitions
             .Where(card => card.Attributes.Identity.FactionKey == hero.Attributes.Identity.FactionKey
-                && card.Attributes.Identity.Size == shop.CardSize)
+                && card.Attributes.Identity.Size == shop.CardSize
+                && card.InitialLevel <= shop.Level)
             .OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList()
             .AsReadOnly();

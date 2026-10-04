@@ -36,6 +36,9 @@ public sealed class MatchPresenter
     private bool _eventCompleted;
     private bool _executing;
     private long _shopRevision;
+    private int _shopLevel;
+    private StringName _encounterIllustration = new("");
+    private int _encounterLevel;
     private long _eventRevision;
     private EntityId? _selected;
     private long _rewardRevision;
@@ -61,6 +64,8 @@ public sealed class MatchPresenter
         _player = null; _enemy = null; _stock = null; _options = null; _selected = null;
         _playback = null;
         _shopRevision++; _eventRevision++; _rewardRevision++; _eventCompleted = false; _battleLog = "";
+        _encounterIllustration = new StringName("");
+        _encounterLevel = 0;
         _page = MatchPage.HeroSelection; _title = "选择英雄";
         _message = _registry.Heroes.Count == 0 ? "尚未配置正式英雄内容。"
             : "选择英雄后，对局会从第 1 轮第 1 回合正式开始。";
@@ -81,10 +86,12 @@ public sealed class MatchPresenter
         _playback = null;
         _shopRevision++; _eventRevision++; _battleLog = "";
         _page = MatchPage.EncounterChoice;
+        _encounterIllustration = new StringName("");
+        _encounterLevel = 0;
         var result = _game.GenerateEncounterChoices(_player);
         var snapshot = Snapshot(_player);
-        _title = $"第 {snapshot.Round} 轮 · 第 {snapshot.Turn} 回合";
-        _message = result.IsFailure ? result.Failure!.Message : "选择本回合要进入的遭遇。";
+        _title = "选择遭遇";
+        _message = result.IsFailure ? result.Failure!.Message : "选择一处前往";
     }
 
     public void ChooseEncounter(StringName key) => Execute(() =>
@@ -97,6 +104,9 @@ public sealed class MatchPresenter
         if (selected.IsFailure) { _message = selected.Failure!.Message; return; }
         _selected = null; _battleRound = snapshot.Round;
         _title = choice.DisplayName;
+        _shopLevel = choice.ShopLevel;
+        _encounterIllustration = choice.Illustration;
+        _encounterLevel = choice.Level;
         switch (choice.Kind)
         {
             case EncounterKind.Shop:
@@ -105,7 +115,7 @@ public sealed class MatchPresenter
                     ? _shops.CreateStock(_player, shop, _registry.Cards.Values) : null;
                 _shopRevision++;
                 _message = _stock is null || _stock.Offers.Count == 0 ? "尚未配置正式卡牌内容。"
-                    : "每件商品只能购买一次；购买价与持有价值分别显示。";
+                    : "选择商品购买";
                 break;
             case EncounterKind.Monster:
             case EncounterKind.Pvp:
@@ -309,7 +319,9 @@ public sealed class MatchPresenter
                 { Illustration = hero.Attributes.Identity.Illustration }).ToArray();
         var choices = _page != MatchPage.EncounterChoice || player is null ? Array.Empty<KeyedAction>()
             : player.EncounterChoices.Select(choice => new KeyedAction(choice.Key,
-                new UiAction($"{choice.DisplayName}\n{PlaytestText.KindName(choice.Kind)}"))).ToArray();
+                new UiAction(choice.DisplayName))
+                { Illustration = choice.Illustration, ShopLevel = choice.ShopLevel, Level = choice.Level,
+                    Subtitle = choice.Summary.Length > 0 ? choice.Summary : PlaytestText.KindName(choice.Kind) }).ToArray();
         var offers = new List<ShopItemViewModel>();
         if (_page == MatchPage.Shop && _stock is not null && _player is not null)
             for (var index = 0; index < _stock.Offers.Count; index++)
@@ -321,7 +333,8 @@ public sealed class MatchPresenter
                     MatchDisplayQuery.FromOffer(offer)) { Price = offer.Price });
             }
         var options = _page != MatchPage.Event || _eventCompleted || _options is null ? Array.Empty<KeyedAction>()
-            : _options.Options.Select(option => new KeyedAction(option.Key, new UiAction(option.DisplayName))).ToArray();
+            : _options.Options.Select(option => new KeyedAction(option.Key, new UiAction(option.DisplayName))
+                { Subtitle = PlaytestText.FormatOption(option, player?.Hero?.Level ?? 1) }).ToArray();
         var canContinue = _page is MatchPage.Shop or MatchPage.BattleResult or MatchPage.MatchEnded
             || _page == MatchPage.Event && _eventCompleted;
         var refreshReason = _stock is null || _player is null ? "本次商店不可刷新"
@@ -331,7 +344,7 @@ public sealed class MatchPresenter
             player is not null && _page is not (MatchPage.MatchEnded or MatchPage.BattlePlayback),
             enemy is not null && _page is MatchPage.Preparation or MatchPage.BattleResult or MatchPage.MatchEnded or MatchPage.BattlePlayback,
             Array.AsReadOnly(heroes), Array.AsReadOnly(choices), offers.AsReadOnly(), Array.AsReadOnly(options), _eventRevision,
-            new UiAction($"刷新（{_stock?.RefreshCost ?? 0}）· 剩余 {(_stock?.CanRefresh == true ? 1 : 0)}", _page == MatchPage.Shop && _stock is not null,
+            new UiAction($"刷新 · {_stock?.RefreshCost ?? 0} 金币", _page == MatchPage.Shop && _stock is not null,
                 refreshReason.Length == 0, refreshReason),
             new UiAction("开始战斗", _page == MatchPage.Preparation),
             new UiAction(_page == MatchPage.Shop ? "离开商店" : _page == MatchPage.MatchEnded ? "返回英雄选择"
@@ -341,6 +354,9 @@ public sealed class MatchPresenter
                 player?.PendingMonsterRewards.Count > 0 && !playing))
         {
             BattleLog = _battleLog,
+            ShopLevel = _page == MatchPage.Shop ? _shopLevel : 0,
+            ContextIllustration = _encounterIllustration,
+            EncounterLevel = _encounterLevel,
             Playback = playing ? _playback!.Capture() : null,
             Sell = _selected is null || _player is null || _page == MatchPage.MatchEnded ? new UiAction("出售", false)
                 : new UiAction("确认出售", true, _economy.CheckSale(_player, _selected.Value).IsSuccess,

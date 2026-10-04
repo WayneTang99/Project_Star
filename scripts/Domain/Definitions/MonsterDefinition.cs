@@ -25,12 +25,13 @@ public abstract class MonsterDefinition
         int manaRegen = 10,
         int healthRegen = 0,
         int level = 1,
-        IReadOnlyList<MonsterSkillEntry>? skills = null)
+        IReadOnlyList<MonsterSkillEntry>? skills = null,
+        StringName? illustration = null)
     {
         ArgumentNullException.ThrowIfNull(cards);
         if (level < 1) throw new ArgumentOutOfRangeException(nameof(level));
         Attributes = new EntityAttributes<MonsterIdentityAttributes>(
-            new MonsterIdentityAttributes(key, displayName),
+            new MonsterIdentityAttributes(key, displayName, illustration),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {
                 [GameAttributeKeys.MaxHealth] = maxHealth,

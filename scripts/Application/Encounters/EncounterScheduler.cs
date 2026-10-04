@@ -137,7 +137,19 @@ public sealed class EncounterScheduler
     }
 
     private static EncounterChoice ToChoice(EncounterDefinition definition) =>
-        new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind);
+        new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind)
+        {
+            Illustration = definition.Attributes.Identity.Illustration,
+            Summary = definition.Attributes.Identity.Summary,
+            ShopLevel = definition is ShopEncounterDefinition shop ? shop.Level : 0,
+            Level = definition switch
+            {
+                ShopEncounterDefinition value => value.Level,
+                ChoiceEncounterDefinition value => value.Level,
+                RegisteredMonsterEncounterDefinition value => value.Level,
+                _ => 0,
+            },
+        };
 
     private sealed class RegisteredMonsterEncounterDefinition : EncounterDefinition
     {
@@ -146,12 +158,16 @@ public sealed class EncounterScheduler
                 new EntityAttributes<EncounterIdentityAttributes>(
                     new EncounterIdentityAttributes(
                         monster.Attributes.Identity.Key,
-                        monster.Attributes.Identity.DisplayName)),
+                        monster.Attributes.Identity.DisplayName,
+                        monster.Attributes.Identity.Illustration)),
                 1,
                 99,
                 EncounterKind.Monster)
         {
+            Level = monster.Level;
         }
+
+        public int Level { get; }
     }
 
     private static Result<IReadOnlyList<EncounterChoice>> Fail(StringName code, string message) =>

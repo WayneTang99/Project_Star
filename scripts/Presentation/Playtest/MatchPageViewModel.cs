@@ -12,6 +12,9 @@ public sealed record UiAction(string Text, bool Visible = true, bool Enabled = t
 public sealed record KeyedAction(StringName Key, UiAction Action)
 {
     public StringName Illustration { get; init; } = new("");
+    public int ShopLevel { get; init; }
+    public int Level { get; init; }
+    public string Subtitle { get; init; } = "";
 }
 public sealed record ShopItemViewModel(int Index, long Revision, UiAction Action, CardSnapshot Card)
 {
@@ -28,7 +31,10 @@ public sealed record MatchPageViewModel(
     long EventRevision, UiAction Refresh, UiAction Battle, UiAction Continue, UiAction Reward)
 {
     public UiAction Sell { get; init; } = new("出售", false);
+    public int ShopLevel { get; init; }
     public string BattleLog { get; init; } = "";
+    public StringName ContextIllustration { get; init; } = new("");
+    public int EncounterLevel { get; init; }
     public BattlePlaybackViewModel? Playback { get; init; }
     public IReadOnlyList<RewardItemViewModel> Rewards { get; init; } = Array.Empty<RewardItemViewModel>();
 }

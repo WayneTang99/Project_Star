@@ -20,6 +20,8 @@ public sealed partial class ComponentShowcase : Control
     private CardDetailsView _details = null!;
     public override void _Ready()
     {
+        if (OS.GetCmdlineUserArgs().Contains("--capture-encounters"))
+        { Callable.From(CaptureEncounters).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-heroes"))
         { Callable.From(CaptureHeroes).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-gem-sockets"))
@@ -87,6 +89,84 @@ public sealed partial class ComponentShowcase : Control
     public override void _ExitTree() { if (_details is not null) Resized -= ClampDetails; }
     private void ShowDetails(CardSnapshot card) => _details.ShowCard(card, GetLocalMousePosition(), Size);
     private void ClampDetails() => _details.ClampTo(Size);
+
+    // 捕获真实遭遇图卡与商店页面，再总览全部正式原画和五档等级晶体。
+    private async void CaptureEncounters()
+    {
+        Theme = MatchTheme.Create();
+        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var shell = root.GetNode<MatchShell>("MatchShell");
+        var presenter = PlaytestVerification.CreatePresenter();
+        shell.Render(presenter.View);
+        await Save("selection");
+        presenter.ChooseEncounter(presenter.View.Choices.First(choice => choice.ShopLevel > 0).Key);
+        shell.Render(presenter.View);
+        await Save("shop");
+        foreach (var offer in presenter.View.Offers.Take(2).ToArray()) presenter.BuyCard(offer.Index, offer.Revision);
+        presenter.ContinueMatch(); shell.Render(presenter.View); await Save("build");
+        presenter.ChooseEncounter(new StringName("encounter.training_ground"));
+        shell.Render(presenter.View); await Save("event");
+        presenter.ResolveEventOption(presenter.View.EventOptions[0].Key, presenter.View.EventRevision);
+        presenter.ContinueMatch();
+        // 按正式排程推进到战斗准备，避免把普通回合商店误标为回放截图。
+        while (presenter.View.Page == MatchPage.EncounterChoice)
+        {
+            presenter.ChooseEncounter(presenter.View.Choices[0].Key);
+            if (presenter.View.Page == MatchPage.Event)
+                presenter.ResolveEventOption(presenter.View.EventOptions[0].Key, presenter.View.EventRevision);
+            if (presenter.View.Page is MatchPage.Shop or MatchPage.Event) presenter.ContinueMatch();
+        }
+        if (presenter.View.Page != MatchPage.Preparation) throw new InvalidOperationException("未进入战斗准备截图页面。");
+        shell.Render(presenter.View); await Save("preparation");
+        presenter.StartBattle(); presenter.AdvancePlayback(.5);
+        shell.Render(presenter.View); await Save("playback");
+        RemoveChild(root); root.QueueFree();
+        var background = new ColorRect { Color = MatchTheme.Background, MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(background); background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var choices = registry.Encounters.Values.OrderBy(item => item.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
+            .Select(item => new KeyedAction(item.Attributes.Identity.Key,
+                new UiAction(item.Attributes.Identity.DisplayName))
+                { Illustration = item.Attributes.Identity.Illustration, ShopLevel = item is ShopEncounterDefinition shop ? shop.Level : 0,
+                    Subtitle = item.Attributes.Identity.Summary,
+                    Level = item switch { ShopEncounterDefinition store => store.Level, ChoiceEncounterDefinition choice => choice.Level, _ => 0 } })
+            .Concat(registry.Monsters.Values.Select(item => new KeyedAction(item.Attributes.Identity.Key,
+                new UiAction(item.Attributes.Identity.DisplayName)) { Illustration = item.Attributes.Identity.Illustration, Level = item.Level, Subtitle = "怪物战" })).ToArray();
+        var height = (Size.Y - 110) / 3;
+        for (var row = 0; row < 3; row++)
+        {
+            var view = new EncounterSelectionView { Position = new Vector2(24, 12 + row * height),
+                Size = new Vector2(Size.X - 48, height - 12) };
+            AddChild(view); view.Render(row == 0 ? "全部遭遇原画" : "", choices.Skip(row * 3).Take(3).ToArray());
+        }
+        var legend = new HBoxContainer { Position = new Vector2(24, Size.Y - 80) }; AddChild(legend);
+        for (var level = 1; level <= 5; level++)
+        {
+            var crystal = new CardLevelGem { CustomMinimumSize = new Vector2(40, 52) };
+            legend.AddChild(crystal); crystal.SetLevel(level);
+            legend.AddChild(new Label { Text = $"{level}级商店", CustomMinimumSize = new Vector2(100, 52) });
+        }
+        await Save("gallery");
+        GetTree().Quit();
+
+        async System.Threading.Tasks.Task Save(string name)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            DirAccess.MakeDirRecursiveAbsolute("res://docs/quality/encounter-art");
+            using var image = GetViewport().GetTexture().GetImage();
+            // HDR 视口读回的是线性色彩，PNG 预览需要转换为 sRGB。
+            if (GetViewport().UseHdr2D)
+                for (var y = 0; y < image.GetHeight(); y++)
+                    for (var x = 0; x < image.GetWidth(); x++)
+                        image.SetPixel(x, y, image.GetPixel(x, y).LinearToSrgb());
+            image.Convert(Image.Format.Rgba8);
+            if (image.SavePng($"res://docs/quality/encounter-art/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)
+                throw new InvalidOperationException("遭遇截图保存失败。");
+        }
+    }
 
     // 捕获真实选角入口与选中英雄的头像、资源条布局。
     private async void CaptureHeroes()

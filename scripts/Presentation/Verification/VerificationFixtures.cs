@@ -434,7 +434,7 @@ internal static class VerificationFixtures
     // 内部验证定义 ShopVerificationCardDefinition，不进入正式内容池。
     internal sealed class ShopVerificationCardDefinition : CardDefinition
     {
-        public ShopVerificationCardDefinition(CardSize size, StringName factionKey, string suffix = "default")
+        public ShopVerificationCardDefinition(CardSize size, StringName factionKey, string suffix = "default", int initialLevel = 1)
             : base(
                 new EntityAttributes<CardIdentityAttributes>(
                     new CardIdentityAttributes(
@@ -443,7 +443,8 @@ internal static class VerificationFixtures
                         factionKey,
                         size,
                         [GameElements.General])),
-                new TagSet())
+                new TagSet(), initialLevel: initialLevel,
+                levels: initialLevel == 1 ? null : [new CardLevelDefinition(initialLevel, null, [])])
         {
         }
     }

@@ -10,7 +10,7 @@ public sealed class TavernEncounterDefinition : ChoiceEncounterDefinition
     public TavernEncounterDefinition()
         : base(
             new EntityAttributes<EncounterIdentityAttributes>(
-                new EncounterIdentityAttributes(new StringName("encounter.tavern"), "酒馆")),
+                new EncounterIdentityAttributes(new StringName("encounter.tavern"), "酒馆", new StringName("res://art/ui/encounters/artwork/tavern-illustration.png"), "交易或提升下场战斗生命")),
             1,
             3,
             [
