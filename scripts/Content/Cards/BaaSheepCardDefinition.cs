@@ -14,7 +14,7 @@ public sealed class BaaSheepCardDefinition : CardDefinition
             new EntityAttributes<CardIdentityAttributes>(
                 new CardIdentityAttributes(new StringName("card.baa_sheep"), "咩咩羊",
                     new StringName("neutral"), CardSize.Small, [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/placeholder.svg"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/baa_sheep-illustration.png"),
                     descriptionEntries:
                     [new(CardKeywords.Activate, "冷却5秒，魔法消耗0，此卡牌获得1/2/3/4秒疾速。")]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>

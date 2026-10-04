@@ -117,6 +117,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         ValidateContentFactions(heroes, cards, skills);
         ValidateCardSets(cards, sets);
         ValidateTransformations(cards);
+        ValidateSummons(cards);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
         return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters, gems);
@@ -144,6 +145,25 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
                     && !cards.ContainsKey(transform.Replacement.Attributes.Identity.Key))
                     throw new DefinitionValidationException(
                         $"Card '{card.Attributes.Identity.Key}' references unknown transformation '{transform.Replacement.Attributes.Identity.Key}'.");
+        }
+    }
+
+    // 召唤模板必须已注册，并支持来源的等级。
+    private static void ValidateSummons(IReadOnlyDictionary<StringName, CardDefinition> cards)
+    {
+        foreach (var card in cards.Values)
+        {
+            Validate(card.Abilities, card.InitialLevel);
+            foreach (var level in card.Levels.Values) Validate(level.Abilities, level.Level);
+        }
+        void Validate(IReadOnlyList<AbilityDefinition> abilities, int level)
+        {
+            foreach (var ability in abilities)
+            foreach (var effect in ability.Effects)
+                if (effect is SummonAdjacentCardEffectDefinition summon
+                    && (!cards.ContainsKey(summon.Card.Attributes.Identity.Key) || !summon.Card.SupportsLevel(level)))
+                    throw new DefinitionValidationException(
+                        $"Summon references unknown card or unsupported level {level}: '{summon.Card.Attributes.Identity.Key}'.");
         }
     }
 

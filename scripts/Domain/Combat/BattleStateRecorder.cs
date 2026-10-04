@@ -35,6 +35,7 @@ internal static class BattleStateRecorder
                         * card.CooldownMultiplier).ToArray()),
                 IsFlying = card.IsFlying, IsBerserk = card.IsBerserk, IsOnBench = card.IsOnBench,
                 TransformedIdentity = card.TransformedIdentity, Level = card.Level,
+                SummonedCard = card.SummonedCard,
                 TransformedTags = card.TransformedIdentity is null ? Array.Empty<StringName>()
                     : Array.AsReadOnly(card.Tags.ToArray()),
                 TransformedAbilities = card.TransformedIdentity is null ? Array.Empty<AbilityDefinition>()

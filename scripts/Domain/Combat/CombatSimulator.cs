@@ -135,6 +135,18 @@ public sealed class CombatSimulator
                 && ReferenceEquals(source, origin.Source) && source is CardBattleState
                 && origin.Ability.Definition.Activation == AbilityActivation.Active)
                 Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
+                && source is CardBattleState adjacentSource && source.Side == origin.Source.Side
+                && origin.Source is CardBattleState { IsOnBench: false } attackingCard
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && (adjacentSource.BoardStart + adjacentSource.OccupiedSlots == attackingCard.BoardStart
+                    || attackingCard.BoardStart + attackingCard.OccupiedSlots == adjacentSource.BoardStart)
+                && (ability.Definition.TriggerCardTag is not { } requiredTag || attackingCard.Tags.Contains(requiredTag))
+                && attackingCard.Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
+                    DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
+                    or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
+                    or SourceHeroArmorDamageEffectDefinition)))
+                Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
                 && source.Side == origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } originCard

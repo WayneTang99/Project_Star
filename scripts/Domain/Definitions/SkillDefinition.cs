@@ -42,7 +42,8 @@ public abstract class SkillDefinition
     {
         foreach (var ability in abilities)
         {
-            if (ability.Activation == AbilityActivation.Active || ability.Target == AbilityTarget.SelfCard
+            if (ability.Activation is AbilityActivation.Active or AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
+                || ability.Target == AbilityTarget.SelfCard
                 || ability.Activation == AbilityActivation.PassiveWhileEnabled && !allowPersistent
                 || ability.Activation != AbilityActivation.PassiveWhileEnabled
                     && ability.Target is (AbilityTarget.SourceGroupCards or AbilityTarget.OtherBattlefieldCards

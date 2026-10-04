@@ -18,6 +18,7 @@ public enum AbilityActivation
     EchoOnAlliedCardEnteredState = 7,
     EchoOnMatchingAlliedCardActivated = 8,
     EchoOnSourceCardActivated = 9,
+    EchoOnAdjacentAlliedAttackCardActivated = 10,
 }
 
 public enum AbilityTarget
@@ -43,6 +44,11 @@ public enum BattleStatus
 }
 
 public abstract record EffectDefinition;
+
+public enum AdjacentCardSide { Left = 0, Right = 1 }
+
+// 在来源指定一侧的空位召唤同级卡牌，仅存在于战斗 Runtime。
+public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, AdjacentCardSide Side) : EffectDefinition;
 
 // 将同尺寸敌方战场卡牌临时替换为指定定义，保留目标等级（领域战斗层）。
 public sealed record TransformRandomEnemyCardEffectDefinition(CardDefinition Replacement) : EffectDefinition;
@@ -158,6 +164,10 @@ public sealed record MultiplySourceAttributePerDestroyedTaggedCardEffectDefiniti
     IReadOnlyList<StringName> RequiredAnyTags,
     int Multiplier = 2) : EffectDefinition;
 
+// 敌方英雄当前有护甲时倍增来源有效属性，不写回基础值（领域战斗层）。
+public sealed record MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition(
+    StringName AttributeKey, int Multiplier = 2) : EffectDefinition;
+
 public sealed record IncreaseSourceCooldownEffectDefinition(int AmountTicks, bool FirstActivationOnly = false)
     : EffectDefinition;
 
@@ -184,8 +194,13 @@ public sealed class AbilityDefinition
         if (activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
             ? triggerCardTag is null && triggerCardElement is null
                 || triggerCardTag is { IsEmpty: true } || triggerCardElement is { IsEmpty: true }
-            : triggerCardTag is not null || triggerCardElement is not null)
+            : activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
+                ? triggerCardTag is { IsEmpty: true } || triggerCardElement is not null
+                : triggerCardTag is not null || triggerCardElement is not null)
             throw new ArgumentException("Matching card trigger requires a nonempty tag or element filter.");
+        if (activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
+            && (allowsBench || cooldownTicks != 0))
+            throw new ArgumentException("Adjacent attack card echo requires a battlefield source and no cooldown.");
         if (triggerCardElement is { } elementKey) _ = GameElements.Normalize([elementKey]);
         if (activation == AbilityActivation.EchoOnAlliedCardEnteredState
             ? triggerStateKey != GameAttributeKeys.Flying && triggerStateKey != GameAttributeKeys.Berserk
@@ -221,6 +236,14 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is SummonAdjacentCardEffectDefinition summon
+                && (summon.Card is null || !Enum.IsDefined(summon.Side)
+                    || activation != AbilityActivation.PassiveOnBattleStart || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Adjacent summon requires a card, side and battlefield start self ability.", nameof(effects));
+            if (effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition armorMultiplier
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard
+                    || allowsBench || armorMultiplier.AttributeKey.IsEmpty || armorMultiplier.Multiplier < 1))
+                throw new ArgumentException("Enemy armor attribute multiplier requires a self aura, nonempty key and positive multiplier.", nameof(effects));
             if (effect is IncreaseSourceCardAttributeEffectDefinition increase
                 && (increase.AttributeKey.IsEmpty || increase.Amount < 1 || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Source attribute increase requires a key, positive amount and executed ability.", nameof(effects));

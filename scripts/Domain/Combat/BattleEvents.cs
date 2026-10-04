@@ -37,6 +37,9 @@ public sealed record CardStateChangedEvent(BattleTick Tick, EntityId CardId, Str
 public sealed record CardTransformedEvent(BattleTick Tick, EntityId SourceCardId,
     EntityId TargetCardId, StringName ReplacementKey) : BattleEvent(Tick);
 
+public sealed record CardSummonedEvent(BattleTick Tick, EntityId SourceCardId,
+    EntityId SummonedCardId, SideId Side, StringName CardKey, int Level, int BoardStart) : BattleEvent(Tick);
+
 public sealed record CardAttributeChangedEvent(
     BattleTick Tick,
     EntityId CardId,

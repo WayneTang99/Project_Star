@@ -134,6 +134,6 @@ public sealed class BattleSetupFactory
             new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison, level),
             cards.AsReadOnly(),
             skills.AsReadOnly(),
-            sets.AsReadOnly());
+            sets.AsReadOnly()) { BattlefieldCapacity = session.Board.Battlefield.Capacity };
     }
 }

@@ -41,6 +41,11 @@ internal static class BattleEffectResolver
         var hero = runtime.GetHero(targetSide);
         switch (effect)
         {
+            case SummonAdjacentCardEffectDefinition summon:
+                if (pending.Source is not CardBattleState summoner)
+                    throw new InvalidOperationException("Adjacent summon requires a card source.");
+                SummonAdjacentCard(runtime, summoner, summon);
+                break;
             case IncreaseSourceCardAttributeEffectDefinition increase:
                 if (pending.Source is not CardBattleState attributeSource)
                     throw new InvalidOperationException("Source attribute increase requires a card source.");
@@ -275,6 +280,12 @@ internal static class BattleEffectResolver
                     && HasEffectiveTag(runtime, card, increase.RequiredTag))
                     value = checked(value + increase.Amount);
         }
+        foreach (var ability in source.Abilities)
+        foreach (var effect in ability.Definition.Effects)
+            if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                && effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition multiplier
+                && multiplier.AttributeKey == key && runtime.GetHero(Opposite(source.Side)).Armor > 0)
+                value = checked(value * multiplier.Multiplier);
         return value;
     }
 
@@ -333,10 +344,41 @@ internal static class BattleEffectResolver
             Multicast: values.GetFinalValue(GameAttributeKeys.Multicast), OccupiedSlots: identity.OccupiedSlots,
             ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
             { Level = target.Level, CombatValues = values.SnapshotFinalValues() };
-        var transformed = new CardBattleState(replacement, target.Side) { TransformedIdentity = identity };
+        var transformed = new CardBattleState(replacement, target.Side)
+            { TransformedIdentity = identity, SummonedCard = target.SummonedCard };
         foreach (var entry in replacement.CombatValues) transformed.CombatAttributes[entry.Key] = entry.Value;
         runtime.Cards[runtime.Cards.IndexOf(target)] = transformed;
         runtime.Events.Add(new CardTransformedEvent(runtime.Tick, source.EntityId, target.EntityId, identity.Key));
+    }
+
+    private static void SummonAdjacentCard(BattleRuntime runtime, CardBattleState source,
+        SummonAdjacentCardEffectDefinition effect)
+    {
+        var definition = effect.Card;
+        var identity = definition.Attributes.Identity;
+        var size = identity.OccupiedSlots;
+        var start = effect.Side == AdjacentCardSide.Left ? source.BoardStart - size : source.BoardStart + source.OccupiedSlots;
+        if (!definition.SupportsLevel(source.Level) || start < 0 || start + size > runtime.GetBattlefieldCapacity(source.Side)
+            || runtime.Cards.Any(card => card.Side == source.Side && !card.IsOnBench
+                && card.BoardStart < start + size && start < card.BoardStart + card.OccupiedSlots)) return;
+        var level = definition.GetLevel(source.Level);
+        var values = definition.Attributes.BaseCombat.CreateMutableCopy();
+        if (level is not null)
+            foreach (var entry in level.BaseCombatValues) values.SetBaseValue(entry.Key, entry.Value);
+        var id = runtime.NewSummonedCardId(source.EntityId);
+        var setup = new CardBattleSetup(id, start, values.GetFinalValue(GameAttributeKeys.AttackDamage),
+            values.GetFinalValue(GameAttributeKeys.CooldownTicks), level?.Abilities ?? definition.Abilities,
+            UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
+            OccupiedSlots: size, ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
+            { Level = source.Level, CombatValues = values.SnapshotFinalValues() };
+        var summoned = new CardBattleState(setup, source.Side)
+        {
+            SummonedCard = new SummonedCardSnapshot(identity, start, Array.AsReadOnly(definition.Tags.ToArray()),
+                Array.AsReadOnly(setup.Abilities!.ToArray()), setup.CombatValues),
+        };
+        foreach (var entry in setup.CombatValues) summoned.CombatAttributes[entry.Key] = entry.Value;
+        runtime.AddSummonedCard(summoned);
+        runtime.Events.Add(new CardSummonedEvent(runtime.Tick, source.EntityId, id, source.Side, identity.Key, source.Level, start));
     }
 
     private static void ChargeRandomOtherAlliedElementCard(
@@ -456,7 +498,7 @@ internal static class BattleEffectResolver
         }
         target.Destroyed = true;
         runtime.Events.Add(new CardDestroyedEvent(runtime.Tick, target.EntityId, target.Side, sourceId));
-        if (permanent) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
+        if (permanent && target.SummonedCard is null) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
     }
 
     // 统一扣减护甲与生命，并记录伤害事件及对应冻结状态。

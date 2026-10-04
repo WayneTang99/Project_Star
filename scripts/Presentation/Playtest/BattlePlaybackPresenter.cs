@@ -6,6 +6,7 @@ using Project_Star.Application.Combat;
 using Project_Star.Application.Match;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Match;
 
 namespace Project_Star.Presentation.Playtest;
 
@@ -82,6 +83,8 @@ public sealed class BattlePlaybackPresenter
                         Add($"{Side(damage.TargetSide)}受伤 {damage.HealthDamage} · 护甲抵消 {damage.ArmorAbsorbed}"
                             + (damage.SourceKind == DamageSourceKind.Eclipse ? " · 日蚀" : "")); break;
                     case CardDestroyedEvent destroyed: Add($"{Name(destroyed.CardId)}已摧毁"); break;
+                    case CardSummonedEvent summoned:
+                        Add($"{Name(summoned.SourceCardId)}召唤{next.Cards.First(card => card.Id == summoned.SummonedCardId).SummonedCard!.Identity.DisplayName}"); break;
                     case CardTransformedEvent transformed:
                         Add($"{Name(transformed.TargetCardId)}转变为{next.Cards.First(card => card.Id == transformed.TargetCardId).TransformedIdentity!.DisplayName}"); break;
                     case CardChargedEvent charged: Add($"{Name(charged.TargetCardId)}充能 {charged.AmountTicks / 10m:0.0}秒"); break;
@@ -100,6 +103,7 @@ public sealed class BattlePlaybackPresenter
     }
     private void Add(string text) { _feedback.Add(text); if (_feedback.Count > 4) _feedback.RemoveAt(0); }
     private string Name(EntityId id) => _state.Cards.FirstOrDefault(card => card.Id == id)?.TransformedIdentity?.DisplayName
+        ?? _state.Cards.FirstOrDefault(card => card.Id == id)?.SummonedCard?.Identity.DisplayName
         ?? _source.PlayerBefore.Cards.Concat(_source.OpponentBefore.Cards)
         .FirstOrDefault(card => card.Id == id)?.DisplayName ?? "技能/套装";
     private static string Side(SideId side) => side == SideId.Player ? "我方" : "敌方";
@@ -108,7 +112,25 @@ public sealed class BattlePlaybackPresenter
     public MatchSnapshot Project(SideId side)
     {
         var before = side == SideId.Player ? _source.PlayerBefore : _source.OpponentBefore;
-        return before with { Cards = Array.AsReadOnly(before.Cards.Select(card =>
+        var summonedStates = _state.Cards.Where(card => card.Side == side && card.SummonedCard is not null).ToArray();
+        var summonedCards = summonedStates.Select(state =>
+        {
+            var summoned = state.SummonedCard!;
+            var identity = summoned.Identity;
+            return new CardSnapshot(state.Id, identity.Key, identity.DisplayName, state.Level, 0,
+                identity.Size, identity.FactionKey, identity.ElementKeys, Array.Empty<QuestProgressSnapshot>())
+            {
+                SetKey = identity.SetKey, Illustration = identity.Illustration, DescriptionEntries = identity.DescriptionEntries,
+                Tags = summoned.Tags, BaseValues = summoned.BaseValues, CurrentValues = state.Values, Abilities = summoned.Abilities,
+                IsFlying = state.IsFlying, IsBerserk = state.IsBerserk,
+                GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
+            };
+        });
+        var placements = before.BoardPlacements.Concat(summonedStates.Select(state =>
+            new BoardPlacementSnapshot(state.Id, BoardZone.Battlefield, state.SummonedCard!.BoardStart,
+                state.SummonedCard.BoardStart + state.SummonedCard.Identity.OccupiedSlots))).ToArray();
+        return before with { BoardPlacements = Array.AsReadOnly(placements), BattlefieldCount = before.BattlefieldCount + summonedStates.Length,
+            Cards = Array.AsReadOnly(before.Cards.Concat(summonedCards).Select(card =>
         {
             var state = _state.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == side);
             if (state?.TransformedIdentity is { } identity)

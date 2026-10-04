@@ -102,6 +102,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public int BoardStart { get; }
     public int Level { get; }
     public CardIdentityAttributes? TransformedIdentity { get; init; }
+    public SummonedCardSnapshot? SummonedCard { get; init; }
     public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
     public TagSet Tags { get; }
@@ -197,6 +198,8 @@ internal sealed class BattleRuntime
 {
     public BattleRuntime(BattleSetup setup)
     {
+        PlayerBattlefieldCapacity = setup.Player.BattlefieldCapacity;
+        OpponentBattlefieldCapacity = setup.Opponent.BattlefieldCapacity;
         EclipseTime = setup.EclipseTime;
         RandomState = setup.Seed;
         PlayerHero = new HeroBattleState(setup.Player.Hero); OpponentHero = new HeroBattleState(setup.Opponent.Hero);
@@ -210,6 +213,24 @@ internal sealed class BattleRuntime
     public List<CardBattleState> Cards { get; } = [];
     public List<SkillBattleState> Skills { get; } = [];
     public List<CardSetBattleState> Sets { get; } = [];
+    private int PlayerBattlefieldCapacity { get; }
+    private int OpponentBattlefieldCapacity { get; }
+    private int SummonSequence { get; set; }
+    public int GetBattlefieldCapacity(SideId side) => side == SideId.Player ? PlayerBattlefieldCapacity : OpponentBattlefieldCapacity;
+    public void AddSummonedCard(CardBattleState card) { Cards.Add(card); Cards.Sort(CompareCards); }
+    // 由来源及战斗内顺序派生 ID，复算保持一致且不消耗战斗随机数。
+    public EntityId NewSummonedCardId(EntityId source)
+    {
+        EntityId id;
+        do
+        {
+            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+                FormattableString.Invariant($"summon:{source.Value:D}:{++SummonSequence}")));
+            id = new EntityId(new Guid(hash.AsSpan(0, 16)));
+        } while (id == PlayerHero.EntityId || id == OpponentHero.EntityId
+            || System.Linq.Enumerable.Any(AbilitySources, item => item.EntityId == id));
+        return id;
+    }
     public IEnumerable<IBattleAbilitySource> AbilitySources
     {
         get

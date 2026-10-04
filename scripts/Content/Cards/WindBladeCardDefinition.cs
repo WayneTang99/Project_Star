@@ -14,7 +14,7 @@ public sealed class WindBladeCardDefinition : CardDefinition
             new EntityAttributes<CardIdentityAttributes>(
                 new CardIdentityAttributes(new StringName("card.wind_blade"), "风之刃",
                     new StringName("jiyun"), CardSize.Medium, [GameElements.Wind],
-                    illustration: new StringName("res://art/ui/card-face/artwork/placeholder.svg"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/wind_blade-illustration.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却7秒，魔法消耗0，对敌方英雄造成20/40伤害。"),
