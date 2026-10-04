@@ -53,7 +53,13 @@ public sealed class CardDisplayAdapter
                     SourceHeroArmorDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage,
                         value.BonusAttributeKey is { } key && Value(card, key) != 0 ? $"护甲+{Value(card, key)}" : "己方护甲"),
                     SourceHeroLevelScaledDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, $"等级×{value.Multiplier}"),
-                    HealEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Healing, value.Amount.ToString()),
+                    HealEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Healing,
+                        checked(value.Amount + Value(card, GameAttributeKeys.HealingBonus)).ToString()),
+                    IncreaseAlliedCardAttributeAuraEffectDefinition value when value.AttributeKey == GameAttributeKeys.AttackDamage
+                        || value.AttributeKey == GameAttributeKeys.Armor || value.AttributeKey == GameAttributeKeys.HealingBonus => new CardFaceEffect(
+                        value.AttributeKey == GameAttributeKeys.AttackDamage ? CardFaceEffectKind.Damage
+                            : value.AttributeKey == GameAttributeKeys.Armor ? CardFaceEffectKind.Armor : CardFaceEffectKind.Healing,
+                        $"+{value.Amount}"),
                     RestoreManaEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Mana, value.Amount.ToString()),
                     ArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
@@ -133,18 +139,20 @@ public sealed class CardDisplayAdapter
     private static string AttributeName(StringName key) => key == GameAttributeKeys.AttackDamage ? "攻击"
         : key == GameAttributeKeys.Flying ? "飞行" : key == GameAttributeKeys.Berserk ? "狂暴"
         : key == GameAttributeKeys.Armor ? "护甲" : key == GameAttributeKeys.CooldownTicks ? "冷却"
+        : key == GameAttributeKeys.HealingBonus ? "治疗加成"
         : key == GameAttributeKeys.Multicast ? "多重" : key == GameAttributeKeys.Burn ? "灼伤"
         : key == GameAttributeKeys.Poison ? "中毒" : key.ToString();
     private static string Describe(CardSnapshot card, EffectDefinition effect) => effect switch
     {
         ModifyAttributeEffectDefinition value => $"{AttributeName(value.AttributeKey)} {value.Amount:+0;-0;0}",
+        IncreaseAlliedCardAttributeAuraEffectDefinition value => $"己方战场卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         DamageEffectDefinition value => $"造成 {value.Amount} 点伤害{(value.BypassArmor ? "（无视护甲）" : "")}",
         AttributeDamageEffectDefinition value => $"造成 {Value(card, value.AttributeKey)} 点伤害（来源 {AttributeName(value.AttributeKey)}）",
         MaxHealthPercentDamageEffectDefinition value => $"造成目标最大生命的 {value.Percent}% 伤害",
         SourceHeroHealthScaledAttributeDamageEffectDefinition value => $"{Value(card, value.AttributeKey)} 点伤害按己方英雄当前生命比例缩放",
         SourceHeroArmorDamageEffectDefinition value => $"伤害等于己方英雄当前护甲{(value.BonusAttributeKey is { } key ? $" + {Value(card, key)}" : "")}",
         SourceHeroLevelScaledDamageEffectDefinition value => $"伤害等于己方英雄等级 × {value.Multiplier}",
-        HealEffectDefinition value => $"治疗 {value.Amount}",
+        HealEffectDefinition value => $"治疗 {checked(value.Amount + Value(card, GameAttributeKeys.HealingBonus))}",
         RestoreManaEffectDefinition value => $"恢复 {value.Amount} 魔法",
         ArmorEffectDefinition value => $"获得护甲 {value.Amount}",
         GainSourceHeroArmorEffectDefinition value => $"己方英雄获得护甲 {value.Amount}",
@@ -167,7 +175,7 @@ public sealed class CardDisplayAdapter
         DestroyRandomEnemyCardEffectDefinition value => $"随机{(value.Permanent ? "永久" : "本场")}摧毁敌方 {string.Join("/", value.AllowedSizes)} {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))}卡牌",
         MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => $"每张已摧毁的 {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))} 卡牌使 {value.AttributeKey} ×{value.Multiplier}",
         IncreaseSourceCooldownEffectDefinition value => $"{(value.FirstActivationOnly ? "首次发动" : "发动后")}增加冷却 {value.AmountTicks / 10m:0.##}秒",
-        ModifyTaggedAlliedCardsAttributeEffectDefinition value => $"己方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌 {value.AttributeKey} +{value.Amount}",
+        ModifyTaggedAlliedCardsAttributeEffectDefinition value => $"己方{(value.RandomSingleTarget ? "随机一张" : "")} {TagDisplayNames.Get(value.RequiredTag)} 卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         _ => throw new NotSupportedException($"No display formatter for {effect.GetType().Name}."),
     };

@@ -97,7 +97,7 @@ public sealed partial class ComponentShowcase : Control
         var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
         AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var shell = root.GetNode<MatchShell>("MatchShell");
-        var presenter = PlaytestVerification.CreatePresenter();
+        var presenter = PlaytestVerification.CreatePresenter(encounterLevelOverride: 5);
         shell.Render(presenter.View);
         await Save("selection");
         presenter.ChooseEncounter(presenter.View.Choices.First(choice => choice.ShopLevel > 0).Key);

@@ -97,3 +97,7 @@
 | BUG-077 | 2026-10-04 | `scripts/Presentation/Playtest/ComponentShowcase.cs` / 遭遇截图导出 | 新遭遇截图中原画与晶体比源图明显偏暗。 | HDR 2D 视口读回线性色彩，直接保存为普通 PNG，没有转换到 sRGB。 | 遭遇截图保存前按 HDR 视口转换像素到 sRGB，再导出 RGBA8 PNG；复查两档分辨率。其他历史截图入口另行统一。 | Fixed |
 | BUG-078 | 2026-10-04 | `scripts/Presentation/Playtest/LeavePanel.cs` / `PlayerHeroPanel.cs` | 侧栏布局初次截图中阶段按钮只剩边框，英雄姓名被压缩。 | 横向容器内启用文字裁切，控件最小宽度不再由文字提供。 | 阶段按钮按实际字体测量设最小宽度，英雄姓名保留120px最小宽度；多档窗口及大窗缩回小窗检查姓名、按钮和购买区可见性。 | Fixed |
 | BUG-079 | 2026-10-04 | `scripts/Presentation/Playtest/ComponentShowcase.cs` / CaptureEncounters | 新增回放截图初版实际仍显示普通回合商店。 | 截图流程假定选择下一回合首个候选一定进入战斗，未核对页面类型。 | 按正式排程推进并检查Preparation后再启动播放，重建并检查战斗准备与回放截图。 | Fixed |
+| BUG-080 | 2026-10-04 | `scripts/Presentation/Verification/StandardAuraChecks.cs` | 旗帜回归初版不能编译。 | 将CardBattleSnapshot的Values误写为CombatValues。 | 使用实际Values字段读取冻结属性，并在构建成功后运行回归。 | Fixed |
+| BUG-081 | 2026-10-04 | `scripts/Presentation/Verification/StandardAuraChecks.cs` / Battle夹具 | 旗帜治疗断言比预期少1生命。 | 夹具默认在最后一刻触发日蚀，混入无关伤害。 | 日蚀起点设到夹具超时之后，独立验证光环效果；正式日蚀规则及战斗基线不变。 | Fixed |
+| BUG-082 | 2026-10-04 | `scripts/Domain/Combat/BattleEffectResolver.cs` / AlliedAttributeAuras | 新光环初版给无对应属性能力的卡牌也显示加成，与属性修改规则不一致。 | 光环只检查所属方与存活/战场状态，没有检查目标支持的属性。 | 按SupportsCombatAttribute筛选目标，治疗效果注册治疗加成支持；使用有攻击能力的光环来源验证包含自身，召唤和叠加验证继续保留。 | Fixed |
+| BUG-083 | 2026-10-04 | `scripts/Presentation/Verification/StandardAuraChecks.cs` / 旗帜手验证 | 新验证首次构建失败。 | 将属性变化事件Amount误写为Delta，且Tick预期数组使用int。 | 改用Amount及long数组，与领域事件契约一致。 | Fixed |

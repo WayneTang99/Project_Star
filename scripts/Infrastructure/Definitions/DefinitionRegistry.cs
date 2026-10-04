@@ -160,10 +160,15 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         {
             foreach (var ability in abilities)
             foreach (var effect in ability.Effects)
-                if (effect is SummonAdjacentCardEffectDefinition summon
-                    && (!cards.ContainsKey(summon.Card.Attributes.Identity.Key) || !summon.Card.SupportsLevel(level)))
+            foreach (var template in effect switch
+                {
+                    SummonAdjacentCardEffectDefinition summon => new[] { summon.Card },
+                    SummonRandomAdjacentCardEffectDefinition summon => summon.Cards,
+                    _ => System.Array.Empty<CardDefinition>(),
+                })
+                if (!cards.ContainsKey(template.Attributes.Identity.Key) || !template.SupportsLevel(level))
                     throw new DefinitionValidationException(
-                        $"Summon references unknown card or unsupported level {level}: '{summon.Card.Attributes.Identity.Key}'.");
+                        $"Summon references unknown card or unsupported level {level}: '{template.Attributes.Identity.Key}'.");
         }
     }
 

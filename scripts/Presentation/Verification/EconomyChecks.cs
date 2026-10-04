@@ -193,7 +193,8 @@ internal static class EconomyChecks
             && ShopCardPoolService.GetRefreshCost(1) == 2
             && ShopCardPoolService.GetRefreshCost(2) == 4
             && ShopCardPoolService.GetRefreshCost(3) == 6
-            && ShopCardPoolService.GetRefreshCost(4) == 8;
+            && ShopCardPoolService.GetRefreshCost(4) == 8
+            && ShopCardPoolService.GetRefreshCost(5) == 10;
     }
 
     internal static bool CheckShopLevelLimit()
@@ -228,7 +229,15 @@ internal static class EconomyChecks
             var limited = service.CreateStock(session, shop, [cards[0], cards[4]]);
             if (limited.Offers.Count != 1 || limited.CanRefresh || limited.Offers[0].Level != 1) return false;
         }
-        return true;
+        var testSession = new MatchSession(42, 100);
+        testSession.Player.SelectHero(new EntityFactory().CreateHero(new PaladinHeroDefinition()));
+        var ordinaryShop = new LevelShopVerificationDefinition(1);
+        var testStock = service.CreateStock(testSession, ordinaryShop, cards, shopLevelOverride: 5);
+        if (ordinaryShop.Level != 1 || testStock.RefreshCost != 10
+            || service.GetEligibleCards(testSession, ordinaryShop, cards, 5).Count != 8
+            || service.GetEligibleCards(testSession, ordinaryShop, cards).Count != 4) return false;
+        return service.Refresh(testSession, testStock).IsSuccess && testSession.Player.Wealth == 90
+            && testStock.Offers.All(offer => offer.Level <= 5 && offer.Level == offer.Definition.InitialLevel);
     }
 
     // 可指定等级的验证商店，不进入正式遭遇池（表现层验证模块）。

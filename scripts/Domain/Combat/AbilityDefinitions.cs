@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
@@ -50,10 +51,17 @@ public enum AdjacentCardSide { Left = 0, Right = 1 }
 // 在来源指定一侧的空位召唤同级卡牌，仅存在于战斗 Runtime。
 public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, AdjacentCardSide Side) : EffectDefinition;
 
+// 从指定相邻空位可容纳的模板中随机召唤同级卡牌。
+public sealed record SummonRandomAdjacentCardEffectDefinition(
+    IReadOnlyList<CardDefinition> Cards, AdjacentCardSide Side) : EffectDefinition;
+
 // 将同尺寸敌方战场卡牌临时替换为指定定义，保留目标等级（领域战斗层）。
 public sealed record TransformRandomEnemyCardEffectDefinition(CardDefinition Replacement) : EffectDefinition;
 
 public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
+
+// 为己方存活战场卡牌持续提供属性加成（领域战斗层）。
+public sealed record IncreaseAlliedCardAttributeAuraEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
 // 累加来源卡牌已支持的战斗属性（领域战斗层）。
 public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
@@ -171,10 +179,11 @@ public sealed record MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition(
 public sealed record IncreaseSourceCooldownEffectDefinition(int AmountTicks, bool FirstActivationOnly = false)
     : EffectDefinition;
 
+// 累加己方匹配标签卡牌的已有属性，可配置每次随机选择一张。
 public sealed record ModifyTaggedAlliedCardsAttributeEffectDefinition(
     StringName RequiredTag,
     StringName AttributeKey,
-    int Amount) : EffectDefinition;
+    int Amount, bool RandomSingleTarget = false) : EffectDefinition;
 
 public sealed class AbilityDefinition
 {
@@ -236,6 +245,15 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is SummonRandomAdjacentCardEffectDefinition randomSummon
+                && (randomSummon.Cards is null || randomSummon.Cards.Count == 0
+                    || randomSummon.Cards.Any(card => card is null) || !Enum.IsDefined(randomSummon.Side)
+                    || activation != AbilityActivation.PassiveOnBattleStart || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Random adjacent summon requires templates and a battlefield start self ability.", nameof(effects));
+            if (effect is IncreaseAlliedCardAttributeAuraEffectDefinition alliedAura
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard
+                    || allowsBench || alliedAura.AttributeKey.IsEmpty || alliedAura.Amount < 1))
+                throw new ArgumentException("Allied card attribute aura requires a battlefield aura, nonempty key and positive amount.", nameof(effects));
             if (effect is SummonAdjacentCardEffectDefinition summon
                 && (summon.Card is null || !Enum.IsDefined(summon.Side)
                     || activation != AbilityActivation.PassiveOnBattleStart || target != AbilityTarget.SelfCard || allowsBench))

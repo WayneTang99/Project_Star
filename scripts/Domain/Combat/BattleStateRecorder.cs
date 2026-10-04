@@ -26,6 +26,7 @@ internal static class BattleStateRecorder
             Array.AsReadOnly(card.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.Active)
                 .Select(ability => ability.RemainingCooldownUnits).ToArray()),
             new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(card.CombatAttributes.Keys
+                .Concat(BattleEffectResolver.AlliedAttributeAuras(runtime, card).Select(aura => aura.AttributeKey)).Distinct()
                 .ToDictionary(key => key, key => key == GameAttributeKeys.Multicast
                     ? BattleEffectResolver.GetEffectiveMulticast(runtime, card) : BattleEffectResolver.GetEffectiveCombatAttribute(runtime, card, key))))
             {

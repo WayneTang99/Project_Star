@@ -78,6 +78,9 @@ internal sealed class CardBattleState : IBattleAbilitySource
         foreach (var effect in definition.Effects)
             switch (effect)
             {
+                case HealEffectDefinition:
+                    SupportedCombatAttributes.Add(GameAttributeKeys.HealingBonus);
+                    break;
                 case ApplyAttributeStatusEffectDefinition attributeStatus:
                     SupportedCombatAttributes.Add(attributeStatus.AttributeKey);
                     CombatAttributes[attributeStatus.AttributeKey] = setup.CombatValues.TryGetValue(attributeStatus.AttributeKey, out var amount) ? amount : 0;

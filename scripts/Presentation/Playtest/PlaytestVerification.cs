@@ -86,6 +86,49 @@ internal static class PlaytestVerification
         finally { owner.RemoveChild(scene); scene.Free(); }
     }
 
+    // 真实测试入口各类遭遇固定5级，普通排程与正式定义继续使用原等级。
+    public static bool TestEncounterLevels(Control owner)
+    {
+        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        owner.AddChild(scene);
+        try
+        {
+            var presenter = (MatchPresenter)typeof(MinimalPlaytest).GetField("_presenter",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(scene)!;
+            presenter.SelectHero(new StringName("hero.paladin"));
+            var kinds = new System.Collections.Generic.HashSet<EncounterKind>();
+            for (var turn = 1; turn <= 8; turn++)
+            {
+                var choices = presenter.View.Player!.EncounterChoices;
+                if (choices.Count == 0 || choices.Any(choice => choice.Level != 5
+                    || choice.Kind == EncounterKind.Shop && choice.ShopLevel != 5)) return false;
+                var selected = choices.FirstOrDefault(choice => turn == 2 && choice.Kind == EncounterKind.Other)
+                    ?? choices.FirstOrDefault(choice => choice.Kind == EncounterKind.Shop) ?? choices[0];
+                kinds.Add(selected.Kind); presenter.ChooseEncounter(selected.Key);
+                if (presenter.View.EncounterLevel != 5) return false;
+                if (presenter.View.Page == MatchPage.Shop)
+                {
+                    if (presenter.View.ShopLevel != 5 || !presenter.View.Refresh.Text.Contains("10 金币")
+                        || presenter.View.Offers.Any(offer => offer.Card.Level > 5)) return false;
+                }
+                else if (presenter.View.Page == MatchPage.Event)
+                    presenter.ResolveEventOption(presenter.View.EventOptions[0].Key, presenter.View.EventRevision);
+                else if (presenter.View.Page == MatchPage.Preparation)
+                { presenter.StartBattle(); presenter.SkipPlayback(); }
+                presenter.ContinueMatch();
+            }
+            var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+            var session = new CreateMatchService(new EntityFactory()).Create(42, 100, new PaladinHeroDefinition());
+            var normal = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true);
+            if (normal.Generate(session).Value!.Any(choice => choice.Level == 5)) return false;
+            session.Progress.Turn = 4;
+            if (normal.Generate(session).Value!.Any(choice => choice.Level != registry.Monsters[choice.Key].Level)) return false;
+            session.Progress.Turn = 8;
+            return normal.Generate(session).Value!.Single().Level == 0 && kinds.Count == 4;
+        }
+        finally { owner.RemoveChild(scene); scene.Free(); }
+    }
+
     // 完整购买预检空间与余额；满盘合并可成功，失败与重复提交不留交易状态。
     public static bool CompletePurchases()
     {
@@ -669,14 +712,15 @@ internal static class PlaytestVerification
                 new TrainingGroundEncounterDefinition(), new PvpEncounterDefinition() }));
     }
 
-    internal static MatchPresenter CreatePresenter(bool mediumShop = false, IOpponentProvider? opponents = null)
+    internal static MatchPresenter CreatePresenter(bool mediumShop = false, IOpponentProvider? opponents = null,
+        int? encounterLevelOverride = null)
     {
         var registry = Registry(mediumShop);
         var factory = new EntityFactory();
         var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
         var economy = new CardEconomyService(factory, board, registry.Cards.Values);
         var game = new GameCoordinator(new CreateMatchService(factory),
-            new EncounterScheduler(registry, allowIncompleteMonsterChoices: true),
+            new EncounterScheduler(registry, allowIncompleteMonsterChoices: true, encounterLevelOverride: encounterLevelOverride),
             new StartBattleService(new BattleSetupFactory(registry.Sets), new CombatSimulator()),
             new MatchResultService(board));
         var presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(),

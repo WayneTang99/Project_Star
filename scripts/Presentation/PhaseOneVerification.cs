@@ -182,6 +182,11 @@ public sealed partial class PhaseOneVerification : Control
             ("狂暴仅加成发动与多重，不重复加成被动或周期伤害", CardStateChecks.BerserkActiveOnly),
             ("怪物与 PvP 使用注入的对手来源", PlaytestVerification.OpponentProviderInjection),
             ("固定战斗的结果、事件和回放状态保留基线", CombatTraceChecks.PreservesTraces),
+            ("三种旗帜身份、分级光环与攻击护甲治疗实际效果", StandardAuraChecks.LevelsAndEffects),
+            ("旗帜叠加、摧毁贡献扣除、敌方备战排除与冻结治疗显示", StandardAuraChecks.StackingAndRemoval),
+            ("圣殿骑士召唤物立即获得战意旗帜光环", StandardAuraChecks.SummonsReceiveAura),
+            ("军团旗帜手分级随机人类强化、筛选与战斗累加", StandardAuraChecks.StandardBearerBuff),
+            ("军团旗帜手同级随机旗帜召唤、边界占位与确定性", StandardAuraChecks.StandardBearerSummon),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),
@@ -198,6 +203,7 @@ public sealed partial class PhaseOneVerification : Control
             ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
             ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
             ("真实遭遇原画图卡选择、商店晶体与旧按钮解绑", () => PlaytestVerification.EncounterArtworkScene(this)),
+            ("测试关卡各类遭遇默认5级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
             ("四位英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
         ]));

@@ -20,11 +20,15 @@ public sealed class EncounterScheduler
 
     private readonly IDefinitionCatalog _registry;
     private readonly bool _allowIncompleteMonsterChoices;
+    private readonly int? _encounterLevelOverride;
 
-    public EncounterScheduler(IDefinitionCatalog registry, bool allowIncompleteMonsterChoices = false)
+    public EncounterScheduler(IDefinitionCatalog registry, bool allowIncompleteMonsterChoices = false,
+        int? encounterLevelOverride = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _allowIncompleteMonsterChoices = allowIncompleteMonsterChoices;
+        if (encounterLevelOverride is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(encounterLevelOverride));
+        _encounterLevelOverride = encounterLevelOverride;
     }
 
     public Result<IReadOnlyList<EncounterChoice>> Generate(MatchSession session)
@@ -136,19 +140,19 @@ public sealed class EncounterScheduler
         throw new InvalidOperationException("Weighted selection did not produce an encounter.");
     }
 
-    private static EncounterChoice ToChoice(EncounterDefinition definition) =>
+    private EncounterChoice ToChoice(EncounterDefinition definition) =>
         new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind)
         {
             Illustration = definition.Attributes.Identity.Illustration,
             Summary = definition.Attributes.Identity.Summary,
-            ShopLevel = definition is ShopEncounterDefinition shop ? shop.Level : 0,
-            Level = definition switch
+            ShopLevel = definition is ShopEncounterDefinition shop ? _encounterLevelOverride ?? shop.Level : 0,
+            Level = _encounterLevelOverride ?? (definition switch
             {
                 ShopEncounterDefinition value => value.Level,
                 ChoiceEncounterDefinition value => value.Level,
                 RegisteredMonsterEncounterDefinition value => value.Level,
                 _ => 0,
-            },
+            }),
         };
 
     private sealed class RegisteredMonsterEncounterDefinition : EncounterDefinition

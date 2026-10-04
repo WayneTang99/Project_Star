@@ -112,7 +112,7 @@ public sealed class MatchPresenter
             case EncounterKind.Shop:
                 _page = MatchPage.Shop;
                 _stock = _registry.Encounters[key] is ShopEncounterDefinition shop
-                    ? _shops.CreateStock(_player, shop, _registry.Cards.Values) : null;
+                    ? _shops.CreateStock(_player, shop, _registry.Cards.Values, choice.ShopLevel) : null;
                 _shopRevision++;
                 _message = _stock is null || _stock.Offers.Count == 0 ? "尚未配置正式卡牌内容。"
                     : "选择商品购买";

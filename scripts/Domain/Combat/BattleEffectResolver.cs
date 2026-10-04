@@ -46,6 +46,15 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Adjacent summon requires a card source.");
                 SummonAdjacentCard(runtime, summoner, summon);
                 break;
+            case SummonRandomAdjacentCardEffectDefinition randomSummon:
+                if (pending.Source is not CardBattleState randomSummoner)
+                    throw new InvalidOperationException("Adjacent summon requires a card source.");
+                var templates = randomSummon.Cards.Where(card => CanSummonAdjacentCard(runtime,
+                    randomSummoner, card, randomSummon.Side)).ToArray();
+                if (templates.Length > 0)
+                    SummonAdjacentCard(runtime, randomSummoner,
+                        new SummonAdjacentCardEffectDefinition(templates[runtime.NextRandomIndex(templates.Length)], randomSummon.Side));
+                break;
             case IncreaseSourceCardAttributeEffectDefinition increase:
                 if (pending.Source is not CardBattleState attributeSource)
                     throw new InvalidOperationException("Source attribute increase requires a card source.");
@@ -111,7 +120,8 @@ internal static class BattleEffectResolver
                 if (!pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case HealEffectDefinition heal:
-                hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + heal.Amount));
+                var healing = checked(heal.Amount + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.HealingBonus));
+                hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + healing));
                 break;
             case RestoreManaEffectDefinition restoreMana:
                 var restored = (int)System.Math.Min(restoreMana.Amount, (long)hero.MaxMana - hero.Mana);
@@ -205,14 +215,12 @@ internal static class BattleEffectResolver
                 }
                 break;
             case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
-                foreach (var card in runtime.Cards)
+                var targets = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
+                    && card.Tags.Contains(modifier.RequiredTag) && card.SupportsCombatAttribute(modifier.AttributeKey)).ToArray();
+                if (modifier.RandomSingleTarget && targets.Length > 0)
+                    targets = [targets[runtime.NextRandomIndex(targets.Length)]];
+                foreach (var card in targets)
                 {
-                    if (card.Side != pending.Source.Side || card.Destroyed || card.IsOnBench
-                        || !card.Tags.Contains(modifier.RequiredTag)
-                        || !card.SupportsCombatAttribute(modifier.AttributeKey))
-                    {
-                        continue;
-                    }
                     var currentValue = card.AddCombatAttribute(modifier.AttributeKey, modifier.Amount);
                     runtime.Events.Add(new CardAttributeChangedEvent(
                         runtime.Tick,
@@ -235,6 +243,9 @@ internal static class BattleEffectResolver
     internal static int GetEffectiveCombatAttribute(BattleRuntime runtime, IBattleAbilitySource source, StringName key)
     {
         var value = source.GetCombatAttribute(key);
+        if (source is CardBattleState target)
+            foreach (var aura in AlliedAttributeAuras(runtime, target))
+                if (aura.AttributeKey == key) value = checked(value + aura.Amount);
         foreach (var ability in source.Abilities)
         foreach (var effect in ability.Definition.Effects)
         {
@@ -287,6 +298,24 @@ internal static class BattleEffectResolver
                 && multiplier.AttributeKey == key && runtime.GetHero(Opposite(source.Side)).Armor > 0)
                 value = checked(value * multiplier.Multiplier);
         return value;
+    }
+
+    // 贡献只读取光环定义，不依赖其他卡牌最终值；来源失效后自然停止计入。
+    internal static System.Collections.Generic.IEnumerable<IncreaseAlliedCardAttributeAuraEffectDefinition> AlliedAttributeAuras(
+        BattleRuntime runtime, CardBattleState target)
+    {
+        if (target.Destroyed || target.IsOnBench) yield break;
+        foreach (var source in runtime.AbilitySources)
+        {
+            if (source.Destroyed || source.IsOnBench || source.Side != target.Side) continue;
+            foreach (var ability in source.Abilities)
+            {
+                if (ability.Definition.Activation != AbilityActivation.PassiveAura) continue;
+                foreach (var effect in ability.Definition.Effects)
+                    if (effect is IncreaseAlliedCardAttributeAuraEffectDefinition aura
+                        && target.SupportsCombatAttribute(aura.AttributeKey)) yield return aura;
+            }
+        }
     }
 
     // 为事件与回放提供强类型能力来源标识。
@@ -351,6 +380,17 @@ internal static class BattleEffectResolver
         runtime.Events.Add(new CardTransformedEvent(runtime.Tick, source.EntityId, target.EntityId, identity.Key));
     }
 
+    // 先验证等级、边界和占位，失败时不消耗随机数。
+    private static bool CanSummonAdjacentCard(BattleRuntime runtime, CardBattleState source,
+        CardDefinition definition, AdjacentCardSide side)
+    {
+        var size = definition.Attributes.Identity.OccupiedSlots;
+        var start = side == AdjacentCardSide.Left ? source.BoardStart - size : source.BoardStart + source.OccupiedSlots;
+        return definition.SupportsLevel(source.Level) && start >= 0 && start + size <= runtime.GetBattlefieldCapacity(source.Side)
+            && !runtime.Cards.Any(card => card.Side == source.Side && !card.IsOnBench
+                && card.BoardStart < start + size && start < card.BoardStart + card.OccupiedSlots);
+    }
+
     private static void SummonAdjacentCard(BattleRuntime runtime, CardBattleState source,
         SummonAdjacentCardEffectDefinition effect)
     {
@@ -358,9 +398,7 @@ internal static class BattleEffectResolver
         var identity = definition.Attributes.Identity;
         var size = identity.OccupiedSlots;
         var start = effect.Side == AdjacentCardSide.Left ? source.BoardStart - size : source.BoardStart + source.OccupiedSlots;
-        if (!definition.SupportsLevel(source.Level) || start < 0 || start + size > runtime.GetBattlefieldCapacity(source.Side)
-            || runtime.Cards.Any(card => card.Side == source.Side && !card.IsOnBench
-                && card.BoardStart < start + size && start < card.BoardStart + card.OccupiedSlots)) return;
+        if (!CanSummonAdjacentCard(runtime, source, definition, effect.Side)) return;
         var level = definition.GetLevel(source.Level);
         var values = definition.Attributes.BaseCombat.CreateMutableCopy();
         if (level is not null)

@@ -60,10 +60,13 @@ public sealed class ShopCardPoolService
     public ShopStock CreateStock(
         MatchSession session,
         ShopEncounterDefinition shop,
-        IEnumerable<CardDefinition> definitions)
+        IEnumerable<CardDefinition> definitions,
+        int? shopLevelOverride = null)
     {
-        var cards = GetEligibleCards(session, shop, definitions);
-        return new ShopStock(cards, DrawOffers(session, cards), GetRefreshCost(shop.Level));
+        var level = shopLevelOverride ?? shop.Level;
+        var refreshCost = GetRefreshCost(level);
+        var cards = GetEligibleCards(session, shop, definitions, level);
+        return new ShopStock(cards, DrawOffers(session, cards), refreshCost);
     }
 
     // 支付费用并执行本次商店唯一一次刷新。
@@ -100,6 +103,7 @@ public sealed class ShopCardPoolService
         2 => 4,
         3 => 6,
         4 => 8,
+        5 => 10,
         _ => throw new ArgumentOutOfRangeException(nameof(shopLevel)),
     };
 
@@ -107,18 +111,21 @@ public sealed class ShopCardPoolService
     public IReadOnlyList<CardDefinition> GetEligibleCards(
         MatchSession session,
         ShopEncounterDefinition shop,
-        IEnumerable<CardDefinition> definitions)
+        IEnumerable<CardDefinition> definitions,
+        int? shopLevelOverride = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(shop);
         ArgumentNullException.ThrowIfNull(definitions);
+        var level = shopLevelOverride ?? shop.Level;
+        if (level < 1) throw new ArgumentOutOfRangeException(nameof(shopLevelOverride));
         var hero = session.Player.Hero;
         if (hero is null) return Array.Empty<CardDefinition>();
 
         return definitions
             .Where(card => card.Attributes.Identity.FactionKey == hero.Attributes.Identity.FactionKey
                 && card.Attributes.Identity.Size == shop.CardSize
-                && card.InitialLevel <= shop.Level)
+                && card.InitialLevel <= level)
             .OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList()
             .AsReadOnly();
