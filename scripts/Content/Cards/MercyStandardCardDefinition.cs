@@ -11,7 +11,8 @@ public sealed class MercyStandardCardDefinition : CardDefinition
     public MercyStandardCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.mercy_standard"), "怜悯旗帜", new StringName("paladin"),
-                CardSize.Small, [GameElements.General], descriptionEntries:
+                CardSize.Small, [GameElements.General],
+                illustration: new StringName("res://art/ui/card-face/artwork/mercy_standard-illustration.png"), descriptionEntries:
                 [new(CardKeywords.Aura, "己方存活战场卡牌治疗+20/40/80，包含自身；多张可叠加，此卡牌被摧毁后失效。")])),
             new TagSet(), initialLevel: 2, levels: [CreateLevel(2, 20), CreateLevel(3, 40), CreateLevel(4, 80)]) { }
 

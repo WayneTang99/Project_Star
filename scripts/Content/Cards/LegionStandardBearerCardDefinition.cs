@@ -12,7 +12,8 @@ public sealed class LegionStandardBearerCardDefinition : CardDefinition
     public LegionStandardBearerCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.legion_standard_bearer"), "军团旗帜手", new StringName("paladin"),
-                CardSize.Small, [GameElements.General], descriptionEntries:
+                CardSize.Small, [GameElements.General],
+                illustration: new StringName("res://art/ui/card-face/artwork/legion_standard_bearer-illustration-v2.png"), descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却6秒，随机一张具备攻击能力的己方存活战场人类卡牌攻击+10/20/40，可叠加，仅本场战斗有效。"),
                     new(CardKeywords.Summon, "战斗开始时，若左侧紧邻空位可用，随机召唤一张同级战意旗帜、守护旗帜或怜悯旗帜。"),

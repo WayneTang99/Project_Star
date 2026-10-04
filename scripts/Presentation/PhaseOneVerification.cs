@@ -187,6 +187,7 @@ public sealed partial class PhaseOneVerification : Control
             ("圣殿骑士召唤物立即获得战意旗帜光环", StandardAuraChecks.SummonsReceiveAura),
             ("军团旗帜手分级随机人类强化、筛选与战斗累加", StandardAuraChecks.StandardBearerBuff),
             ("军团旗帜手同级随机旗帜召唤、边界占位与确定性", StandardAuraChecks.StandardBearerSummon),
+            ("秩序板甲分级护甲、随机单张迟缓、累加与无目标发动", OrderPlateArmorChecks.ArmorAndSlow),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),

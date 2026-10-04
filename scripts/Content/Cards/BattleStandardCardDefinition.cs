@@ -11,7 +11,8 @@ public sealed class BattleStandardCardDefinition : CardDefinition
     public BattleStandardCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.battle_standard"), "战意旗帜", new StringName("paladin"),
-                CardSize.Small, [GameElements.General], descriptionEntries:
+                CardSize.Small, [GameElements.General],
+                illustration: new StringName("res://art/ui/card-face/artwork/battle_standard-illustration.png"), descriptionEntries:
                 [new(CardKeywords.Aura, "己方存活战场卡牌攻击+20/40/80，包含自身；多张可叠加，此卡牌被摧毁后失效。")])),
             new TagSet(), initialLevel: 2, levels: [CreateLevel(2, 20), CreateLevel(3, 40), CreateLevel(4, 80)]) { }
 
