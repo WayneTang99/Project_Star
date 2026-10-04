@@ -192,6 +192,13 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Source card charge requires a card source.");
                 ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks);
                 break;
+            case ChargeTaggedAlliedCardsEffectDefinition taggedCharge:
+                if (pending.Source is not CardBattleState taggedChargeSource)
+                    throw new InvalidOperationException("Tagged allied charge requires a card source.");
+                foreach (var target in runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed
+                    && !card.IsOnBench && HasEffectiveTag(runtime, card, taggedCharge.RequiredTag)).ToArray())
+                    ChargeCard(runtime, taggedChargeSource, target, taggedCharge.AmountTicks);
+                break;
             case DestroyCardEffectDefinition destroy:
                 if (pending.Source is not CardBattleState destroySource)
                     throw new InvalidOperationException("Self-destruction requires a card source.");

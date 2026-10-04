@@ -18,6 +18,7 @@ public static class GameTags
     public static readonly StringName Demon = new("Demon");
     public static readonly StringName Undead = new("Undead");
     public static readonly StringName Location = new("Location");
+    public static readonly StringName Plant = new("Plant");
 
     public static StringName FromSize(CardSize size) => size switch
     {

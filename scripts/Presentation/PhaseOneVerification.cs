@@ -190,6 +190,8 @@ public sealed partial class PhaseOneVerification : Control
             ("秩序板甲分级护甲、随机单张迟缓、累加与无目标发动", OrderPlateArmorChecks.ArmorAndSlow),
             ("光辉旗帜分级冷却、光属性筛选与冻结回放", RadiantStandardChecks.LevelsAndFiltering),
             ("光辉旗帜百分比叠加、来源失效与永久倍率组合", RadiantStandardChecks.StackingRemovalAndMultiplier),
+            ("麦田分级、全体人类充能、即时发动及多重回响", WheatFieldChecks.LevelsAndCharge),
+            ("麦田人类疾速回响加速冷却与目标过滤", WheatFieldChecks.EchoAcceleratesCooldown),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),

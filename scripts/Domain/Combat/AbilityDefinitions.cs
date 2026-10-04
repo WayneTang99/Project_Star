@@ -113,6 +113,9 @@ public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
 // 缩短来源卡牌主动能力的剩余冷却（领域战斗层）。
 public sealed record ChargeSourceCardEffectDefinition(int AmountTicks) : EffectDefinition;
 
+// 按标签为己方存活战场卡牌充能，复用主动能力冷却结算。
+public sealed record ChargeTaggedAlliedCardsEffectDefinition(StringName RequiredTag, int AmountTicks) : EffectDefinition;
+
 // 使敌方指定尺寸卡牌在战斗中获得标签（领域战斗层）。
 public sealed record GrantTagToEnemySizeCardsEffectDefinition(CardSize Size, StringName Tag)
     : EffectDefinition;
@@ -248,6 +251,9 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is ChargeTaggedAlliedCardsEffectDefinition taggedCharge
+                && (taggedCharge.RequiredTag.IsEmpty || taggedCharge.AmountTicks < 1 || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Tagged allied charge requires a tag, positive amount and an executed ability.", nameof(effects));
             if (effect is ReduceAlliedElementCardCooldownAuraEffectDefinition reduction
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
                     || reduction.ElementKey.IsEmpty || reduction.Percent is < 1 or > 100))
