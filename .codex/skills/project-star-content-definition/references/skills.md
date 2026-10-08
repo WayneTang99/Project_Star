@@ -16,3 +16,4 @@
 - 效果优先组合已有通用效果；技能来源必须能通过战斗快照独立结算。
 - 新技能应生成 `scripts/Content/Skills/<Name>SkillDefinition.cs` 及对应 `.cs.uid`，身份、数值、描述与能力只在 Definition 中维护；字段或规则变化时更新 `CONTENT_DATA.md`。
 - 验证至少覆盖逐级数值、正确触发次数、目标和最终结果。
+- 改归属、key、初始或支持等级时检查导师候选池影响；导师可能按分类筛选而不直接引用技能 key。导师维护见 [mentors.md](mentors.md)。

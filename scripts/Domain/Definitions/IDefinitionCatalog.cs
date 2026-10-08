@@ -12,5 +12,6 @@ public interface IDefinitionCatalog
     IReadOnlyDictionary<StringName, SkillDefinition> Skills { get; }
     IReadOnlyDictionary<StringName, EncounterDefinition> Encounters { get; }
     IReadOnlyDictionary<StringName, MonsterDefinition> Monsters { get; }
+    IReadOnlyDictionary<StringName, MentorDefinition> Mentors { get; }
     IReadOnlyDictionary<StringName, GemDefinition> Gems { get; }
 }

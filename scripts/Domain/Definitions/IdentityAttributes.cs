@@ -137,6 +137,20 @@ public sealed class EncounterIdentityAttributes : IdentityAttributes
     public string Summary { get; }
 }
 
+// 导师只读身份与展示信息（领域定义层）。
+public sealed class MentorIdentityAttributes : IdentityAttributes
+{
+    public MentorIdentityAttributes(StringName key, string displayName, StringName? illustration = null, string summary = "")
+        : base(key, displayName)
+    {
+        Illustration = illustration ?? new StringName("");
+        Summary = summary ?? throw new ArgumentNullException(nameof(summary));
+    }
+
+    public StringName Illustration { get; }
+    public string Summary { get; }
+}
+
 // 怪物只读身份字段（领域定义层）。
 public sealed class MonsterIdentityAttributes : IdentityAttributes
 {

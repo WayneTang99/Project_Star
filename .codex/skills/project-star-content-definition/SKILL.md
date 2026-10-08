@@ -1,6 +1,6 @@
 ---
 name: project-star-content-definition
-description: Query, add, update, or remove Project Star cards, skills, encounters, monsters, heroes, and card sets. Use for listing or filtering existing gameplay content, retrieving identity and level data, comparing definitions, and implementing content changes with dependency checks and focused verification. Excludes unrelated engine, UI, Git, and bug-fix work.
+description: Query, add, update, or remove Project Star cards, skills, mentors, encounters, monsters, heroes, and card sets. Use for listing or filtering existing gameplay content, retrieving identity and level data, comparing definitions, and implementing content changes with dependency checks and focused verification. Excludes unrelated engine, UI, Git, and bug-fix work.
 ---
 
 # Project Star 内容增删改查
@@ -22,6 +22,7 @@ description: Query, add, update, or remove Project Star cards, skills, encounter
 |---|---|---|
 | 卡牌、套装 | scripts/Content/Cards/、scripts/Content/Sets/ | [references/cards.md](references/cards.md) |
 | 技能 | scripts/Content/Skills/ | [references/skills.md](references/skills.md) |
+| 导师 | scripts/Content/Mentors/ | [references/mentors.md](references/mentors.md) |
 | 遭遇 | scripts/Content/Encounters/ | [references/encounters.md](references/encounters.md) |
 | 怪物、英雄 | scripts/Content/Monsters/、scripts/Content/Heroes/ | [references/actors.md](references/actors.md) |
 
@@ -32,7 +33,7 @@ description: Query, add, update, or remove Project Star cards, skills, encounter
 - 用户约定：新定义的卡牌默认同时生成并接入原画；仅在用户明确说明不需要时跳过。使用项目卡牌原画 Skill 和内置图像工具，按 Definition 尺寸生成并验证。
 - 用展示名或完整 StringName key 定位；有同名或多个候选时先列出候选。重命名展示名与更改 key 是两个不同操作。
 - 具体身份、等级数值、描述和能力组合只维护在 Definition。文档记录通用规则；规则变化时同步更新权威文档，不重新建立手工数据清单。
-- 显示中文名，key 使用 card.、ability.、skill.、encounter.、monster.、hero.、set. 前缀。新术语/标签同步术语表和代码名称映射。
+- 显示中文名，key 使用 card.、ability.、skill.、mentor.、encounter.、monster.、hero.、set. 前缀。新术语/标签同步术语表和代码名称映射。
 - 斜杠分级数值从初始等级开始到4级，具体约定见 CONTENT_DATA.md。数值存于等级配置，成长效果读取属性；同步修改同一行为的描述，保留未请求改变的等级。
 - 复用通用 Ability / Effect / 对局结算定义；现有组合无法表达时才添加可复用机制，不在服务、模拟器或 UI 中按卡牌 key 分支。
 - 新定义及 .cs.uid 放入对应 scripts/Content/ 目录。DefinitionRegistry.Scan 扫描公开、非抽象、无参构造的定义，不需要中央注册表手工登记。一个文件可能定义多个内容，文件数量不等于内容数量。
@@ -41,9 +42,9 @@ description: Query, add, update, or remove Project Star cards, skills, encounter
 
 ## 修改 key 和删除
 
-1. 用 rg -n -F 搜索完整 key 和定义类名，检查运行引用、怪物卡组/技能、套装、遭遇奖励及验证；再查场景、资源和文档中的实际路径引用。
+1. 用 rg -n -F 搜索完整 key 和定义类名，检查运行引用、怪物卡组/技能、导师筛选及遭遇包装、套装、遭遇奖励及验证；再查场景、资源和文档中的实际路径引用。
 2. 区分真实内容依赖与通用分类筛选。删除一张卡不应删除通用属性、标签、能力或共用插画；技能和其他怪物可能仍使用它们。
-3. 用户只要求删内容时，可以移除该内容专属的验证与注册项。若怪物卡组、固定奖励或其他仍保留的玩法依赖它，先列出实际依赖并确定替代/移除方式，不自动级联删除其他内容。
+3. 用户只要求删内容时，可以移除该内容专属的验证与注册项。若怪物卡组、导师遭遇包装、固定奖励或其他仍保留的玩法依赖它，先列出实际依赖并确定替代/移除方式，不自动级联删除其他内容。
 4. 按已确定的范围修改引用；更改 key 时同步所有实际引用。删除单独文件及对应 .cs.uid，共享文件保留其他定义。资源清理仅在请求范围内进行，先确认无消费者。
 5. 通过注册校验和回归确认没有遗留引用；报告删除或修改的对象，以及受影响的内容。
 

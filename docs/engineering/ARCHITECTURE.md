@@ -10,7 +10,7 @@
 | Application | 创建对局、经济、棋盘、遭遇、奖励和战斗结算用例；协调完整事务，返回 Result 与 Snapshot |
 | Infrastructure | 定义反射扫描/校验、确定性随机和外部适配实现 |
 | Presentation | 服务组装、输入、只读 ViewModel、资源加载与 Godot 生命周期 |
-| Content | 独立的英雄、卡牌、技能、遭遇、怪物与套装定义，组合通用能力 |
+| Content | 独立的英雄、卡牌、技能、遭遇、怪物、导师与套装定义，组合通用能力 |
 
 所有代码和对应 `.cs.uid` 位于 `scripts/` 下的五层目录，层内按业务职责组织。Application 的内容访问依赖领域只读 `IDefinitionCatalog`；`DefinitionRegistry` 实现该契约并负责扫描与校验。具体基础设施在入口组装，UI 流程接收对手来源接口。当前 SeededRandom 是应用与战斗共用的确定性实现，保持显式 seed/状态；其他外部适配在出现实际替换需求时再引入契约。
 
@@ -31,7 +31,7 @@ DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；�
 
 | 扩展需求 | 入口 |
 |---|---|
-| 新英雄/卡牌/技能/怪物/遭遇/套装 | Content 下独立 Definition + 验证；不增加中央内容注册 switch |
+| 新英雄/卡牌/技能/怪物/导师/遭遇/套装 | Content 下独立 Definition + 验证；不增加中央内容注册 switch |
 | 新卡牌行为 | 组合通用 AbilityDefinition / EffectDefinition；组合无法表达时才添加可复用机制 |
 | 新战斗效果 | BattleEffectResolver 与通用效果数据，更新行为和顺序验证 |
 | 新对手来源 | 实现 IOpponentProvider，在试玩入口注入；流程不创建具体 Provider |
@@ -51,6 +51,8 @@ Definition 的维护和行为验证见 [内容数据规范](../design/CONTENT_DA
 - RoundIncomeService 在生成新轮遭遇前结算，并按轮次保证幂等；第一轮在创建对局后结算。
 - EncounterScheduler 稳定过滤/抽取候选，保存候选出现历史与随机状态。MonsterDefinition 自动投影为怪物遭遇；试玩允许内容不足三个，正式排程保持严格。
 - ResolveEncounterOptionService 创建本次固定/加权选项，一次性选择成功后提交通用效果。MonsterRewardClaimService 只在领取成功后移除奖励。
+- MentorService 独立开启导师访问，复用 SkillAcquisitionService 领取与合并。MentorDefinition 只保存身份、默认等级和纯筛选入口；MentorEncounterDefinition 显式引用导师，排程不自动将导师投影为遭遇。遭遇候选等级传入访问，独立访问使用导师默认等级。
+- MatchSession 拥有 ActiveMentorVisit 及其固定只读候选、等级和完成状态；失败不关闭选择，不重抽。领取校验当前对局持有的访问引用，拒绝跨局、旧访问和重复领取；MatchSnapshot 冻结导师访问，Presenter 仅持有访问句柄，视图不接收可变访问对象。
 
 失败不得留下扣款但没有卡牌、源棋盘移除但目标未加入等部分状态。同一实例只位于一个区域，棋盘实例必须属于本局卡池。外部读取用复制的 Snapshot / ViewModel，不暴露可变集合给 UI。
 

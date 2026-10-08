@@ -1,4 +1,4 @@
 interface:
   display_name: "Project Star 内容增删改查"
-  short_description: "查询、添加、修改和删除现有游戏内容，并检查引用与验证效果"
+  short_description: "查询和维护卡牌、技能、导师等游戏内容，检查引用并验证效果"
   default_prompt: "使用 $project-star-content-definition 查询或维护 Project Star 的游戏内容，并按我的请求处理数据、引用和验证。"

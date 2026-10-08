@@ -46,6 +46,8 @@ public sealed class MatchSession
 
     public int PendingBattleMaxHealthBonus => _pendingBattleMaxHealthBonus;
 
+    public MentorVisit? ActiveMentorVisit { get; internal set; }
+
     internal void AddPendingBattleMaxHealthBonus(int amount)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);

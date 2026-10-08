@@ -8,6 +8,7 @@ using Project_Star.Application.Economy;
 using Project_Star.Application.Encounters;
 using Project_Star.Application.Factories;
 using Project_Star.Application.Match;
+using Project_Star.Application.Mentors;
 using Project_Star.Content.Cards;
 using Project_Star.Content.Encounters;
 using Project_Star.Content.Heroes;
@@ -725,6 +726,7 @@ internal static class PlaytestVerification
             new MatchResultService(board));
         var presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(),
             new ResolveEncounterOptionService(factory, board, registry.Cards.Values),
+            new MentorService(registry, new SkillAcquisitionService(factory)),
             new MonsterRewardClaimService(registry, economy, new SkillAcquisitionService(factory), board), game,
             opponents ?? new LocalTestOpponentProvider(registry));
         presenter.Reset();

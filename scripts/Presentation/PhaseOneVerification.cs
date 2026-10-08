@@ -93,6 +93,12 @@ public sealed partial class PhaseOneVerification : Control
             ("移出棋盘后卡牌可以出售", BoardChecks.CheckRemoveThenSell),
         ]),
         new("遭遇与轮次结算", [
+            ("大主教从1级传授圣骑士技能，排除其他归属并随访问等级成长", MentorChecks.Archbishop),
+            ("导师独立注册且遭遇引用校验拒绝未知导师", MentorChecks.Definitions),
+            ("导师按不同规则筛选并按自身等级授予技能", MentorChecks.FilteringAndLevels),
+            ("导师候选确定且不重复，空池不推进随机，旧快照冻结", MentorChecks.DeterministicChoices),
+            ("导师领取沿用合并并拒绝重复、跨局、过期和终局操作", MentorChecks.ClaimAndIsolation),
+            ("导师遭遇等级传入选择和技能，刷新及重开不重复领取", MentorChecks.EncounterFlow),
             ("野猪使用默认属性并携带三张1级卡牌和1级冲撞", EncounterChecks.CheckBoarMonsterDefinition),
             ("校场按定义永久提升英雄生命或战场卡牌攻击", EncounterChecks.CheckTrainingGround),
             ("垃圾场固定展示零钱与材料选项并结算奖励", EncounterChecks.CheckLandfill),
@@ -194,6 +200,7 @@ public sealed partial class PhaseOneVerification : Control
             ("麦田人类疾速回响加速冷却与目标过滤", WheatFieldChecks.EchoAcceleratesCooldown),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("导师技能选项真实渲染、完整提示与旧按钮解绑正确", () => MentorChecks.RenderedChoices(this)),
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),
             ("上方拖拽出售贯穿真实入口、奖励、失效与战斗限制", () => DragSaleChecks.Transactions(this)),
             ("真实场景事件刷新、敌方可见性与重开事件连接", () => PlaytestVerification.RenderedScene(this)),
@@ -238,6 +245,12 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-mentors"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MentorChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--verify"))
             Callable.From(() =>
             {

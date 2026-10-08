@@ -53,4 +53,4 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | docs/quality/MANUAL_ACCEPTANCE.md | 验证入口、当前证据与人工矩阵 | 验证试玩 |
 | docs/quality/BUG_LOG.md | BUG 编号、根因、修复和状态 | 发现和修复 BUG |
 
-正式内容以 scripts/Content/ 下的 C# Definition 为唯一数据来源，按 Cards、Skills、Heroes、Encounters、Monsters 和 Sets 分类。Markdown 解释规则，不重复维护具体内容数据。现行规则只在上述权威位置维护，已完成计划的过程记录由 Git 保存。
+正式内容以 scripts/Content/ 下的 C# Definition 为唯一数据来源，按 Cards、Skills、Heroes、Encounters、Monsters、Mentors 和 Sets 分类。Markdown 解释规则，不重复维护具体内容数据。现行规则只在上述权威位置维护，已完成计划的过程记录由 Git 保存。

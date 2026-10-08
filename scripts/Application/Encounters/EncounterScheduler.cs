@@ -150,6 +150,7 @@ public sealed class EncounterScheduler
             {
                 ShopEncounterDefinition value => value.Level,
                 ChoiceEncounterDefinition value => value.Level,
+                MentorEncounterDefinition value => value.Level,
                 RegisteredMonsterEncounterDefinition value => value.Level,
                 _ => 0,
             }),

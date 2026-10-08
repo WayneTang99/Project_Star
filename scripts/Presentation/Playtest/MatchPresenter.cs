@@ -6,6 +6,7 @@ using Project_Star.Application.Board;
 using Project_Star.Application.Economy;
 using Project_Star.Application.Encounters;
 using Project_Star.Application.Match;
+using Project_Star.Application.Mentors;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
@@ -21,6 +22,7 @@ public sealed class MatchPresenter
     private readonly CardEconomyService _economy;
     private readonly ShopCardPoolService _shops;
     private readonly ResolveEncounterOptionService _events;
+    private readonly MentorService _mentors;
     private readonly MonsterRewardClaimService _rewards;
     private readonly GameCoordinator _game;
     private readonly IOpponentProvider _opponents;
@@ -28,6 +30,7 @@ public sealed class MatchPresenter
     private MatchSession? _enemy;
     private ShopStock? _stock;
     private EncounterOptionSet? _options;
+    private MentorVisit? _mentorVisit;
     private MatchBattleKind _battleKind;
     private int _battleRound;
     private MatchPage _page;
@@ -46,11 +49,12 @@ public sealed class MatchPresenter
     private BattlePlaybackPresenter? _playback;
 
     public MatchPresenter(IDefinitionCatalog registry, BoardService board, CardEconomyService economy,
-        ShopCardPoolService shops, ResolveEncounterOptionService events,
+        ShopCardPoolService shops, ResolveEncounterOptionService events, MentorService mentors,
         MonsterRewardClaimService rewards, GameCoordinator game, IOpponentProvider opponents)
     {
         _registry = registry; _board = board; _economy = economy;
         _shops = shops; _events = events; _rewards = rewards; _game = game;
+        _mentors = mentors;
         _opponents = opponents ?? throw new ArgumentNullException(nameof(opponents));
     }
 
@@ -62,6 +66,7 @@ public sealed class MatchPresenter
     public void Reset() => Execute(() =>
     {
         _player = null; _enemy = null; _stock = null; _options = null; _selected = null;
+        _mentorVisit = null;
         _playback = null;
         _shopRevision++; _eventRevision++; _rewardRevision++; _eventCompleted = false; _battleLog = "";
         _encounterIllustration = new StringName("");
@@ -83,6 +88,7 @@ public sealed class MatchPresenter
     {
         if (_player is null) return;
         _enemy = null; _stock = null; _options = null; _selected = null;
+        _mentorVisit = null;
         _playback = null;
         _shopRevision++; _eventRevision++; _battleLog = "";
         _page = MatchPage.EncounterChoice;
@@ -128,6 +134,15 @@ public sealed class MatchPresenter
                 break;
             default:
                 _page = MatchPage.Event;
+                if (_registry.Encounters[key] is MentorEncounterDefinition mentorEncounter)
+                {
+                    var opened = _mentors.Open(_player, mentorEncounter.MentorKey, choice.Level);
+                    _mentorVisit = opened.IsSuccess ? opened.Value : null;
+                    _eventRevision++; _eventCompleted = _mentorVisit is null || _mentorVisit.IsResolved;
+                    _message = opened.IsFailure ? opened.Failure!.Message
+                        : _eventCompleted ? "导师目前没有可传授的技能。" : "选择一个技能。";
+                    break;
+                }
                 _options = _registry.Encounters[key] is ChoiceEncounterDefinition encounter
                     ? _events.CreateOptionSet(_player, encounter) : null;
                 _eventRevision++; _eventCompleted = _options is null;
@@ -157,7 +172,16 @@ public sealed class MatchPresenter
     public void ResolveEventOption(StringName key, long revision) => Execute(() =>
     {
         if (_player is null || _page != MatchPage.Event || _eventCompleted
-            || _options is null || revision != _eventRevision) return;
+            || revision != _eventRevision) return;
+        if (_mentorVisit is not null)
+        {
+            var acquired = _mentors.ChooseSkill(_player, _mentorVisit, key);
+            if (acquired.IsFailure) { _message = acquired.Failure!.Message; return; }
+            _eventCompleted = true;
+            _message = $"已获得 {acquired.Value!.Skill.Attributes.Identity.DisplayName}（{acquired.Value.CurrentLevel}级）。";
+            return;
+        }
+        if (_options is null) return;
         var result = _events.Resolve(_player, _options, key);
         if (result.IsFailure) { _message = result.Failure!.Message; return; }
         _eventCompleted = true;
@@ -335,6 +359,13 @@ public sealed class MatchPresenter
         var options = _page != MatchPage.Event || _eventCompleted || _options is null ? Array.Empty<KeyedAction>()
             : _options.Options.Select(option => new KeyedAction(option.Key, new UiAction(option.DisplayName))
                 { Subtitle = PlaytestText.FormatOption(option, player?.Hero?.Level ?? 1) }).ToArray();
+        if (_page == MatchPage.Event && !_eventCompleted && player?.MentorVisit is { IsResolved: false } mentorVisit)
+            options = mentorVisit.Offers.Select(offer =>
+            {
+                var skill = MatchDisplayQuery.FromSkill(_registry.Skills[offer.SkillKey], offer.Level);
+                return new KeyedAction(offer.SkillKey, new UiAction($"{offer.DisplayName} · {offer.Level}级"))
+                    { Subtitle = CardDisplayAdapter.AbilityDetails(skill.Abilities, skill.CurrentValues).Replace("\n", " · ") };
+            }).ToArray();
         var canContinue = _page is MatchPage.Shop or MatchPage.BattleResult or MatchPage.MatchEnded
             || _page == MatchPage.Event && _eventCompleted;
         var refreshReason = _stock is null || _player is null ? "本次商店不可刷新"

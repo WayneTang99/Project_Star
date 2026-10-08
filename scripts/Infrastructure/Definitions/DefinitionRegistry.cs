@@ -18,7 +18,8 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         Dictionary<StringName, SkillDefinition> skills,
         Dictionary<StringName, EncounterDefinition> encounters,
         Dictionary<StringName, MonsterDefinition> monsters,
-        Dictionary<StringName, GemDefinition> gems)
+        Dictionary<StringName, GemDefinition> gems,
+        Dictionary<StringName, MentorDefinition> mentors)
     {
         Heroes = heroes;
         Cards = cards;
@@ -27,6 +28,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         Encounters = encounters;
         Monsters = monsters;
         Gems = gems;
+        Mentors = mentors;
     }
 
     public IReadOnlyDictionary<StringName, HeroDefinition> Heroes { get; }
@@ -41,6 +43,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
 
     public IReadOnlyDictionary<StringName, MonsterDefinition> Monsters { get; }
     public IReadOnlyDictionary<StringName, GemDefinition> Gems { get; }
+    public IReadOnlyDictionary<StringName, MentorDefinition> Mentors { get; }
 
     public static DefinitionRegistry Scan(Assembly assembly)
     {
@@ -82,11 +85,15 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         var encounters = new Dictionary<StringName, EncounterDefinition>();
         var monsters = new Dictionary<StringName, MonsterDefinition>();
         var gems = new Dictionary<StringName, GemDefinition>();
+        var mentors = new Dictionary<StringName, MentorDefinition>();
 
         foreach (var definition in definitions)
         {
             switch (definition)
             {
+                case MentorDefinition mentor:
+                    AddUnique(mentors, mentor.Attributes.Identity.Key, mentor, "mentor");
+                    break;
                 case GemDefinition gem:
                     AddUnique(gems, gem.Attributes.Identity.Key, gem, "gem");
                     break;
@@ -120,7 +127,11 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         ValidateSummons(cards);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
-        return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters, gems);
+        foreach (var encounter in encounters.Values)
+            if (encounter is MentorEncounterDefinition mentorEncounter && !mentors.ContainsKey(mentorEncounter.MentorKey))
+                throw new DefinitionValidationException(
+                    $"Encounter '{encounter.Attributes.Identity.Key}' references unknown mentor '{mentorEncounter.MentorKey}'.");
+        return new DefinitionRegistry(heroes, cards, sets, skills, encounters, monsters, gems, mentors);
     }
 
     private static bool IsDefinitionType(Type type) =>
@@ -130,6 +141,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         || typeof(SkillDefinition).IsAssignableFrom(type)
         || typeof(EncounterDefinition).IsAssignableFrom(type)
         || typeof(MonsterDefinition).IsAssignableFrom(type)
+        || typeof(MentorDefinition).IsAssignableFrom(type)
         || typeof(GemDefinition).IsAssignableFrom(type);
 
     // 校验转变使用的替换卡定义存在于正式目录。

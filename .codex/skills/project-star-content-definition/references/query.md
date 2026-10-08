@@ -22,6 +22,7 @@ rg -n -F -- 'card.black_rhinoceros_beetle' scripts
 - **单项详情**：给身份、初始和支持等级、用户指定等级的数值、冷却/魔法消耗、词条与效果、任务/获得/出售行为；区分哪些值随等级变化。
 - **等级比较**：横向列支持等级的实际数值，保持效果目标、触发及限制可见。只查询2级时不默认输出全部等级。
 - **引用查询**：区分“这个内容依赖什么”和“哪些内容依赖它”；搜索 key、类名和实际资源路径。通用标签筛选是分类关系，不等于固定引用。
+- **导师查询**：读取默认 `Level` 与 `CanOfferSkill`，按所查等级排除不支持该等级的技能，再列实际候选池；导师定义和遭遇包装分别查询，细节见 [mentors.md](mentors.md)。
 
 输出表格是本次查询结果，不写入新的正式数据文件。用户要求导出时才保存派生结果，并标明来源、查询条件和对应工作树版本；下次从 Definition 重新生成。
 
@@ -33,6 +34,8 @@ rg -n -F -- 'card.black_rhinoceros_beetle' scripts
 | 某等级的卡牌/技能初值 | 通用基础值叠加该等级的 `BaseCombatValues`；等级能力有配置时覆盖定义能力，沿用 `EntityFactory` 的实际逻辑 |
 | 购买价、初始价值、获得后价值 | `CardValueCalculator`、`ShopOffer` 和获得用例，区分这三个概念 |
 | 当前对局卡牌数值与任务进度 | 实际 `MatchSession` 经 `MatchSnapshot` / `MatchDisplayQuery` 生成的快照 |
+| 导师默认等级与可选池 | `MentorDefinition.Level`、`CanOfferSkill` 与正式技能支持等级；遭遇访问使用包装等级 |
+| 本次导师等级、已抽出的技能与领取状态 | 实际 `MatchSnapshot.MentorVisit`；候选池查询不能替代访问快照 |
 | 当前战斗的剩余冷却、状态和临时数值 | 实际冻结的 `BattleStateSnapshot` 与回放投影 |
 
 源码查询可以给初值和规则，不能据此声称读到了用户正在玩的对局。没有实际对局/战斗快照时，明确返回“定义值”，不猜测临时加成、当前财富或剩余冷却。

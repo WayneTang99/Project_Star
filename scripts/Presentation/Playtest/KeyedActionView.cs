@@ -37,7 +37,7 @@ public sealed partial class KeyedActionView : Control
                     + (action.Subtitle.Length > 0 ? "\n" + action.Subtitle : ""),
                 Visible = action.Action.Visible, Disabled = !action.Action.Enabled, ClipText = true,
                 CustomMinimumSize = new Vector2(0, 56),
-                TooltipText = action.Action.Text + "\n" + action.Action.Reason };
+                TooltipText = action.Action.Text + "\n" + action.Subtitle + "\n" + action.Action.Reason };
             Action handler = () => { if (!button.Disabled && button.Visible) Selected?.Invoke(action.Key, revision); };
             _actions.AddChild(button); button.Pressed += handler; _bindings.Add((button, handler));
         }

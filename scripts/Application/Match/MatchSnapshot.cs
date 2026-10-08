@@ -67,6 +67,10 @@ public sealed record CardSetThresholdSnapshot(int RequiredCount, bool Active, IR
 public sealed record CardSetSnapshot(StringName Key, string DisplayName, int DistinctCardCount,
     IReadOnlyList<CardSetThresholdSnapshot> Thresholds);
 
+// 单次导师访问的冻结身份、等级与技能候选（应用快照层）。
+public sealed record MentorVisitSnapshot(StringName Key, string DisplayName, int Level,
+    StringName Illustration, string Summary, bool IsResolved, IReadOnlyList<MentorSkillOffer> Offers);
+
 public sealed record MatchSnapshot(
     Guid MatchId,
     MatchStatus Status,
@@ -90,6 +94,7 @@ public sealed record MatchSnapshot(
     public int BattlefieldCapacity { get; init; }
     public int BenchCapacity { get; init; }
     public IReadOnlyList<CardSetSnapshot> Sets { get; init; } = Array.Empty<CardSetSnapshot>();
+    public MentorVisitSnapshot? MentorVisit { get; init; }
 
     public static MatchSnapshot From(MatchSession session)
     {
@@ -153,6 +158,9 @@ public sealed record MatchSnapshot(
                     hero.Attributes.BaseCombat.SnapshotFinalValues()) { Title = hero.Attributes.Identity.Title, Illustration = hero.Attributes.Identity.Illustration },
             BattlefieldCapacity = session.Board.Battlefield.Capacity,
             BenchCapacity = session.Board.Bench.Capacity,
+            MentorVisit = session.ActiveMentorVisit is not { } visit ? null : new MentorVisitSnapshot(
+                visit.Identity.Key, visit.Identity.DisplayName, visit.Level, visit.Identity.Illustration,
+                visit.Identity.Summary, visit.IsResolved, Array.AsReadOnly(visit.Offers.ToArray())),
         };
     }
 
