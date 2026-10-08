@@ -20,6 +20,8 @@ public sealed partial class LeavePanel : HFlowContainer
         foreach (var intent in Enum.GetValues<MatchAction>())
         {
             var button = new Button { Name = intent.ToString(), ClipText = true };
+            button.AddThemeFontSizeOverride("font_size", 14);
+            button.AddThemeConstantOverride("icon_max_width", 16);
             Action handler = () =>
             {
                 if (button.Disabled || !button.Visible) return;
@@ -42,11 +44,11 @@ public sealed partial class LeavePanel : HFlowContainer
         if (_view?.Player?.MatchId != view.Player?.MatchId) _expanded = false;
         _view = view;
         Set(MatchAction.Refresh, view.Refresh); Set(MatchAction.Battle, view.Battle);
-        Set(MatchAction.Continue, view.Continue); Set(MatchAction.Reward, view.Reward);
+        Set(MatchAction.Continue, view.Continue); Set(MatchAction.Reward, view.Reward with { Text = $"战利品 ({view.Rewards.Count})" });
         Set(MatchAction.Pause, new UiAction(view.Playback?.Paused == true ? "继续播放" : "暂停", view.Playback is not null));
-        Set(MatchAction.Speed, new UiAction($"速度 {view.Playback?.Speed ?? 1}×", view.Playback is not null));
-        Set(MatchAction.Skip, new UiAction("跳过回放", view.Playback is not null));
-        Set(MatchAction.Reset, new UiAction("重开"));
+        Set(MatchAction.Speed, new UiAction($"{view.Playback?.Speed ?? 1}×", view.Playback is not null));
+        Set(MatchAction.Skip, new UiAction("跳过", view.Playback is not null));
+        Set(MatchAction.Reset, new UiAction("重开", Visible: _expanded && view.Playback is null));
         Set(MatchAction.Developer, new UiAction(_expanded ? "收起 ▴" : "•••", Visible: view.Playback is null));
         Set(MatchAction.Verification, new UiAction("规则验证", Visible: _expanded && view.Playback is null));
         Set(MatchAction.Showcase, new UiAction("组件展示", Visible: _expanded && view.Playback is null));
@@ -62,8 +64,16 @@ public sealed partial class LeavePanel : HFlowContainer
     private void Set(MatchAction intent, UiAction action)
     {
         var button = _buttons[intent]; button.Text = action.Text; button.Visible = action.Visible;
+        var key = intent switch
+        {
+            MatchAction.Refresh => new StringName("refresh"), MatchAction.Battle => new StringName("battle"),
+            MatchAction.Continue => new StringName("continue"), MatchAction.Reward => new StringName("rewards"),
+            MatchAction.Pause => new StringName(_view?.Playback?.Paused == true ? "play" : "pause"),
+            _ => new StringName(""),
+        };
+        button.Icon = key.IsEmpty ? null : MatchTheme.Icon(key);
         button.CustomMinimumSize = new Vector2(Mathf.Max(40, button.GetThemeFont("font").GetStringSize(action.Text,
-            fontSize: button.GetThemeFontSize("font_size")).X + 24), 34);
+            fontSize: button.GetThemeFontSize("font_size")).X + 24 + (button.Icon is null ? 0 : 20)), 34);
         button.Disabled = !action.Enabled; button.TooltipText = action.Text + "\n" + action.Reason;
     }
 }

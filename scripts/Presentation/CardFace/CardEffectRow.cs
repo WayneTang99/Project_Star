@@ -35,7 +35,8 @@ public sealed partial class CardEffectRow : HBoxContainer
     public void SetDisplayMetrics(int font, float height)
     {
         CustomMinimumSize = new Vector2(0, height);
-        _icon.CustomMinimumSize = Vector2.One * Mathf.Min(16, height - 2);
+        _icon.CustomMinimumSize = Vector2.One * Mathf.Min(font * .85f, height - 2);
+        AddThemeConstantOverride("separation", 1);
         _value.CustomMinimumSize = Vector2.Zero;
         _value.AddThemeFontSizeOverride("font_size", font);
         _value.ClipText = true; _value.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;

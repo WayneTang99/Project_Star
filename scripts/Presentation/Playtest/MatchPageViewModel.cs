@@ -19,6 +19,7 @@ public sealed record KeyedAction(StringName Key, UiAction Action)
 public sealed record ShopItemViewModel(int Index, long Revision, UiAction Action, CardSnapshot Card)
 {
     public int Price { get; init; }
+    public int MergeLevel { get; init; }
 }
 public sealed record RewardItemViewModel(int Index, long Revision, string Text, CardSnapshot? Card, string Details);
 
@@ -35,6 +36,9 @@ public sealed record MatchPageViewModel(
     public string BattleLog { get; init; } = "";
     public StringName ContextIllustration { get; init; } = new("");
     public int EncounterLevel { get; init; }
+    // 访问中的遭遇保持进入前的轮回合，领域进度可以已推进到下一回合。
+    public int DisplayRound { get; init; }
+    public int DisplayTurn { get; init; }
     public BattlePlaybackViewModel? Playback { get; init; }
     public IReadOnlyList<RewardItemViewModel> Rewards { get; init; } = Array.Empty<RewardItemViewModel>();
 }

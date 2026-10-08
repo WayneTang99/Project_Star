@@ -20,7 +20,7 @@ public sealed partial class ComponentShowcase : Control
     private CardDetailsView _details = null!;
     public override void _Ready()
     {
-        if (OS.GetCmdlineUserArgs().Contains("--capture-encounters"))
+        if (OS.GetCmdlineUserArgs().Contains("--capture-encounters") || OS.GetCmdlineUserArgs().Contains("--capture-layout"))
         { Callable.From(CaptureEncounters).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-heroes"))
         { Callable.From(CaptureHeroes).CallDeferred(); return; }
@@ -97,6 +97,7 @@ public sealed partial class ComponentShowcase : Control
         var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
         AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var shell = root.GetNode<MatchShell>("MatchShell");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-layout")) await Save("heroes");
         var presenter = PlaytestVerification.CreatePresenter(encounterLevelOverride: 5);
         shell.Render(presenter.View);
         await Save("selection");
@@ -121,6 +122,30 @@ public sealed partial class ComponentShowcase : Control
         shell.Render(presenter.View); await Save("preparation");
         presenter.StartBattle(); presenter.AdvancePlayback(.5);
         shell.Render(presenter.View); await Save("playback");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-layout"))
+        {
+            presenter.SkipPlayback(); shell.Render(presenter.View); await Save("result");
+            var registryForLayout = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+            var factory = new EntityFactory();
+            var board = new Project_Star.Application.Board.BoardService(new BoardPlacementSolver(), registryForLayout.Sets);
+            var economy = new CardEconomyService(factory, board, registryForLayout.Cards.Values);
+            var fixture = new CreateMatchService(factory).Create(42, 100, new PaladinHeroDefinition());
+            foreach (var definition in new CardDefinition[] { new ArmguardCardDefinition(), new BoarCardDefinition(), new JudgmentHammerCardDefinition() })
+                if (economy.AcquireAndPlace(fixture, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure)
+                    throw new InvalidOperationException("三尺寸布局夹具放置失败。");
+            shell.Render(presenter.View with { Player = MatchSnapshot.From(fixture), Page = MatchPage.Preparation,
+                Title = "三尺寸卡牌布局", BoardEnabled = true, EnemyVisible = true, Enemy = MatchSnapshot.From(fixture) });
+            await Save("three-sizes");
+            var offers = new CardDefinition[] { new ArmguardCardDefinition(), new BoarCardDefinition(), new JudgmentHammerCardDefinition() }
+                .Select((definition, index) => new ShopItemViewModel(index, 1, new UiAction("购买 · 可合并"),
+                    MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)))
+                    { Price = ShopOffer.Create(definition).Price, MergeLevel = definition.InitialLevel + 1 }).ToArray();
+            shell.Render(presenter.View with { Player = MatchSnapshot.From(fixture), Page = MatchPage.Shop,
+                Title = "商店 · 三尺寸合并预览", Message = "", Offers = Array.AsReadOnly(offers), Rewards = Array.Empty<RewardItemViewModel>(),
+                Reward = new UiAction("奖励", false), BoardEnabled = true, EnemyVisible = false });
+            await Save("three-sizes-shop");
+            GetTree().Quit(); return;
+        }
         RemoveChild(root); root.QueueFree();
         var background = new ColorRect { Color = MatchTheme.Background, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(background); background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -155,7 +180,8 @@ public sealed partial class ComponentShowcase : Control
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            DirAccess.MakeDirRecursiveAbsolute("res://docs/quality/encounter-art");
+            var directory = OS.GetCmdlineUserArgs().Contains("--capture-layout") ? "res://output/layout" : "res://docs/quality/encounter-art";
+            DirAccess.MakeDirRecursiveAbsolute(directory);
             using var image = GetViewport().GetTexture().GetImage();
             // HDR 视口读回的是线性色彩，PNG 预览需要转换为 sRGB。
             if (GetViewport().UseHdr2D)
@@ -163,7 +189,7 @@ public sealed partial class ComponentShowcase : Control
                     for (var x = 0; x < image.GetWidth(); x++)
                         image.SetPixel(x, y, image.GetPixel(x, y).LinearToSrgb());
             image.Convert(Image.Format.Rgba8);
-            if (image.SavePng($"res://docs/quality/encounter-art/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)
+            if (image.SavePng($"{directory}/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)
                 throw new InvalidOperationException("遭遇截图保存失败。");
         }
     }

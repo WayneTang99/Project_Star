@@ -56,7 +56,7 @@ public sealed partial class BoardZoneView : Control
             ?? Array.Empty<BoardPlacementSnapshot>();
         var capacity = snapshot is null ? 0 : zone == BoardZone.Battlefield ? snapshot.BattlefieldCapacity : snapshot.BenchCapacity;
         var used = _placements.Sum(item => item.EndExclusive - item.Start);
-        _caption = $"{title}　{used}/{capacity} 格";
+        _caption = $"{title}　{used}/{capacity}";
         TooltipText = "右键查看详情" + (interactive ? " · 拖到上方出售 · Escape 取消选择" : "");
         _title.Text = _caption;
         while (_slots.Count > capacity)
@@ -68,6 +68,10 @@ public sealed partial class BoardZoneView : Control
         {
             var slot = _slots.Count;
             var button = new Button { Name = $"Slot{slot}" };
+            var slotStyle = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://art/ui/theme/slot.svg") };
+            foreach (var edge in new[] { Side.Left, Side.Top, Side.Right, Side.Bottom }) slotStyle.SetTextureMargin(edge, 8);
+            foreach (var state in new[] { "normal", "disabled" })
+                button.AddThemeStyleboxOverride(state, slotStyle);
             var number = new Label { Text = $"{slot + 1}", HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Bottom, MouseFilter = MouseFilterEnum.Ignore };
             number.AddThemeFontSizeOverride("font_size", 12);
@@ -121,7 +125,7 @@ public sealed partial class BoardZoneView : Control
         ClearPreview();
         if (!_interactive || data.VariantType != Variant.Type.Object || data.AsGodotObject() is not BoardDragData drag
             || drag.MatchId != _matchId || PreviewRequested is null || _unit <= 0
-            || atPosition.Y < 28 || atPosition.Y >= Size.Y) return false;
+            || atPosition.Y < 28 || atPosition.Y >= 28 + _unit * 2) return false;
         var start = Mathf.FloorToInt((atPosition.X - _left) / _unit) - drag.GrabOffset;
         var result = PreviewRequested(drag, _zone, start);
         var color = result.IsSuccess ? new Color(0.3f, 0.9f, 0.5f, .35f) : new Color(1, .25f, .25f, .4f);
@@ -165,7 +169,7 @@ public sealed partial class BoardZoneView : Control
 
     private void AddPreview(int start, int size, Color color) => _preview.AddChild(new ColorRect
     {
-        Position = new Vector2(_left + start * _unit, 28), Size = new Vector2(size * _unit, Mathf.Max(1, Size.Y - 28)),
+        Position = new Vector2(_left + start * _unit, 28), Size = new Vector2(size * _unit, _unit * 2),
         Color = color, MouseFilter = MouseFilterEnum.Ignore,
     });
 
@@ -181,19 +185,27 @@ public sealed partial class BoardZoneView : Control
     {
         ClearPreview(); _title.Size = new Vector2(Size.X, 24); _preview.Size = Size;
         if (_slots.Count == 0) return;
-        var unit = Math.Max(1, Size.X / Math.Max(_slots.Count, SharedCapacity));
-        var left = (Size.X - unit * Math.Max(_slots.Count, SharedCapacity)) / 2;
+        var unit = Math.Max(1, Math.Min(Size.X / Math.Max(_slots.Count, SharedCapacity), (Size.Y - 28) / 2));
+        var left = Mathf.Max(0, (Size.X - unit * Math.Max(_slots.Count, SharedCapacity)) / 2);
         _unit = unit; _left = left;
         for (var index = 0; index < _slots.Count; index++)
         {
             _slots[index].Position = new Vector2(left + index * unit, 28);
-            _slots[index].Size = new Vector2(unit, Mathf.Max(1, Size.Y - 28));
+            _slots[index].Size = new Vector2(unit, unit * 2);
         }
         foreach (var placement in _placements)
         {
             var card = _cards[placement.CardId];
             card.Position = new Vector2(left + placement.Start * unit, 28);
-            card.Size = new Vector2((placement.EndExclusive - placement.Start) * unit, Mathf.Max(1, Size.Y - 28));
+            card.Size = new Vector2((placement.EndExclusive - placement.Start) * unit, unit * 2);
         }
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        if (_unit <= 0) return;
+        MatchTheme.DrawSurface(this, new Rect2(new Vector2(_left - 4, 24),
+            new Vector2(_unit * Math.Max(_slots.Count, SharedCapacity) + 8, _unit * 2 + 8)));
     }
 }

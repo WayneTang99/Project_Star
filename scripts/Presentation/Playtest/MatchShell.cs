@@ -40,6 +40,7 @@ public sealed partial class MatchShell : Control
     private HeroDetailsView _secondary = null!;
     private SellDropZone _sellDrop = null!;
     private MatchPage? _page;
+    private int _capacity = 10;
 
     public override void _Ready()
     {
@@ -72,6 +73,7 @@ public sealed partial class MatchShell : Control
         _heroes.Selected += SelectHero; _encounters.Selected += SelectEncounter; _events.Selected += SelectEvent;
         _shop.BuyRequested += Buy; _leave.Requested += RequestAction;
         _shop.DetailsRequested += ShowDetails; _details.SellRequested += Sell;
+        _result.ClaimRequested += Claim; _result.DetailsRequested += ShowDetails;
         _hero.SectionRequested += ShowSection; _secondary.ClaimRequested += Claim; _secondary.DetailsRequested += ShowDetails;
         _battlefield.SlotPressed += BattlefieldSlot; _bench.SlotPressed += BenchSlot;
         _battlefield.PreviewRequested = PreviewMove; _bench.PreviewRequested = PreviewMove;
@@ -86,14 +88,17 @@ public sealed partial class MatchShell : Control
         _details.Hide();
         _sellDrop.Render(view.Player, view.BoardEnabled);
         _secondary.Render(view);
-        _top.Render(view.Player); _portrait.Render(view.Playback is null ? view.Title
-            : $"{view.Enemy?.Hero?.DisplayName ?? "敌方"} · 生命 {view.Playback.State.Opponent.Health}/{view.Playback.State.Opponent.MaxHealth}\n魔法 {view.Playback.State.Opponent.Mana}/{view.Playback.State.Opponent.MaxMana} · 护甲 {view.Playback.State.Opponent.Armor}", view.EncounterLevel);
+        _top.Render(view.Player, view.DisplayRound, view.DisplayTurn);
+        _portrait.Render(view.Playback is null ? view.Title : view.Enemy?.Hero?.DisplayName ?? "敌方",
+            view.EncounterLevel, view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? view.Enemy?.Hero : null,
+            view.Playback?.State.Opponent);
         _hero.Render(view.Player?.Hero); _progress.Render(view.Player); _leave.Render(view);
         _hero.RenderBattle(view.Playback?.State.Player);
         _heroes.Render(view.Message, view.Heroes);
         _encounters.Render(view.Message, view.Choices);
         _events.Render(view.Message, view.EventOptions, view.EventRevision, view.ContextIllustration);
-        _shop.Render(view.Message, view.Offers, view.ShopLevel); _result.Render(view.Message, view.BattleLog);
+        _shop.Render(view.Message, view.Offers, view.ShopLevel);
+        if (view.Page is MatchPage.BattleResult or MatchPage.MatchEnded) _result.Render(view);
         _heroes.Visible = view.Page == MatchPage.HeroSelection;
         _encounters.Visible = view.Page == MatchPage.EncounterChoice;
         _events.Visible = view.Page == MatchPage.Event;
@@ -101,6 +106,8 @@ public sealed partial class MatchShell : Control
         _result.Visible = view.Page is MatchPage.BattleResult or MatchPage.MatchEnded;
         var capacity = Math.Max(view.Player?.BattlefieldCapacity ?? 0,
             Math.Max(view.Player?.BenchCapacity ?? 0, view.Enemy?.BattlefieldCapacity ?? 0));
+        var capacityChanged = capacity > 0 && _capacity != capacity;
+        if (capacity > 0) _capacity = capacity;
         _battlefield.SharedCapacity = _bench.SharedCapacity = _enemy.SharedCapacity = capacity;
         _battlefield.Render(view.Player, BoardZone.Battlefield, view.BoardEnabled, view.SelectedCardId, "战场");
         _bench.Render(view.Player, BoardZone.Bench, view.BoardEnabled, view.SelectedCardId, "备战");
@@ -111,7 +118,7 @@ public sealed partial class MatchShell : Control
         if (_page != view.Page) { _battlefield.ClearFeedback(); _bench.ClearFeedback(); _enemy.ClearFeedback(); }
         var pageChanged = _page != view.Page;
         _page = view.Page;
-        if (pageChanged) LayoutShell();
+        if (pageChanged || capacityChanged) LayoutShell();
         if (view.Playback is not null) _progress.RenderPlayback(string.Join("\n", view.Playback.Feedback));
         var selected = view.Player?.Cards.FirstOrDefault(card => card.Id == view.SelectedCardId);
         if (selected is not null)
@@ -127,6 +134,7 @@ public sealed partial class MatchShell : Control
         _heroes.Selected -= SelectHero; _encounters.Selected -= SelectEncounter; _events.Selected -= SelectEvent;
         _shop.BuyRequested -= Buy; _leave.Requested -= RequestAction;
         _shop.DetailsRequested -= ShowDetails; _details.SellRequested -= Sell;
+        _result.ClaimRequested -= Claim; _result.DetailsRequested -= ShowDetails;
         _hero.SectionRequested -= ShowSection; _secondary.ClaimRequested -= Claim; _secondary.DetailsRequested -= ShowDetails;
         _battlefield.SlotPressed -= BattlefieldSlot; _bench.SlotPressed -= BenchSlot;
         _battlefield.PreviewRequested = null; _bench.PreviewRequested = null;
@@ -169,14 +177,17 @@ public sealed partial class MatchShell : Control
 
     private void LayoutShell()
     {
-        const float margin = 20, gap = 16, top = 80;
-        var side = Mathf.Clamp(Size.X * .17f, 180, 260);
-        var mainLeft = margin + side + gap;
-        var width = Mathf.Max(1, Size.X - mainLeft - margin);
+        const float margin = 18, gap = 16, top = 70, phaseHeader = 44, sideGap = 24;
+        var side = Mathf.Clamp(Size.Y * .215f, 156, 220);
         var available = Mathf.Max(1, Size.Y - top - margin);
-        var phaseHeight = (available - 64 - gap * 2) * .46f;
-        var boardHeight = (available - 64 - gap * 2 - phaseHeight) / 2;
-        _top.Position = new Vector2(margin, margin); _top.Size = new Vector2(Size.X - margin * 2, 40);
+        // 用同一个格宽约束三段高度，宽屏留下呼吸空间，卡面不再在槽位内缩小。
+        var width = Mathf.Max(1, Mathf.Min(Size.X - margin * 2 - side - sideGap,
+            (available - phaseHeader - gap * 2 - 28 * 3) * _capacity / 6));
+        var left = (Size.X - side - sideGap - width) / 2;
+        var mainLeft = left + side + sideGap;
+        var boardHeight = width / _capacity * 2 + 28;
+        var phaseHeight = boardHeight;
+        _top.Position = new Vector2(left, margin); _top.Size = new Vector2(side + sideGap + width, 36);
         // 保留场景分组与输入路径，分组本身不拦截右侧内容或侧栏输入。
         foreach (var path in new[] { "ContextRow", "BattlefieldRow", "BenchRow" })
         {
@@ -184,18 +195,18 @@ public sealed partial class MatchShell : Control
             row.MouseFilter = MouseFilterEnum.Ignore;
             foreach (Control cell in row.GetChildren()) cell.MouseFilter = MouseFilterEnum.Ignore;
         }
-        Place("BenchRow/Hero", margin + 10, top + 10, side - 20, available - 136);
-        Place("BenchRow/Progress", margin + 10, Size.Y - 126, side - 20, 96);
+        Place("BenchRow/Hero", left + 8, top + 10, side - 16, available - 136);
+        Place("BenchRow/Progress", left + 8, Size.Y - 124, side - 16, 96);
         _hero.Size = GetNode<Control>("BenchRow/Hero").Size;
         _hero.SetPortraitHeight(Mathf.Clamp(available * .32f, 150, 260));
         _progress.Size = GetNode<Control>("BenchRow/Progress").Size;
-        Place("ContextRow/Portrait", mainLeft, top, width * .35f, 48);
+        Place("ContextRow/Portrait", mainLeft, top, width * .5f, 38);
         _portrait.Size = GetNode<Control>("ContextRow/Portrait").Size;
-        Place("ContextRow/Leave", mainLeft + width * .36f, top, width * .64f, 48);
+        Place("ContextRow/Leave", mainLeft + width * .51f, top, width * .49f, 38);
         _leaveScroll.Size = GetNode<Control>("ContextRow/Leave").Size;
-        Place("ContextRow/ContextHost", mainLeft, top + 64, width, phaseHeight);
-        Place("BattlefieldRow/Content", mainLeft, top + 64 + phaseHeight + gap, width, boardHeight);
-        Place("BenchRow/Content", mainLeft, top + 64 + phaseHeight + gap * 2 + boardHeight, width, boardHeight);
+        Place("ContextRow/ContextHost", mainLeft, top + phaseHeader, width, phaseHeight);
+        Place("BattlefieldRow/Content", mainLeft, top + phaseHeader + phaseHeight + gap, width, boardHeight);
+        Place("BenchRow/Content", mainLeft, top + phaseHeader + phaseHeight + gap * 2 + boardHeight, width, boardHeight);
         foreach (var view in new Control[] { _heroes, _encounters, _events, _shop, _result, _enemy })
             view.Size = new Vector2(width, phaseHeight);
         _battlefield.Size = _bench.Size = new Vector2(width, boardHeight);
@@ -210,7 +221,7 @@ public sealed partial class MatchShell : Control
         }
         _details.ClampTo(Size);
         _sellDrop.Position = Vector2.Zero;
-        _sellDrop.Size = new Vector2(Size.X, top + 64 + phaseHeight);
+        _sellDrop.Size = new Vector2(Size.X, top + phaseHeader + phaseHeight);
         _secondary.ClampTo(Size);
         QueueRedraw();
     }
@@ -221,18 +232,18 @@ public sealed partial class MatchShell : Control
     public override void _Draw()
     {
         if (Theme is null) return;
-        var panel = Theme.GetStylebox("panel", "PanelContainer");
-        DrawStyleBox(panel, new Rect2(_top.Position - Vector2.One * 6, _top.Size + Vector2.One * 12));
+        MatchTheme.DrawBackground(this);
+        MatchTheme.DrawSurface(this, new Rect2(_top.Position - Vector2.One * 6, _top.Size + Vector2.One * 12));
         if (_page != MatchPage.HeroSelection)
         {
             var hero = GetNode<Control>("BenchRow/Hero");
-            DrawStyleBox(panel, new Rect2(hero.Position - new Vector2(10, 10), new Vector2(hero.Size.X + 20, Size.Y - 100)));
+            MatchTheme.DrawSurface(this, new Rect2(hero.Position - new Vector2(8, 10), new Vector2(hero.Size.X + 16, Size.Y - 88)));
         }
         foreach (var path in new[] { "ContextRow/ContextHost" })
         {
             var cell = GetNode<Control>(path);
             if (!cell.IsVisibleInTree()) continue;
-            DrawStyleBox(panel, new Rect2(cell.GlobalPosition - GlobalPosition - Vector2.One * 6, cell.Size + Vector2.One * 12));
+            MatchTheme.DrawSurface(this, new Rect2(cell.GlobalPosition - GlobalPosition - Vector2.One * 6, cell.Size + Vector2.One * 12));
         }
     }
 }

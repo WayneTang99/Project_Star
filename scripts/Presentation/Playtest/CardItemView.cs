@@ -31,7 +31,7 @@ public sealed partial class CardItemView : Button
         _face = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn").Instantiate<CardFaceControl>();
         AddChild(_face);
         _cooldownMask = new ColorRect { Name = "CooldownMask", Visible = false,
-            MouseFilter = MouseFilterEnum.Ignore, Color = new Color(.15f, .15f, .15f, .6f), ZIndex = 2 };
+            MouseFilter = MouseFilterEnum.Ignore, Color = new Color("62c8e3"), ZIndex = 2 };
         AddChild(_cooldownMask);
         _battleStatus = new Label { Name = "BattleStatus", Visible = false, MouseFilter = MouseFilterEnum.Ignore,
             ClipText = true, HorizontalAlignment = HorizontalAlignment.Center, ZIndex = 3 };
@@ -45,7 +45,7 @@ public sealed partial class CardItemView : Button
         AddChild(_feedback); _feedback.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _outline = new Panel { Name = "SelectionOutline", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 3 };
         AddChild(_outline); _outline.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _selectedMark = new Label { Text = "选", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 4 };
+        _selectedMark = new Label { Text = "✓", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 4 };
         _selectedMark.AddThemeFontSizeOverride("font_size", 13);
         _selectedMark.AddThemeColorOverride("font_color", MatchTheme.Ink); AddChild(_selectedMark);
         FocusEntered += UpdateOutline; FocusExited += UpdateOutline;
@@ -194,9 +194,9 @@ public sealed partial class CardItemView : Button
         var height = Mathf.Min(Size.Y, Size.X / ratio);
         var faceSize = new Vector2(height * ratio, height);
         _face.SetDisplaySize(faceSize);
-        _face.Position = (Size - faceSize) / 2;
-        _cooldownMask.Position = _face.Position + new Vector2(0, faceSize.Y * (1 - _cooldownRemaining));
-        _cooldownMask.Size = new Vector2(faceSize.X, faceSize.Y * _cooldownRemaining);
+        _face.Position = Size.IsEqualApprox(faceSize) ? Vector2.Zero : (Size - faceSize) / 2;
+        _cooldownMask.Position = _face.Position + new Vector2(0, faceSize.Y - Mathf.Clamp(faceSize.Y * .14f, 22, 56) - 3);
+        _cooldownMask.Size = new Vector2(faceSize.X * (1 - _cooldownRemaining), 3);
         _battleStatus.Position = new Vector2(0, Mathf.Max(24, Size.Y * .35f));
         _battleStatus.Size = new Vector2(Size.X, 36);
         _selectedMark.Position = new Vector2(4, Mathf.Max(0, Size.Y - 25));

@@ -50,7 +50,7 @@ mouse_filter = 2
 mouse_filter = 2
 clip_contents = true
 
-[node name="Effects" type="VBoxContainer" parent="."]
+[node name="Effects" type="Control" parent="."]
 mouse_filter = 2
 theme_override_constants/separation = 0
 

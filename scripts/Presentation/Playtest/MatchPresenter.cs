@@ -33,6 +33,7 @@ public sealed class MatchPresenter
     private MentorVisit? _mentorVisit;
     private MatchBattleKind _battleKind;
     private int _battleRound;
+    private int _encounterTurn;
     private MatchPage _page;
     private string _title = "选择英雄";
     private string _message = "选择英雄后，对局会从第 1 轮第 1 回合正式开始。";
@@ -108,7 +109,7 @@ public sealed class MatchPresenter
         if (choice is null) return;
         var selected = _game.SelectEncounter(_player, key);
         if (selected.IsFailure) { _message = selected.Failure!.Message; return; }
-        _selected = null; _battleRound = snapshot.Round;
+        _selected = null; _battleRound = snapshot.Round; _encounterTurn = snapshot.Turn;
         _title = choice.DisplayName;
         _shopLevel = choice.ShopLevel;
         _encounterIllustration = choice.Illustration;
@@ -354,7 +355,7 @@ public sealed class MatchPresenter
                 var (merge, reason) = MatchDisplayQuery.PurchaseCondition(_player, offer, _economy, _board);
                 offers.Add(new ShopItemViewModel(index, _shopRevision,
                     new UiAction(offer.IsSold ? "已售罄" : $"购买{(!merge ? "" : " · 可合并")}", true, reason.Length == 0, reason),
-                    MatchDisplayQuery.FromOffer(offer)) { Price = offer.Price });
+                    MatchDisplayQuery.FromOffer(offer)) { Price = offer.Price, MergeLevel = merge ? offer.Level + 1 : 0 });
             }
         var options = _page != MatchPage.Event || _eventCompleted || _options is null ? Array.Empty<KeyedAction>()
             : _options.Options.Select(option => new KeyedAction(option.Key, new UiAction(option.DisplayName))
@@ -388,6 +389,8 @@ public sealed class MatchPresenter
             ShopLevel = _page == MatchPage.Shop ? _shopLevel : 0,
             ContextIllustration = _encounterIllustration,
             EncounterLevel = _encounterLevel,
+            DisplayRound = player is null ? 0 : _page == MatchPage.EncounterChoice ? player.Round : _battleRound,
+            DisplayTurn = player is null ? 0 : _page == MatchPage.EncounterChoice ? player.Turn : _encounterTurn,
             Playback = playing ? _playback!.Capture() : null,
             Sell = _selected is null || _player is null || _page == MatchPage.MatchEnded ? new UiAction("出售", false)
                 : new UiAction("确认出售", true, _economy.CheckSale(_player, _selected.Value).IsSuccess,

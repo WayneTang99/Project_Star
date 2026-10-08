@@ -18,7 +18,8 @@ public sealed partial class CardValueBadge : HBoxContainer
     // 紧凑卡面保留可读文字而非整体缩放。
     public void SetDisplayMetrics(int font)
     {
-        GetNode<TextureRect>("Icon").CustomMinimumSize = new Vector2(14, 18);
+        GetNode<TextureRect>("Icon").CustomMinimumSize = Vector2.One * font;
+        AddThemeConstantOverride("separation", 1);
         _value.CustomMinimumSize = Vector2.Zero;
         _value.AddThemeFontSizeOverride("font_size", font);
         _value.HorizontalAlignment = HorizontalAlignment.Left;

@@ -79,7 +79,7 @@ internal static class PlaytestVerification
                 || !button.TooltipText.Contains($"{choice.ShopLevel}级商店")) return false;
             button.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Page != MatchPage.Shop || presenter.View.ShopLevel != choice.ShopLevel
-                || !scene.GetNode<CardLevelGem>("MatchShell/ContextRow/ContextHost/ShopView/ShopLevelCrystal").Visible) return false;
+                || !scene.GetNode<CardLevelGem>("MatchShell/ContextRow/Portrait/ContextPortrait/EncounterLevelCrystal").Visible) return false;
             var turn = presenter.View.Player!.Turn;
             button.EmitSignal(Button.SignalName.Pressed);
             return presenter.View.Player.Turn == turn;
@@ -288,8 +288,11 @@ internal static class PlaytestVerification
             var items = rewards.GetNode<VBoxContainer>("Content/Scroll/Items");
             var old = items.GetNode<Button>("Claim1"); old.EmitSignal(Button.SignalName.Pressed); old.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Player!.Skills.Count != 1 || presenter.View.Rewards.Count != 1 || !rewards.Visible) return false;
-            items.GetNode<Button>("Claim0").EmitSignal(Button.SignalName.Pressed);
-            if (presenter.View.Player!.Cards.Count != 1 || presenter.View.Rewards.Count != 0 || !rewards.Visible) return false;
+            rewards.Hide();
+            var resultReward = scene.GetNode<ResultView>("MatchShell/ContextRow/ContextHost/ResultView")
+                .GetNode<ScrollContainer>("Rewards").GetChild<HBoxContainer>(0).GetChild<Control>(0).GetNode<Button>("Claim0");
+            resultReward.EmitSignal(Button.SignalName.Pressed); resultReward.EmitSignal(Button.SignalName.Pressed);
+            if (presenter.View.Player!.Cards.Count != 1 || presenter.View.Rewards.Count != 0 || rewards.Visible) return false;
             presenter.Reset();
             return !rewards.Visible && !details.Visible && presenter.View.Player is null;
         }
@@ -450,6 +453,52 @@ internal static class PlaytestVerification
             && presenter.View.Player.Wealth == current.Wealth;
     }
 
+    // 三种真实尺寸须完全贴合占格区间，上下栏等高且不随效果数量改变。
+    public static bool CardAndSlotGeometry(Control owner)
+    {
+        var registry = Registry(); var factory = new EntityFactory();
+        var service = new BoardService(new BoardPlacementSolver());
+        var economy = new CardEconomyService(factory, service, registry.Cards.Values);
+        var session = new CreateMatchService(factory).Create(42, 100, new PaladinHeroDefinition());
+        foreach (var definition in new CardDefinition[] { new ArmguardCardDefinition(), new BoarCardDefinition(), new JudgmentHammerCardDefinition() })
+            if (economy.AcquireAndPlace(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure) return false;
+        var board = new BoardZoneView(); owner.AddChild(board);
+        var snapshot = MatchSnapshot.From(session);
+        var random = session.Random.State;
+        try
+        {
+            foreach (var size in new[] { new Vector2(786, 185.2f), new Vector2(1000, 300), new Vector2(1400, 400), new Vector2(1300, 230) })
+            {
+                board.Size = size; board.Render(snapshot, BoardZone.Battlefield, true, null, "尺寸验证");
+                float? band = null;
+                foreach (var placement in snapshot.BoardPlacements)
+                {
+                    var card = board.GetNode<CardItemView>($"Card_{placement.CardId.Value:N}");
+                    var first = board.GetNode<Button>($"Slot{placement.Start}");
+                    var last = board.GetNode<Button>($"Slot{placement.EndExclusive - 1}");
+                    var face = card.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single();
+                    var header = face.GetNode<Panel>("Header"); var footer = face.GetNode<Panel>("Footer");
+                    if (card.Position.DistanceTo(first.Position) > .1f || card.Size.DistanceTo(last.Position + last.Size - first.Position) > .1f
+                        || face.Position.Length() > .1f || face.Size.DistanceTo(card.Size) > .1f
+                        || Mathf.Abs(first.Size.Y - first.Size.X * 2) > .1f
+                        || Mathf.Abs(header.Size.Y - footer.Size.Y) > .1f
+                        || band.HasValue && Mathf.Abs(band.Value - header.Size.Y) > .1f)
+                    {
+                        GD.Print($"卡格检查：区域 {size}，卡 {card.Position}/{card.Size}，槽 {first.Position}/{first.Size}，末槽 {last.Position}/{last.Size}，卡面 {face.Position}/{face.Size}，栏 {header.Size}/{footer.Size}，其他栏 {band}");
+                        return false;
+                    }
+                    band = header.Size.Y;
+                    var effects = face.GetNode<Control>("Effects");
+                    foreach (var effect in effects.GetChildren().OfType<CardEffectRow>().Where(effect => effect.Visible))
+                        if (effect.Position.X + effect.Size.X > effects.Size.X + 1)
+                        { GD.Print($"效果越界：{effect.Position}/{effect.Size}，区域 {effects.Size}"); return false; }
+                }
+            }
+            return session.Random.State == random && MatchSnapshot.From(session).Cards.Count == snapshot.Cards.Count;
+        }
+        finally { owner.RemoveChild(board); board.Free(); }
+    }
+
     // 原生GUI验证四种窗口的几何、选择保留、开发工具和键盘移动。
     public static async Task<bool> WindowsAndKeyboard(Control owner)
     {
@@ -498,12 +547,16 @@ internal static class PlaytestVerification
                 var buys = offers.GetChildren().OfType<Control>().Select(row => row.GetNode<Button>("Actions/Buy")).ToArray();
                 if (buys.Any(buy => buy.Size.X < 100 || buy.GlobalPosition.Y + buy.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1)
                     || buys.Any(buy => Mathf.Abs(buy.GlobalPosition.Y - buys[0].GlobalPosition.Y) > 1))
+                {
+                    GD.Print($"商品区域：窗口 {size}，主区 {host.GlobalPosition}/{host.Size}，购买 {string.Join("；", buys.Select(buy => $"{buy.GlobalPosition}/{buy.Size}"))}");
                     return Fail("商品未横向排列或购买按钮被裁切");
+                }
                 foreach (var button in shell.GetNode<LeavePanel>("ContextRow/Leave/LeaveScroll/LeavePanel")
                     .GetChildren().OfType<Button>().Where(button => button.Visible))
                     if (button.Size.X < 40) return Fail("阶段按钮被压缩");
                 if (item.Position.X < 0 || item.Position.X + item.Size.X > board.Size.X + 1
-                    || item.Position.Y + item.Size.Y > board.Size.Y + 1) return Fail("卡牌越界");
+                    || item.Position.Y + item.Size.Y > board.Size.Y + 1)
+                { GD.Print($"卡牌区域：窗口 {size}，卡 {item.Position}/{item.Size}，棋盘 {board.Size}"); return Fail("卡牌越界"); }
                 var details = shell.GetNode<CardDetailsView>("CardDetails");
                 if (details.Position.X + details.Size.X > shell.Size.X + 1 || details.Position.Y + details.Size.Y > shell.Size.Y + 1)
                     return Fail("详情越界");
@@ -512,6 +565,18 @@ internal static class PlaytestVerification
                 viewport.PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = false }, true);
                 await Frame();
                 if (viewport.GuiGetFocusOwner() is not Button focus || focus == item) return Fail("Tab焦点未移动");
+                var rewardCard = MatchDisplayQuery.FromOffer(ShopOffer.Create(new JudgmentHammerCardDefinition()));
+                shell.Render(capture with { Page = MatchPage.BattleResult, SelectedCardId = null,
+                    Rewards = Array.AsReadOnly(new[] { new RewardItemViewModel(0, 1, "三格奖励", rewardCard, "") }) });
+                await Frame(); await Frame();
+                var rewardScroll = shell.GetNode<ScrollContainer>("ContextRow/ContextHost/ResultView/Rewards");
+                var rewardRow = rewardScroll.GetChild<HBoxContainer>(0).GetChild<Control>(0);
+                var rewardItem = rewardRow.GetNode<CardItemView>("RewardCard0");
+                var claim = rewardRow.GetNode<Button>("Claim0");
+                if (rewardScroll.GlobalPosition.Y + rewardScroll.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1
+                    || rewardItem.GlobalPosition.Y + rewardItem.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1
+                    || claim.Size.X < 99) return Fail("奖励卡面或领取按钮缩回后越界");
+                shell.Render(capture); await Frame(); await Frame();
             }
             var leave = shell.GetNode<LeavePanel>("ContextRow/Leave/LeaveScroll/LeavePanel");
             if (leave.GetNode<Button>("Verification").Visible) return Fail("开发入口未折叠");
@@ -695,6 +760,7 @@ internal static class PlaytestVerification
                 Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Continue"));
                 if (sawMonster && sawPvp && sawCardEvent && sawModifier) break;
             }
+            Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Developer"));
             Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Reset"));
             return sawMonster && sawPvp && sawCardEvent && sawModifier && presenter.View.Player is null
                 && !scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible
@@ -974,7 +1040,9 @@ internal static class PlaytestVerification
         for (var count = 0; count < 8; count++)
         {
             var choice = presenter.View.Player!.EncounterChoices[0];
+            var round = presenter.View.Player.Round; var turn = presenter.View.Player.Turn;
             presenter.ChooseEncounter(choice.Key);
+            if (presenter.View.DisplayRound != round || presenter.View.DisplayTurn != turn) return false;
             if (presenter.View.Page == MatchPage.Shop)
             {
                 var offer = presenter.View.Offers.FirstOrDefault(item => item.Action.Enabled);
@@ -992,6 +1060,8 @@ internal static class PlaytestVerification
                 if (presenter.View.Player!.Wealth != after.Wealth || presenter.View.Player.PvpWins != after.PvpWins) return false;
             }
             presenter.ContinueMatch();
+            if (presenter.View.Page == MatchPage.EncounterChoice
+                && (presenter.View.DisplayRound != presenter.View.Player!.Round || presenter.View.DisplayTurn != presenter.View.Player.Turn)) return false;
         }
         presenter.Reset();
         if (presenter.View.Player is not null || presenter.View.Enemy is not null || presenter.View.SelectedCardId is not null

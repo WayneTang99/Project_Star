@@ -16,7 +16,10 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
     public event Action<HeroSection>? SectionRequested;
     private Label _name = null!;
     private Label _subtitle = null!;
-    private Label _battle = null!;
+    private HBoxContainer _battle = null!;
+    private Label _armor = null!;
+    private Label _burn = null!;
+    private Label _poison = null!;
     private HFlowContainer _buttons = null!;
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
@@ -32,12 +35,16 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
         _name = new Label { Name = "HeroName", ClipText = true, SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(120, 32), VerticalAlignment = VerticalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart }; identity.AddChild(_name);
-        _name.AddThemeFontSizeOverride("font_size", 22);
+        _name.AddThemeFontSizeOverride("font_size", 20);
         _subtitle = new Label { Name = "Subtitle", ClipText = true }; identity.AddChild(_subtitle);
         _subtitle.AddThemeFontSizeOverride("font_size", 13);
         _health = new ResourceBar("HealthBar", new Color("86bf8c")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("88c4eb")); AddChild(_mana);
-        _battle = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, Visible = false }; AddChild(_battle);
+        _battle = new HBoxContainer { Name = "BattleResources", Visible = false }; AddChild(_battle);
+        var armor = MatchTheme.Stat("armor", "", "护甲"); var burn = MatchTheme.Stat("burn", "", "灼伤");
+        var poison = MatchTheme.Stat("poison", "", "中毒");
+        _battle.AddChild(armor); _battle.AddChild(burn); _battle.AddChild(poison);
+        _armor = armor.GetChild<Label>(1); _burn = burn.GetChild<Label>(1); _poison = poison.GetChild<Label>(1);
         _buttons = new HFlowContainer(); AddChild(_buttons);
         AddEntry("技能", HeroSection.Skills); AddEntry("套装", HeroSection.Sets); AddEntry("奖励", HeroSection.Rewards);
     }
@@ -70,13 +77,18 @@ public sealed partial class PlayerHeroPanel : VBoxContainer
             _health.Show(); _mana.Show();
             _health.Render("生命", hero.Health, hero.MaxHealth);
             _mana.Render("魔法", hero.Mana, hero.MaxMana);
-            _battle.Text = $"护甲 {hero.Armor}\n灼伤 {hero.Burn} · 中毒 {hero.Poison}";
+            _armor.Text = hero.Armor.ToString(); _burn.Text = hero.Burn.ToString(); _poison.Text = hero.Poison.ToString();
             _buttons.Hide();
         }
     }
     private void AddEntry(string text, HeroSection section)
     {
-        var button = new Button { Text = text }; _buttons.AddChild(button);
+        var key = section == HeroSection.Skills ? new StringName("skills")
+            : section == HeroSection.Sets ? new StringName("sets") : new StringName("rewards");
+        var button = new Button { Text = text, Icon = MatchTheme.Icon(key), TooltipText = text };
+        button.AddThemeConstantOverride("icon_max_width", 16);
+        button.AddThemeFontSizeOverride("font_size", 13);
+        _buttons.AddChild(button);
         button.Pressed += () => SectionRequested?.Invoke(section);
     }
 }

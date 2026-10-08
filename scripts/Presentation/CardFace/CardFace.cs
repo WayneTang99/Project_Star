@@ -11,7 +11,6 @@ public sealed partial class CardFace : Control
     private const float BaseHeight = 400;
     private const float WidthPerSize = 200;
     private const float ElementBadgeDiameter = 58;
-    private const float ElementBadgeGap = 4;
 
     private Panel _frame = null!;
     private Panel _innerFrame = null!;
@@ -22,7 +21,7 @@ public sealed partial class CardFace : Control
     private Panel _artInnerRim = null!;
     private TextureRect _artwork = null!;
     private Panel _footer = null!;
-    private VBoxContainer _effects = null!;
+    private Control _effects = null!;
     private CardValueBadge _valueBadge = null!;
     private NinePatchRect _ornament = null!;
     private Polygon2D _bottomCrest = null!;
@@ -51,7 +50,7 @@ public sealed partial class CardFace : Control
         _artInnerRim = GetNode<Panel>("ArtFrame/InnerRim");
         MoveChild(_artFrame, 1);
         _footer = GetNode<Panel>("Footer");
-        _effects = GetNode<VBoxContainer>("Effects");
+        _effects = GetNode<Control>("Effects"); _effects.ClipContents = true;
         _valueBadge = GetNode<CardValueBadge>("ValueBadge");
         _title.ZIndex = _effects.ZIndex = _valueBadge.ZIndex = 1;
         _ornament = GetNode<NinePatchRect>("Ornament");
@@ -104,10 +103,10 @@ public sealed partial class CardFace : Control
         var accent = FactionAccent(viewModel.FactionKey);
         _frame.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color("#31251a"), new Color("#26180e"), 4, 12));
         _innerFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(0, 0, 0, 0), accent.Lightened(0.1f), 1, 9));
-        _header.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(.96f, .91f, .82f, .65f), Colors.Transparent, 0, 8));
+        _header.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(.98f, .95f, .86f, .88f), Colors.Transparent, 0, 3));
         _artFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, Colors.Transparent, 0, 0));
         _artInnerRim.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(0, 0, 0, 0), new Color("#f3d99e"), 1, 7));
-        _footer.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(.95f, .89f, .78f, .65f), Colors.Transparent, 0, 8));
+        _footer.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(.98f, .95f, .86f, .88f), Colors.Transparent, 0, 3));
         _ornament.Modulate = Colors.White;
 
         LayoutParts(Size.X);
@@ -117,123 +116,73 @@ public sealed partial class CardFace : Control
 
     private void LayoutParts(float width)
     {
-        // 插画始终覆盖整张卡牌；标题、底栏与徽章只在它上方叠加。
+        var height = Size.Y;
+        var padding = Mathf.Clamp(height * .018f, 2, 7);
+        // 所有尺寸共享等高上下栏；栏高与效果数量无关，插画始终覆盖整卡。
+        var band = Mathf.Clamp(height * .14f, 22, 56);
+        var font = Mathf.Clamp(Mathf.RoundToInt(height * .065f), 12, 24);
         _artFrame.Position = _artwork.Position = Vector2.Zero;
         _artFrame.Size = _artwork.Size = Size;
-        _artInnerRim.Position = new Vector2(6, 6);
-        _artInnerRim.Size = Size - new Vector2(12, 12);
-        _sockets.Position = new Vector2(8, _displaySize is null ? 74 : Mathf.Clamp(Size.Y * .1f, 18, 40) * .55f + Mathf.Clamp(Mathf.RoundToInt(Size.Y * .06f), 13, 24) + 12);
-        _sockets.Size = new Vector2(Mathf.Max(1, width - 16), 20);
-        var socketCount = _sockets.GetChildCount();
-        var diameter = Mathf.Min(_displaySize is null ? 16 : 12,
-            _sockets.Size.X / Math.Max(1, socketCount) * .8f);
-        for (var index = 0; index < socketCount; index++)
-        {
-            var socket = _sockets.GetChild<Panel>(index);
-            socket.Position = new Vector2(index * diameter * 1.25f, 0);
-            socket.Size = Vector2.One * diameter;
-        }
-        if (_displaySize is not null) { LayoutCompact(width, Size.Y); return; }
-        const float height = BaseHeight;
-        _frame.Position = Vector2.Zero;
-        _frame.Size = new Vector2(width, height);
-        _innerFrame.Position = new Vector2(5, 5);
-        _innerFrame.Size = new Vector2(width - 10, height - 10);
-        _header.Position = new Vector2(12, 18);
-        _header.Size = new Vector2(width - 24, 52);
-        _title.Position = new Vector2(16, 34);
-        _title.Size = new Vector2(width - 32, 34);
-        _ornament.Position = Vector2.Zero;
-        _ornament.Size = new Vector2(width, height);
-        _bottomCrest.Position = new Vector2(width * 0.5f, height - 5);
-        _bottomCrestLight.Position = _bottomCrest.Position;
-        _elementLayer.Position = Vector2.Zero;
-        _elementLayer.Size = new Vector2(width, height);
-        _levelGem.Position = new Vector2((width - 38) * 0.5f, -1);
-        _levelGem.Size = new Vector2(38, 40);
-
-        var effectHeight = 28f;
-        var visibleRows = Math.Min(_viewModel!.Effects.Count, 5);
-        var footerHeight = Math.Max(61, visibleRows * effectHeight + 36);
-        _footer.Position = new Vector2(10, height - footerHeight - 9);
-        _footer.Size = new Vector2(width - 20, footerHeight);
-        _effects.Position = new Vector2(12, height - 27 - visibleRows * effectHeight);
-        var effectWidth = Mathf.Max(
-            48,
-            Mathf.Min(96, width * 0.5f - ElementBadgeDiameter * 0.5f - 18));
-        _effects.Size = new Vector2(effectWidth, visibleRows * effectHeight);
-        _effects.AddThemeConstantOverride("separation", 0);
-        foreach (var child in _effects.GetChildren()) ((CardEffectRow)child).SetDisplayMetrics(17, effectHeight);
-
-        var valueWidth = width < 240 ? 62 : 76;
-        _valueBadge.Position = new Vector2(width - valueWidth - 24, height - 43);
-        _valueBadge.Size = new Vector2(valueWidth, 30);
-        _valueBadge.CustomMinimumSize = new Vector2(valueWidth, 30);
-
-        var elementCount = _elementLayer.GetChildCount();
-        var groupWidth = elementCount == 0
-            ? 0
-            : elementCount * ElementBadgeDiameter + (elementCount - 1) * ElementBadgeGap;
-        for (var index = 0; index < elementCount; index++)
-        {
-            if (_elementLayer.GetChild(index) is Control badge)
-            {
-                badge.Size = new Vector2(ElementBadgeDiameter, ElementBadgeDiameter);
-                badge.Position = new Vector2(
-                    width * 0.5f - groupWidth * 0.5f + index * (ElementBadgeDiameter + ElementBadgeGap),
-                    height - footerHeight - 9 - ElementBadgeDiameter * 0.5f);
-            }
-        }
-    }
-
-    private void LayoutCompact(float width, float height)
-    {
-        var padding = Mathf.Clamp(height * .025f, 3, 10);
-        var font = Mathf.Clamp(Mathf.RoundToInt(height * .06f), 13, 24);
-        var rowHeight = Mathf.Clamp(height * .06f, 18, 24);
-        var gemHeight = Mathf.Clamp(height * .1f, 18, 40);
-        var headerBottom = gemHeight * .55f + font + 12;
-        var rowCount = Math.Min(_viewModel!.Effects.Count, Math.Min(5, Math.Max(0, (int)((height - headerBottom - 42) / rowHeight))));
-        var footerHeight = rowCount * rowHeight + 27;
+        _artInnerRim.Position = Vector2.One * padding;
+        _artInnerRim.Size = Size - Vector2.One * padding * 2;
         _frame.Position = Vector2.Zero; _frame.Size = Size;
         _innerFrame.Position = Vector2.One * padding; _innerFrame.Size = Size - Vector2.One * padding * 2;
-        _header.Position = new Vector2(padding, padding); _header.Size = new Vector2(width - padding * 2, headerBottom - padding);
+        _header.Position = Vector2.Zero; _header.Size = new Vector2(width, band);
+        _footer.Position = new Vector2(0, height - band); _footer.Size = new Vector2(width, band);
         _title.AddThemeFontSizeOverride("font_size", font);
-        _title.Position = new Vector2(padding + 2, gemHeight * .55f + 3);
-        _title.Size = new Vector2(Mathf.Max(1, width - padding * 2 - 4), font + 6);
-        _footer.Position = new Vector2(padding, height - footerHeight);
-        _footer.Size = new Vector2(width - padding * 2, footerHeight - padding);
-        var ornamentScale = height / BaseHeight;
-        _ornament.Position = Vector2.Zero;
-        _ornament.Size = new Vector2(width / ornamentScale, BaseHeight);
-        _ornament.Scale = Vector2.One * ornamentScale;
-        _bottomCrest.Position = new Vector2(width / 2, height - 3); _bottomCrest.Scale = Vector2.One * height / BaseHeight;
+        _title.Position = new Vector2(padding + 2, 0);
+        _title.Size = new Vector2(Mathf.Max(1, width - padding * 2 - 4), band);
+
+        var scale = height / BaseHeight;
+        _ornament.Position = Vector2.Zero; _ornament.Size = new Vector2(width / scale, BaseHeight);
+        _ornament.Scale = Vector2.One * scale;
+        _bottomCrest.Position = new Vector2(width / 2, height - 1); _bottomCrest.Scale = Vector2.One * scale;
         _bottomCrestLight.Position = _bottomCrest.Position; _bottomCrestLight.Scale = _bottomCrest.Scale;
+        var gemHeight = Mathf.Clamp(height * .12f, 20, 40);
         _levelGem.Size = new Vector2(38, 40); _levelGem.Scale = Vector2.One * gemHeight / 40;
-        _levelGem.Position = new Vector2((width - 38 * _levelGem.Scale.X) / 2, 0);
+        _levelGem.Position = new Vector2(padding + 1, band + 2);
+
+        _sockets.Position = new Vector2(padding + gemHeight + 3, band + 4);
+        _sockets.Size = new Vector2(Mathf.Max(1, width - padding * 2 - gemHeight - 3), gemHeight);
+        var sockets = _sockets.GetChildCount();
+        var socketDiameter = Mathf.Min(height < BaseHeight ? 9 : 16, _sockets.Size.X / Math.Max(1, sockets) * .8f);
+        for (var index = 0; index < sockets; index++)
+        {
+            var socket = _sockets.GetChild<Panel>(index);
+            socket.Position = new Vector2(index * socketDiameter * 1.25f, 0);
+            socket.Size = Vector2.One * socketDiameter;
+        }
         _elementLayer.Size = Size;
-        var diameter = Mathf.Clamp(height * .09f, 18, 44);
+        var diameter = Mathf.Clamp(height * .09f, 16, 44);
         var count = _elementLayer.GetChildCount();
         for (var index = 0; index < count; index++)
         {
             var badge = _elementLayer.GetChild<Control>(index);
             badge.Size = Vector2.One * ElementBadgeDiameter; badge.Scale = Vector2.One * diameter / ElementBadgeDiameter;
             badge.Position = new Vector2(width / 2 - (count * diameter + (count - 1) * 2) / 2 + index * (diameter + 2),
-                height - footerHeight - diameter);
+                height - band - diameter - 2);
         }
-        _effects.Position = new Vector2(padding + 2, height - footerHeight);
-        _effects.Size = new Vector2(Mathf.Max(1, width - padding * 2 - 4), rowCount * rowHeight);
+
+        var valueFont = height < 220 ? 11 : Mathf.Min(font, 18);
+        var valueWidth = Mathf.Max(22, valueFont * .65f * _viewModel!.CurrentValue.ToString().Length + valueFont + 3);
+        var rowHeight = Mathf.Max(18, band - 4);
+        _valueBadge.CustomMinimumSize = Vector2.Zero;
+        _valueBadge.SetDisplayMetrics(valueFont);
+        _valueBadge.Position = new Vector2(width - valueWidth - padding, height - band + 2);
+        _valueBadge.Size = new Vector2(valueWidth, rowHeight);
+        _effects.Position = new Vector2(padding + 1, height - band + 2);
+        _effects.Size = new Vector2(Mathf.Max(1, width - valueWidth - padding * 2 - 4), rowHeight);
         var rows = _effects.GetChildren();
+        var visibleEffects = Math.Min(rows.Count, Math.Max(1, (int)(_effects.Size.X / (valueFont * 1.7f + 2))));
+        var effectWidth = _effects.Size.X / Math.Max(1, visibleEffects);
         for (var index = 0; index < rows.Count; index++)
         {
             var row = (CardEffectRow)rows[index];
-            row.Visible = index >= rows.Count - rowCount; row.SetDisplayMetrics(Math.Min(font, 16), rowHeight);
+            row.Visible = index < visibleEffects;
+            row.SetDisplayMetrics(valueFont, rowHeight);
+            row.Position = new Vector2(index * effectWidth, 0);
+            row.Size = new Vector2(effectWidth, rowHeight);
         }
-        var valueWidth = Mathf.Clamp(width * .5f, 36, 80);
-        _valueBadge.CustomMinimumSize = Vector2.Zero;
-        _valueBadge.SetDisplayMetrics(Math.Min(font, 16));
-        _valueBadge.Position = new Vector2(width - valueWidth - padding, height - 25);
-        _valueBadge.Size = new Vector2(valueWidth, 22);
     }
 
     private void RebuildElements(CardFaceViewModel viewModel)
@@ -281,7 +230,7 @@ public sealed partial class CardFace : Control
             child.QueueFree();
         }
         var rowCount = Math.Min(viewModel.Effects.Count, 5);
-        for (var index = rowCount - 1; index >= 0; index--)
+        for (var index = 0; index < rowCount; index++)
         {
             var row = (CardEffectRow)_effectScene.Instantiate();
             _effects.AddChild(row);
