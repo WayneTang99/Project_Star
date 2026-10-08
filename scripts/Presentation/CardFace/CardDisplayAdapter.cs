@@ -63,6 +63,7 @@ public sealed class CardDisplayAdapter
                     RestoreManaEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Mana, value.Amount.ToString()),
                     ArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
+                    GainSourceHeroLevelScaledArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, $"等级×{value.Multiplier}"),
                     GainSourceHeroArmorFromAttributeEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, Value(card, value.AttributeKey).ToString()),
                     GainArmorEqualToManaSpentEffectDefinition => new CardFaceEffect(CardFaceEffectKind.Armor, "累计魔法"),
                     ApplyStatusEffectDefinition { Status: BattleStatus.Poison } value => new CardFaceEffect(CardFaceEffectKind.Poison, value.Amount.ToString()),
@@ -146,6 +147,8 @@ public sealed class CardDisplayAdapter
     {
         ModifyAttributeEffectDefinition value => $"{AttributeName(value.AttributeKey)} {value.Amount:+0;-0;0}",
         IncreaseAlliedCardAttributeAuraEffectDefinition value => $"己方战场卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
+        MultiplyAlliedElementCardAttributeAuraEffectDefinition value =>
+            $"{(value.RequiredEnemyAnyTags is { } tags ? $"敌方战场存在存活的{string.Join("或", tags.Select(TagDisplayNames.Get))}卡牌时，" : "")}己方战场{ElementName(value.ElementKey)}属性卡牌{AttributeName(value.AttributeKey)} × {value.Multiplier}",
         DamageEffectDefinition value => $"造成 {value.Amount} 点伤害{(value.BypassArmor ? "（无视护甲）" : "")}",
         AttributeDamageEffectDefinition value => $"造成 {Value(card, value.AttributeKey)} 点伤害（来源 {AttributeName(value.AttributeKey)}）",
         MaxHealthPercentDamageEffectDefinition value => $"造成目标最大生命的 {value.Percent}% 伤害",
@@ -156,6 +159,7 @@ public sealed class CardDisplayAdapter
         RestoreManaEffectDefinition value => $"恢复 {value.Amount} 魔法",
         ArmorEffectDefinition value => $"获得护甲 {value.Amount}",
         GainSourceHeroArmorEffectDefinition value => $"己方英雄获得护甲 {value.Amount}",
+        GainSourceHeroLevelScaledArmorEffectDefinition value => $"己方英雄获得等同于己方英雄等级 × {value.Multiplier} 的护甲",
         GainSourceHeroArmorFromAttributeEffectDefinition value => $"己方英雄获得护甲 {Value(card, value.AttributeKey)}",
         GainArmorEqualToManaSpentEffectDefinition => "获得等同于本场累计魔法消耗的护甲",
         GrantMulticastToAlliedElementCardsEffectDefinition value => $"己方 {value.ElementKey} 属性卡牌多重 +{value.Amount}",
@@ -179,6 +183,13 @@ public sealed class CardDisplayAdapter
         IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         _ => throw new NotSupportedException($"No display formatter for {effect.GetType().Name}."),
     };
+
+    private static string ElementName(StringName element) => element == GameElements.General ? "通用"
+        : element == GameElements.Fire ? "火" : element == GameElements.Water ? "水"
+        : element == GameElements.Wind ? "风" : element == GameElements.Earth ? "土"
+        : element == GameElements.Lightning ? "雷" : element == GameElements.Wood ? "木"
+        : element == GameElements.Ice ? "冰" : element == GameElements.Light ? "光"
+        : element == GameElements.Dark ? "暗" : element.ToString();
 
     private static string Activation(AbilityActivation value) => value switch
     {

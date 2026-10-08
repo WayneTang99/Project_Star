@@ -135,6 +135,10 @@ internal static class BattleEffectResolver
                 var alliedHero = runtime.GetHero(pending.Source.Side);
                 alliedHero.Armor = checked(alliedHero.Armor + sourceArmor.Amount);
                 break;
+            case GainSourceHeroLevelScaledArmorEffectDefinition levelArmor:
+                var levelArmorHero = runtime.GetHero(pending.Source.Side);
+                levelArmorHero.Armor = checked(levelArmorHero.Armor + checked(levelArmorHero.Level * levelArmor.Multiplier));
+                break;
             case GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor:
                 var armorTarget = runtime.GetHero(pending.Source.Side);
                 armorTarget.Armor = checked(
@@ -304,6 +308,23 @@ internal static class BattleEffectResolver
                 && effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition multiplier
                 && multiplier.AttributeKey == key && runtime.GetHero(Opposite(source.Side)).Armor > 0)
                 value = checked(value * multiplier.Multiplier);
+        if (source is CardBattleState { Destroyed: false, IsOnBench: false } receiver
+            && receiver.SupportsCombatAttribute(key))
+        {
+            foreach (var auraSource in runtime.AbilitySources)
+            {
+                if (auraSource.Destroyed || auraSource.IsOnBench || auraSource.Side != receiver.Side) continue;
+                foreach (var ability in auraSource.Abilities)
+                foreach (var effect in ability.Definition.Effects)
+                    if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                        && effect is MultiplyAlliedElementCardAttributeAuraEffectDefinition aura
+                        && aura.AttributeKey == key && receiver.ElementKeys.Contains(aura.ElementKey)
+                        && (aura.RequiredEnemyAnyTags is null || runtime.Cards.Any(card =>
+                            card.Side != receiver.Side && !card.Destroyed && !card.IsOnBench
+                            && ContainsAnyEffectiveTag(runtime, card, aura.RequiredEnemyAnyTags))))
+                        value = checked(value * aura.Multiplier);
+            }
+        }
         return value;
     }
 

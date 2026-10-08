@@ -66,6 +66,13 @@ public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, in
 // 为己方存活战场卡牌持续提供属性加成（领域战斗层）。
 public sealed record IncreaseAlliedCardAttributeAuraEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
+// 倍增己方指定元素卡牌的有效属性，可要求敌方存在任一标签的存活战场卡牌。
+public sealed record MultiplyAlliedElementCardAttributeAuraEffectDefinition(
+    StringName ElementKey,
+    StringName AttributeKey,
+    int Multiplier,
+    IReadOnlyList<StringName>? RequiredEnemyAnyTags = null) : EffectDefinition;
+
 // 累加来源卡牌已支持的战斗属性（领域战斗层）。
 public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
@@ -96,6 +103,9 @@ public sealed record RestoreManaEffectDefinition(int Amount) : EffectDefinition;
 public sealed record ArmorEffectDefinition(int Amount) : EffectDefinition;
 
 public sealed record GainSourceHeroArmorEffectDefinition(int Amount) : EffectDefinition;
+
+// 按来源方英雄等级与固定系数累加护甲（领域战斗层）。
+public sealed record GainSourceHeroLevelScaledArmorEffectDefinition(int Multiplier) : EffectDefinition;
 
 public sealed record GainSourceHeroArmorFromAttributeEffectDefinition(StringName AttributeKey)
     : EffectDefinition;
@@ -267,6 +277,16 @@ public sealed class AbilityDefinition
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard
                     || allowsBench || alliedAura.AttributeKey.IsEmpty || alliedAura.Amount < 1))
                 throw new ArgumentException("Allied card attribute aura requires a battlefield aura, nonempty key and positive amount.", nameof(effects));
+            if (effect is MultiplyAlliedElementCardAttributeAuraEffectDefinition elementMultiplier)
+            {
+                if (activation != AbilityActivation.PassiveAura
+                    || target is not AbilityTarget.SelfCard and not AbilityTarget.AlliedHero || allowsBench
+                    || elementMultiplier.ElementKey.IsEmpty || elementMultiplier.AttributeKey.IsEmpty
+                    || elementMultiplier.Multiplier < 1
+                    || elementMultiplier.RequiredEnemyAnyTags is { } tags && (tags.Count == 0 || HasEmptyKey(tags)))
+                    throw new ArgumentException("Allied element attribute multiplier requires an aura, valid keys, multiplier and optional enemy tags.", nameof(effects));
+                _ = GameElements.Normalize([elementMultiplier.ElementKey]);
+            }
             if (effect is SummonAdjacentCardEffectDefinition summon
                 && (summon.Card is null || !Enum.IsDefined(summon.Side)
                     || activation != AbilityActivation.PassiveOnBattleStart || target != AbilityTarget.SelfCard || allowsBench))
@@ -299,6 +319,7 @@ public sealed class AbilityDefinition
                 RestoreManaEffectDefinition value => value.Amount,
                 ArmorEffectDefinition value => value.Amount,
                 GainSourceHeroArmorEffectDefinition value => value.Amount,
+                GainSourceHeroLevelScaledArmorEffectDefinition value => value.Multiplier,
                 ApplyStatusEffectDefinition value => value.Amount,
                 ApplyStatusToRandomEnemyCardEffectDefinition value => value.Amount,
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
@@ -414,7 +435,10 @@ public sealed class AbilityDefinition
                 throw new ArgumentException("Destroyed card attribute multiplier is invalid.", nameof(effects));
             }
         }
-        Effects = new List<EffectDefinition>(effects).AsReadOnly();
+        Effects = effects.Select(effect => effect is MultiplyAlliedElementCardAttributeAuraEffectDefinition
+            { RequiredEnemyAnyTags: { } tags } multiplier
+                ? multiplier with { RequiredEnemyAnyTags = Array.AsReadOnly(tags.ToArray()) }
+                : effect).ToList().AsReadOnly();
         AllowsBench = allowsBench;
         TriggerStateKey = triggerStateKey;
         TriggerCardTag = triggerCardTag;

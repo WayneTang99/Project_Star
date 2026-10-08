@@ -151,6 +151,12 @@ public sealed partial class PhaseOneVerification : Control
             ("技能使用独立实例并按同级规则合并", SkillChecks.CheckSkillMerge),
             ("空战场的被动技能可触发且回响不会连锁", SkillChecks.CheckSkillBattle),
             ("冲撞仅在己方首张卡牌发动后触发一次并按等级结算", SkillChecks.CheckChargeSkill),
+            ("捍卫各等级在战斗开始时累加己方英雄等级护甲", SkillChecks.CheckDefendSkill),
+            ("大主教传授捍卫并合并，护甲叠加且战斗输入隔离", SkillChecks.CheckDefendMentorAndIsolation),
+            ("至圣斩仅支持4级，大主教按等级筛选并传授", DivineSmiteChecks.DefinitionAndMentor),
+            ("至圣斩仅放大己方光属性攻击并按敌方标签判断", DivineSmiteChecks.FilteringAndDamage),
+            ("至圣斩响应摧毁、临时标签、转变和召唤变化", DivineSmiteChecks.DynamicConditions),
+            ("至圣斩叠加攻击加成和多个来源且配置冻结", DivineSmiteChecks.StackingAndValidation),
         ]),
     ];
 

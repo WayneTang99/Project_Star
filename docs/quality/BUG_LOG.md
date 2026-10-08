@@ -103,3 +103,4 @@
 | BUG-083 | 2026-10-04 | `scripts/Presentation/Verification/StandardAuraChecks.cs` / 旗帜手验证 | 新验证首次构建失败。 | 将属性变化事件Amount误写为Delta，且Tick预期数组使用int。 | 改用Amount及long数组，与领域事件契约一致。 | Fixed |
 | BUG-084 | 2026-10-04 | `scripts/Presentation/Verification/OrderPlateArmorChecks.cs` | 秩序板甲验证首次构建失败。 | 缺少Domain.Definitions命名空间，无法解析尺寸、元素与标签。 | 补充using，构建和167项回归通过。 | Fixed |
 | BUG-085 | 2026-10-08 | `.codex/skills/project-star-dev-git/SKILL.md` / 拉取完成判定 | 本地 HEAD 与缓存 origin/dev 同为4c2538a时误报已同步，直接查询服务器后发现远端为e7da243、本地落后22个提交。 | 完成判定只比较本地引用，缺少服务器分支SHA的独立核验；首次fetch未反映最新状态的具体原因未确认。 | 拉取最终必须使用ls-remote查询服务器并核对服务器、缓存远端与HEAD三个完整SHA；不一致时有限重试，失败或仍不一致时禁止报告已同步；推送后同样直接核验。同步修正skill中的过期项目路径。 | Fixed（工作流规则已更新） |
+| BUG-086 | 2026-10-08 | `scripts/Presentation/CardFace/CardDisplayAdapter.cs` / 元素倍率说明 | 新增说明初稿引用不存在的 `GameElements.DisplayName`，源码检查时发现会阻止构建。 | 将元素合法性定义误当作展示名称接口。 | 在表现层格式化已知元素的中文名；构建0警告0错误，184/184回归通过，说明验证包含光属性及恶魔/亡灵条件。 | Fixed |
