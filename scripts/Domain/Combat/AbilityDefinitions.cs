@@ -20,6 +20,9 @@ public enum AbilityActivation
     EchoOnMatchingAlliedCardActivated = 8,
     EchoOnSourceCardActivated = 9,
     EchoOnAdjacentAlliedAttackCardActivated = 10,
+    EchoOnAdjacentAlliedCardActivated = 11,
+    EchoOnAlliedSlowApplied = 12,
+    EchoOnAnyAttackCardActivated = 13,
 }
 
 public enum AbilityTarget
@@ -31,6 +34,8 @@ public enum AbilityTarget
     OtherBattlefieldCards = 4,
     AllBattlefieldCards = 5,
     EventCard = 6,
+    LeftAdjacentAlliedCard = 7,
+    RightAdjacentAlliedCard = 8,
 }
 
 public enum BattleStatus
@@ -74,7 +79,7 @@ public sealed record MultiplyAlliedElementCardAttributeAuraEffectDefinition(
     IReadOnlyList<StringName>? RequiredEnemyAnyTags = null) : EffectDefinition;
 
 // 累加来源卡牌已支持的战斗属性（领域战斗层）。
-public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
+public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName AttributeKey, int Amount, bool Permanent = false) : EffectDefinition;
 
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
 
@@ -123,6 +128,9 @@ public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
 // 缩短来源卡牌主动能力的剩余冷却（领域战斗层）。
 public sealed record ChargeSourceCardEffectDefinition(int AmountTicks) : EffectDefinition;
 
+// 缩短能力所选卡牌的主动冷却，支持自身及单侧相邻目标（领域战斗层）。
+public sealed record ChargeCardEffectDefinition(int AmountTicks) : EffectDefinition;
+
 // 按标签为己方存活战场卡牌充能，复用主动能力冷却结算。
 public sealed record ChargeTaggedAlliedCardsEffectDefinition(StringName RequiredTag, int AmountTicks) : EffectDefinition;
 
@@ -147,12 +155,19 @@ public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount
 // 随机对一张存活敌方战场卡牌累加持续状态（领域战斗层）。
 public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus Status, int Amount, int TargetCount = 1) : EffectDefinition;
 
+// 随机对一张存活己方战场卡牌累加持续状态，包含来源自身（领域战斗层）。
+public sealed record ApplyStatusToRandomAlliedCardEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+
 // 按双方存活战场指定元素卡牌数量动态延长来源冷却（领域战斗层）。
 public sealed record IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition(
     StringName ElementKey, int AmountTicks) : EffectDefinition;
 
 // 从来源战斗属性读取施加量，使状态可随实例永久加成成长（领域战斗层）。
 public sealed record ApplyAttributeStatusEffectDefinition(BattleStatus Status, StringName AttributeKey) : EffectDefinition;
+
+// 按来源当前有效属性的百分比施加英雄状态，向下取整（领域战斗层）。
+public sealed record ApplySourceAttributePercentStatusEffectDefinition(
+    BattleStatus Status, StringName AttributeKey, int Percent) : EffectDefinition;
 
 // 直接设置来源卡牌的布尔状态，不影响其他卡牌。
 public sealed record SetSourceCardStateEffectDefinition(StringName StateKey, bool Enabled) : EffectDefinition;
@@ -213,26 +228,41 @@ public sealed class AbilityDefinition
         bool allowsBench = false,
         StringName? triggerStateKey = null,
         StringName? triggerCardTag = null,
-        StringName? triggerCardElement = null)
+        StringName? triggerCardElement = null,
+        AdjacentCardSide? triggerCardSide = null)
     {
         ArgumentNullException.ThrowIfNull(effects);
+        if (activation == AbilityActivation.EchoOnAdjacentAlliedCardActivated
+            ? triggerCardSide is null || !Enum.IsDefined(triggerCardSide.Value) || allowsBench || cooldownTicks != 0
+            : triggerCardSide is not null)
+            throw new ArgumentException("Adjacent card echo requires a valid side, battlefield source and no cooldown.");
+        if (target is AbilityTarget.LeftAdjacentAlliedCard or AbilityTarget.RightAdjacentAlliedCard
+            && (allowsBench || activation == AbilityActivation.PassiveAura
+                || effects.Any(effect => effect is not ChargeCardEffectDefinition
+                    && effect is not ApplyStatusEffectDefinition { Status: BattleStatus.HasteDuration
+                        or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration })))
+            throw new ArgumentException("Adjacent card targets require an executed battlefield card status or charge ability.");
         if (activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
             ? triggerCardTag is null && triggerCardElement is null
                 || triggerCardTag is { IsEmpty: true } || triggerCardElement is { IsEmpty: true }
-            : activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
+            : activation is AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated or AbilityActivation.EchoOnAdjacentAlliedCardActivated
                 ? triggerCardTag is { IsEmpty: true } || triggerCardElement is not null
                 : triggerCardTag is not null || triggerCardElement is not null)
             throw new ArgumentException("Matching card trigger requires a nonempty tag or element filter.");
         if (activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
             && (allowsBench || cooldownTicks != 0))
             throw new ArgumentException("Adjacent attack card echo requires a battlefield source and no cooldown.");
+        if (activation is AbilityActivation.EchoOnAlliedSlowApplied or AbilityActivation.EchoOnAnyAttackCardActivated
+            && (allowsBench || cooldownTicks != 0))
+            throw new ArgumentException("Status and attack echoes require a battlefield source and no cooldown.");
         if (triggerCardElement is { } elementKey) _ = GameElements.Normalize([elementKey]);
         if (activation == AbilityActivation.EchoOnAlliedCardEnteredState
             ? triggerStateKey != GameAttributeKeys.Flying && triggerStateKey != GameAttributeKeys.Berserk
             : triggerStateKey is not null)
             throw new ArgumentException("State entry trigger requires a known state key.", nameof(triggerStateKey));
-        if (target == AbilityTarget.EventCard && activation != AbilityActivation.EchoOnAlliedCardEnteredState)
-            throw new ArgumentException("Event card target requires a state entry trigger.", nameof(target));
+        if (target == AbilityTarget.EventCard && activation is not AbilityActivation.EchoOnAlliedCardEnteredState
+                and not AbilityActivation.EchoOnAnyAttackCardActivated)
+            throw new ArgumentException("Event card target requires a card event trigger.", nameof(target));
         if (key.IsEmpty || manaCost < 0 || cooldownTicks < 0 || effects.Count == 0)
         {
             throw new ArgumentException("Ability configuration is invalid.");
@@ -261,6 +291,11 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is ChargeCardEffectDefinition cardCharge
+                && (cardCharge.AmountTicks < 1 || activation == AbilityActivation.PassiveAura
+                    || target is not AbilityTarget.SelfCard and not AbilityTarget.LeftAdjacentAlliedCard
+                        and not AbilityTarget.RightAdjacentAlliedCard))
+                throw new ArgumentException("Card charge requires a positive amount and an executed card target.", nameof(effects));
             if (effect is ChargeTaggedAlliedCardsEffectDefinition taggedCharge
                 && (taggedCharge.RequiredTag.IsEmpty || taggedCharge.AmountTicks < 1 || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Tagged allied charge requires a tag, positive amount and an executed ability.", nameof(effects));
@@ -304,6 +339,11 @@ public sealed class AbilityDefinition
             if (effect is ApplyAttributeStatusEffectDefinition attributeStatus
                 && (attributeStatus.AttributeKey.IsEmpty || attributeStatus.Status is not BattleStatus.Burn and not BattleStatus.Poison))
                 throw new ArgumentException("Attribute status requires a key and burn or poison.", nameof(effects));
+            if (effect is ApplySourceAttributePercentStatusEffectDefinition percentStatus
+                && (percentStatus.AttributeKey.IsEmpty || percentStatus.Percent is < 1 or > 100
+                    || percentStatus.Status is not BattleStatus.Burn and not BattleStatus.Poison
+                    || activation == AbilityActivation.PassiveAura || target != AbilityTarget.EnemyHero))
+                throw new ArgumentException("Attribute percent status requires an executed enemy hero ability, a key and a percentage from 1 to 100.", nameof(effects));
             if (target == AbilityTarget.EventCard && effect is not ApplyStatusEffectDefinition)
                 throw new ArgumentException("Event card target currently supports status effects only.", nameof(effects));
             if ((activation == AbilityActivation.PassiveWhileEnabled) != (effect is ModifyAttributeEffectDefinition))
@@ -322,6 +362,7 @@ public sealed class AbilityDefinition
                 GainSourceHeroLevelScaledArmorEffectDefinition value => value.Multiplier,
                 ApplyStatusEffectDefinition value => value.Amount,
                 ApplyStatusToRandomEnemyCardEffectDefinition value => value.Amount,
+                ApplyStatusToRandomAlliedCardEffectDefinition value => value.Amount,
                 ApplyStatusToAdjacentAlliedCardsEffectDefinition value => value.Amount,
                 ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => value.Amount,
                 GrantMulticastToAlliedElementCardsEffectDefinition value => value.Amount,
@@ -345,6 +386,10 @@ public sealed class AbilityDefinition
                 && randomStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
                     and not BattleStatus.ImmobilizeDuration)
                 throw new ArgumentException("Random enemy card status requires a duration status.", nameof(effects));
+            if (effect is ApplyStatusToRandomAlliedCardEffectDefinition alliedStatus
+                && (alliedStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
+                    and not BattleStatus.ImmobilizeDuration || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Random allied card status requires a duration status and executed ability.", nameof(effects));
             if (effect is SetSourceCardStateEffectDefinition state
                 && (state.StateKey != GameAttributeKeys.Flying && state.StateKey != GameAttributeKeys.Berserk
                     || activation == AbilityActivation.PassiveAura))
@@ -443,6 +488,7 @@ public sealed class AbilityDefinition
         TriggerStateKey = triggerStateKey;
         TriggerCardTag = triggerCardTag;
         TriggerCardElement = triggerCardElement;
+        TriggerCardSide = triggerCardSide;
     }
 
     public StringName Key { get; }
@@ -455,6 +501,7 @@ public sealed class AbilityDefinition
     public StringName? TriggerStateKey { get; }
     public StringName? TriggerCardTag { get; }
     public StringName? TriggerCardElement { get; }
+    public AdjacentCardSide? TriggerCardSide { get; }
 
     private static bool HasEmptyKey(IReadOnlyList<StringName> keys)
     {

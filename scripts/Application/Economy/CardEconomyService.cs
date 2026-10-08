@@ -310,10 +310,11 @@ public sealed class CardEconomyService
         }
         var target = session.Player.Inventory.Find(plan.TargetId.Value)
             ?? throw new InvalidOperationException("Merge target is not owned by the player.");
+        var previousLevel = target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
         _entityFactory.ApplyCardLevel(target, definition, plan.FinalLevel);
         new CardQuestService(_boardService).ProcessEvent(session,
             new CardAcquiredQuestEvent(definition.Attributes.Identity.ElementKeys));
-        return new CardAcquisitionResult(target, false, level, plan.FinalLevel);
+        return new CardAcquisitionResult(target, false, previousLevel, plan.FinalLevel);
     }
 
     private bool CanApplyMergePlan(MatchSession session, MergePlan plan) =>
@@ -342,7 +343,9 @@ public sealed class CardEconomyService
                 candidates,
                 excluded);
             if (next is null) break;
-            consumed.Add(next.Value);
+            // 每一步由原有高等级卡吸收低等级结果，保留其完整实例状态。
+            consumed.Add(targetId.Value);
+            targetId = next.Value;
             excluded.Add(next.Value);
             currentLevel++;
         }

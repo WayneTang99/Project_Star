@@ -43,10 +43,11 @@ internal static class GemSocketChecks
         if (service.Execute(session, command with { CardId = material.Id, Gem = new TestGem("blue", "测试蓝宝石") }).IsFailure) return false;
         var economy = new CardEconomyService(factory, new BoardService(new BoardPlacementSolver()));
         var merged = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward);
-        if (merged.IsFailure || merged.Value!.Card.Id != card.Id || session.Player.Inventory.Cards.Count != 1
-            || card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 3
-            || card.GemSockets[0]?.Key != gem.Attributes.Identity.Key) return false;
-        if (economy.SellCard(session, card.Id).IsFailure || session.Player.Inventory.Cards.Count != 0
+        if (merged.IsFailure || merged.Value!.Card.Id != material.Id || session.Player.Inventory.Cards.Count != 1
+            || material.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 3
+            || material.GemSockets[0]?.Key != new StringName("verification.gem.blue")
+            || session.Player.Inventory.Find(card.Id) is not null) return false;
+        if (economy.SellCard(session, material.Id).IsFailure || session.Player.Inventory.Cards.Count != 0
             || service.Execute(session, command).IsSuccess || filled.GemSockets[0]?.DisplayName != "测试红宝石") return false;
         var multi = factory.CreateCard(new SocketCard(3)); session.Player.Inventory.Add(multi);
         if (service.Execute(session, command with { CardId = multi.Id, SocketIndex = 2 }).IsFailure) return false;

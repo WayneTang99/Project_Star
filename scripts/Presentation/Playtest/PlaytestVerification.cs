@@ -154,20 +154,24 @@ internal static class PlaytestVerification
             && empty.Player.Inventory.Cards.Count == 0 && empty.Board.Battlefield.Count == 0;
     }
 
-    // 连续合并释放的占格参与预检，原先未放置的目标也必须获得棋盘位置。
+    // 连续合并保留最高等级目标；满盘时沿用原位或使用低等级材料释放的占格。
     public static bool MergePlacementReleasedSpace()
     {
         var factory = new EntityFactory(); var board = new BoardService(new BoardPlacementSolver());
         var economy = new CardEconomyService(factory, board);
-        var session = new MatchSession(42, 100, boardCapacity: 1);
-        var target = economy.AcquireCard(session, new ArmguardCardDefinition(), 1, CardAcquisitionSource.Reward).Value!;
-        var consumed = economy.AcquireCard(session, new ArmguardCardDefinition(), 2, CardAcquisitionSource.Reward).Value!;
-        board.PlaceCard(session, consumed.Id, BoardZone.Battlefield, 0);
-        economy.AcquireAndPlace(session, new NunCardDefinition(), 4, CardAcquisitionSource.Reward);
-        var bought = economy.BuyAndPlace(session, ShopOffer.Create(new ArmguardCardDefinition()));
-        return bought.IsSuccess && bought.Value!.Id == target.Id && bought.Value.CurrentLevel == 3
-            && session.Board.Contains(target.Id) && !session.Board.Contains(consumed.Id)
-            && session.Player.Inventory.Find(consumed.Id) is null && session.Player.Inventory.Cards.Count == 2;
+        foreach (var targetPlaced in new[] { false, true })
+        {
+            var session = new MatchSession(42, 100, boardCapacity: 1);
+            var consumed = economy.AcquireCard(session, new ArmguardCardDefinition(), 1, CardAcquisitionSource.Reward).Value!;
+            var target = economy.AcquireCard(session, new ArmguardCardDefinition(), 2, CardAcquisitionSource.Reward).Value!;
+            board.PlaceCard(session, targetPlaced ? target.Id : consumed.Id, BoardZone.Battlefield, 0);
+            economy.AcquireAndPlace(session, new NunCardDefinition(), 4, CardAcquisitionSource.Reward);
+            var bought = economy.BuyAndPlace(session, ShopOffer.Create(new ArmguardCardDefinition()));
+            if (bought.IsFailure || bought.Value!.Id != target.Id || bought.Value.CurrentLevel != 3
+                || session.Board.Locate(target.Id)?.Placement.Start != 0 || session.Board.Contains(consumed.Id)
+                || session.Player.Inventory.Find(consumed.Id) is not null || session.Player.Inventory.Cards.Count != 2) return false;
+        }
+        return true;
     }
 
     // 出售溢出或缺少奖励依赖时完整保留状态；成功按现值回补且只能执行一次。

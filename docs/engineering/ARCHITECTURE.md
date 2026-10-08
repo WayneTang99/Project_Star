@@ -47,7 +47,7 @@ Definition 的维护和行为验证见 [内容数据规范](../design/CONTENT_DA
 - GameCoordinator 协调创建、遭遇、战斗与结果；经济、棋盘、事件与奖励有明确应用入口。
 - BoardPlacementSolver 是纯函数，评估直接放置/左右推挤，返回完整计划。优先级为总距离短 → 影响卡牌少 → Right；评估前释放移动卡原位。
 - BoardService 验证归属，成功后一次提交同盘/跨区位移；预览不修改状态，提交重新计算。
-- CardMergeDecision 稳定选择合并目标，CardEconomyService 提交创建或升级。BuyAndPlace / AcquireAndPlace 预检金额、售罄、合并与完整放置，成功后扣款/标记；SellFromBoard 预检价值、溢出与奖励依赖后统一出售。
+- MergeDecision 按同等级候选的稳定ID选择，CardEconomyService 构建连续合并链，每一步保留原有更高等级卡，最终提交最高等级目标的升级并删除低等级材料。BuyAndPlace / AcquireAndPlace 预检金额、售罄、合并与完整放置，成功后扣款/标记；SellFromBoard 预检价值、溢出与奖励依赖后统一出售。
 - RoundIncomeService 在生成新轮遭遇前结算，并按轮次保证幂等；第一轮在创建对局后结算。
 - EncounterScheduler 稳定过滤/抽取候选，保存候选出现历史与随机状态。MonsterDefinition 自动投影为怪物遭遇；试玩允许内容不足三个，正式排程保持严格。
 - ResolveEncounterOptionService 创建本次固定/加权选项，一次性选择成功后提交通用效果。MonsterRewardClaimService 只在领取成功后移除奖励。
@@ -77,6 +77,7 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 | CombatSimulator | 创建 Runtime、推进 Tick、FIFO 入队/发动、魔法与冷却门控、回响截断及终止判定 |
 | BattleEffectResolver | 通用效果执行、伤害、卡牌属性/光环查询、充能与摧毁；只操作 Runtime |
 | BattleStatusResolver | 卡牌冷却与时长衰减、状态施加、相邻状态反应、英雄周期状态与日蚀 |
+| BattleQuestResolver | 自身发动任务进度、阈值即时解锁与通用属性/能力/身份奖励；只操作 Runtime |
 | BattleStateRecorder | 冻结事件前缀对应的状态，生成结算结果；不推进随机或规则 |
 
 入口只接受 BattleSetup。所有协作者在 Domain/Combat 内部，不向 UI 暴露战斗写入口。卡牌/技能/套装共用 IBattleAbilitySource、PendingAbility 和效果解析，不复制独立模拟器。
@@ -88,6 +89,8 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 主动发动先验证来源和魔法，再扣魔法、重置冷却、发布发动事件并执行效果。多重从当前卡牌属性读取，额外发动不递归生成多重、不重复付魔法。光环按当前 Runtime 求值，来源离开战场或被摧毁即失效；技能来源不依赖棋盘。回响执行产生的事件不再次触发回响。每场首次己方卡牌发动触发由能力状态保证至多一次。
 
 Runtime 只修改卡牌实际支持的属性，修改效果不能凭写属性赋予新能力。每次真实变化点记录冻结状态；同 Tick 保持原记录顺序，EventCount 对应原日志前缀。BattleResult 包含永久变化与只读播放状态，GameCoordinator.ResolveBattleForPlayback 通过 MatchResultService.Apply 一次结算，不因播放方式重跑。UI 回放细节见 UI 规范。
+
+自身发动任务和永久成长只操作本场 Runtime。输入冻结已有任务进度，发动结束后推进并解锁，输出分别保存任务进度事件与精确永久属性贡献；应用结算写回真实己方实例并重算任务属性。任务身份奖励替换实例属性集中的只读身份对象，不更改共享定义；战斗快照独立保存身份变化和当前能力，回放不读取战后解锁结果推算旧画面。召唤和临时转变来源不会回写任务或成长。
 
 飞行／狂暴独立存为 Runtime 的布尔字段，不进入数值属性字典。通用来源卡牌状态设置效果发布 CardStateChangedEvent，CardBattleSnapshot 冻结两个布尔值，回放投影传给 CardSnapshot。飞行减时长在目标状态施加处统一处理；狂暴只在发动的伤害公式结果与中毒／灼伤施加量处增加20%，不修改基础属性或周期结算。
 

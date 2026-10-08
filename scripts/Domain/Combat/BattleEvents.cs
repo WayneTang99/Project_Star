@@ -47,6 +47,10 @@ public sealed record CardAttributeChangedEvent(
     int Amount,
     int CurrentValue) : BattleEvent(Tick);
 
+// 冻结自身发动任务的本场进度，临时来源不写回对局（领域战斗层）。
+public sealed record CardQuestProgressChangedEvent(BattleTick Tick, EntityId CardId, SideId Side,
+    StringName QuestKey, int Progress, bool Persists) : BattleEvent(Tick);
+
 public sealed record CardChargedEvent(
     BattleTick Tick,
     EntityId SourceCardId,

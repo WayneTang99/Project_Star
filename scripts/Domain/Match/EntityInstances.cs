@@ -33,8 +33,8 @@ public sealed class CardInstance
         IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null)
     {
         Id = id;
-        Attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
-        Tags = tags ?? throw new ArgumentNullException(nameof(tags));
+        _attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
+        _tags = tags ?? throw new ArgumentNullException(nameof(tags));
         Abilities = abilities ?? throw new ArgumentNullException(nameof(abilities));
         OnSellReward = onSellReward;
         SaleAttributeBonuses = saleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
@@ -46,9 +46,11 @@ public sealed class CardInstance
 
     public EntityId Id { get; }
 
-    public EntityAttributes<CardIdentityAttributes> Attributes { get; }
+    private EntityAttributes<CardIdentityAttributes> _attributes;
+    public EntityAttributes<CardIdentityAttributes> Attributes => _attributes;
 
-    public TagSet Tags { get; }
+    private TagSet _tags;
+    public TagSet Tags => _tags;
     private readonly GemIdentityAttributes?[] _gemSockets;
     public IReadOnlyList<GemIdentityAttributes?> GemSockets { get; }
 
@@ -81,15 +83,36 @@ public sealed class CardInstance
     internal bool ApplyQuestEvent(QuestEvent questEvent)
     {
         ArgumentNullException.ThrowIfNull(questEvent);
+        if (questEvent is SourceCardActivatedQuestEvent activated && activated.CardId != Id) return false;
         var unlocked = false;
         foreach (var quest in Quests)
         {
             var progress = GetQuestProgress(quest.Key);
             if (progress >= quest.RequiredCount || !quest.Condition.Matches(questEvent)) continue;
-            _questProgress[quest.Key] = progress + 1;
-            if (progress + 1 == quest.RequiredCount) unlocked = true;
+            unlocked |= SetQuestProgress(quest.Key, progress + 1);
         }
         return unlocked;
+    }
+
+    // 从冻结战斗结果更新任务，进度只增不减，身份奖励只在首次解锁时应用。
+    internal bool SetQuestProgress(StringName questKey, int progress)
+    {
+        var quest = System.Linq.Enumerable.FirstOrDefault(Quests, item => item.Key == questKey);
+        if (quest is null || progress <= GetQuestProgress(questKey)) return false;
+        var previouslyUnlocked = IsQuestUnlocked(quest);
+        _questProgress[questKey] = Math.Min(progress, quest.RequiredCount);
+        if (previouslyUnlocked || !IsQuestUnlocked(quest)) return false;
+        if (quest.UnlockedElementKeys.Count > 0)
+        {
+            var identity = Attributes.Identity;
+            _attributes = new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
+                identity.Key, identity.DisplayName, identity.FactionKey, identity.Size, quest.UnlockedElementKeys,
+                identity.SetKey, identity.Illustration, identity.DescriptionEntries, identity.GemSocketCount),
+                Attributes.Persistent, Attributes.BaseCombat);
+        }
+        if (quest.UnlockedTags.Count > 0)
+            _tags = new TagSet(System.Linq.Enumerable.Concat(Tags, quest.UnlockedTags));
+        return true;
     }
 
     internal void ReplaceAbilities(IReadOnlyList<AbilityDefinition> abilities) =>

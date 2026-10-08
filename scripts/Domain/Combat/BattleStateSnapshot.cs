@@ -19,6 +19,10 @@ public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed
     int Haste, int Slow, int Immobilize, IReadOnlyList<decimal> CooldownUnits,
     IReadOnlyDictionary<StringName, int> Values)
 {
+    public IReadOnlyList<CardQuestBattleSnapshot> Quests { get; init; } = System.Array.Empty<CardQuestBattleSnapshot>();
+    public IReadOnlyList<StringName> QuestElementKeys { get; init; } = System.Array.Empty<StringName>();
+    public IReadOnlyList<StringName> QuestTags { get; init; } = System.Array.Empty<StringName>();
+    public IReadOnlyList<AbilityDefinition> QuestAbilities { get; init; } = System.Array.Empty<AbilityDefinition>();
     public SummonedCardSnapshot? SummonedCard { get; init; }
     public CardIdentityAttributes? TransformedIdentity { get; init; }
     public IReadOnlyList<StringName> TransformedTags { get; init; } = System.Array.Empty<StringName>();
@@ -29,6 +33,9 @@ public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed
     public bool IsOnBench { get; init; }
     public bool IsBerserk { get; init; }
 }
+
+// 战斗回放中的冻结任务进度（领域战斗层）。
+public sealed record CardQuestBattleSnapshot(StringName Key, int Progress, int RequiredCount, bool Unlocked);
 
 // EventCount 定位已消费的原日志前缀，同 Tick 的快照保持生成顺序。
 public sealed record BattleStateSnapshot(BattleTick Tick, int EventCount, bool Eclipse,

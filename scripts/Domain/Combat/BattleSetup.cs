@@ -33,6 +33,9 @@ public sealed record CardBattleSetup(
     int ArmorAmount = 0)
 {
     public int Level { get; init; } = 1;
+    public IReadOnlyList<CardQuestDefinition> Quests { get; init; } = Array.Empty<CardQuestDefinition>();
+    public IReadOnlyDictionary<StringName, int> QuestProgress { get; init; } =
+        new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
     public decimal CooldownMultiplier { get; init; } = 1m;
     public IReadOnlyDictionary<StringName, int> CombatValues { get; init; } =
         new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());

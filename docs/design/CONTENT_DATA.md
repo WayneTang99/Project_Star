@@ -40,13 +40,31 @@
 
 `EchoOnMatchingAlliedCardActivated` 配置 `TriggerCardTag` / `TriggerCardElement`，匹配己方战场卡牌的主动发动；任一条件成立即触发一次，两项同时满足不重复触发。包含来源自身及多重额外发动，排除敌方、技能、备战区与回响产生的被动发动。`ChargeSourceCardEffectDefinition` 缩短来源主动能力剩余冷却，到零时立即排队发动；不改变基础冷却，不触发被动能力的冷却。
 
+### 己方施加迟缓与双方攻击发动回响
+
+`ApplyStatusToRandomAlliedCardEffectDefinition` 从己方存活战场卡牌中按战斗随机数选择一张，包含来源自身，排除备战与已摧毁卡牌；无目标时跳过。持续状态累加并自然衰减，迟缓与禁锢沿用目标飞行减半规则。
+
+`EchoOnAlliedSlowApplied` 响应己方成功施加的迟缓，按施加方筛选，与目标归属无关；每张目标实际获得正时长时触发一次，包含多重及重复施加。无目标、零时长、飞行取整后为0或敌方施加不触发；回响产生的迟缓不再触发回响。可组合 `ChargeSourceCardEffectDefinition`，充能降至0后按既有规则即时排队发动。
+
+`EchoOnAnyAttackCardActivated` 响应双方战场攻击卡牌成功主动发动，包含多重；攻击分类沿用相邻攻击回响的直接伤害能力判定，同一卡牌的辅助主动发动也计数。`EventCard` 指向该次发动的卡牌，可施加迟缓／禁锢等持续状态；目标在回响执行前被摧毁或替换移出 Runtime 时跳过。纯辅助、备战、失败发动、技能、战斗开始与回响发动均不触发；来源在备战区或被摧毁后失效，无主动冷却或魔法消耗。
+
 ### 自身发动后的属性成长回响
 
 `EchoOnSourceCardActivated` 仅响应来源卡牌自己的主动发动，包含多重额外发动；不响应其他卡牌、技能或回响发动。`IncreaseSourceCardAttributeEffectDefinition` 累加来源已支持的战斗属性，发布属性变化事件，仅本场生效。当前整组多重次数在正常发动时确定，回响新增多重从下一组发动生效。
 
+该成长效果可配置 `Permanent: true`：本场属性立即累加，贡献作为 `PermanentCardAttributeBonus` 返回，结算时叠加到己方仍在库存的真实实例，胜负均保留。召唤与临时转变来源的贡献仅本场生效，不写回原卡；不从最终攻击值反推永久加成。
+
+`ApplySourceAttributePercentStatusEffectDefinition` 按当次来源有效属性（含现行加成）乘百分比并向下取整，向敌方英雄施加灼伤或中毒；复用状态累加及发动狂暴规则，不把属性百分比解析为展示文案。
+
 ### 相邻攻击卡牌发动回响
 
 `EchoOnAdjacentAlliedAttackCardActivated` 响应左右直接相邻的己方战场攻击卡牌主动发动，包含多重额外发动，可用 `TriggerCardTag` 限定标签。攻击卡牌按其能力中是否包含直接伤害效果判断，该卡牌的每次主动发动均计数（包括同一卡牌的辅助主动能力）；伤害为0或全部被护甲吸收仍触发，治疗、护甲、状态施加等纯辅助卡牌不触发。相邻按完整占格边界判断，空格不跨越；排除敌方、备战区、技能及回响发动，来源被摧毁后失效。此回响无主动冷却和魔法消耗。
+
+### 单侧相邻卡牌发动回响
+
+`EchoOnAdjacentAlliedCardActivated` 通过 `TriggerCardSide` 指定左侧或右侧，响应该侧直接相邻的己方战场卡牌主动发动，包含多重额外发动，不要求攻击能力；可用 `TriggerCardTag` 限定标签，未配置时不筛选标签。相邻按完整占格边界判断，不跨空格；排除敌方、备战区、技能及回响发动，来源被摧毁后失效，无主动冷却与魔法消耗。左右两侧分别配置可组合为双侧相邻触发。
+
+`LeftAdjacentAlliedCard` / `RightAdjacentAlliedCard` 在执行时选择该侧直接相邻的己方存活战场卡牌，无目标时跳过效果。可组合持续状态施加或 `ChargeCardEffectDefinition`；状态时长累加并自然衰减，充能复用剩余主动冷却扣减与到零即时排队，不改变基础冷却。充能产生的正常主动发动仍可触发回响。
 
 ### 敌方有护甲时的来源属性倍率
 
@@ -216,6 +234,8 @@
 ## 扩展与验证
 
 拾取任务用 `CardAcquiredQuestEvent` 与 `AcquiredElementCardQuestConditionDefinition` 表达，统一由获得／合并入口发布。任务的 `AdditionalActiveEffects` 追加到原发动；`CardAbilityComposer` 为展示与战斗合成当前解锁效果和冷却属性加成，不创建独立冷却或魔法消耗。成长数值放入每级战斗属性，追加效果读取对应属性，因此升级保留进度并更新效果数值。
+
+`SourceCardActivationQuestConditionDefinition` 累计来源自己的成功主动发动，包含多重。战斗输入冻结任务定义和已有进度，`BattleQuestResolver` 在发动结束后推进并即时应用已支持属性奖励、追加发动效果、`UnlockedElementKeys` 和 `UnlockedTags`；回放读取冻结进度、元素、标签及能力。当前组多重不追补，新效果从后续发动生效。战后 `CardQuestService.ApplyBattleProgress` 只写回己方真实实例的冻结进度，并按已有机制重算任务属性贡献；身份奖励创建新的只读身份对象，不修改共享 Definition，升级保留进度与身份。
 
 每个具体内容保持独立文件，由 `DefinitionRegistry.Scan` 发现公开、非抽象、无参定义。验证夹具保持 internal，不进入正式内容池。共享构造辅助只在有实际复用时建立。
 

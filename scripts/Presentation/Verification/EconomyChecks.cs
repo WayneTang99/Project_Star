@@ -298,20 +298,20 @@ internal static class EconomyChecks
         session.Player.Inventory.Add(existingLevelTwo);
         _ = board.PlaceCard(session, existingLevelTwo.Id, BoardZone.Battlefield, 2);
         var merged = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!;
-        var location = session.Board.Locate(first.Card.Id);
+        var location = session.Board.Locate(existingLevelTwo.Id);
         var firstLevelFour = economy.AcquireCard(session, definition, 4, CardAcquisitionSource.Reward).Value!;
         var secondLevelFour = economy.AcquireCard(session, definition, 4, CardAcquisitionSource.Reward).Value!;
 
         return merged.WasUpgraded
-            && merged.Card.Id == first.Card.Id
-            && merged.PreviousLevel == 1
+            && merged.Card.Id == existingLevelTwo.Id
+            && merged.PreviousLevel == 2
             && merged.CurrentLevel == 3
             && merged.Card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 3
             && merged.Card.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.AttackDamage) == 40
             && merged.Card.Abilities[0].CooldownTicks == 30
             && location?.Zone == BoardZone.Battlefield
-            && location?.Placement.Start == 0
-            && session.Player.Inventory.Find(existingLevelTwo.Id) is null
+            && location?.Placement.Start == 2
+            && session.Player.Inventory.Find(first.Card.Id) is null
             && firstLevelFour.WasCreated
             && secondLevelFour.WasCreated
             && firstLevelFour.Card.Id != secondLevelFour.Card.Id;

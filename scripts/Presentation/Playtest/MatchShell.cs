@@ -4,6 +4,8 @@ using Godot;
 using Project_Star.Application.Match;
 using Project_Star.Application.Board;
 using Project_Star.Application.Common;
+using System.Collections.Generic;
+using Project_Star.Application.Content;
 using Project_Star.Domain.Match;
 
 namespace Project_Star.Presentation.Playtest;
@@ -29,6 +31,8 @@ public sealed partial class MatchShell : Control
     private LeavePanel _leave = null!;
     private ScrollContainer _leaveScroll = null!;
     private HeroSelectionView _heroes = null!;
+    private CardCatalogView _catalog = null!;
+    private Button _catalogButton = null!;
     private EncounterSelectionView _encounters = null!;
     private KeyedActionView _events = null!;
     private ShopView _shop = null!;
@@ -58,6 +62,9 @@ public sealed partial class MatchShell : Control
         _leave = Add(_leaveScroll, new LeavePanel { Name = "LeavePanel", SizeFlagsHorizontal = SizeFlags.ExpandFill });
         var host = GetNode<Control>("ContextRow/ContextHost");
         _heroes = Add(host, new HeroSelectionView { Name = "HeroSelectionView" });
+        _catalogButton = Add(this, new Button { Name = "OpenCardCatalog", Text = "卡牌图鉴", ZIndex = 5 });
+        _catalog = Add(this, new CardCatalogView { Name = "CardCatalog", ZIndex = 30 });
+        _catalogButton.Pressed += OpenCatalog; _catalog.Closed += CloseCatalog;
         _encounters = Add(host, new EncounterSelectionView { Name = "EncounterChoiceView" });
         _events = Add(host, new KeyedActionView { Name = "EventView" });
         _shop = Add(host, new ShopView { Name = "ShopView" });
@@ -99,7 +106,9 @@ public sealed partial class MatchShell : Control
         _events.Render(view.Message, view.EventOptions, view.EventRevision, view.ContextIllustration);
         _shop.Render(view.Message, view.Offers, view.ShopLevel);
         if (view.Page is MatchPage.BattleResult or MatchPage.MatchEnded) _result.Render(view);
-        _heroes.Visible = view.Page == MatchPage.HeroSelection;
+        _heroes.Visible = view.Page == MatchPage.HeroSelection && !_catalog.Visible;
+        _catalogButton.Visible = view.Page == MatchPage.HeroSelection && !_catalog.Visible;
+        if (view.Page != MatchPage.HeroSelection) _catalog.Hide();
         _encounters.Visible = view.Page == MatchPage.EncounterChoice;
         _events.Visible = view.Page == MatchPage.Event;
         _shop.Visible = view.Page == MatchPage.Shop;
@@ -131,6 +140,7 @@ public sealed partial class MatchShell : Control
     public override void _ExitTree()
     {
         Resized -= LayoutShell;
+        _catalogButton.Pressed -= OpenCatalog; _catalog.Closed -= CloseCatalog;
         _heroes.Selected -= SelectHero; _encounters.Selected -= SelectEncounter; _events.Selected -= SelectEvent;
         _shop.BuyRequested -= Buy; _leave.Requested -= RequestAction;
         _shop.DetailsRequested -= ShowDetails; _details.SellRequested -= Sell;
@@ -149,6 +159,18 @@ public sealed partial class MatchShell : Control
     private void SelectEvent(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.Event, key, revision);
     private void Buy(int index, long revision) => BuyRequested?.Invoke(index, revision);
     private void RequestAction(MatchAction action) => ActionRequested?.Invoke(action);
+    // 图鉴内容由入口的应用查询注入，不读取对局状态。
+    public void SetCatalog(IReadOnlyList<CardCatalogEntry> entries) => _catalog.SetEntries(entries);
+    private void OpenCatalog()
+    {
+        if (_page != MatchPage.HeroSelection) return;
+        _details.Hide(); _secondary.Hide(); _heroes.Hide(); _catalogButton.Hide(); _catalog.Open();
+    }
+    private void CloseCatalog()
+    {
+        if (_page != MatchPage.HeroSelection) return;
+        _heroes.Show(); _catalogButton.Show(); _catalogButton.GrabFocus();
+    }
     // 开发日志的打开与关闭不发出对局命令。
     public void ToggleLog() => _result.ToggleLog();
     private void Sell(Guid matchId, Project_Star.Domain.Common.EntityId id, int level, int value) => SellRequested?.Invoke(matchId, id, level, value);
@@ -219,6 +241,10 @@ public sealed partial class MatchShell : Control
             host.Position = new Vector2(margin, top); host.Size = new Vector2(Size.X - margin * 2, available);
             _heroes.Size = host.Size;
         }
+        _catalogButton.Position = new Vector2(Size.X - margin - 160, margin);
+        _catalogButton.Size = new Vector2(160, 40);
+        _catalog.Position = new Vector2(margin, margin);
+        _catalog.Size = Size - Vector2.One * margin * 2;
         _details.ClampTo(Size);
         _sellDrop.Position = Vector2.Zero;
         _sellDrop.Size = new Vector2(Size.X, top + phaseHeader + phaseHeight);

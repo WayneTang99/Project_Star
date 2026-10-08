@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Project_Star.Application.Board;
+using Project_Star.Application.Content;
 using Project_Star.Application.Combat;
 using Project_Star.Application.Economy;
 using Project_Star.Application.Encounters;
@@ -43,6 +44,7 @@ public sealed partial class MinimalPlaytest : Control
         _presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(), events,
             new MentorService(registry, new SkillAcquisitionService(factory)), rewards, game, new LocalTestOpponentProvider(registry));
         _shell = GetNode<MatchShell>("MatchShell");
+        _shell.SetCatalog(CardCatalogQuery.Capture(registry));
         _shell.ChoiceSelected += Choose;
         _shell.BuyRequested += _presenter.BuyCard;
         _shell.ActionRequested += Act;

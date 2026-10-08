@@ -45,6 +45,14 @@ public sealed class MatchResultService
             return Result.Fail(new Failure(new Godot.StringName("match.invalid_monster"), "A valid monster opponent is required."));
 
         ApplyPermanentChanges(session, battle);
+        foreach (var bonus in battle.PermanentAttributeBonuses)
+        {
+            if (bonus.Side != SideId.Player) continue;
+            var card = session.Player.Inventory.Find(bonus.CardId);
+            card?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), bonus.CardId, bonus.AttributeKey, bonus.Amount));
+        }
+        _quests.ApplyBattleProgress(session, battle);
         if (battle.Outcome == BattleOutcome.PlayerVictory)
         {
             ApplyBattleVictoryBonuses(session, battle);

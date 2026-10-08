@@ -179,7 +179,7 @@ public sealed record MatchSnapshot(
                 { RequiredAnyTags = Array.AsReadOnly(value.RequiredAnyTags.ToArray()) },
                 _ => effect,
             }).ToArray()), ability.AllowsBench, ability.TriggerStateKey,
-            ability.TriggerCardTag, ability.TriggerCardElement)).ToArray());
+            ability.TriggerCardTag, ability.TriggerCardElement, ability.TriggerCardSide)).ToArray());
 
     private static void AddPlacements(
         BoardZoneState zoneState,

@@ -6,6 +6,9 @@ namespace Project_Star.Domain.Combat;
 
 public sealed record PermanentChange(EntityId CardId, string ChangeType);
 
+// 战斗中已生效、结算时需保留到对局实例的属性贡献（领域战斗层）。
+public sealed record PermanentCardAttributeBonus(EntityId CardId, SideId Side, Godot.StringName AttributeKey, int Amount);
+
 public enum BattleOutcome
 {
     PlayerVictory = 0,
@@ -32,7 +35,8 @@ public sealed class BattleResult
         int opponentRemainingHealth,
         IReadOnlyList<BattleEvent> events,
         IReadOnlyList<PermanentChange>? permanentChanges = null,
-        IReadOnlyList<BattleStateSnapshot>? states = null)
+        IReadOnlyList<BattleStateSnapshot>? states = null,
+        IReadOnlyList<PermanentCardAttributeBonus>? permanentAttributeBonuses = null)
     {
         Outcome = outcome;
         EndReason = endReason;
@@ -42,6 +46,7 @@ public sealed class BattleResult
         Events = events ?? throw new ArgumentNullException(nameof(events));
         PermanentChanges = permanentChanges ?? Array.Empty<PermanentChange>();
         States = states ?? Array.Empty<BattleStateSnapshot>();
+        PermanentAttributeBonuses = permanentAttributeBonuses ?? Array.Empty<PermanentCardAttributeBonus>();
     }
 
     public BattleOutcome Outcome { get; }
@@ -59,4 +64,5 @@ public sealed class BattleResult
     public IReadOnlyList<PermanentChange> PermanentChanges { get; }
 
     public IReadOnlyList<BattleStateSnapshot> States { get; }
+    public IReadOnlyList<PermanentCardAttributeBonus> PermanentAttributeBonuses { get; }
 }

@@ -56,6 +56,7 @@ internal static class BattleStatusResolver
     // 对直接相邻卡牌施加状态，再按稳定顺序处理状态获得反应。
     internal static void ApplyStatusToAdjacentAlliedCards(
         BattleRuntime runtime,
+        PendingAbility pending,
         CardBattleState source,
         ApplyStatusToAdjacentAlliedCardsEffectDefinition effect)
     {
@@ -70,27 +71,42 @@ internal static class BattleStatusResolver
             var amount = card.Tags.Contains(effect.BonusTag)
                 ? checked(effect.Amount * effect.BonusMultiplier)
                 : effect.Amount;
-            var applied = ApplyStatus(card, runtime.GetHero(card.Side), new ApplyStatusEffectDefinition(effect.Status, amount));
-            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, applied));
-            if (applied > 0) ApplyAdjacentStatusReactions(runtime, card, effect.Status);
+            ApplyCardStatus(runtime, pending, card, effect.Status, amount);
         }
     }
 
     // 只从存活敌方战场卡牌中按冻结顺序随机选择，复用飞行减时长与状态反应。
-    internal static void ApplyStatusToRandomEnemyCard(BattleRuntime runtime, IBattleAbilitySource source,
+    internal static void ApplyStatusToRandomEnemyCard(BattleRuntime runtime, PendingAbility pending,
         ApplyStatusToRandomEnemyCardEffectDefinition effect)
     {
-        var candidates = runtime.Cards.Where(card => card.Side != source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
+        var candidates = runtime.Cards.Where(card => card.Side != pending.Source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
         if (candidates.Length == 0) return;
         for (var selected = 0; selected < Math.Min(effect.TargetCount, candidates.Length); selected++)
         {
             var index = selected + runtime.NextRandomIndex(candidates.Length - selected);
             var target = candidates[index];
             (candidates[selected], candidates[index]) = (candidates[index], candidates[selected]);
-            var applied = ApplyStatus(target, runtime.GetHero(target.Side), new ApplyStatusEffectDefinition(effect.Status, effect.Amount));
-            runtime.Events.Add(new StatusChangedEvent(runtime.Tick, effect.Status, applied));
-            if (applied > 0) ApplyAdjacentStatusReactions(runtime, target, effect.Status);
+            ApplyCardStatus(runtime, pending, target, effect.Status, effect.Amount);
         }
+    }
+
+    // 按冻结顺序随机选择一张存活己方战场卡牌，包含来源自身。
+    internal static void ApplyStatusToRandomAlliedCard(BattleRuntime runtime, PendingAbility pending,
+        ApplyStatusToRandomAlliedCardEffectDefinition effect)
+    {
+        var candidates = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
+        if (candidates.Length == 0) return;
+        ApplyCardStatus(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)], effect.Status, effect.Amount);
+    }
+
+    private static void ApplyCardStatus(BattleRuntime runtime, PendingAbility pending, CardBattleState target,
+        BattleStatus status, int amount)
+    {
+        var applied = ApplyStatus(target, runtime.GetHero(target.Side), new ApplyStatusEffectDefinition(status, amount));
+        runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status, applied));
+        if (applied > 0) ApplyAdjacentStatusReactions(runtime, target, status);
+        if (applied > 0 && status == BattleStatus.SlowDuration && !pending.IsEcho)
+            CombatSimulator.EnqueueSlowAppliedEchoes(runtime, pending.Source.Side);
     }
 
     // 光环变动只加减自身贡献，同时调整当前剩余冷却，保留已走过的进度。

@@ -15,7 +15,8 @@ internal static class BattleStateRecorder
         runtime.Events.Add(new BattleEndedEvent(runtime.Tick, reason));
         CaptureState(runtime);
         return new BattleResult(outcome, reason, runtime.Tick, runtime.PlayerHero.Health, runtime.OpponentHero.Health,
-            runtime.Events.AsReadOnly(), runtime.PermanentChanges.AsReadOnly(), runtime.States.AsReadOnly());
+            runtime.Events.AsReadOnly(), runtime.PermanentChanges.AsReadOnly(), runtime.States.AsReadOnly(),
+            runtime.PermanentAttributeBonuses.AsReadOnly());
     }
 
     // 只记录战斗层已经计算出的结果，不推进冷却、随机数或任何玩法状态。
@@ -37,6 +38,12 @@ internal static class BattleStateRecorder
                 IsFlying = card.IsFlying, IsBerserk = card.IsBerserk, IsOnBench = card.IsOnBench,
                 TransformedIdentity = card.TransformedIdentity, Level = card.Level,
                 SummonedCard = card.SummonedCard,
+                Quests = Array.AsReadOnly(card.Quests.Select(quest => new CardQuestBattleSnapshot(quest.Key,
+                    card.QuestProgress[quest.Key], quest.RequiredCount, card.QuestProgress[quest.Key] >= quest.RequiredCount)).ToArray()),
+                QuestElementKeys = Array.AsReadOnly(card.ElementKeys.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
+                QuestTags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
+                QuestAbilities = card.Quests.Count == 0 ? Array.Empty<AbilityDefinition>()
+                    : Array.AsReadOnly(card.Abilities.Select(ability => ability.Definition).ToArray()),
                 TransformedTags = card.TransformedIdentity is null ? Array.Empty<StringName>()
                     : Array.AsReadOnly(card.Tags.ToArray()),
                 TransformedAbilities = card.TransformedIdentity is null ? Array.Empty<AbilityDefinition>()

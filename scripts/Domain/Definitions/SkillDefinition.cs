@@ -43,7 +43,8 @@ public abstract class SkillDefinition
         foreach (var ability in abilities)
         {
             if (ability.Activation is AbilityActivation.Active or AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
-                || ability.Target == AbilityTarget.SelfCard
+                    or AbilityActivation.EchoOnAdjacentAlliedCardActivated
+                || ability.Target is AbilityTarget.SelfCard or AbilityTarget.LeftAdjacentAlliedCard or AbilityTarget.RightAdjacentAlliedCard
                 || ability.Activation == AbilityActivation.PassiveWhileEnabled && !allowPersistent
                 || ability.Activation != AbilityActivation.PassiveWhileEnabled
                     && ability.Target is (AbilityTarget.SourceGroupCards or AbilityTarget.OtherBattlefieldCards
@@ -53,6 +54,7 @@ public abstract class SkillDefinition
             {
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition
                     or IncreaseSourceCardAttributeEffectDefinition
+                    or ApplySourceAttributePercentStatusEffectDefinition
                     or SetSourceCardStateEffectDefinition
                     or SetRandomAdjacentAlliedTaggedCardStateEffectDefinition
                     or DestroyCardEffectDefinition
@@ -60,6 +62,7 @@ public abstract class SkillDefinition
                     or IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition
                     or ChargeRandomOtherAlliedElementCardEffectDefinition
                     or ChargeSourceCardEffectDefinition
+                    or ChargeCardEffectDefinition
                     || effect is ApplyStatusEffectDefinition status
                         && status.Status is BattleStatus.HasteDuration or BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration)
                 {

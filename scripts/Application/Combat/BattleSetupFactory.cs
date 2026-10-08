@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Domain.Combat;
 using Project_Star.Domain.Common;
@@ -83,7 +84,9 @@ public sealed class BattleSetupFactory
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount)
                 { CombatValues = card.Attributes.BaseCombat.SnapshotFinalValues(), CooldownMultiplier = card.CooldownMultiplier,
-                    Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) });
+                    Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), Quests = card.Quests,
+                    QuestProgress = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
+                        card.Quests.ToDictionary(quest => quest.Key, quest => card.GetQuestProgress(quest.Key))) });
         }
 
         foreach (var placement in session.Board.Bench.Placements)
@@ -107,7 +110,9 @@ public sealed class BattleSetupFactory
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount) { CooldownMultiplier = card.CooldownMultiplier,
-                    Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) });
+                    Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), Quests = card.Quests,
+                    QuestProgress = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
+                        card.Quests.ToDictionary(quest => quest.Key, quest => card.GetQuestProgress(quest.Key))) });
         }
 
         var skills = new List<SkillBattleSetup>();

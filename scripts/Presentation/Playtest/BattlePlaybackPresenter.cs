@@ -134,7 +134,7 @@ public sealed class BattlePlaybackPresenter
         {
             var state = _state.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == side);
             if (state?.TransformedIdentity is { } identity)
-                return card with
+                card = card with
                 {
                     Key = identity.Key, DisplayName = identity.DisplayName, Level = state.Level,
                     Size = identity.Size, FactionKey = identity.FactionKey, ElementKeys = identity.ElementKeys,
@@ -145,8 +145,14 @@ public sealed class BattlePlaybackPresenter
                     Quests = Array.Empty<QuestProgressSnapshot>(),
                     GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
                 };
-            return state is null ? card : card with
-                { CurrentValues = state.Values, IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
+            if (state is null) return card;
+            var projected = card with { CurrentValues = state.Values, IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
+            return state.Quests.Count == 0 ? projected : projected with
+            {
+                ElementKeys = state.QuestElementKeys, Tags = state.QuestTags, Abilities = state.QuestAbilities,
+                Quests = Array.AsReadOnly(state.Quests.Select(quest => new QuestProgressSnapshot(
+                    quest.Key, quest.Progress, quest.RequiredCount, quest.Unlocked)).ToArray()),
+            };
         }).ToArray()) };
     }
 }

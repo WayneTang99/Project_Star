@@ -18,6 +18,7 @@ public sealed partial class PhaseOneVerification : Control
     private readonly List<VerificationGroup> _groups =
     [
         new("UI 数据与流程", [
+            ("图鉴包含全部正式卡牌及支持等级，不创建实体或触发获取", CardCatalogChecks.Definitions),
             ("战斗快照覆盖治疗、状态、冷却、充能、多重与摧毁", BattlePlaybackVerification.CapturedStates),
             ("回放暂停、倍速与跳过结果一致且冻结旧画面", BattlePlaybackVerification.ControlsAndIsolation),
             ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
@@ -204,8 +205,28 @@ public sealed partial class PhaseOneVerification : Control
             ("光辉旗帜百分比叠加、来源失效与永久倍率组合", RadiantStandardChecks.StackingRemovalAndMultiplier),
             ("麦田分级、全体人类充能、即时发动及多重回响", WheatFieldChecks.LevelsAndCharge),
             ("麦田人类疾速回响加速冷却与目标过滤", WheatFieldChecks.EchoAcceleratesCooldown),
+            ("传动齿轮两种身份、分级、原画与多重累加正确", TransmissionGearChecks.LevelsAndEffects),
+            ("传动齿轮左右方向、空格隔断、来源失效与回响截断", TransmissionGearChecks.DirectionAndLifetime),
+            ("传动齿轮疾速加速、充能即时发动与队列去重", TransmissionGearChecks.CooldownAndQueue),
+            ("单侧相邻回响与充能拒绝无效配置及非卡牌来源", TransmissionGearChecks.ConfigurationBoundaries),
+            ("羽饰头盔身份、原画、2至4级伤害及攻击加成正确", PlumedHelmetChecks.LevelsAndDamage),
+            ("羽饰头盔双侧人类发动、多重充能及相邻筛选正确", PlumedHelmetChecks.AdjacentHumanFilters),
+            ("羽饰头盔充能即时发动、队列去重与冻结配置正确", PlumedHelmetChecks.ChargeTimingAndBoundaries),
+            ("极云四张控制卡身份、等级、原画及冻结能力正确", JiyunControlChecks.IdentityAndLevels),
+            ("酒葫芦分级治疗、己方随机迟缓、飞行、多重及衰减", JiyunControlChecks.GourdHealingAndSlow),
+            ("斗笠分级护甲、施加方筛选及迟缓充能即时发动", JiyunControlChecks.HatArmorAndCharge),
+            ("隐秘竹林木属性筛选、分级迟缓及回响截断", JiyunControlChecks.GroveFilteringAndEchoCutoff),
+            ("禅光寺双方攻击分类、事件目标、禁锢叠加及衰减", JiyunControlChecks.TempleTargetsAndDuration),
+            ("极云通用迟缓和事件卡牌机制拒绝无效配置", JiyunControlChecks.ConfigurationBoundaries),
+            ("登神者分级、3秒发动及20/60/120次任务即时解锁", AscendantChecks.LevelsAndThresholds),
+            ("登神者跨战斗永久成长、升级及备战身份保留", AscendantChecks.CrossBattleAndUpgrade),
+            ("登神者购买及连续合并保留最高等级实例、任务和永久成长", AscendantChecks.MergePreservesProgress),
+            ("登神者自身发动筛选、实例隔离及失败战斗成长", AscendantChecks.FiltersAndLoss),
+            ("登神者任务身份回放、多重阈值及有效攻击百分比灼伤", AscendantChecks.ReplayAndPercentStatus),
+            ("登神者召唤/转变仅本场成长与百分比配置验证", AscendantChecks.TemporarySourcesAndValidation),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("局外图鉴搜索、归属、等级、空结果、旧按钮与返回选角正确", () => CardCatalogChecks.Interaction(this)),
             ("导师技能选项真实渲染、完整提示与旧按钮解绑正确", () => MentorChecks.RenderedChoices(this)),
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),
             ("上方拖拽出售贯穿真实入口、奖励、失效与战斗限制", () => DragSaleChecks.Transactions(this)),
@@ -252,6 +273,12 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-catalog"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardCatalogChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-mentors"))
             Callable.From((Action)(async () =>
             {

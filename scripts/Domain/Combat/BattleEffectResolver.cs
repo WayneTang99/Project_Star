@@ -62,6 +62,9 @@ internal static class BattleEffectResolver
                 var increasedValue = attributeSource.AddCombatAttribute(increase.AttributeKey, increase.Amount);
                 runtime.Events.Add(new CardAttributeChangedEvent(runtime.Tick, attributeSource.EntityId,
                     increase.AttributeKey, increase.Amount, increasedValue));
+                if (increase.Permanent && attributeSource.SummonedCard is null && attributeSource.TransformedIdentity is null)
+                    runtime.PermanentAttributeBonuses.Add(new PermanentCardAttributeBonus(
+                        attributeSource.EntityId, attributeSource.Side, increase.AttributeKey, increase.Amount));
                 break;
             case TransformRandomEnemyCardEffectDefinition transform:
                 TransformRandomEnemyCard(runtime, pending.Source, transform);
@@ -152,14 +155,24 @@ internal static class BattleEffectResolver
                 ApplyEffect(runtime, pending, new ApplyStatusEffectDefinition(attributeStatus.Status,
                     pending.Source.GetCombatAttribute(attributeStatus.AttributeKey)));
                 break;
+            case ApplySourceAttributePercentStatusEffectDefinition percentStatus:
+                var statusAmount = checked((int)((long)GetEffectiveCombatAttribute(runtime, pending.Source,
+                    percentStatus.AttributeKey) * percentStatus.Percent / 100));
+                ApplyEffect(runtime, pending, new ApplyStatusEffectDefinition(percentStatus.Status, statusAmount));
+                break;
             case ApplyStatusEffectDefinition status:
                 var appliedStatus = status.Status is BattleStatus.Burn or BattleStatus.Poison
                     ? status with { Amount = BerserkAmount(pending, status.Amount) } : status;
-                var statusTarget = definition.Target == AbilityTarget.EventCard ? pending.EventCard! : pending.Source;
+                var statusTarget = definition.Target is AbilityTarget.LeftAdjacentAlliedCard or AbilityTarget.RightAdjacentAlliedCard
+                    ? GetTargetCard(runtime, pending)
+                    : definition.Target == AbilityTarget.EventCard ? pending.EventCard : pending.Source;
+                if (statusTarget is null) break;
                 var appliedAmount = BattleStatusResolver.ApplyStatus(statusTarget, hero, appliedStatus);
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, appliedAmount));
                 if (appliedAmount > 0 && statusTarget is CardBattleState statusCard)
                     BattleStatusResolver.ApplyAdjacentStatusReactions(runtime, statusCard, status.Status);
+                if (appliedAmount > 0 && status.Status == BattleStatus.SlowDuration && !pending.IsEcho)
+                    CombatSimulator.EnqueueSlowAppliedEchoes(runtime, pending.Source.Side);
                 break;
             case SetSourceCardStateEffectDefinition state:
                 if (pending.Source is not CardBattleState stateSource)
@@ -181,10 +194,13 @@ internal static class BattleEffectResolver
             case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
                 if (pending.Source is not CardBattleState adjacentSource)
                     throw new InvalidOperationException("Adjacent card effects require a card source.");
-                BattleStatusResolver.ApplyStatusToAdjacentAlliedCards(runtime, adjacentSource, adjacent);
+                BattleStatusResolver.ApplyStatusToAdjacentAlliedCards(runtime, pending, adjacentSource, adjacent);
                 break;
             case ApplyStatusToRandomEnemyCardEffectDefinition randomStatus:
-                BattleStatusResolver.ApplyStatusToRandomEnemyCard(runtime, pending.Source, randomStatus);
+                BattleStatusResolver.ApplyStatusToRandomEnemyCard(runtime, pending, randomStatus);
+                break;
+            case ApplyStatusToRandomAlliedCardEffectDefinition alliedStatus:
+                BattleStatusResolver.ApplyStatusToRandomAlliedCard(runtime, pending, alliedStatus);
                 break;
             case ChargeRandomOtherAlliedElementCardEffectDefinition charge:
                 if (pending.Source is not CardBattleState chargeSource)
@@ -195,6 +211,13 @@ internal static class BattleEffectResolver
                 if (pending.Source is not CardBattleState selfChargeSource)
                     throw new InvalidOperationException("Source card charge requires a card source.");
                 ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks);
+                break;
+            case ChargeCardEffectDefinition cardCharge:
+                if (pending.Source is not CardBattleState cardChargeSource)
+                    throw new InvalidOperationException("Card charge requires a card source.");
+                var chargeTarget = GetTargetCard(runtime, pending);
+                if (chargeTarget is not null)
+                    ChargeCard(runtime, cardChargeSource, chargeTarget, cardCharge.AmountTicks);
                 break;
             case ChargeTaggedAlliedCardsEffectDefinition taggedCharge:
                 if (pending.Source is not CardBattleState taggedChargeSource)
@@ -400,7 +423,7 @@ internal static class BattleEffectResolver
             level?.Abilities ?? definition.Abilities, UseLegacyAttack: false, Tags: definition.Tags,
             Multicast: values.GetFinalValue(GameAttributeKeys.Multicast), OccupiedSlots: identity.OccupiedSlots,
             ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Level = target.Level, CombatValues = values.SnapshotFinalValues() };
+            { Level = target.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var transformed = new CardBattleState(replacement, target.Side)
             { TransformedIdentity = identity, SummonedCard = target.SummonedCard };
         foreach (var entry in replacement.CombatValues) transformed.CombatAttributes[entry.Key] = entry.Value;
@@ -436,7 +459,7 @@ internal static class BattleEffectResolver
             values.GetFinalValue(GameAttributeKeys.CooldownTicks), level?.Abilities ?? definition.Abilities,
             UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
             OccupiedSlots: size, ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Level = source.Level, CombatValues = values.SnapshotFinalValues() };
+            { Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var summoned = new CardBattleState(setup, source.Side)
         {
             SummonedCard = new SummonedCardSnapshot(identity, start, Array.AsReadOnly(definition.Tags.ToArray()),
@@ -468,6 +491,17 @@ internal static class BattleEffectResolver
         if (candidates.Count == 0) return;
         var target = candidates[runtime.NextRandomIndex(candidates.Count)];
         ChargeCard(runtime, source, target, effect.AmountTicks);
+    }
+
+    private static CardBattleState? GetTargetCard(BattleRuntime runtime, PendingAbility pending)
+    {
+        if (pending.Source is not CardBattleState source)
+            throw new InvalidOperationException("Card target requires a card source.");
+        if (pending.Ability.Definition.Target == AbilityTarget.SelfCard) return source;
+        return runtime.Cards.FirstOrDefault(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench
+            && (pending.Ability.Definition.Target == AbilityTarget.LeftAdjacentAlliedCard
+                ? card.BoardStart + card.OccupiedSlots == source.BoardStart
+                : card.BoardStart == source.BoardStart + source.OccupiedSlots));
     }
 
     // 共用充能结算，降至零时只对原本尚在冷却的主动能力排队。

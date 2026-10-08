@@ -120,6 +120,10 @@ public sealed class CombatSimulator
             }
             if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
+            if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
+                && pending.Source is CardBattleState questCard && questCard.Quests.Count > 0
+                && runtime.Cards.Contains(questCard))
+                BattleQuestResolver.AdvanceSourceQuests(runtime, questCard);
         }
     }
 
@@ -131,6 +135,14 @@ public sealed class CombatSimulator
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
                 Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAnyAttackCardActivated
+                && origin.Source is CardBattleState { IsOnBench: false } eventCard
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && eventCard.Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
+                    DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
+                    or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
+                    or SourceHeroArmorDamageEffectDefinition)))
+                Enqueue(runtime, source, ability, true, eventCard: eventCard);
             if (ability.Definition.Activation == AbilityActivation.EchoOnSourceCardActivated
                 && ReferenceEquals(source, origin.Source) && source is CardBattleState
                 && origin.Ability.Definition.Activation == AbilityActivation.Active)
@@ -146,6 +158,15 @@ public sealed class CombatSimulator
                     DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
                     or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
                     or SourceHeroArmorDamageEffectDefinition)))
+                Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAdjacentAlliedCardActivated
+                && source is CardBattleState directionalSource && source.Side == origin.Source.Side
+                && origin.Source is CardBattleState { IsOnBench: false } activatedCard
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && (ability.Definition.TriggerCardTag is not { } adjacentTag || activatedCard.Tags.Contains(adjacentTag))
+                && (ability.Definition.TriggerCardSide == AdjacentCardSide.Left
+                    ? activatedCard.BoardStart + activatedCard.OccupiedSlots == directionalSource.BoardStart
+                    : activatedCard.BoardStart == directionalSource.BoardStart + directionalSource.OccupiedSlots))
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
                 && source.Side == origin.Source.Side
@@ -175,6 +196,18 @@ public sealed class CombatSimulator
         {
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnDamageDealt)
+                Enqueue(runtime, source, ability, true);
+        }
+    }
+
+    // 己方真实施加迟缓后排入回响；按施加方筛选，不按受影响卡牌的归属筛选。
+    internal static void EnqueueSlowAppliedEchoes(BattleRuntime runtime, SideId applyingSide)
+    {
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
+        {
+            if (source.Side != applyingSide || source.Destroyed || source.IsOnBench) continue;
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedSlowApplied)
                 Enqueue(runtime, source, ability, true);
         }
     }

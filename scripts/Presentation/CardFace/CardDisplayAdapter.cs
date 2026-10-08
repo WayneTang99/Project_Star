@@ -165,12 +165,16 @@ public sealed class CardDisplayAdapter
         GrantMulticastToAlliedElementCardsEffectDefinition value => $"己方 {value.ElementKey} 属性卡牌多重 +{value.Amount}",
         ChargeRandomOtherAlliedElementCardEffectDefinition value => $"随机另一张己方 {value.ElementKey} 属性卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         ChargeSourceCardEffectDefinition value => $"此卡牌充能 {value.AmountTicks / 10m:0.##}秒",
+        ChargeCardEffectDefinition value => $"目标卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         GrantTagToEnemySizeCardsEffectDefinition value => $"敌方 {value.Size} 卡牌获得 {TagDisplayNames.Get(value.Tag)} 标签",
         IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => $"每张存活敌方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {value.AttributeKey} +{value.Amount}",
         IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition value => $"每张存活己方战场 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（包含自身）",
         ApplyStatusEffectDefinition value => $"施加 {value.Status} {value.Amount}",
         ApplyStatusToRandomEnemyCardEffectDefinition value => $"随机敌方战场卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒",
+        ApplyStatusToRandomAlliedCardEffectDefinition value => $"随机己方战场卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒",
         ApplyAttributeStatusEffectDefinition value => $"施加 {value.Status} {Value(card, value.AttributeKey)}",
+        ApplySourceAttributePercentStatusEffectDefinition value =>
+            $"施加当前{AttributeName(value.AttributeKey)}的{value.Percent}%{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}（向下取整）",
         SetSourceCardStateEffectDefinition value =>
             $"{(value.Enabled ? "施加" : "移除")}此卡牌{AttributeName(value.StateKey)}状态",
         ApplyStatusToAdjacentAlliedCardsEffectDefinition value => $"相邻己方卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒，{TagDisplayNames.Get(value.BonusTag)} ×{value.BonusMultiplier}",
@@ -180,7 +184,7 @@ public sealed class CardDisplayAdapter
         MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => $"每张已摧毁的 {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))} 卡牌使 {value.AttributeKey} ×{value.Multiplier}",
         IncreaseSourceCooldownEffectDefinition value => $"{(value.FirstActivationOnly ? "首次发动" : "发动后")}增加冷却 {value.AmountTicks / 10m:0.##}秒",
         ModifyTaggedAlliedCardsAttributeEffectDefinition value => $"己方{(value.RandomSingleTarget ? "随机一张" : "")} {TagDisplayNames.Get(value.RequiredTag)} 卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
-        IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
+        IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌{(value.Permanent ? "永久" : "")} {AttributeName(value.AttributeKey)} +{value.Amount}",
         _ => throw new NotSupportedException($"No display formatter for {effect.GetType().Name}."),
     };
 
@@ -198,6 +202,9 @@ public sealed class CardDisplayAdapter
         AbilityActivation.EchoOnFirstAlliedCardActivated => "己方首张卡牌发动后回响",
         AbilityActivation.EchoOnMatchingAlliedCardActivated => "己方符合条件的卡牌发动后回响",
         AbilityActivation.EchoOnSourceCardActivated => "此卡牌发动后回响",
+        AbilityActivation.EchoOnAdjacentAlliedCardActivated => "指定一侧相邻己方卡牌发动后回响",
+        AbilityActivation.EchoOnAlliedSlowApplied => "己方施加迟缓后回响",
+        AbilityActivation.EchoOnAnyAttackCardActivated => "双方攻击卡牌发动后回响",
         AbilityActivation.EchoOnAbilityActivated => "发动后回响", AbilityActivation.EchoOnDamageDealt => "伤害后回响",
         _ => value.ToString(),
     };
@@ -205,6 +212,9 @@ public sealed class CardDisplayAdapter
     {
         AbilityTarget.EnemyHero => "敌方英雄", AbilityTarget.AlliedHero => "己方英雄",
         AbilityTarget.SelfCard => "此卡牌", AbilityTarget.SourceGroupCards => "来源组卡牌",
+        AbilityTarget.EventCard => "触发事件的卡牌",
+        AbilityTarget.LeftAdjacentAlliedCard => "左侧直接相邻的己方战场卡牌",
+        AbilityTarget.RightAdjacentAlliedCard => "右侧直接相邻的己方战场卡牌",
         AbilityTarget.OtherBattlefieldCards => "其他战场卡牌", AbilityTarget.AllBattlefieldCards => "全部战场卡牌",
         _ => value.ToString(),
     };

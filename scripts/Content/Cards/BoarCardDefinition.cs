@@ -18,7 +18,7 @@ public sealed class BoarCardDefinition : CardDefinition
                     GameFactions.Neutral,
                     CardSize.Medium,
                     [GameElements.General],
-                    illustration: new StringName("res://art/ui/card-face/artwork/boar-illustration-refresh.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/boar-illustration-v2.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却6秒，对敌方英雄造成20/30/50/100 × 己方英雄当前生命比例的普通伤害（小数向下取整，先扣护甲）。"),

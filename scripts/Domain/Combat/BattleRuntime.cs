@@ -35,7 +35,7 @@ internal sealed class BattleAbilityState
     {
         Definition = definition; RemainingCooldownUnits = definition.CooldownTicks * 2 * cooldownMultiplier;
     }
-    public AbilityDefinition Definition { get; }
+    public AbilityDefinition Definition { get; set; }
     public decimal RemainingCooldownUnits { get; set; }
     public bool Triggered { get; set; }
 }
@@ -60,6 +60,10 @@ internal sealed class CardBattleState : IBattleAbilitySource
             throw new ArgumentOutOfRangeException(nameof(setup), "Cooldown multiplier must be between zero and one.");
         CooldownMultiplier = setup.CooldownMultiplier;
         Level = setup.Level;
+        Quests = Array.AsReadOnly(System.Linq.Enumerable.ToArray(setup.Quests));
+        foreach (var quest in Quests)
+            QuestProgress[quest.Key] = setup.QuestProgress.TryGetValue(quest.Key, out var progress)
+                ? Math.Clamp(progress, 0, quest.RequiredCount) : 0;
         EntityId = setup.EntityId; Side = side; BoardStart = setup.BoardStart; IsOnBench = setup.IsOnBench;
         OccupiedSlots = setup.OccupiedSlots;
         Tags = setup.Tags ?? new TagSet();
@@ -108,9 +112,11 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public SummonedCardSnapshot? SummonedCard { get; init; }
     public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
-    public TagSet Tags { get; }
+    public TagSet Tags { get; set; }
     public HashSet<StringName> DestroyedTags { get; } = [];
-    public IReadOnlySet<StringName> ElementKeys { get; }
+    public IReadOnlySet<StringName> ElementKeys { get; set; }
+    public IReadOnlyList<CardQuestDefinition> Quests { get; }
+    public Dictionary<StringName, int> QuestProgress { get; } = [];
     public bool Destroyed { get; set; }
     public int ActivationCount { get; set; }
     public int CooldownBonusTicks { get; set; }
@@ -216,6 +222,7 @@ internal sealed class BattleRuntime
     public HeroBattleState PlayerHero { get; }
     public HeroBattleState OpponentHero { get; }
     public List<CardBattleState> Cards { get; } = [];
+    public List<PermanentCardAttributeBonus> PermanentAttributeBonuses { get; } = [];
     public List<SkillBattleState> Skills { get; } = [];
     public List<CardSetBattleState> Sets { get; } = [];
     private int PlayerBattlefieldCapacity { get; }
