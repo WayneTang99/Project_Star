@@ -2,6 +2,8 @@
 
 本清单对应 Playtest.tscn 与 Main.tscn。先运行 `dotnet build Project_Star.csproj`，再用 Godot 4.7 .NET 打开项目。自动回归、截图检查和完整人工试玩分别记录，互不代替。
 
+2026-10-10 等级色卡框与底部菱形宝石孔：按用户确认的新HTML移除卡面左上及底部的等级菱形，2px外框与半透明内描边使用1银／2蓝／3紫／4橙／5红；宝石孔沿底边居中排列，深色为空孔，明亮青色渐变为已镶嵌，零孔隐藏。悬停使用等级色，焦点／选中轮廓向外绘制。1280×720、1920×1080商店／战场／备战／蓝色配色截图已检查；[项目实际卡面](ui-html-parity/card-frame-1920x1080.png)。既有宝石回归覆盖0／1／3孔、填充区别和5档等级框；构建0警告0错误，全量234/234、四档窗口／焦点／键盘、原生拖拽与出售通过。日志为output/ui-html-parity/*-level-frame*.log；新版HTML冻结路径与SHA256记录于docs/quality/ui-html-parity/reference.json。其余HTML视觉对齐仍见专项待办，BUG-127保持Open。
+
 2026-10-09 HTML迁移继续检查：除上一轮详情尺寸修正外，补上同页／回放刷新时详情复用、卡牌状态和任务进度投影，以及敌方阵容返回摘要入口；出售后卡牌失效会关闭详情。构建0警告0错误，headless全部234/234通过；窗口／键盘与原生拖拽验证通过。完整HTML视觉验收与连续人工试玩尚未完成，P3～P6改动仍为草稿，剩余检查见[暂停待办](../planning/UI_HTML_PARITY_TODO.md)。
 
 2026-10-09 圣骑士选角配音：接入合成中文男声“圣光引领着我们！”，本地MP3约2.50秒，Godot自动导入为非循环AudioStreamMP3；游戏运行时不调用语音生成服务。点击圣骑士名册项或方向键切换到他时播放，重复点选从头重播且不叠加；初始展示／普通刷新不触发，切换其他英雄、清空名单及隐藏选角页停播。构建0警告0错误，Godot .NET headless全部234/234通过；新增真实控件检查覆盖鼠标、键盘、重复播放、刷新保留同一播放实例、父节点及自身隐藏／恢复、空名单，以及预览不提交英雄选择。音频解码110073帧并确认非静音；生成服务返回的台词边界与指定中文一致。音频位于audio/voices/heroes/paladin-selection.mp3，生成参数、来源音色与摘要保存在output/paladin-voice-generation.json，边界数据在output/paladin-voice-boundaries.jsonl，生成脚本为output/generate_paladin_voice.py；导入和最终回归日志为output/paladin-voice-import*.log及output/paladin-voice-verify-final*.log。本次未执行扬声器试听或完整人工试玩。

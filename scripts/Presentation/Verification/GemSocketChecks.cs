@@ -61,12 +61,19 @@ internal static class GemSocketChecks
             var sockets = face.GetNode<Control>("GemSockets");
             var details = CardDisplayAdapter.Details(snapshot);
             if (sockets.GetChildCount() != 3 || sockets.GetChildren().Any(child => child is not Panel)
-                || sockets.GetChild<Panel>(0).GetThemeStylebox("panel") is not StyleBoxFlat empty
-                || sockets.GetChild<Panel>(2).GetThemeStylebox("panel") is not StyleBoxFlat filledStyle
-                || empty.BgColor == filledStyle.BgColor
+                || sockets.GetChild<Panel>(0).GetThemeStylebox("panel") is not StyleBoxTexture empty
+                || sockets.GetChild<Panel>(2).GetThemeStylebox("panel") is not StyleBoxTexture filledStyle
+                || empty.Texture == filledStyle.Texture
+                || sockets.GetChildren().Cast<Panel>().Any(socket => socket.RotationDegrees != 45)
                 || !details.Contains("孔1：空孔") || !details.Contains("孔3：测试红宝石")) return false;
             face.SetCard(new CardDisplayAdapter().Build(MatchDisplayQuery.FromOffer(ShopOffer.Create(new SocketCard(0)))));
             if (sockets.GetChildCount() != 0 || sockets.Visible) return false;
+            foreach (var level in Enumerable.Range(1, 5))
+            {
+                face.SetCard(new CardDisplayAdapter().Build(snapshot with { Level = level }));
+                if (face.HasNode("LevelGem") || face.GetNode<Panel>("Frame").GetThemeStylebox("panel") is not StyleBoxFlat frame
+                    || frame.BorderColor != CardLevelGem.LevelColor(level)) return false;
+            }
         }
         finally { owner.RemoveChild(face); face.Free(); }
         session.Status = MatchStatus.Won;

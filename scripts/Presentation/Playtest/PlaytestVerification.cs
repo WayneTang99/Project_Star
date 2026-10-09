@@ -457,7 +457,7 @@ internal static class PlaytestVerification
             && presenter.View.Player.Wealth == current.Wealth;
     }
 
-    // 三种真实尺寸须贴合占格，角部身份与底部纵向效果在缩放后仍保持可读布局。
+    // 三种真实尺寸须贴合占格，等级色卡框、底边宝石孔与纵向效果保持可读布局。
     public static bool CardAndSlotGeometry(Control owner)
     {
         var registry = Registry(); var factory = new EntityFactory();
@@ -480,14 +480,16 @@ internal static class PlaytestVerification
                     var first = board.GetNode<Button>($"Slot{placement.Start}");
                     var last = board.GetNode<Button>($"Slot{placement.EndExclusive - 1}");
                     var face = card.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single();
-                    var level = face.GetNode<Control>("LevelGem");
                     var sockets = face.GetNode<Control>("GemSockets");
                     var value = face.GetNode<Control>("ValueBadge");
                     if (card.Position.DistanceTo(first.Position) > .1f || card.Size.DistanceTo(last.Position + last.Size - first.Position) > .1f
                         || face.Position.Length() > .1f || face.Size.DistanceTo(card.Size) > .1f
                         || Mathf.Abs(first.Size.Y - first.Size.X * 2) > .1f
-                        || face.HasNode("Title")
-                        || sockets.Position.Y < level.Position.Y + level.Size.Y * level.Scale.Y
+                        || face.HasNode("Title") || face.HasNode("LevelGem")
+                        || Mathf.Abs(sockets.Position.X + sockets.Size.X / 2 - face.Size.X / 2) > .1f
+                        || Mathf.Abs(sockets.Position.Y - (face.Size.Y - 4)) > .1f
+                        || face.GetNode<Panel>("Frame").GetThemeStylebox("panel") is not StyleBoxFlat frame
+                        || frame.BorderColor != CardLevelGem.LevelColor(snapshot.Cards.Single(item => item.Id == placement.CardId).Level)
                         || value.Position.X < 0 || value.Position.Y < face.Size.Y * .7f)
                     {
                         GD.Print($"卡格检查：区域 {size}，卡 {card.Position}/{card.Size}，槽 {first.Position}/{first.Size}，末槽 {last.Position}/{last.Size}，卡面 {face.Position}/{face.Size}");
@@ -504,7 +506,7 @@ internal static class PlaytestVerification
                         previousBottom = effect.Position.Y + effect.Size.Y;
                     }
                     foreach (var element in face.GetNode<Control>("ElementLayer").GetChildren().OfType<Control>())
-                        if (element.Position.X < level.Position.X + level.Size.X * level.Scale.X
+                        if (element.Position.X < 0
                             || element.Position.Y + element.Size.Y * element.Scale.Y > face.Size.Y * .35f
                             || element.Position.X + element.Size.X * element.Scale.X > face.Size.X + .1f) return false;
                 }

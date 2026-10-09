@@ -1,6 +1,13 @@
 {
   "sha256": "dec9d05969811c75cfb75f6f4eccfa82639ec092f32c375f465fe433e94fb3c6",
   "source": "output/ui-preview/index.html",
+  "frozen": "output/ui-html-parity/reference/index.html",
+  "approvedCardFaceRevision": {
+    "date": "2026-10-10",
+    "sha256": "783922ca3bf2f8a9b957e5b42ef17e3b45ddabfc701c5781c59245c8ce827e27",
+    "frozen": "output/ui-html-parity/reference/index-card-frame-v2.html",
+    "changes": "等级色卡框取代等级菱形，底边居中菱形表示宝石孔；原四档参考截图为上一版，后续卡面对照使用此修订。"
+  },
   "viewports": [
     {
       "width": 1280,

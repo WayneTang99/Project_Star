@@ -187,8 +187,12 @@ public sealed partial class CardItemView : Button
     private void UpdateOutline()
     {
         _outline.Visible = _selected || HasFocus() || _hovered;
-        var style = MatchTheme.Outline(_selected ? MatchTheme.Gold : MatchTheme.Blue);
+        var color = _selected ? MatchTheme.Gold : HasFocus() ? MatchTheme.Blue
+            : CardLevelGem.LevelColor(_card?.Level ?? 1);
+        var style = MatchTheme.Outline(color);
         if (!_selected && !HasFocus()) style.SetBorderWidthAll(1);
+        var outset = _selected || HasFocus() ? 3 : 1;
+        style.ExpandMarginLeft = style.ExpandMarginRight = style.ExpandMarginTop = style.ExpandMarginBottom = outset;
         _outline.AddThemeStyleboxOverride("panel", style);
     }
     private Tween? _hoverTween;

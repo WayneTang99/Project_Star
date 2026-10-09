@@ -11,7 +11,6 @@ public sealed partial class CardFace : Control
 {
     private const float BaseHeight = 400;
     private const float WidthPerSize = 200;
-    private const float ElementBadgeDiameter = 58;
 
     private Panel _frame = null!;
     private Panel _innerFrame = null!;
@@ -26,9 +25,7 @@ public sealed partial class CardFace : Control
     private Line2D _valueRim = null!;
     private Control _elementLayer = null!;
     private PackedScene _elementScene = null!;
-    private PackedScene _levelScene = null!;
     private PackedScene _effectScene = null!;
-    private CardLevelGem _levelGem = null!;
     private CardFaceViewModel? _viewModel;
     private bool _ready;
     private Vector2? _displaySize;
@@ -37,7 +34,7 @@ public sealed partial class CardFace : Control
     {
         _frame = GetNode<Panel>("Frame");
         _innerFrame = GetNode<Panel>("InnerFrame");
-        _sockets = new Control { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1 };
+        _sockets = new Control { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 3 };
         AddChild(_sockets);
         _artFrame = GetNode<Panel>("ArtFrame");
         _artwork = GetNode<TextureRect>("ArtFrame/Artwork");
@@ -52,18 +49,12 @@ public sealed partial class CardFace : Control
         _elementLayer = GetNode<Control>("ElementLayer");
 
         _elementScene = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardElementBadge.tscn");
-        _levelScene = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardLevelGem.tscn");
         _effectScene = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardEffectRow.tscn");
         _ornament.Texture = GD.Load<Texture2D>("res://art/ui/card-face/card-frame.svg");
         _ornament.Hide(); _valueRim.Hide();
         var shade = new TextureRect { Name = "ArtShade", Texture = GD.Load<Texture2D>("res://art/ui/html/art-shade.svg"),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = MouseFilterEnum.Ignore };
         _artFrame.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _levelGem = (CardLevelGem)_levelScene.Instantiate();
-        _levelGem.Name = "LevelGem";
-        _levelGem.CustomMinimumSize = Vector2.Zero;
-        _levelGem.ZIndex = 2;
-        AddChild(_levelGem);
         _elementLayer.ZIndex = 2;
 
         _artwork.StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered;
@@ -97,14 +88,13 @@ public sealed partial class CardFace : Control
         Size = _displaySize ?? CustomMinimumSize;
         RebuildSockets(viewModel);
         _artwork.Texture = viewModel.Artwork;
-        _levelGem.SetLevel(viewModel.Level);
         _valueBadge.SetValue(viewModel.CurrentValue);
 
-        var accent = FactionAccent(viewModel.FactionKey);
-        var frame = MakePanelStyle(new Color("19251f"), new Color(MatchTheme.BluePalette ? "9abac0" : "af915b"), 2, 6);
+        var levelColor = CardLevelGem.LevelColor(viewModel.Level);
+        var frame = MakePanelStyle(new Color("19251f"), levelColor, 2, 6);
         frame.ShadowColor = new Color(0, 0, 0, .55f); frame.ShadowSize = 3; frame.ShadowOffset = new Vector2(0, 2);
         _frame.AddThemeStyleboxOverride("panel", frame);
-        _innerFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, new Color("f3da9766"), 1, 3));
+        _innerFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, new Color(levelColor, .65f), 1, 3));
         _artFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, Colors.Transparent, 0, 0));
         _artInnerRim.Hide();
         _valuePlate.Color = new Color("4b321c");
@@ -132,20 +122,21 @@ public sealed partial class CardFace : Control
         var scale = height / BaseHeight;
         _ornament.Position = Vector2.Zero; _ornament.Size = new Vector2(width / scale, BaseHeight);
         _ornament.Scale = Vector2.One * scale;
-        // 等级与元素占据上方两角，中央留给插画；宝石孔紧随等级下方。
-        const float gemHeight = 35.355f;
-        _levelGem.Size = Vector2.One * gemHeight; _levelGem.Scale = Vector2.One;
-        _levelGem.Position = new Vector2(-9.18f, -9.18f);
-
-        _sockets.Position = new Vector2(6, 31);
-        _sockets.Size = new Vector2(Mathf.Max(1, width * .45f - padding), gemHeight);
+        // 宝石孔沿底边居中排列；等级仅通过整张卡框颜色表示。
         var sockets = _sockets.GetChildCount();
-        const float socketDiameter = 7;
+        var smallViewport = GetViewportRect().Size.X <= 650;
+        var socketDiameter = smallViewport ? 6f : 8f;
+        var socketGap = smallViewport ? 5f : 7f;
+        var socketWidth = sockets * socketDiameter + Math.Max(0, sockets - 1) * socketGap;
+        _sockets.Position = new Vector2((width - socketWidth) / 2, height - 4);
+        _sockets.Size = new Vector2(socketWidth, socketDiameter);
         for (var index = 0; index < sockets; index++)
         {
             var socket = _sockets.GetChild<Panel>(index);
-            socket.Position = new Vector2(index * 11, 0);
+            socket.Position = new Vector2(index * (socketDiameter + socketGap), 0);
             socket.Size = Vector2.One * socketDiameter;
+            socket.PivotOffset = socket.Size / 2;
+            socket.RotationDegrees = 45;
         }
         _elementLayer.Size = Size;
         var count = _elementLayer.GetChildCount();
@@ -202,7 +193,7 @@ public sealed partial class CardFace : Control
         LayoutParts(Size.X);
     }
 
-    // 圆形凹槽表示空孔，镶嵌后以明亮宝石填充；详细名称保留在卡牌详情。
+    // 底边菱形凹槽表示空孔，镶嵌后使用宝石渐变；详细名称保留在卡牌详情。
     private void RebuildSockets(CardFaceViewModel viewModel)
     {
         foreach (var child in _sockets.GetChildren())
@@ -213,10 +204,8 @@ public sealed partial class CardFace : Control
         foreach (var name in viewModel.GemNames)
         {
             var socket = new Panel { MouseFilter = MouseFilterEnum.Ignore };
-            var style = MakePanelStyle(name is null ? new Color("#17212b") : new Color("#52cfe7"),
-                new Color("#dcc78a"), 1, 20);
-            style.ShadowColor = new Color(0, 0, 0, .6f);
-            style.ShadowSize = 2;
+            var style = MatchTheme.Plate(name is null ? "gem-socket-empty" : "gem-socket-filled", 0);
+            style.ExpandMarginLeft = style.ExpandMarginRight = style.ExpandMarginTop = style.ExpandMarginBottom = 2;
             socket.AddThemeStyleboxOverride("panel", style);
             _sockets.AddChild(socket);
         }
@@ -249,18 +238,4 @@ public sealed partial class CardFace : Control
         return style;
     }
 
-    private static Color FactionAccent(StringName factionKey) => factionKey == GameFactions.Neutral
-        ? new Color("#b7b5b0")
-        : factionKey == new StringName("paladin")
-            ? new Color("#d2ad67")
-            : new Color("#87a5bf");
-
-    public override void _Draw()
-    {
-        if (_viewModel is null) return;
-        var center = new Vector2(Size.X / 2, Size.Y - 1);
-        Vector2[] points = [center + new Vector2(0, -5), center + new Vector2(5, 0), center + new Vector2(0, 5), center + new Vector2(-5, 0)];
-        DrawColoredPolygon(points, CardLevelGem.LevelColor(_viewModel.Level));
-        DrawPolyline([points[0], points[1], points[2], points[3], points[0]], new Color("e8d69c"), 1, true);
-    }
 }
