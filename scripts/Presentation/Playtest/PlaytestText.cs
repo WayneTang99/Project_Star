@@ -13,8 +13,10 @@ namespace Project_Star.Presentation.Playtest;
 internal static class PlaytestText
 {
     // 事件说明直接读取通用效果与当前英雄等级，不按遭遇 key 维护文案表。
-    public static string FormatOption(EncounterOptionDefinition option, int heroLevel) =>
-        string.Join(" · ", option.Effects.Select(effect => effect switch
+    public static string FormatOption(EncounterOptionDefinition option, int heroLevel, int encounterLevel = 1) =>
+        string.Join(" · ", option.Effects.Select(effect => FormatOptionEffect(effect, heroLevel, encounterLevel)));
+
+    private static string FormatOptionEffect(EncounterOptionEffectDefinition effect, int heroLevel, int encounterLevel, bool compact = false) => effect switch
         {
             ModifyHeroCombatAttributeByLevelEffectDefinition value => $"永久增加 {value.AmountPerLevel * heroLevel} {Attribute(value.AttributeKey)}",
             GainWealthEncounterOptionEffectDefinition value => $"+{value.Amount} 金币",
@@ -22,9 +24,14 @@ internal static class PlaytestText
             GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition value => $"下场战斗生命 +{value.AmountPerLevel * heroLevel}",
             BuyRandomOtherFactionCardEncounterOptionEffectDefinition value => $"花费 {value.Cost} 金币，获得 {value.Level} 级其他阵营卡牌",
             GrantRandomFactionCardEncounterOptionEffectDefinition value => $"获得 {value.Level} 级本阵营卡牌",
-            GrantRandomTaggedCardEncounterOptionEffectDefinition value => $"获得 {value.Level} 级{TagDisplayNames.Get(value.RequiredTag)}卡牌",
+            GrantRandomTaggedCardEncounterOptionEffectDefinition value =>
+                $"{(compact ? "随机" : "获得一件随机")} {(value.UseEncounterLevel ? encounterLevel : value.Level)} 级{TagDisplayNames.Get(GameTags.FromSize(value.Size))}{TagDisplayNames.Get(value.RequiredTag)}{(compact ? "" : "卡牌")}",
+            EnterRandomMonsterEncounterOptionEffectDefinition => $"遇见{(compact ? "当前轮次" : "符合当前轮次")}的 {encounterLevel} 级怪物",
+            WeightedEncounterOptionEffectDefinition value => string.Join("\n", value.Outcomes.Chunk(2).Select(group =>
+                string.Join("；", group.Select(outcome =>
+                    $"{100m * outcome.Weight / value.Outcomes.Sum(item => item.Weight):0.##}%：{FormatOptionEffect(outcome.Effect, heroLevel, encounterLevel, true)}")))),
             _ => "查看选项效果",
-        }));
+        };
 
     private static string Attribute(StringName key) => key == GameAttributeKeys.MaxHealth ? "生命"
         : key == GameAttributeKeys.AttackDamage ? "攻击" : key == GameAttributeKeys.Armor ? "护甲" : key.ToString();
@@ -48,6 +55,7 @@ internal static class PlaytestText
         if (result.PendingBattleMaxHealthBonus > 0) changes.Add($"下场战斗最大生命 +{result.PendingBattleMaxHealthBonus}");
         if (result.GrantedCard is not null) changes.Add($"获得 {result.GrantedCard.Attributes.Identity.DisplayName}");
         if (result.CardRewardSkipped) changes.Add("双棋盘已满，未生成卡牌");
+        if (result.MonsterEncounterSkipped) changes.Add("没有符合当前轮次且同等级的怪物");
         return $"事件完成：{string.Join("，", changes)}。";
     }
 

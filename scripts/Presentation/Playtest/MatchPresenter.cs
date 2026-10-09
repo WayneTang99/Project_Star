@@ -145,7 +145,7 @@ public sealed class MatchPresenter
                     break;
                 }
                 _options = _registry.Encounters[key] is ChoiceEncounterDefinition encounter
-                    ? _events.CreateOptionSet(_player, encounter) : null;
+                    ? _events.CreateOptionSet(_player, encounter, choice.Level) : null;
                 _eventRevision++; _eventCompleted = _options is null;
                 _message = _eventCompleted ? "本次事件没有额外奖励。" : "选择一项。";
                 break;
@@ -186,6 +186,15 @@ public sealed class MatchPresenter
         var result = _events.Resolve(_player, _options, key);
         if (result.IsFailure) { _message = result.Failure!.Message; return; }
         _eventCompleted = true;
+        if (result.Value!.MonsterEncounter is { } monster)
+        {
+            _enemy = _opponents.CreateMonsterOpponent(_player.Random.State, _registry.Monsters[monster.Key]);
+            _battleKind = MatchBattleKind.Monster;
+            _encounterLevel = monster.Level; _encounterIllustration = monster.Illustration; _title = monster.DisplayName;
+            _page = MatchPage.Preparation;
+            _message = "遇见怪物，可以调整双棋盘后开始战斗。";
+            return;
+        }
         _message = $"{_options.Options.First(option => option.Key == key).DisplayName}：{PlaytestText.FormatEventResult(result.Value!)}";
     });
 
@@ -359,7 +368,7 @@ public sealed class MatchPresenter
             }
         var options = _page != MatchPage.Event || _eventCompleted || _options is null ? Array.Empty<KeyedAction>()
             : _options.Options.Select(option => new KeyedAction(option.Key, new UiAction(option.DisplayName))
-                { Subtitle = PlaytestText.FormatOption(option, player?.Hero?.Level ?? 1) }).ToArray();
+                { Subtitle = PlaytestText.FormatOption(option, player?.Hero?.Level ?? 1, _options.Level) }).ToArray();
         if (_page == MatchPage.Event && !_eventCompleted && player?.MentorVisit is { IsResolved: false } mentorVisit)
             options = mentorVisit.Offers.Select(offer =>
             {

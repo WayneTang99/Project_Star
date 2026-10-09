@@ -120,6 +120,10 @@
 
 卡牌的 `Poison` / `Burn` 基础属性在此表示施加量，区别于英雄已经受到的中毒／灼伤。`ApplyAttributeStatusEffectDefinition` 从来源卡牌的冻结战斗属性读取施加量，卡面显示实例现值；已有战斗输入不会被后续出售改写。恢复魔法使用通用 `RestoreManaEffectDefinition`，累计至最大魔法上限后不再增加。
 
+### 出售时英雄永久加成
+
+`IncreaseHeroCombatAttributeOnSellDefinition` 在 `OnSellReward` 中配置属性key及正整数增量，成功出售后向己方英雄的局外 `BaseCombat` 累加永久Modifier。适用于战场、备战和游离库存出售，来源移除不撤销已授予贡献；升级刷新为该等级的出售效果。出售前校验英雄存在和属性溢出，失败不移除卡牌、不回补金币、不发放加成。新战斗采用累加后的英雄属性，已有战斗输入与回放保持冻结值。
+
 ### 出售时缩减目标冷却
 
 等级定义可通过 `OnSellReward` 覆盖该等级的出售效果；未配置时沿用卡牌定义。`ReduceLeftmostElementCardCooldownOnSellDefinition` 指定元素与缩减百分比：成功出售并移除来源后，从己方战场最左侧向右查找第一张匹配元素的卡牌，仅对这一张生效。跳过非匹配元素，不查找备战区；无目标仍可成功出售。来源从战场、备战区或游离库存出售时共用此规则。
@@ -223,6 +227,10 @@
 ### 定义组织
 
 遭遇的排程、权重和配置保存在 `EncounterDefinition` 中；选项由 `ChoiceEncounterDefinition` 持有，保存展示槽、权重与通用效果。第4回合只抽怪物战，第8回合固定 PvP；其他回合从商店和可选项中生成候选，并保底至少一个商店。
+
+`WeightedEncounterOptionEffectDefinition` 在玩家确认选项后，按 `WeightedEncounterEffectDefinition.Weight` 抽取一个结算效果；权重为正整数，总和不得超过int上限。它不参与展示槽抽选，选项始终可以固定展示。奖励效果 `GrantRandomTaggedCardEncounterOptionEffectDefinition.UseEncounterLevel` 可改用本次访问等级，默认关闭以保留既有固定等级奖励。
+
+`EnterRandomMonsterEncounterOptionEffectDefinition` 从当前访问轮次范围内且等级等于本次访问等级的怪物中等概率抽取；无候选时返回提示并完成事件，有候选时进入该回合的怪物战准备，不再次推进轮回合。`EncounterOptionSet` 捕获访问等级与轮次，测试入口的遭遇等级覆盖同样生效。怪物 `MinimumRound` / `MaximumRound` 默认1～99，端点包含；第4回合候选及事件引出的怪物共用该范围。
 
 怪物由 `MonsterDefinition` 自动投影为遭遇，不额外维护同名遭遇定义。试玩允许怪物不足三个；正式排程要求三个不同怪物。具体卡组、奖励与选项效果直接维护在对应内容定义中。
 

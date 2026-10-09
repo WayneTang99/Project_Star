@@ -98,7 +98,7 @@ public sealed partial class ComponentShowcase : Control
         AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var shell = root.GetNode<MatchShell>("MatchShell");
         if (OS.GetCmdlineUserArgs().Contains("--capture-layout")) await Save("heroes");
-        var presenter = PlaytestVerification.CreatePresenter(encounterLevelOverride: 5);
+        var presenter = PlaytestVerification.CreatePresenter(encounterLevelOverride: 4);
         shell.Render(presenter.View);
         await Save("selection");
         presenter.ChooseEncounter(presenter.View.Choices.First(choice => choice.ShopLevel > 0).Key);

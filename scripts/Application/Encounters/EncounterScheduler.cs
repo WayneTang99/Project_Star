@@ -55,7 +55,8 @@ public sealed class EncounterScheduler
 
         if (session.Progress.Turn == 4)
         {
-            selected = SelectMany(allDefinitions.Where(value => value.Kind == EncounterKind.Monster).ToList(), 3, session, random);
+            selected = SelectMany(allDefinitions.Where(value => value.Kind == EncounterKind.Monster
+                && value.MinimumRound <= session.Progress.Round && session.Progress.Round <= value.MaximumRound).ToList(), 3, session, random);
             if (selected.Count < 3 && (!_allowIncompleteMonsterChoices || selected.Count == 0))
                 return Fail(MissingSpecial, "Turn four requires three different monster encounters.");
         }
@@ -165,8 +166,8 @@ public sealed class EncounterScheduler
                         monster.Attributes.Identity.Key,
                         monster.Attributes.Identity.DisplayName,
                         monster.Attributes.Identity.Illustration)),
-                1,
-                99,
+                monster.MinimumRound,
+                monster.MaximumRound,
                 EncounterKind.Monster)
         {
             Level = monster.Level;

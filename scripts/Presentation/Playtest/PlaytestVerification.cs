@@ -87,7 +87,7 @@ internal static class PlaytestVerification
         finally { owner.RemoveChild(scene); scene.Free(); }
     }
 
-    // 真实测试入口各类遭遇固定5级，普通排程与正式定义继续使用原等级。
+    // 真实测试入口各类遭遇固定4级，普通排程与正式定义继续使用原等级。
     public static bool TestEncounterLevels(Control owner)
     {
         var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
@@ -101,16 +101,16 @@ internal static class PlaytestVerification
             for (var turn = 1; turn <= 8; turn++)
             {
                 var choices = presenter.View.Player!.EncounterChoices;
-                if (choices.Count == 0 || choices.Any(choice => choice.Level != 5
-                    || choice.Kind == EncounterKind.Shop && choice.ShopLevel != 5)) return false;
+                if (choices.Count == 0 || choices.Any(choice => choice.Level != 4
+                    || choice.Kind == EncounterKind.Shop && choice.ShopLevel != 4)) return false;
                 var selected = choices.FirstOrDefault(choice => turn == 2 && choice.Kind == EncounterKind.Other)
                     ?? choices.FirstOrDefault(choice => choice.Kind == EncounterKind.Shop) ?? choices[0];
                 kinds.Add(selected.Kind); presenter.ChooseEncounter(selected.Key);
-                if (presenter.View.EncounterLevel != 5) return false;
+                if (presenter.View.EncounterLevel != 4) return false;
                 if (presenter.View.Page == MatchPage.Shop)
                 {
-                    if (presenter.View.ShopLevel != 5 || !presenter.View.Refresh.Text.Contains("10 金币")
-                        || presenter.View.Offers.Any(offer => offer.Card.Level > 5)) return false;
+                    if (presenter.View.ShopLevel != 4 || !presenter.View.Refresh.Text.Contains("8 金币")
+                        || presenter.View.Offers.Any(offer => offer.Card.Level > 4)) return false;
                 }
                 else if (presenter.View.Page == MatchPage.Event)
                     presenter.ResolveEventOption(presenter.View.EventOptions[0].Key, presenter.View.EventRevision);
@@ -121,7 +121,7 @@ internal static class PlaytestVerification
             var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
             var session = new CreateMatchService(new EntityFactory()).Create(42, 100, new PaladinHeroDefinition());
             var normal = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true);
-            if (normal.Generate(session).Value!.Any(choice => choice.Level == 5)) return false;
+            if (normal.Generate(session).Value!.Any(choice => choice.Level == 4)) return false;
             session.Progress.Turn = 4;
             if (normal.Generate(session).Value!.Any(choice => choice.Level != registry.Monsters[choice.Key].Level)) return false;
             session.Progress.Turn = 8;

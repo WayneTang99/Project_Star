@@ -199,6 +199,14 @@ public sealed class CardEconomyService
             return Result<int>.Fail(new Failure(InvalidValue, "Selling this card would overflow player wealth."));
         }
 
+        if (card.OnSellReward is IncreaseHeroCombatAttributeOnSellDefinition heroBonus)
+        {
+            if (session.Player.Hero is not { } hero)
+                return Result<int>.Fail(new Failure(SaleRewardUnavailable, "A hero is required for this sale reward."));
+            if ((long)hero.Attributes.BaseCombat.GetFinalValue(heroBonus.AttributeKey) + heroBonus.Amount > int.MaxValue)
+                return Result<int>.Fail(new Failure(InvalidValue, "Sale hero attribute bonus would overflow."));
+        }
+
         foreach (var source in session.Player.Inventory.Cards)
         {
             if (source.Id == cardId || !session.Board.Contains(source.Id)) continue;
@@ -243,6 +251,12 @@ public sealed class CardEconomyService
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
     {
+        if (soldCard.OnSellReward is IncreaseHeroCombatAttributeOnSellDefinition heroBonus)
+        {
+            session.Player.Hero!.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), soldCard.Id, heroBonus.AttributeKey, heroBonus.Amount));
+            return;
+        }
         if (soldCard.OnSellReward is ReduceLeftmostElementCardCooldownOnSellDefinition reduction)
         {
             var target = session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)

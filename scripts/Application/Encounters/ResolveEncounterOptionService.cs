@@ -25,19 +25,25 @@ public sealed record EncounterOptionResult(
     bool CardRewardSkipped = false,
     int WealthSpent = 0,
     int PendingBattleMaxHealthBonus = 0,
-    IReadOnlyList<EncounterCardAttributeChange>? CardChanges = null);
+    IReadOnlyList<EncounterCardAttributeChange>? CardChanges = null,
+    EncounterChoice? MonsterEncounter = null,
+    bool MonsterEncounterSkipped = false);
 
 // 单次可选项遭遇展示状态（应用层遭遇模块）。
 public sealed class EncounterOptionSet
 {
-    internal EncounterOptionSet(ChoiceEncounterDefinition encounter, IReadOnlyList<EncounterOptionDefinition> options)
+    internal EncounterOptionSet(ChoiceEncounterDefinition encounter, IReadOnlyList<EncounterOptionDefinition> options,
+        int level, int round)
     {
         Encounter = encounter;
         Options = options;
+        Level = level; Round = round;
     }
 
     public ChoiceEncounterDefinition Encounter { get; }
     public IReadOnlyList<EncounterOptionDefinition> Options { get; }
+    public int Level { get; }
+    public int Round { get; }
     public bool IsResolved { get; private set; }
     internal void MarkResolved() => IsResolved = true;
 }
@@ -53,23 +59,28 @@ public sealed class ResolveEncounterOptionService
     private readonly EntityFactory _factory;
     private readonly BoardService _board;
     private readonly IReadOnlyList<CardDefinition> _cards;
+    private readonly IReadOnlyList<MonsterDefinition> _monsters;
 
     public ResolveEncounterOptionService(
         EntityFactory factory,
         BoardService board,
-        IEnumerable<CardDefinition> cards)
+        IEnumerable<CardDefinition> cards,
+        IEnumerable<MonsterDefinition>? monsters = null)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _board = board ?? throw new ArgumentNullException(nameof(board));
         _cards = cards?.OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray()
             ?? throw new ArgumentNullException(nameof(cards));
+        _monsters = monsters?.OrderBy(monster => monster.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray()
+            ?? Array.Empty<MonsterDefinition>();
     }
 
     // 按选项槽和权重生成本次实际展示的选项。
-    public EncounterOptionSet CreateOptionSet(MatchSession session, ChoiceEncounterDefinition encounter)
+    public EncounterOptionSet CreateOptionSet(MatchSession session, ChoiceEncounterDefinition encounter, int? level = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(encounter);
+        if (level is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(level));
         var random = new SeededRandom(session.Random.State);
         var optionsByKey = encounter.Options.ToDictionary(option => option.Key);
         var selected = new List<EncounterOptionDefinition>(encounter.OptionSlots.Count);
@@ -88,7 +99,7 @@ public sealed class ResolveEncounterOptionService
             }
         }
         session.Random.State = random.State;
-        return new EncounterOptionSet(encounter, selected.AsReadOnly());
+        return new EncounterOptionSet(encounter, selected.AsReadOnly(), level ?? encounter.Level, session.Progress.Round);
     }
 
     // 执行本次实际展示的指定选项并返回奖励结果。
@@ -117,8 +128,12 @@ public sealed class ResolveEncounterOptionService
         CardInstance? grantedCard = null;
         var cardRewardSkipped = false;
         var pendingBattleMaxHealthBonus = 0;
-        foreach (var effect in selected.Effects)
+        EncounterChoice? monsterEncounter = null;
+        var monsterEncounterSkipped = false;
+        var random = new SeededRandom(session.Random.State);
+        foreach (var configuredEffect in selected.Effects)
         {
+            var effect = RollEffect(configuredEffect, random);
             switch (effect)
             {
                 case ModifyHeroCombatAttributeByLevelEffectDefinition modifier:
@@ -134,23 +149,24 @@ public sealed class ResolveEncounterOptionService
                         card.Attributes.Identity.FactionKey == hero.Attributes.Identity.FactionKey
                         && card.Attributes.Identity.Size == factionCard.Size
                         && card.SupportsLevel(factionCard.Level)).ToArray();
-                    var factionReward = GrantRandomCard(session, factionCandidates, factionCard.Level);
+                    var factionReward = GrantRandomCard(session, factionCandidates, factionCard.Level, random);
                     if (factionReward.IsFailure) return Result<EncounterOptionResult>.Fail(factionReward.Failure!);
                     grantedCard = factionReward.Value;
                     cardRewardSkipped = grantedCard is null;
                     break;
                 case GrantRandomTaggedCardEncounterOptionEffectDefinition taggedCard:
+                    var rewardLevel = taggedCard.UseEncounterLevel ? optionSet.Level : taggedCard.Level;
                     var taggedCandidates = _cards.Where(card =>
                         card.Tags.Contains(taggedCard.RequiredTag)
                         && card.Attributes.Identity.Size == taggedCard.Size
-                        && card.SupportsLevel(taggedCard.Level)).ToArray();
-                    var taggedReward = GrantRandomCard(session, taggedCandidates, taggedCard.Level);
+                        && card.SupportsLevel(rewardLevel)).ToArray();
+                    var taggedReward = GrantRandomCard(session, taggedCandidates, rewardLevel, random);
                     if (taggedReward.IsFailure) return Result<EncounterOptionResult>.Fail(taggedReward.Failure!);
                     grantedCard = taggedReward.Value;
                     cardRewardSkipped = grantedCard is null;
                     break;
                 case BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase:
-                    var purchaseResult = BuyRandomOtherFactionCard(session, purchase, hero.Attributes.Identity.FactionKey);
+                    var purchaseResult = BuyRandomOtherFactionCard(session, purchase, hero.Attributes.Identity.FactionKey, random);
                     if (purchaseResult.IsFailure) return Result<EncounterOptionResult>.Fail(purchaseResult.Failure!);
                     grantedCard = purchaseResult.Value;
                     wealthSpent = purchase.Cost;
@@ -183,6 +199,15 @@ public sealed class ResolveEncounterOptionService
                         battlefieldModifier.Amount,
                         affectedCards));
                     break;
+                case EnterRandomMonsterEncounterOptionEffectDefinition:
+                    var monsters = _monsters.Where(monster => monster.Level == optionSet.Level
+                        && monster.MinimumRound <= optionSet.Round && optionSet.Round <= monster.MaximumRound).ToArray();
+                    if (monsters.Length == 0) { monsterEncounterSkipped = true; break; }
+                    var opponent = monsters[random.NextInt(0, monsters.Length)];
+                    var identity = opponent.Attributes.Identity;
+                    monsterEncounter = new EncounterChoice(identity.Key, identity.DisplayName, EncounterKind.Monster)
+                        { Level = opponent.Level, Illustration = identity.Illustration };
+                    break;
             }
         }
 
@@ -193,6 +218,8 @@ public sealed class ResolveEncounterOptionService
         if (wealth > 0) session.Player.AddWealth(wealth);
         if (pendingBattleMaxHealthBonus > 0)
             session.AddPendingBattleMaxHealthBonus(pendingBattleMaxHealthBonus);
+        session.Random.State = random.State;
+        if (monsterEncounter is not null) session.Events.Add(new EncounterSelectedEvent(monsterEncounter.Key, EncounterKind.Monster));
         optionSet.MarkResolved();
         return Result<EncounterOptionResult>.Success(
             new EncounterOptionResult(
@@ -203,13 +230,26 @@ public sealed class ResolveEncounterOptionService
                 cardRewardSkipped,
                 wealthSpent,
                 pendingBattleMaxHealthBonus,
-                cardChanges.AsReadOnly()));
+                cardChanges.AsReadOnly(), monsterEncounter, monsterEncounterSkipped));
+    }
+
+    private static EncounterOptionEffectDefinition RollEffect(EncounterOptionEffectDefinition effect, SeededRandom random)
+    {
+        if (effect is not WeightedEncounterOptionEffectDefinition weighted) return effect;
+        var roll = random.NextInt(0, weighted.Outcomes.Sum(outcome => outcome.Weight));
+        foreach (var outcome in weighted.Outcomes)
+        {
+            if (roll < outcome.Weight) return RollEffect(outcome.Effect, random);
+            roll -= outcome.Weight;
+        }
+        throw new InvalidOperationException("Weighted effect selection did not produce an outcome.");
     }
 
     private Result<CardInstance> BuyRandomOtherFactionCard(
         MatchSession session,
         BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase,
-        StringName currentFaction)
+        StringName currentFaction,
+        SeededRandom random)
     {
         if (session.Player.Wealth < purchase.Cost)
             return Result<CardInstance>.Fail(new Failure(
@@ -223,7 +263,6 @@ public sealed class ResolveEncounterOptionService
         if (candidates.Length == 0)
             return Result<CardInstance>.Fail(new Failure(RewardUnavailable, "No other-faction card matches this encounter purchase."));
 
-        var random = new SeededRandom(session.Random.State);
         var selected = candidates[random.NextInt(0, candidates.Length)];
         var economy = new CardEconomyService(_factory, _board);
         var mergeTarget = economy.FindMergeTarget(session, selected, purchase.Level);
@@ -243,20 +282,18 @@ public sealed class ResolveEncounterOptionService
             var placement = _board.PlaceCard(session, acquired.Value.Card.Id, target!.Zone, target.Start);
             if (placement.IsFailure) throw new InvalidOperationException(placement.Failure!.Message);
         }
-        session.Random.State = random.State;
         return Result<CardInstance>.Success(acquired.Value.Card);
     }
 
     private Result<CardInstance?> GrantRandomCard(
         MatchSession session,
         IReadOnlyList<CardDefinition> candidates,
-        int level)
+        int level,
+        SeededRandom random)
     {
         if (candidates.Count == 0)
             return Result<CardInstance?>.Fail(new Failure(RewardUnavailable, "No card matches this encounter reward."));
-        var random = new SeededRandom(session.Random.State);
         var selected = candidates[random.NextInt(0, candidates.Count)];
-        session.Random.State = random.State;
         var economy = new CardEconomyService(_factory, _board);
         var mergeTarget = economy.FindMergeTarget(session, selected, level);
         var target = mergeTarget is null

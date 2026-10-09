@@ -26,10 +26,13 @@ public abstract class MonsterDefinition
         int healthRegen = 0,
         int level = 1,
         IReadOnlyList<MonsterSkillEntry>? skills = null,
-        StringName? illustration = null)
+        StringName? illustration = null,
+        int minimumRound = 1,
+        int maximumRound = 99)
     {
         ArgumentNullException.ThrowIfNull(cards);
         if (level < 1) throw new ArgumentOutOfRangeException(nameof(level));
+        if (minimumRound < 1 || maximumRound < minimumRound) throw new ArgumentOutOfRangeException(nameof(minimumRound));
         Attributes = new EntityAttributes<MonsterIdentityAttributes>(
             new MonsterIdentityAttributes(key, displayName, illustration),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
@@ -44,6 +47,7 @@ public abstract class MonsterDefinition
         Cards = new List<MonsterCardEntry>(cards).AsReadOnly();
         Skills = skills is null ? Array.Empty<MonsterSkillEntry>() : new List<MonsterSkillEntry>(skills).AsReadOnly();
         Level = level;
+        MinimumRound = minimumRound; MaximumRound = maximumRound;
         DefinitionFreezer.Freeze(Attributes);
     }
 
@@ -52,4 +56,6 @@ public abstract class MonsterDefinition
     public IReadOnlyList<MonsterCardEntry> Cards { get; }
     public IReadOnlyList<MonsterSkillEntry> Skills { get; }
     public int Level { get; }
+    public int MinimumRound { get; }
+    public int MaximumRound { get; }
 }

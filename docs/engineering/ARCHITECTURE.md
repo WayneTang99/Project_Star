@@ -38,6 +38,8 @@ DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；�
 | 新玩家操作 | 应用用例 + Result + 必要查询，不让 UI 写模型 |
 | 新展示 | Snapshot / ViewModel / Adapter，领域对象不加载贴图或场景 |
 
+可选项结算中的加权结果由应用用例使用对局随机状态抽取，成功后提交随机状态；同等级怪物筛选返回只读 `EncounterChoice`。表现层使用既有对手来源进入战斗准备、回放及奖励结算，不再次调用遭遇选择来推进回合。访问等级与轮次由选项集合捕获，怪物轮次范围保存在不可变定义中。
+
 只为已确认需求建立抽象；出现实际复用或明确替换点时抽取。接口保持小而聚焦，不建立万能 Context、Manager、服务定位器或全局命令总线。Command 表示意图，Result 表示同步成功/失败，Domain Event 表示已发生事实；有返回值的操作不伪装成事件。Match Event 与 Combat Event 强类型隔离，不跨总线传播。
 
 Definition 的维护和行为验证见 [内容数据规范](../design/CONTENT_DATA.md)。卡牌展示描述保存为只读有序 `CardDescriptionEntry`（StringName KeywordKey + string Text），随身份传入快照；UI按条目渲染，不参与规则解析或能力生成。

@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using Project_Star.Application.Content;
 using Project_Star.Domain.Combat;
+using Project_Star.Domain.Definitions;
 using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Playtest;
@@ -15,6 +16,11 @@ public sealed partial class CardCatalogView : PanelContainer
     private readonly Button _back = new() { Name = "Back", Text = "返回英雄选择" };
     private readonly LineEdit _search = new() { Name = "Search", PlaceholderText = "搜索卡名、标签或效果", SizeFlagsHorizontal = SizeFlags.ExpandFill };
     private readonly OptionButton _faction = new() { Name = "Faction", CustomMinimumSize = new Vector2(160, 0) };
+    private readonly OptionButton _size = new() { Name = "Size", CustomMinimumSize = new Vector2(110, 0) };
+    private readonly OptionButton _element = new() { Name = "Element", CustomMinimumSize = new Vector2(110, 0) };
+    private readonly OptionButton _initialLevel = new() { Name = "InitialLevel", CustomMinimumSize = new Vector2(150, 0) };
+    private readonly OptionButton _sort = new() { Name = "Sort", CustomMinimumSize = new Vector2(130, 0) };
+    private readonly Button _direction = new() { Name = "Direction", Text = "升序 ↑", ToggleMode = true };
     private readonly Label _count = new() { Name = "Count" };
     private readonly ScrollContainer _scroll = new() { Name = "CardsScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
     private readonly GridContainer _grid = new() { Name = "Cards", SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -28,6 +34,12 @@ public sealed partial class CardCatalogView : PanelContainer
     private readonly List<(CardItemView Button, Action Select, StringName Key)> _buttons = new();
     private IReadOnlyList<CardCatalogEntry> _entries = Array.Empty<CardCatalogEntry>();
     private IReadOnlyList<StringName> _factions = Array.Empty<StringName>();
+    private static readonly (StringName Key, string Name)[] Elements =
+    [
+        (GameElements.General, "通用"), (GameElements.Fire, "火"), (GameElements.Water, "水"),
+        (GameElements.Wind, "风"), (GameElements.Earth, "土"), (GameElements.Lightning, "雷"),
+        (GameElements.Wood, "木"), (GameElements.Ice, "冰"), (GameElements.Light, "光"), (GameElements.Dark, "暗"),
+    ];
     private CardCatalogEntry? _selected;
     private HBoxContainer _body = null!;
     private PanelContainer _detailPanel = null!;
@@ -39,7 +51,19 @@ public sealed partial class CardCatalogView : PanelContainer
         var title = new Label { Text = "卡牌图鉴", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         title.AddThemeFontSizeOverride("font_size", 24); header.AddChild(title); header.AddChild(_back);
         var filters = new HBoxContainer { Name = "Filters" }; column.AddChild(filters);
-        filters.AddChild(_search); filters.AddChild(_faction); filters.AddChild(_count);
+        filters.AddChild(_search); filters.AddChild(_count);
+        var classification = new HBoxContainer { Name = "Classification" }; column.AddChild(classification);
+        foreach (var control in new Control[] { _faction, _size, _element, _initialLevel }) classification.AddChild(control);
+        classification.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
+        classification.AddChild(new Label { Text = "排序" }); classification.AddChild(_sort); classification.AddChild(_direction);
+        _size.AddItem("全部尺寸", 0);
+        foreach (var size in Enum.GetValues<CardSize>()) _size.AddItem(TagDisplayNames.Get(GameTags.FromSize(size)), (int)size);
+        _element.AddItem("全部元素");
+        foreach (var (_, name) in Elements) _element.AddItem(name);
+        foreach (var field in new[] { "归属", "尺寸", "元素", "初始等级" }) _sort.AddItem(field);
+        _element.TooltipText = "双元素卡包含所选元素即可匹配";
+        _initialLevel.TooltipText = "按正式定义的初始等级筛选，不受详情预览等级影响";
+        _sort.TooltipText = "归属按筛选列表顺序；尺寸按小、中、大；元素按通用、火、水、风、土、雷、木、冰、光、暗，双元素再比较第二元素";
         _body = new HBoxContainer { Name = "Body", SizeFlagsVertical = SizeFlags.ExpandFill }; column.AddChild(_body);
         var browser = new VBoxContainer { Name = "Browser", SizeFlagsHorizontal = SizeFlags.ExpandFill }; _body.AddChild(browser);
         browser.AddChild(_empty); browser.AddChild(_scroll); _scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
@@ -54,7 +78,9 @@ public sealed partial class CardCatalogView : PanelContainer
         _search.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("f8fbfc"), new Color("a5bcc9")));
         _search.AddThemeStyleboxOverride("focus", MatchTheme.Surface(new Color("f8fbfc"), MatchTheme.Blue));
         _back.Pressed += Close;
-        _search.TextChanged += SearchChanged; _faction.ItemSelected += FactionChanged; _level.ItemSelected += LevelChanged;
+        _search.TextChanged += SearchChanged; _level.ItemSelected += LevelChanged;
+        foreach (var filter in new[] { _faction, _size, _element, _initialLevel, _sort }) filter.ItemSelected += FilterChanged;
+        _direction.Toggled += DirectionChanged;
         _body.Resized += LayoutColumns; _scroll.Resized += LayoutColumns;
         Hide();
     }
@@ -63,9 +89,18 @@ public sealed partial class CardCatalogView : PanelContainer
     public void SetEntries(IReadOnlyList<CardCatalogEntry> entries)
     {
         _entries = entries;
-        _factions = Array.AsReadOnly(entries.Select(entry => entry.InitialCard.FactionKey).Distinct().ToArray());
+        var previousFaction = _faction.Selected > 0 ? _factions[_faction.Selected - 1] : (StringName?)null;
+        var initialLevel = _initialLevel.Selected > 0 ? _initialLevel.GetItemId(_initialLevel.Selected) : 0;
+        _factions = Array.AsReadOnly(entries.Select(entry => entry.InitialCard.FactionKey).Distinct()
+            .OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray());
         _faction.Clear(); _faction.AddItem("全部归属");
         foreach (var faction in _factions) _faction.AddItem(entries.First(entry => entry.InitialCard.FactionKey == faction).FactionName);
+        _faction.Select(Math.Max(0, _factions.ToList().FindIndex(key => key == previousFaction) + 1));
+        _initialLevel.Clear(); _initialLevel.AddItem("全部初始等级", 0);
+        foreach (var level in entries.Select(entry => entry.InitialLevel).Distinct().OrderBy(level => level))
+            _initialLevel.AddItem($"初始 {level} 级", level);
+        for (var index = 0; index < _initialLevel.ItemCount; index++)
+            if (_initialLevel.GetItemId(index) == initialLevel) _initialLevel.Select(index);
         RefreshList();
     }
 
@@ -76,7 +111,8 @@ public sealed partial class CardCatalogView : PanelContainer
     public void Close() { Hide(); Closed?.Invoke(); }
 
     private void SearchChanged(string _) => RefreshList();
-    private void FactionChanged(long _) => RefreshList();
+    private void FilterChanged(long _) => RefreshList();
+    private void DirectionChanged(bool descending) { _direction.Text = descending ? "降序 ↓" : "升序 ↑"; RefreshList(); }
     private void LevelChanged(long index) => ShowLevel((int)index);
 
     private void RefreshList()
@@ -84,11 +120,19 @@ public sealed partial class CardCatalogView : PanelContainer
         ClearButtons();
         var query = _search.Text.Trim();
         var factionIndex = _faction.Selected - 1;
+        var size = _size.GetItemId(_size.Selected);
+        var elementIndex = _element.Selected - 1;
+        var initialLevel = _initialLevel.GetItemId(_initialLevel.Selected);
         var filtered = _entries.Where(entry => (factionIndex < 0 || entry.InitialCard.FactionKey == _factions[factionIndex])
-            && (query.Length == 0 || SearchText(entry).Contains(query, StringComparison.OrdinalIgnoreCase))).ToArray();
-        _count.Text = $"{filtered.Length} / {_entries.Count} 张"; _empty.Visible = filtered.Length == 0;
+            && (size == 0 || (int)entry.InitialCard.Size == size)
+            && (elementIndex < 0 || entry.InitialCard.ElementKeys.Contains(Elements[elementIndex].Key))
+            && (initialLevel == 0 || entry.InitialLevel == initialLevel)
+            && (query.Length == 0 || SearchText(entry).Contains(query, StringComparison.OrdinalIgnoreCase)));
+        var ordered = (_direction.ButtonPressed ? filtered.OrderByDescending(SortValue) : filtered.OrderBy(SortValue))
+            .ThenBy(entry => entry.InitialCard.Key.ToString(), StringComparer.Ordinal).ToArray();
+        _count.Text = $"{ordered.Length} / {_entries.Count} 张"; _empty.Visible = ordered.Length == 0;
         _scroll.ScrollVertical = 0;
-        foreach (var entry in filtered)
+        foreach (var entry in ordered)
         {
             var cell = new VBoxContainer { CustomMinimumSize = new Vector2(216, 0) }; _grid.AddChild(cell);
             var button = new CardItemView { Name = "Card", CustomMinimumSize = new Vector2(216, 190) }; cell.AddChild(button);
@@ -98,9 +142,20 @@ public sealed partial class CardCatalogView : PanelContainer
             cell.AddChild(new Label { Text = $"{entry.InitialCard.DisplayName} · {entry.FactionName}",
                 HorizontalAlignment = HorizontalAlignment.Center, ClipText = true });
         }
-        Select(filtered.FirstOrDefault(entry => entry.InitialCard.Key == _selected?.InitialCard.Key) ?? filtered.FirstOrDefault());
+        Select(ordered.FirstOrDefault(entry => entry.InitialCard.Key == _selected?.InitialCard.Key) ?? ordered.FirstOrDefault());
         LayoutColumns();
     }
+
+    private int SortValue(CardCatalogEntry entry) => _sort.Selected switch
+    {
+        1 => (int)entry.InitialCard.Size,
+        2 => ElementOrder(entry.InitialCard.ElementKeys[0]) * (Elements.Length + 1)
+            + (entry.InitialCard.ElementKeys.Count == 1 ? 0 : ElementOrder(entry.InitialCard.ElementKeys[1]) + 1),
+        3 => entry.InitialLevel,
+        _ => _factions.ToList().IndexOf(entry.InitialCard.FactionKey),
+    };
+
+    private static int ElementOrder(StringName key) => Array.FindIndex(Elements, element => element.Key == key);
 
     private static string SearchText(CardCatalogEntry entry) => entry.InitialCard.DisplayName + " " + entry.FactionName
         + " " + string.Join(" ", entry.InitialCard.Tags.Select(Project_Star.Domain.Definitions.TagDisplayNames.Get))
@@ -157,7 +212,8 @@ public sealed partial class CardCatalogView : PanelContainer
     public override void _ExitTree()
     {
         _back.Pressed -= Close; _search.TextChanged -= SearchChanged;
-        _faction.ItemSelected -= FactionChanged; _level.ItemSelected -= LevelChanged;
+        foreach (var filter in new[] { _faction, _size, _element, _initialLevel, _sort }) filter.ItemSelected -= FilterChanged;
+        _direction.Toggled -= DirectionChanged; _level.ItemSelected -= LevelChanged;
         _body.Resized -= LayoutColumns; _scroll.Resized -= LayoutColumns; ClearButtons();
     }
 }

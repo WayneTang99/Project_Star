@@ -84,6 +84,21 @@ public abstract class CardDefinition
 
 public abstract record CardOnSellRewardDefinition;
 
+// 出售来源卡牌后，向己方英雄累加永久战斗属性贡献（领域定义层）。
+public sealed record IncreaseHeroCombatAttributeOnSellDefinition : CardOnSellRewardDefinition
+{
+    public IncreaseHeroCombatAttributeOnSellDefinition(StringName attributeKey, int amount)
+    {
+        if (attributeKey.IsEmpty || amount < 1)
+            throw new ArgumentException("Hero sale bonus requires a nonempty attribute key and positive amount.");
+        AttributeKey = attributeKey;
+        Amount = amount;
+    }
+
+    public StringName AttributeKey { get; }
+    public int Amount { get; }
+}
+
 // 出售后从战场最左侧查找指定元素卡牌，永久降低其冷却倍率（领域定义层）。
 public sealed record ReduceLeftmostElementCardCooldownOnSellDefinition : CardOnSellRewardDefinition
 {

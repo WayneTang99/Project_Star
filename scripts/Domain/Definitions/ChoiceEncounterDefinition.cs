@@ -86,8 +86,28 @@ public sealed record GainWealthEncounterOptionEffectDefinition(int Amount) : Enc
 public sealed record GrantRandomFactionCardEncounterOptionEffectDefinition(CardSize Size, int Level)
     : EncounterOptionEffectDefinition;
 
-public sealed record GrantRandomTaggedCardEncounterOptionEffectDefinition(StringName RequiredTag, CardSize Size, int Level)
+public sealed record GrantRandomTaggedCardEncounterOptionEffectDefinition(StringName RequiredTag, CardSize Size, int Level,
+    bool UseEncounterLevel = false)
     : EncounterOptionEffectDefinition;
+
+// 选择选项后抽取一个效果，不改变展示槽候选（领域定义层）。
+public sealed record WeightedEncounterOptionEffectDefinition : EncounterOptionEffectDefinition
+{
+    public WeightedEncounterOptionEffectDefinition(IReadOnlyList<WeightedEncounterEffectDefinition> outcomes)
+    {
+        ArgumentNullException.ThrowIfNull(outcomes);
+        if (outcomes.Count == 0) throw new ArgumentException("A weighted effect requires outcomes.", nameof(outcomes));
+        Outcomes = new List<WeightedEncounterEffectDefinition>(outcomes).AsReadOnly();
+    }
+
+    public IReadOnlyList<WeightedEncounterEffectDefinition> Outcomes { get; }
+}
+
+// 单个加权结算结果（领域定义层）。
+public sealed record WeightedEncounterEffectDefinition(EncounterOptionEffectDefinition Effect, int Weight);
+
+// 遇见当前轮次范围内、与本次遭遇同等级的随机怪物（领域定义层）。
+public sealed record EnterRandomMonsterEncounterOptionEffectDefinition : EncounterOptionEffectDefinition;
 
 public sealed record BuyRandomOtherFactionCardEncounterOptionEffectDefinition(CardSize Size, int Level, int Cost)
     : EncounterOptionEffectDefinition;

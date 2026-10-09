@@ -299,24 +299,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
                     $"Encounter '{encounter.Attributes.Identity.Key}' has duplicate option '{option.Key}'.");
             foreach (var effect in option.Effects)
             {
-                var invalid = effect switch
-                {
-                    ModifyHeroCombatAttributeByLevelEffectDefinition modifier =>
-                        modifier.AttributeKey.IsEmpty || modifier.AmountPerLevel < 1,
-                    GainWealthEncounterOptionEffectDefinition gain => gain.Amount < 1,
-                    GrantRandomFactionCardEncounterOptionEffectDefinition reward =>
-                        !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
-                    GrantRandomTaggedCardEncounterOptionEffectDefinition reward =>
-                        reward.RequiredTag.IsEmpty || !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
-                    BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase =>
-                        !Enum.IsDefined(purchase.Size) || purchase.Level is < 1 or > 5 || purchase.Cost < 1,
-                    GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition battleHealth =>
-                        battleHealth.AmountPerLevel < 1,
-                    ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition battlefieldModifier =>
-                        battlefieldModifier.AttributeKey.IsEmpty || battlefieldModifier.Amount == 0,
-                    _ => true,
-                };
-                if (invalid)
+                if (InvalidEncounterEffect(effect))
                 {
                     throw new DefinitionValidationException(
                         $"Encounter option '{option.Key}' has an invalid effect.");
@@ -338,6 +321,33 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
             throw new DefinitionValidationException(
                 $"Encounter '{encounter.Attributes.Identity.Key}' has an option that is not assigned to a slot.");
         }
+    }
+
+    private static bool InvalidEncounterEffect(EncounterOptionEffectDefinition effect) => effect switch
+    {
+        ModifyHeroCombatAttributeByLevelEffectDefinition modifier => modifier.AttributeKey.IsEmpty || modifier.AmountPerLevel < 1,
+        GainWealthEncounterOptionEffectDefinition gain => gain.Amount < 1,
+        GrantRandomFactionCardEncounterOptionEffectDefinition reward => !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
+        GrantRandomTaggedCardEncounterOptionEffectDefinition reward =>
+            reward.RequiredTag.IsEmpty || !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
+        BuyRandomOtherFactionCardEncounterOptionEffectDefinition purchase =>
+            !Enum.IsDefined(purchase.Size) || purchase.Level is < 1 or > 5 || purchase.Cost < 1,
+        GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition battleHealth => battleHealth.AmountPerLevel < 1,
+        ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition modifier => modifier.AttributeKey.IsEmpty || modifier.Amount == 0,
+        EnterRandomMonsterEncounterOptionEffectDefinition => false,
+        WeightedEncounterOptionEffectDefinition weighted => InvalidWeightedEffect(weighted),
+        _ => true,
+    };
+
+    private static bool InvalidWeightedEffect(WeightedEncounterOptionEffectDefinition weighted)
+    {
+        long total = 0;
+        foreach (var outcome in weighted.Outcomes)
+        {
+            if (outcome is null || outcome.Weight < 1 || InvalidEncounterEffect(outcome.Effect)) return true;
+            total += outcome.Weight;
+        }
+        return total > int.MaxValue;
     }
 }
 

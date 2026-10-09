@@ -103,6 +103,9 @@ public sealed partial class PhaseOneVerification : Control
             ("野猪使用默认属性并携带三张1级卡牌和1级冲撞", EncounterChecks.CheckBoarMonsterDefinition),
             ("校场按定义永久提升英雄生命或战场卡牌攻击", EncounterChecks.CheckTrainingGround),
             ("垃圾场固定展示零钱与材料选项并结算奖励", EncounterChecks.CheckLandfill),
+            ("暮歌丛林固定选项、概率配置与原画正确", DuskSongJungleChecks.Definitions),
+            ("丛林概率边界、确定性、奖励等级与满盘结算正确", DuskSongJungleChecks.Outcomes),
+            ("丛林怪物分支进入战斗并保持同一回合", DuskSongJungleChecks.Flow),
             ("酒馆限时出现并结算交易与下一场战斗加成", EncounterChecks.CheckTavernEncounter),
             ("普通回合三选一且包含商店", EncounterChecks.CheckNormalEncounterChoices),
             ("相同 Seed 生成相同遭遇候选", EncounterChecks.CheckDeterministicEncounters),
@@ -178,6 +181,8 @@ public sealed partial class PhaseOneVerification : Control
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
             ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
+            ("浆果各等级出售永久增加英雄最大生命，区域与快照正确", BerriesChecks.LevelsAndSales),
+            ("浆果出售加成叠加、合并等级更新且失败无残留", BerriesChecks.StackingMergeAndFailures),
             ("原木法杖拾取含合并、备战累计、统一发动与升级正确", LogStaffChecks.AcquisitionAndActivation),
             ("黑犀金龟等级、随机迟缓目标、叠加及飞行减时长正确", BlackRhinocerosBeetleChecks.LevelsAndSlow),
             ("破誓者分级随机不重复迟缓、双方光牌动态冷却及倍率正确", OathbreakerChecks.TargetsAndAura),
@@ -229,7 +234,7 @@ public sealed partial class PhaseOneVerification : Control
             ("登神者召唤/转变仅本场成长与百分比配置验证", AscendantChecks.TemporarySourcesAndValidation),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
-            ("局外图鉴搜索、归属、等级、空结果、旧按钮与返回选角正确", () => CardCatalogChecks.Interaction(this)),
+            ("局外图鉴搜索、四维筛选与排序、等级、空结果、旧按钮与返回选角正确", () => CardCatalogChecks.Interaction(this)),
             ("导师技能选项真实渲染、完整提示与旧按钮解绑正确", () => MentorChecks.RenderedChoices(this)),
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),
             ("上方拖拽出售贯穿真实入口、奖励、失效与战斗限制", () => DragSaleChecks.Transactions(this)),
@@ -246,7 +251,7 @@ public sealed partial class PhaseOneVerification : Control
             ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
             ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
             ("真实遭遇原画图卡选择、商店晶体与旧按钮解绑", () => PlaytestVerification.EncounterArtworkScene(this)),
-            ("测试关卡各类遭遇默认5级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
+            ("测试关卡各类遭遇默认4级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
         ]));
@@ -280,6 +285,12 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await CardCatalogChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-forest"))
+            Callable.From((Action)(async () =>
+            {
+                try { await DuskSongJungleChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-mentors"))
