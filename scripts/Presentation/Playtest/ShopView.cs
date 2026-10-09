@@ -23,9 +23,9 @@ public sealed partial class ShopView : Control
     {
         _message = new Label { Name = "Message", ClipText = true, Visible = false };
         _message.AddThemeFontSizeOverride("font_size", 16); AddChild(_message);
-        _scroll = new ScrollContainer { Name = "OfferScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        _scroll = new ScrollContainer { Name = "OfferScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
             VerticalScrollMode = ScrollContainer.ScrollMode.ShowNever }; AddChild(_scroll);
-        _offers = new HBoxContainer { Name = "Offers", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _offers = new HBoxContainer { Name = "Offers", SizeFlagsHorizontal = SizeFlags.ExpandFill, Alignment = BoxContainer.AlignmentMode.Center };
         _scroll.AddChild(_offers);
         Resized += LayoutView; LayoutView();
     }
@@ -36,18 +36,18 @@ public sealed partial class ShopView : Control
         Clear(); _message.Text = message; _message.TooltipText = message;
         TooltipText = $"{shopLevel}级商店 · 右键查看商品详情";
         // 常态操作说明放在提示中；失败、购买和刷新反馈保留在内容底部。
-        _message.Visible = message.Length > 0 && !message.StartsWith("选择") && !message.StartsWith("商店")
-            && !message.StartsWith("购买卡牌");
+        _message.Hide();
         foreach (var offer in offers)
         {
             var row = new Control { Name = $"Offer{offer.Index}", Visible = offer.Action.Visible,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore };
+                MouseFilter = MouseFilterEnum.Ignore };
             _offers.AddChild(row);
             var card = new CardItemView { Name = "Card" };
             row.AddChild(card); card.Render(offer.Card, _adapter); card.DetailsRequested += ShowDetails;
             var info = new VBoxContainer { Name = "Info" }; row.AddChild(info);
-            var name = new Label { Text = offer.Card.DisplayName, ClipText = true, TooltipText = offer.Card.DisplayName };
-            name.AddThemeFontSizeOverride("font_size", 18); name.AddThemeColorOverride("font_color", MatchTheme.Gold);
+            var name = new Label { Text = offer.Card.DisplayName, AutowrapMode = TextServer.AutowrapMode.WordSmart, TooltipText = offer.Card.DisplayName };
+            MatchTheme.Text(name, 12, new Color("e0dec9"));
+            info.AddThemeConstantOverride("separation", 10);
             info.AddChild(name);
             if (offer.Card.CurrentValues.TryGetValue(GameAttributeKeys.CooldownTicks, out var ticks) && ticks > 0)
                 info.AddChild(MatchTheme.Stat("clock", $"{ticks / 10m * offer.Card.CooldownMultiplier:0.##}s", "当前冷却"));
@@ -59,19 +59,19 @@ public sealed partial class ShopView : Control
             var actions = new VBoxContainer { Name = "Actions" }; row.AddChild(actions);
             var sold = offer.Action.Text == "已售罄";
             var button = new Button { Name = "Buy", ClipText = true,
-                Text = sold ? "已售罄" : $"购买  {offer.Price}", Icon = sold ? null : MatchTheme.Icon("coin"),
+                Text = sold ? "已售罄" : offer.Price.ToString(), Icon = sold ? null : MatchTheme.Icon("coin"),
                 Disabled = !offer.Action.Enabled,
-                CustomMinimumSize = new Vector2(100, 38),
+                CustomMinimumSize = new Vector2(65, 32),
                 TooltipText = CardDisplayAdapter.Details(offer.Card) + $"\n购买价 {offer.Price} · 持有价值 {offer.Card.Value}\n"
                     + (offer.MergeLevel > 0 ? $"可合并至 {offer.MergeLevel}级\n" : "") + offer.Action.Reason };
             button.AddThemeConstantOverride("icon_max_width", 14);
-            button.AddThemeFontSizeOverride("font_size", 18);
+            button.AddThemeFontSizeOverride("font_size", 12);
             MatchTheme.Accent(button);
             Action handler = () => { if (!button.Disabled && button.Visible) BuyRequested?.Invoke(offer.Index, offer.Revision); };
             actions.AddChild(button); button.Pressed += handler; _bindings.Add((button, handler));
             var reason = new Label { Text = offer.Action.Reason, Visible = offer.Action.Reason.Length > 0,
                 ClipText = true, TooltipText = offer.Action.Reason };
-            reason.AddThemeFontSizeOverride("font_size", 16); actions.AddChild(reason);
+            reason.AddThemeFontSizeOverride("font_size", 10); actions.AddChild(reason);
             var slots = (int)offer.Card.Size;
             Action layout = () => LayoutOffer(row, card, slots, info, actions);
             row.Resized += layout; _items.Add((row, card, slots, info, actions, layout));
@@ -100,32 +100,27 @@ public sealed partial class ShopView : Control
         var feedbackHeight = _message.Visible ? 26 : 0;
         _message.Position = new Vector2(8, Size.Y - feedbackHeight);
         _message.Size = new Vector2(Mathf.Max(1, Size.X - 16), feedbackHeight);
-        _scroll.Position = new Vector2(8, 4); _scroll.Size = new Vector2(Mathf.Max(1, Size.X - 16), Mathf.Max(1, Size.Y - 8 - feedbackHeight));
+        _scroll.Position = new Vector2(22, 16); _scroll.Size = new Vector2(Mathf.Max(1, Size.X - 44), Mathf.Max(1, Size.Y - 32 - feedbackHeight));
+        _offers.AddThemeConstantOverride("separation", Mathf.RoundToInt(Mathf.Clamp(GetViewportRect().Size.X * .03f, 16, 40)));
         _offers.CustomMinimumSize = new Vector2(0, _scroll.Size.Y);
         foreach (var item in _items)
         {
-            item.Row.CustomMinimumSize = new Vector2(100, _scroll.Size.Y);
             item.Layout();
         }
     }
 
     private void LayoutOffer(Control row, CardItemView card, int slots, VBoxContainer info, VBoxContainer actions)
     {
-        var column = Mathf.Max(100, (_scroll.Size.X - Math.Max(0, _items.Count - 1) * MatchTheme.Gap) / Math.Max(1, _items.Count));
-        var largest = _items.Count == 0 ? slots : _items.Max(item => item.Slots);
-        var wide = column >= 240;
-        var reasonHeight = _items.Any(item => item.Actions.GetChild<Label>(1).Visible) ? 30 : 0;
-        var height = Mathf.Max(40, Mathf.Min(_scroll.Size.Y - (wide ? 24 + reasonHeight : 76), (column - (wide ? 132 : 8)) * 2 / largest));
-        card.Position = new Vector2(4, wide ? (_scroll.Size.Y - height) / 2 : 0);
+        var height = Mathf.Clamp(GetViewportRect().Size.Y * .16f, 116, 165);
+        var infoWidth = GetViewportRect().Size.X <= 1150 ? 50 : 69;
+        var cardGap = GetViewportRect().Size.X <= 1150 ? 8 : 12;
+        row.CustomMinimumSize = new Vector2(height * slots / 2 + cardGap + infoWidth, _scroll.Size.Y);
+        card.Position = new Vector2(0, (_scroll.Size.Y - height) / 2);
         card.Size = new Vector2(height * slots / 2, height);
-        var sideInfo = card.Size.X + 64 < column;
-        info.Position = new Vector2(card.Size.X + 14, card.Position.Y + height * .1f);
-        info.Size = new Vector2(Mathf.Max(1, column - info.Position.X - 4), sideInfo ? height * .6f : 20);
-        info.Visible = sideInfo;
-        if (info.GetNodeOrNull<Control>("MergePreview") is { } merge) merge.Visible = height >= 95;
-        // 三尺寸共享按钮基线，禁用原因与操作反馈各留独立空间。
-        actions.Position = wide ? new Vector2(info.Position.X, card.Position.Y + height - 38)
-            : new Vector2(4, _scroll.Size.Y - 68);
-        actions.Size = new Vector2(wide ? 116 : Mathf.Max(100, column - actions.Position.X - 4), 68);
+        info.Position = new Vector2(card.Size.X + cardGap, card.Position.Y + height - 87);
+        info.Size = new Vector2(infoWidth, 49); info.Show();
+        if (info.GetNodeOrNull<Control>("MergePreview") is { } merge) { merge.Show(); info.Position -= new Vector2(0, 21); }
+        actions.Position = new Vector2(info.Position.X, card.Position.Y + height - 35);
+        actions.Size = new Vector2(infoWidth - 4, 32);
     }
 }

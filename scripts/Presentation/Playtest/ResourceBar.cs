@@ -17,8 +17,9 @@ public sealed partial class ResourceBar : ProgressBar
         MouseFilter = MouseFilterEnum.Pass;
         CustomMinimumSize = new Vector2(0, 24);
         AddThemeStyleboxOverride("background", MatchTheme.Surface(new Color("0b1713"), new Color("817449")));
-        AddThemeStyleboxOverride("fill", MatchTheme.Surface(color, color));
+        AddThemeStyleboxOverride("fill", MatchTheme.Plate(name.Contains("Mana") ? "bar-mana" : "bar-health", 0));
         _caption.AddThemeFontSizeOverride("font_size", 14);
+        _caption.AddThemeFontOverride("font", MatchTheme.Font(true, true));
         _caption.AddThemeColorOverride("font_color", new Color("f2f3d9"));
         AddChild(_caption);
         _caption.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -30,7 +31,7 @@ public sealed partial class ResourceBar : ProgressBar
     public void SetDisplayHeight(float height)
     {
         CustomMinimumSize = new Vector2(0, height);
-        _caption.AddThemeFontSizeOverride("font_size", height < 22 ? 14 : 16);
+        _caption.AddThemeFontSizeOverride("font_size", height <= 10 ? 9 : 12);
         _caption.OffsetLeft = 0;
         _icon.Hide();
     }
@@ -40,7 +41,7 @@ public sealed partial class ResourceBar : ProgressBar
     {
         MaxValue = System.Math.Max(1, maximum);
         Value = current;
-        _caption.Text = $"{current}/{maximum}";
+        _caption.Text = $"{current} / {maximum}";
         _icon.Texture = MatchTheme.Icon(label == "生命" ? new StringName("health")
             : label == "魔法" ? new StringName("mana") : new StringName("experience"));
         TooltipText = $"{label} {current}/{maximum}";

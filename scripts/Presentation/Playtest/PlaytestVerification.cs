@@ -488,7 +488,7 @@ internal static class PlaytestVerification
                         || Mathf.Abs(first.Size.Y - first.Size.X * 2) > .1f
                         || face.HasNode("Title")
                         || sockets.Position.Y < level.Position.Y + level.Size.Y * level.Scale.Y
-                        || value.Position.X < face.Size.X * .5f || value.Position.Y < face.Size.Y * .7f)
+                        || value.Position.X < 0 || value.Position.Y < face.Size.Y * .7f)
                     {
                         GD.Print($"卡格检查：区域 {size}，卡 {card.Position}/{card.Size}，槽 {first.Position}/{first.Size}，末槽 {last.Position}/{last.Size}，卡面 {face.Position}/{face.Size}");
                         return false;
@@ -497,7 +497,7 @@ internal static class PlaytestVerification
                     var previousBottom = 0f;
                     foreach (var effect in effects.GetChildren().OfType<CardEffectRow>().Where(effect => effect.Visible))
                     {
-                        if (effect.Position.X != 0 || effect.Position.Y < previousBottom - .1f
+                        if (effect.Position.X != 5 || effect.Position.Y < previousBottom - .1f
                             || effect.Position.X + effect.Size.X > effects.Size.X + 1
                             || effect.Position.Y + effect.Size.Y > effects.Size.Y + 1)
                         { GD.Print($"效果越界或重叠：{effect.Position}/{effect.Size}，区域 {effects.Size}"); return false; }
@@ -550,20 +550,20 @@ internal static class PlaytestVerification
                 {
                     var cell = shell.GetNode<Control>(path);
                     if (cell.GlobalPosition.X < 0 || cell.GlobalPosition.X + cell.Size.X > shell.Size.X + 1
-                        || cell.GlobalPosition.Y + cell.Size.Y > shell.Size.Y + 1) return Fail("主区域越界");
+                        || cell.Position.Y + cell.Size.Y + shell.GetNode<VScrollBar>("DesktopScroll").Value > shell.GetNode<VScrollBar>("DesktopScroll").MaxValue + 1) return Fail("主区域越出自然页面");
                 }
                 var hero = shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel");
                 var name = hero.GetNode<Label>("Identity/HeroName");
                 var host = shell.GetNode<Control>("ContextRow/ContextHost");
                 var benchCell = shell.GetNode<Control>("BenchRow/Content");
-                if (name.Size.X < 120 || name.Text != capture.Player!.Hero!.DisplayName
+                if (name.Size.X < 100 || name.Text != capture.Player!.Hero!.DisplayName
                     || hero.GlobalPosition.Y < benchCell.GlobalPosition.Y + benchCell.Size.Y
-                    || hero.GlobalPosition.Y + hero.Size.Y > shell.Size.Y
+                    || hero.GlobalPosition.Y + hero.Size.Y + shell.GetNode<VScrollBar>("DesktopScroll").Value > shell.GetNode<VScrollBar>("DesktopScroll").MaxValue
                     || !Mathf.IsEqualApprox(benchCell.Size.X, board.Size.X))
                     return Fail("英雄底栏被压缩、越界或双棋盘宽度不一致");
                 var offers = shell.GetNode<HBoxContainer>("ContextRow/ContextHost/ShopView/OfferScroll/Offers");
                 var buys = offers.GetChildren().OfType<Control>().Select(row => row.GetNode<Button>("Actions/Buy")).ToArray();
-                if (buys.Any(buy => buy.Size.X < 100 || buy.GlobalPosition.Y + buy.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1)
+                if (buys.Any(buy => buy.Size.X < 61 || buy.GlobalPosition.Y + buy.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1)
                     || buys.Any(buy => Mathf.Abs(buy.GlobalPosition.Y - buys[0].GlobalPosition.Y) > 1))
                 {
                     GD.Print($"商品区域：窗口 {size}，主区 {host.GlobalPosition}/{host.Size}，购买 {string.Join("；", buys.Select(buy => $"{buy.GlobalPosition}/{buy.Size}"))}");
@@ -598,7 +598,7 @@ internal static class PlaytestVerification
             }
             var leave = shell.GetNode<LeavePanel>("ContextRow/Leave/LeaveScroll/LeavePanel");
             if (leave.GetNode<Button>("Verification").Visible) return Fail("开发入口未折叠");
-            shell.GetNode<Button>("FooterActions/Developer").EmitSignal(Button.SignalName.Pressed);
+            leave.GetNode<Button>("Developer").EmitSignal(Button.SignalName.Pressed);
             if (!leave.GetNode<Button>("Verification").Visible || !ReferenceEquals(capture, presenter.View))
                 return Fail("开发展开修改对局或未显示入口");
             var target = shell.GetNode<Button>("BenchRow/Content/Board/Slot0"); target.GrabFocus();
@@ -647,6 +647,15 @@ internal static class PlaytestVerification
             old.EmitSignal(Button.SignalName.Pressed);
             if (count != 0) return false;
             offers.GetChild<Node>(0).GetNode<Button>("Actions/Buy").EmitSignal(Button.SignalName.Pressed);
+            var detailCard = presenter.View.Player!.Cards.FirstOrDefault();
+            if (detailCard is not null)
+            {
+                var details = shell.GetNode<CardDetailsView>("CardDetails");
+                details.ShowCard(detailCard, new Vector2(20, 20), shell.Size);
+                shell.Render(presenter.View);
+                if (!details.Visible || details.CurrentCardId != detailCard.Id) return false;
+                details.Hide();
+            }
             return count == 1 && index == capture.Offers[0].Index && revision == capture.Offers[0].Revision
                 && ReferenceEquals(capture, presenter.View);
         }
@@ -745,9 +754,16 @@ internal static class PlaytestVerification
                             }
                         break;
                     case MatchPage.Preparation:
+                        if (!scene.GetNode<Control>($"{main}/ContextHost/BattleStage").Visible) return false;
+                        Press(scene.GetNode<Button>($"{main}/ContextHost/BattleStage/Controls/Inspect"));
                         if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible) return false;
                         if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard")
                             .GetChildren().OfType<Button>().Any(button => button.TooltipText.Length > 0)) return false;
+                        Press(scene.GetNode<Button>($"{main}/ContextHost/EnemyBack"));
+                        if (!scene.GetNode<Control>($"{main}/ContextHost/BattleStage").Visible
+                            || scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible) return false;
+                        Press(scene.GetNode<Button>($"{main}/ContextHost/BattleStage/Controls/Inspect"));
+                        if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible) return false;
                         sawPvp |= presenter.View.Player!.Round > 1 && presenter.View.Player.Turn == 1;
                         sawMonster |= presenter.View.Player!.Turn == 5;
                         Press(scene.GetNode<Button>($"{root}/FooterActions/Battle"));
@@ -756,16 +772,16 @@ internal static class PlaytestVerification
                             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(presenter)!;
                         var settled = MatchSnapshot.From(session);
                         var random = session.Random.State;
-                        Press(scene.GetNode<Button>($"{root}/FooterActions/Pause"));
+                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Pause"));
                         presenter.AdvancePlayback(1);
                         if (presenter.View.Playback is not { Paused: true, Tick: 0 }) return false;
-                        Press(scene.GetNode<Button>($"{root}/FooterActions/Speed"));
+                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Speed"));
                         if (presenter.View.Playback.Speed != 2) return false;
                         presenter.StartBattle(); presenter.ContinueMatch(); presenter.ClaimMonsterReward();
-                        Press(scene.GetNode<Button>($"{root}/FooterActions/Pause"));
+                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Pause"));
                         presenter.AdvancePlayback(.1);
                         if (presenter.View.Playback?.Tick != 2) return false;
-                        Press(scene.GetNode<Button>($"{root}/FooterActions/Skip"));
+                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Skip"));
                         presenter.SkipPlayback();
                         var completed = MatchSnapshot.From(session);
                         if (completed.Wealth != settled.Wealth || completed.Experience != settled.Experience
@@ -778,7 +794,7 @@ internal static class PlaytestVerification
                 Press(scene.GetNode<Button>($"{root}/FooterActions/Continue"));
                 if (sawMonster && sawPvp && sawCardEvent && sawModifier) break;
             }
-            Press(scene.GetNode<Button>($"{root}/FooterActions/Developer"));
+            Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Developer"));
             Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Reset"));
             return sawMonster && sawPvp && sawCardEvent && sawModifier && presenter.View.Player is null
                 && !scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible

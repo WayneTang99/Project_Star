@@ -1,0 +1,28 @@
+{
+  "sha256": "dec9d05969811c75cfb75f6f4eccfa82639ec092f32c375f465fe433e94fb3c6",
+  "source": "output/ui-preview/index.html",
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 720,
+      "documentHeight": 1131
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "documentHeight": 1265
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "documentHeight": 1440
+    },
+    {
+      "width": 2560,
+      "height": 1080,
+      "documentHeight": 1265
+    }
+  ],
+  "font": "Microsoft YaHei / Georgia",
+  "deviceScaleFactor": 1
+}

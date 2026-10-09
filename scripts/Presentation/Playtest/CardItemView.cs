@@ -25,6 +25,7 @@ public sealed partial class CardItemView : Button
     private Panel _feedback = null!;
     private Tween? _feedbackTween;
     private Label _selectedMark = null!;
+    private CardBattleSnapshot? _battleState;
 
     public override void _Ready()
     {
@@ -67,6 +68,7 @@ public sealed partial class CardItemView : Button
     // 临时状态和发动亮度只属于表现；摧毁不删除战前身份或修改模型。
     public void RenderBattle(CardBattleSnapshot? state, bool activated)
     {
+        _battleState = state;
         _battleStatus.Visible = state is not null;
         _face.Modulate = state?.Destroyed == true ? new Color(.35f, .35f, .35f)
             : activated ? new Color(1.3f, 1.3f, .85f) : Colors.White;
@@ -99,12 +101,20 @@ public sealed partial class CardItemView : Button
     // 卡牌悬停提示与详情共用关键词配色，TooltipText仍保持纯文本。
     public override GodotObject _MakeCustomTooltip(string forText)
     {
+        if (_card is not null)
+        {
+            var content = new CardDetailsContent { Theme = MatchTheme.Create(), CustomMinimumSize = new Vector2(288, 0) };
+            content.Ready += () => content.Render(_card, 288, Mathf.Max(60, GetViewportRect().Size.Y - 240));
+            return content;
+        }
         var text = new RichTextLabel { FitContent = true, ScrollActive = false,
             CustomMinimumSize = new Vector2(420, 0), MouseFilter = MouseFilterEnum.Ignore };
         text.Theme = MatchTheme.Create();
         CardKeywordText.RenderDetails(text, forText);
         return text;
     }
+
+    public override string _GetTooltip(Vector2 atPosition) => FindShell() is null ? TooltipText : "";
 
     public override void _GuiInput(InputEvent input)
     {
@@ -142,7 +152,7 @@ public sealed partial class CardItemView : Button
 
     // 点击和拖拽共用按下位置的格偏移，键盘操作默认起始格。
     public int ClickSlotOffset => _card is null ? 0 : Mathf.Clamp(
-        Mathf.FloorToInt(_pressPoint.X / (Mathf.Max(1, Size.X) / (int)_card.Size)), 0, (int)_card.Size - 1);
+        Mathf.FloorToInt(_pressPoint.X / (GetParent() is BoardZoneView board ? board.SlotPitch : Mathf.Max(1, Size.X) / (int)_card.Size)), 0, (int)_card.Size - 1);
 
     public override bool _CanDropData(Vector2 atPosition, Variant data) => GetParent() is BoardZoneView board
         && board._CanDropData(Position + atPosition, data);
@@ -181,11 +191,27 @@ public sealed partial class CardItemView : Button
         if (!_selected && !HasFocus()) style.SetBorderWidthAll(1);
         _outline.AddThemeStyleboxOverride("panel", style);
     }
-    private void EnterHover() { _hovered = true; UpdateOutline(); }
-    private void ExitHover() { _hovered = false; UpdateOutline(); }
+    private Tween? _hoverTween;
+    private void EnterHover()
+    {
+        _hovered = true; UpdateOutline(); _hoverTween?.Kill();
+        _hoverTween = CreateTween(); _hoverTween.TweenProperty(_face, "position:y", -6f, .2);
+        if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState);
+    }
+    private void ExitHover()
+    {
+        _hovered = false; UpdateOutline(); _hoverTween?.Kill();
+        _hoverTween = CreateTween(); _hoverTween.TweenProperty(_face, "position:y", 0f, .2);
+        FindShell()?.HideHoverCard();
+    }
+    private MatchShell? FindShell()
+    {
+        for (var parent = GetParent(); parent is not null; parent = parent.GetParent()) if (parent is MatchShell shell) return shell;
+        return null;
+    }
 
     public override void _ExitTree()
-    { ClearFeedback(); Resized -= LayoutFace; FocusEntered -= UpdateOutline; FocusExited -= UpdateOutline;
+    { _hoverTween?.Kill(); ClearFeedback(); Resized -= LayoutFace; FocusEntered -= UpdateOutline; FocusExited -= UpdateOutline;
         MouseEntered -= EnterHover; MouseExited -= ExitHover; }
 
     private void LayoutFace()
@@ -193,9 +219,9 @@ public sealed partial class CardItemView : Button
         if (_card is null) return;
         var ratio = (int)_card.Size / 2f;
         var height = Mathf.Min(Size.Y, Size.X / ratio);
-        var faceSize = new Vector2(height * ratio, height);
+        var faceSize = GetParent() is BoardZoneView ? Size : new Vector2(height * ratio, height);
         _face.SetDisplaySize(faceSize);
-        _face.Position = Size.IsEqualApprox(faceSize) ? Vector2.Zero : (Size - faceSize) / 2;
+        _face.Position = (Size.IsEqualApprox(faceSize) ? Vector2.Zero : (Size - faceSize) / 2) + new Vector2(0, _hovered ? -6 : 0);
         _cooldownMask.Position = _face.Position + new Vector2(0, faceSize.Y - Mathf.Clamp(faceSize.Y * .14f, 22, 56) - 3);
         _cooldownMask.Size = new Vector2(faceSize.X * (1 - _cooldownRemaining), 3);
         _battleStatus.Position = new Vector2(0, Mathf.Max(24, Size.Y * .35f));

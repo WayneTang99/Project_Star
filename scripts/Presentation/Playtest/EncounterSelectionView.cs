@@ -17,7 +17,7 @@ public sealed partial class EncounterSelectionView : Control
     {
         _message = new Label { Name = "Message", TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
         AddChild(_message);
-        _choices = new HBoxContainer { Name = "Choices" }; AddChild(_choices);
+        _choices = new HBoxContainer { Name = "Choices", Alignment = BoxContainer.AlignmentMode.Center }; _choices.AddThemeConstantOverride("separation", 40); AddChild(_choices);
         Resized += LayoutView; LayoutView();
     }
 
@@ -28,7 +28,7 @@ public sealed partial class EncounterSelectionView : Control
         foreach (var choice in choices)
         {
             var button = new Button { Name = $"Choice{_bindings.Count}", Visible = choice.Action.Visible,
-                Disabled = !choice.Action.Enabled, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                Disabled = !choice.Action.Enabled,
                 ClipContents = true, TooltipText = choice.Action.Text + "\n" + choice.Action.Reason
                     + (choice.Level > 0 ? $"\n遭遇等级 {choice.Level}" : "")
                     + (choice.ShopLevel > 0 ? $"\n{choice.ShopLevel}级商店 · 商品等级不高于{choice.ShopLevel}级" : "") };
@@ -39,24 +39,22 @@ public sealed partial class EncounterSelectionView : Control
                 art.Texture = GD.Load<Texture2D>(choice.Illustration.ToString());
             button.AddChild(art); art.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             art.OffsetLeft = art.OffsetTop = 3; art.OffsetRight = -3; art.OffsetBottom = -3;
-            var shade = new ColorRect { Color = new Color(.04f, .08f, .06f, .85f), MouseFilter = MouseFilterEnum.Ignore };
-            button.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); shade.OffsetTop = -62; shade.OffsetBottom = -3;
+            var shade = new TextureRect { Texture = GD.Load<Texture2D>("res://art/ui/html/encounter-shade.svg"), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = MouseFilterEnum.Ignore };
+            button.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             var label = new Label { Name = "Title", Text = choice.Action.Text, MouseFilter = MouseFilterEnum.Ignore,
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
-            label.AddThemeColorOverride("font_color", MatchTheme.Ink);
-            label.AddThemeFontSizeOverride("font_size", 20);
+            MatchTheme.Text(label, 17, new Color("eddbb3"), spacing: 2);
             button.AddChild(label); label.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
-            label.OffsetLeft = 14; label.OffsetRight = -14; label.OffsetTop = -62; label.OffsetBottom = -30;
+            label.OffsetLeft = 17; label.OffsetRight = -17; label.OffsetTop = -61; label.OffsetBottom = -33;
             var subtitle = new Label { Name = "Subtitle", Text = choice.Subtitle,
                 MouseFilter = MouseFilterEnum.Ignore, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
-            subtitle.AddThemeFontSizeOverride("font_size", 16);
+            MatchTheme.Text(subtitle, 10, new Color("b7c7b6"));
             button.AddChild(subtitle); subtitle.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
-            subtitle.OffsetLeft = 14; subtitle.OffsetRight = -14; subtitle.OffsetTop = -28; subtitle.OffsetBottom = -5;
+            subtitle.OffsetLeft = 17; subtitle.OffsetRight = -17; subtitle.OffsetTop = -32; subtitle.OffsetBottom = -15;
             if (choice.Level > 0)
             {
-                var badge = new ColorRect { Position = new Vector2(7, 7), Size = new Vector2(92, 26),
-                    Color = new Color(0.06f, 0.12f, 0.18f, 0.82f), MouseFilter = MouseFilterEnum.Ignore };
+                var badge = new Control { Position = new Vector2(7, 7), Size = new Vector2(92, 26), MouseFilter = MouseFilterEnum.Ignore };
                 button.AddChild(badge);
                 var crystal = new CardLevelGem { Name = "EncounterLevelCrystal", Position = new Vector2(3, 1),
                     Size = new Vector2(20, 24), MouseFilter = MouseFilterEnum.Ignore };
@@ -64,6 +62,7 @@ public sealed partial class EncounterSelectionView : Control
                 var level = new Label { Name = "EncounterLevel", Text = choice.ShopLevel > 0 ? $"{choice.Level}级商店" : $"等级 {choice.Level}", Position = new Vector2(27, 0),
                     Size = new Vector2(62, 26), MouseFilter = MouseFilterEnum.Ignore };
                 level.AddThemeColorOverride("font_color", Colors.White); badge.AddChild(level);
+                MatchTheme.Text(level, 10, MatchTheme.Gold);
             }
             // 焦点与悬停边框绘制在原画之上。
             var outline = new Panel { Name = "Outline", MouseFilter = MouseFilterEnum.Ignore };
@@ -90,8 +89,11 @@ public sealed partial class EncounterSelectionView : Control
 
     private void LayoutView()
     {
-        _message.Size = new Vector2(Size.X, 26);
-        _choices.Position = new Vector2(0, 30);
-        _choices.Size = new Vector2(Size.X, Mathf.Max(1, Size.Y - 30));
+        _message.Hide();
+        var height = (Size.Y - 32) * .85f;
+        _choices.Position = new Vector2(22, (Size.Y - height) / 2);
+        _choices.Size = new Vector2(Size.X - 44, height);
+        foreach (var (button, _) in _bindings)
+            button.CustomMinimumSize = new Vector2(Mathf.Min(260, (Size.X - 44 - Math.Max(0, _bindings.Count - 1) * 40) / Math.Max(1, _bindings.Count)), height);
     }
 }

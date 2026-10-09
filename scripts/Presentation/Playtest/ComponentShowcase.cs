@@ -20,6 +20,8 @@ public sealed partial class ComponentShowcase : Control
     private CardDetailsView _details = null!;
     public override void _Ready()
     {
+        if (OS.GetCmdlineUserArgs().Contains("--capture-html-parity"))
+        { Callable.From(CaptureHtmlParity).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-encounters") || OS.GetCmdlineUserArgs().Contains("--capture-layout"))
         { Callable.From(CaptureEncounters).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-heroes"))
@@ -87,6 +89,7 @@ public sealed partial class ComponentShowcase : Control
     }
 
     public override void _ExitTree() { if (_details is not null) Resized -= ClampDetails; }
+    private async void CaptureHtmlParity() => await HtmlParityCapture.Run(this);
     private void ShowDetails(CardSnapshot card) => _details.ShowCard(card, GetLocalMousePosition(), Size);
     private void ClampDetails() => _details.ClampTo(Size);
 

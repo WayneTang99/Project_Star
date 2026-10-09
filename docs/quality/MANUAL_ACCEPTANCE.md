@@ -2,6 +2,8 @@
 
 本清单对应 Playtest.tscn 与 Main.tscn。先运行 `dotnet build Project_Star.csproj`，再用 Godot 4.7 .NET 打开项目。自动回归、截图检查和完整人工试玩分别记录，互不代替。
 
+2026-10-09 HTML迁移继续检查：除上一轮详情尺寸修正外，补上同页／回放刷新时详情复用、卡牌状态和任务进度投影，以及敌方阵容返回摘要入口；出售后卡牌失效会关闭详情。构建0警告0错误，headless全部234/234通过；窗口／键盘与原生拖拽验证通过。完整HTML视觉验收与连续人工试玩尚未完成，P3～P6改动仍为草稿，剩余检查见[暂停待办](../planning/UI_HTML_PARITY_TODO.md)。
+
 2026-10-09 圣骑士选角配音：接入合成中文男声“圣光引领着我们！”，本地MP3约2.50秒，Godot自动导入为非循环AudioStreamMP3；游戏运行时不调用语音生成服务。点击圣骑士名册项或方向键切换到他时播放，重复点选从头重播且不叠加；初始展示／普通刷新不触发，切换其他英雄、清空名单及隐藏选角页停播。构建0警告0错误，Godot .NET headless全部234/234通过；新增真实控件检查覆盖鼠标、键盘、重复播放、刷新保留同一播放实例、父节点及自身隐藏／恢复、空名单，以及预览不提交英雄选择。音频解码110073帧并确认非静音；生成服务返回的台词边界与指定中文一致。音频位于audio/voices/heroes/paladin-selection.mp3，生成参数、来源音色与摘要保存在output/paladin-voice-generation.json，边界数据在output/paladin-voice-boundaries.jsonl，生成脚本为output/generate_paladin_voice.py；导入和最终回归日志为output/paladin-voice-import*.log及output/paladin-voice-verify-final*.log。本次未执行扬声器试听或完整人工试玩。
 
 2026-10-09 卡面角部构图：隐藏卡名与通栏标题，等级菱形贴左上角、宝石孔位于其下，单／双元素圆徽贴右上角，效果在左下独立格中纵向排列，价值放在右下斜切区域；保留原画满幅覆盖、金色边框与现有图标。构建0警告0错误，233/233自动回归通过；更新三尺寸卡格检查，覆盖占格贴合、等级与孔位关系、元素边界、效果纵向无重叠及缩放不改快照。已检查1280×720实际渲染的原生400高和紧凑180高三尺寸卡面；紧凑中型使用双元素、三孔、五效果及长数值的展示夹具，额外效果继续由详情完整承载。[构图预览](card-overlay/native-1280x720.png)可通过CardFaceShowcase.tscn附加`--capture-overlay`重建，日志在output/card-composition；本次未执行完整人工试玩。

@@ -3,60 +3,39 @@ using Project_Star.Application.Match;
 
 namespace Project_Star.Presentation.Playtest;
 
-// 底部英雄栏的成长摘要与回放反馈，不自行推导升级规则。
+// 英雄成长摘要沿用 HTML 的三列文字层级，数据来自同一次快照。
 public sealed partial class PlayerProgressPanel : Control
 {
-    private readonly HBoxContainer _summary = new();
+    private HBoxContainer _summary = null!;
+    private Label _experience = null!;
     private Label _reputation = null!;
     private Label _wins = null!;
-    private ResourceBar _experience = null!;
-    private readonly Label _feedback = new() { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-
+    private Label _feedback = null!;
     public override void _Ready()
     {
-        _experience = new ResourceBar("ExperienceBar", new Color("e2c379")); AddChild(_experience);
-        _experience.SetDisplayHeight(20);
-        AddChild(_summary);
-        var reputation = MatchTheme.Stat("reputation", "", "声望");
-        var wins = MatchTheme.Stat("wins", "", "玩家对战胜场 / 10");
-        _summary.AddChild(reputation); _summary.AddChild(wins);
-        _reputation = reputation.GetChild<Label>(1); _wins = wins.GetChild<Label>(1);
-        _feedback.AddThemeFontSizeOverride("font_size", 16);
-        _feedback.MaxLinesVisible = 1;
-        AddChild(_feedback);
+        _summary = new HBoxContainer(); AddChild(_summary);
+        _experience = Entry("经验"); Spacer(); _reputation = Entry("声望"); Spacer(); _wins = Entry("胜场");
+        _feedback = new Label { Visible = false, ClipText = true }; MatchTheme.Text(_feedback, 10, MatchTheme.Muted); AddChild(_feedback);
         Resized += LayoutPanel; LayoutPanel();
     }
-    // 回放反馈占用成长摘要所在的一行，悬停可读完整文本。
+    // 回放文本保留完整悬停内容，常态显示三项成长值。
     public void RenderPlayback(string feedback)
-    {
-        _feedback.Text = feedback;
-        _feedback.TooltipText = feedback;
-        _feedback.Visible = feedback.Length > 0;
-        _summary.Visible = feedback.Length == 0;
-        LayoutPanel();
-    }
-    // 成长与经济组件接受同一份捕获结果。
+    { _feedback.Text = feedback; _feedback.TooltipText = feedback; _feedback.Visible = feedback.Length > 0; _summary.Visible = feedback.Length == 0; }
+    // 成长数值来自只读对局快照。
     public void Render(MatchSnapshot? snapshot)
     {
+        _experience.Text = snapshot is null ? "" : $"{snapshot.Experience} / 10";
         _reputation.Text = snapshot?.Reputation.ToString() ?? "";
-        _wins.Text = snapshot is null ? "" : $"{snapshot.PvpWins}/10";
-        _experience.Visible = snapshot?.Hero is not null;
-        if (snapshot is not null) _experience.Render("经验", snapshot.Experience, 10);
-        _feedback.Text = "";
-        _feedback.TooltipText = "";
-        _feedback.Hide();
-        _summary.Show();
-        LayoutPanel();
+        _wins.Text = snapshot is null ? "" : $"{snapshot.PvpWins} / 10";
+        _feedback.Hide(); _summary.Show(); LayoutPanel();
     }
-
     public override void _ExitTree() => Resized -= LayoutPanel;
-
-    private void LayoutPanel()
+    private Label Entry(string caption)
     {
-        if (_experience is null) return;
-        _experience.Position = Vector2.Zero; _experience.Size = new Vector2(Mathf.Min(150, Size.X * .3f), 20);
-        _summary.Position = new Vector2(_experience.Size.X + 20, -3);
-        _summary.Size = new Vector2(Mathf.Max(1, Size.X - _summary.Position.X), 26);
-        _feedback.Position = _summary.Position; _feedback.Size = new Vector2(_summary.Size.X, 22);
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 4); _summary.AddChild(row);
+        var label = new Label { Text = caption }; MatchTheme.Text(label, 10, new Color("9dae9b")); row.AddChild(label);
+        var value = new Label(); MatchTheme.Text(value, 14, new Color("d4ba80"), true); row.AddChild(value); return value;
     }
+    private void Spacer() => _summary.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
+    private void LayoutPanel() { _summary.Size = Size; _feedback.Size = Size; }
 }

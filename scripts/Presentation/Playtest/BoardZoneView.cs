@@ -30,6 +30,11 @@ public sealed partial class BoardZoneView : Control
     private bool _interactive;
     private float _unit;
     private float _left;
+    private float _track;
+    private float _cardTop = 37;
+    private Label _count = null!;
+    private Label _tip = null!;
+    public float SlotPitch => _unit;
     private string _caption = "";
     private readonly Dictionary<EntityId, int> _levels = new();
 
@@ -37,7 +42,10 @@ public sealed partial class BoardZoneView : Control
     {
         _title = new Label();
         _title.ClipText = true;
+        MatchTheme.Text(_title, 12, new Color("ddcba3"), spacing: 4);
         AddChild(_title);
+        _count = new Label(); MatchTheme.Text(_count, 10, new Color("8f9d8c"), spacing: 1); AddChild(_count);
+        _tip = new Label { HorizontalAlignment = HorizontalAlignment.Right }; MatchTheme.Text(_tip, 10, new Color("869889"), spacing: 1); AddChild(_tip);
         _preview = new Control { Name = "PlacementPreview", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 2, ClipContents = true };
         AddChild(_preview);
         Resized += LayoutBoard;
@@ -56,7 +64,9 @@ public sealed partial class BoardZoneView : Control
             ?? Array.Empty<BoardPlacementSnapshot>();
         var capacity = snapshot is null ? 0 : zone == BoardZone.Battlefield ? snapshot.BattlefieldCapacity : snapshot.BenchCapacity;
         var used = _placements.Sum(item => item.EndExclusive - item.Start);
-        _caption = $"{title}　{used}/{capacity}";
+        _caption = title == "战场" ? "战 场" : title == "备战" ? "备 战" : title;
+        _count.Text = $"{used} / {capacity}";
+        _tip.Text = zone == BoardZone.Bench ? "为下一场战斗留一手" : "悬停查看卡牌 · 点击固定详情";
         TooltipText = "右键查看详情" + (interactive ? " · 拖到上方出售 · Escape 取消选择" : "");
         _title.Text = _caption;
         while (_slots.Count > capacity)
@@ -68,15 +78,15 @@ public sealed partial class BoardZoneView : Control
         {
             var slot = _slots.Count;
             var button = new Button { Name = $"Slot{slot}" };
-            var slotStyle = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://art/ui/theme/slot.svg") };
-            foreach (var edge in new[] { Side.Left, Side.Top, Side.Right, Side.Bottom }) slotStyle.SetTextureMargin(edge, 8);
+            var slotStyle = MatchTheme.Surface(new Color("ffffff02"), new Color("b7ad7621")); slotStyle.SetCornerRadiusAll(4);
             foreach (var state in new[] { "normal", "disabled" })
                 button.AddThemeStyleboxOverride(state, slotStyle);
             var number = new Label { Text = $"{slot + 1}", HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Bottom, MouseFilter = MouseFilterEnum.Ignore };
-            number.AddThemeFontSizeOverride("font_size", 12);
-            number.AddThemeColorOverride("font_color", new Color("92a5ad"));
-            button.AddChild(number); number.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); number.OffsetBottom = -5;
+            MatchTheme.Text(number, 10, new Color("d2c89c40"), true);
+            button.AddChild(number); number.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); number.OffsetBottom = -8;
+            var star = new Label { Text = "✧", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
+            MatchTheme.Text(star, 37, new Color("b5b37726"), true); button.AddChild(star); star.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             button.Pressed += () => SlotPressed?.Invoke(slot);
             button.SetDragForwarding(default,
                 Callable.From<Vector2, Variant, bool>((point, data) => _CanDropData(button.Position + point, data)),
@@ -125,7 +135,7 @@ public sealed partial class BoardZoneView : Control
         ClearPreview();
         if (!_interactive || data.VariantType != Variant.Type.Object || data.AsGodotObject() is not BoardDragData drag
             || drag.MatchId != _matchId || PreviewRequested is null || _unit <= 0
-            || atPosition.Y < 28 || atPosition.Y >= 28 + _unit * 2) return false;
+            || atPosition.Y < _cardTop || atPosition.Y >= _cardTop + _track * 2) return false;
         var start = Mathf.FloorToInt((atPosition.X - _left) / _unit) - drag.GrabOffset;
         var result = PreviewRequested(drag, _zone, start);
         var color = result.IsSuccess ? new Color(0.3f, 0.9f, 0.5f, .35f) : new Color(1, .25f, .25f, .4f);
@@ -169,7 +179,7 @@ public sealed partial class BoardZoneView : Control
 
     private void AddPreview(int start, int size, Color color) => _preview.AddChild(new ColorRect
     {
-        Position = new Vector2(_left + start * _unit, 28), Size = new Vector2(size * _unit, _unit * 2),
+        Position = new Vector2(_left + start * _unit, _cardTop), Size = new Vector2(size * _unit - (_unit - _track), _track * 2),
         Color = color, MouseFilter = MouseFilterEnum.Ignore,
     });
 
@@ -183,21 +193,26 @@ public sealed partial class BoardZoneView : Control
 
     private void LayoutBoard()
     {
-        ClearPreview(); _title.Size = new Vector2(Size.X, 24); _preview.Size = Size;
+        ClearPreview(); _title.Position = new Vector2(4, -2); _title.Size = new Vector2(Mathf.Min(120, Size.X), 20); _preview.Size = Size;
+        _count.Position = new Vector2(_caption.Length <= 3 ? 55 : 125, 0); _count.Size = new Vector2(90, 16);
+        _tip.Position = new Vector2(Size.X - 310, 0); _tip.Size = new Vector2(306, 16); _tip.Visible = GetViewportRect().Size.X > 900;
         if (_slots.Count == 0) return;
-        var unit = Math.Max(1, Math.Min(Size.X / Math.Max(_slots.Count, SharedCapacity), (Size.Y - 28) / 2));
-        var left = Mathf.Max(0, (Size.X - unit * Math.Max(_slots.Count, SharedCapacity)) / 2);
-        _unit = unit; _left = left;
+        var gap = GetViewportRect().Size.X <= 900 ? 4 : 6;
+        var left = GetViewportRect().Size.X <= 900 ? 8 : 10;
+        var capacity = Math.Max(_slots.Count, SharedCapacity);
+        var track = Mathf.Max(1, Mathf.Min((Size.X - left * 2 - gap * (capacity - 1)) / capacity, (Size.Y - 27 - left * 2) / 2));
+        var unit = track + gap;
+        _unit = unit; _left = left; _track = track; _cardTop = 27 + left;
         for (var index = 0; index < _slots.Count; index++)
         {
-            _slots[index].Position = new Vector2(left + index * unit, 28);
-            _slots[index].Size = new Vector2(unit, unit * 2);
+            _slots[index].Position = new Vector2(left + index * unit, _cardTop);
+            _slots[index].Size = new Vector2(track, track * 2);
         }
         foreach (var placement in _placements)
         {
             var card = _cards[placement.CardId];
-            card.Position = new Vector2(left + placement.Start * unit, 28);
-            card.Size = new Vector2((placement.EndExclusive - placement.Start) * unit, unit * 2);
+            card.Position = new Vector2(left + placement.Start * unit, _cardTop);
+            card.Size = new Vector2((placement.EndExclusive - placement.Start) * unit - gap, track * 2);
         }
         QueueRedraw();
     }
@@ -205,7 +220,6 @@ public sealed partial class BoardZoneView : Control
     public override void _Draw()
     {
         if (_unit <= 0) return;
-        MatchTheme.DrawSurface(this, new Rect2(new Vector2(_left - 4, 24),
-            new Vector2(_unit * Math.Max(_slots.Count, SharedCapacity) + 8, _unit * 2 + 8)));
+        MatchTheme.DrawSurface(this, new Rect2(new Vector2(0, 27), new Vector2(Size.X, _track * 2 + _left * 2)));
     }
 }

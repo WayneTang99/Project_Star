@@ -19,6 +19,7 @@ public sealed partial class ContextPortrait : Control
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
     private Label _armor = null!;
+    private Label _eyebrow = null!;
 
     public override void _Ready()
     {
@@ -27,6 +28,10 @@ public sealed partial class ContextPortrait : Control
         AddChild(_art); _art.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _shade = new ColorRect { Color = new Color(.04f, .09f, .07f, .74f), MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_shade); _shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _art.Modulate = Colors.White; _shade.Color = Colors.Transparent;
+        var veil = new TextureRect { Texture = GD.Load<Texture2D>("res://art/ui/html/stage-shade.svg"), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(veil); veil.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _eyebrow = new Label { ClipText = true }; MatchTheme.Text(_eyebrow, 10, MatchTheme.Gold, spacing: 4); AddChild(_eyebrow);
         _title = new Label { ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_title); _title.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -34,7 +39,7 @@ public sealed partial class ContextPortrait : Control
         _title.AddThemeColorOverride("font_color", new Color("f0deb5"));
         _message = new Label { ClipText = true, AutowrapMode = TextServer.AutowrapMode.WordSmart,
             MouseFilter = MouseFilterEnum.Ignore };
-        _message.AddThemeFontSizeOverride("font_size", 16);
+        MatchTheme.Text(_message, 11, new Color("c1c7b3")); _message.AddThemeConstantOverride("line_spacing", 7);
         _message.AddThemeColorOverride("font_color", MatchTheme.Muted); AddChild(_message);
         _level = new CardLevelGem { Name = "EncounterLevelCrystal", Size = new Vector2(26, 34), MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_level); _level.Hide();
@@ -74,17 +79,21 @@ public sealed partial class ContextPortrait : Control
         LayoutTitle();
     }
 
+    // 阶段眉题显示访问时回合及遭遇类别。
+    public void SetEyebrow(string text) { _eyebrow.Text = text; LayoutTitle(); }
+
     public override void _ExitTree() => Resized -= LayoutTitle;
 
     private void LayoutTitle()
     {
-        _level.Position = new Vector2(12, 8); _level.Size = new Vector2(20, 25);
+        _level.Position = new Vector2(12, 8); _level.Size = new Vector2(20, 25); _level.Modulate = Colors.Transparent;
+        _eyebrow.Position = new Vector2(24, Size.Y / 2 - 77); _eyebrow.Size = new Vector2(Size.X - 48, 18);
         _title.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
-        _title.Position = new Vector2(12, 39); _title.Size = new Vector2(Mathf.Max(1, Size.X - 24), 52);
-        _title.AddThemeFontSizeOverride("font_size", _resources.Visible ? 20 : 24);
-        _message.Position = new Vector2(12, 91);
-        _message.Size = new Vector2(Mathf.Max(1, Size.X - 24), Mathf.Max(1, Size.Y - 157));
-        _message.Visible = !_resources.Visible;
+        _title.Position = new Vector2(24, Size.Y / 2 - 49); _title.Size = new Vector2(Mathf.Max(1, Size.X - 48), 43);
+        MatchTheme.Text(_title, _resources.Visible ? 20 : 27, new Color("f0deb5"), spacing: 3);
+        _message.Position = new Vector2(24, Size.Y / 2 + 4);
+        _message.Size = new Vector2(Mathf.Max(1, Size.X - 48), 40);
+        _message.Visible = true; _resources.Hide();
         _resources.Position = new Vector2(12, 83); _resources.Size = new Vector2(Mathf.Max(1, Size.X - 24), 73);
     }
 }

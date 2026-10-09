@@ -49,7 +49,7 @@ public sealed class CardDisplayAdapter
                     DamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, value.Amount.ToString()),
                     AttributeDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, Value(card, value.AttributeKey).ToString()),
                     MaxHealthPercentDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, $"{value.Percent}%"),
-                    SourceHeroHealthScaledAttributeDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, $"{Value(card, value.AttributeKey)}×生命比例"),
+                    SourceHeroHealthScaledAttributeDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, Value(card, value.AttributeKey).ToString()),
                     SourceHeroArmorDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage,
                         value.BonusAttributeKey is { } key && Value(card, key) != 0 ? $"护甲+{Value(card, key)}" : "己方护甲"),
                     SourceHeroLevelScaledDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, $"等级×{value.Multiplier}"),
@@ -195,7 +195,7 @@ public sealed class CardDisplayAdapter
         _ => throw new NotSupportedException($"No display formatter for {effect.GetType().Name}."),
     };
 
-    private static string ElementName(StringName element) => element == GameElements.General ? "通用"
+    public static string ElementName(StringName element) => element == GameElements.General ? "通用"
         : element == GameElements.Fire ? "火" : element == GameElements.Water ? "水"
         : element == GameElements.Wind ? "风" : element == GameElements.Earth ? "土"
         : element == GameElements.Lightning ? "雷" : element == GameElements.Wood ? "木"

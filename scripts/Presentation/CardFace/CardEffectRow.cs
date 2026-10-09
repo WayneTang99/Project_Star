@@ -1,4 +1,5 @@
 using Godot;
+using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.CardFace;
 
@@ -22,7 +23,8 @@ public sealed partial class CardEffectRow : HBoxContainer
         _value = GetNode<Label>("Value");
     }
 
-    public override void _Draw() => DrawStyleBox(_plate, new Rect2(Vector2.Zero, Size));
+    private string _kind = "damage";
+    public override void _Draw() => DrawStyleBox(MatchTheme.Plate("effect-" + _kind, 3), new Rect2(new Vector2(-5, 0), Size + new Vector2(12, 0)));
 
     // 按效果语义选择图标与显示值。
     public void Configure(CardFaceEffect effect)
@@ -37,7 +39,8 @@ public sealed partial class CardEffectRow : HBoxContainer
             CardFaceEffectKind.Mana => "res://art/ui/card-face/icons/mana.svg",
             _ => "res://art/ui/card-face/icons/damage.svg",
         };
-        _icon.Texture = GD.Load<Texture2D>(iconPath);
+        _kind = effect.Kind.ToString().ToLowerInvariant();
+        _icon.Texture = MatchTheme.Icon(new StringName(_kind));
         _value.Text = effect.Value;
         _plate.BgColor = new Color(effect.Kind switch
         {
@@ -50,17 +53,22 @@ public sealed partial class CardEffectRow : HBoxContainer
         });
         _value.AddThemeColorOverride("font_color", new Color("fff2cd"));
         _value.AddThemeColorOverride("font_outline_color", new Color("241810"));
+        MatchTheme.Text(_value, 15, new Color("fff5db"), true, true);
     }
 
     // 缩小装饰留白并保留文字下限，长值完整内容由详情承载。
     public void SetDisplayMetrics(int font, float height)
     {
         CustomMinimumSize = new Vector2(0, height);
-        _icon.CustomMinimumSize = Vector2.One * Mathf.Min(font * .7f, height - 2);
-        AddThemeConstantOverride("separation", 1);
+        _icon.CustomMinimumSize = new Vector2(12, 12);
+        _icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        AddThemeConstantOverride("separation", 4);
         _value.CustomMinimumSize = Vector2.Zero;
         _value.AddThemeFontSizeOverride("font_size", font);
         _value.ClipText = true; _value.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         QueueRedraw();
     }
+
+    // 两位数使用真实字体宽度，长公式超过可用宽度时才省略。
+    public float PreferredWidth(int font) => Mathf.Max(40, 5 + 12 + 4 + MatchTheme.Font(true, true).GetStringSize(_value.Text, fontSize: font).X + 7);
 }
