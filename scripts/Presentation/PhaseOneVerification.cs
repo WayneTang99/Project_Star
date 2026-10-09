@@ -270,6 +270,7 @@ public sealed partial class PhaseOneVerification : Control
             ("测试关卡各类遭遇默认4级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
+            ("圣骑士动效时钟独立、刷新保留、隐藏暂停与英雄切换正确", () => HeroArtworkChecks.CheckMotion(this)),
         ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();
@@ -297,6 +298,12 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-portrait-motion"))
+            Callable.From((Action)(async () =>
+            {
+                try { await HeroArtworkChecks.CaptureMotion(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-catalog"))
             Callable.From((Action)(async () =>
             {

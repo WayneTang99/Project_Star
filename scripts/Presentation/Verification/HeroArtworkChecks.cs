@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 using Project_Star.Application.Factories;
 using Project_Star.Application.Match;
@@ -14,6 +15,111 @@ namespace Project_Star.Presentation.Verification;
 // 英雄身份、初始属性及选角和头像纹理的真实控件验证（表现层）。
 internal static class HeroArtworkChecks
 {
+    internal static bool CheckMotion(Control owner)
+    {
+        var registry = DefinitionRegistry.Scan(typeof(HarlaHeroDefinition).Assembly);
+        KeyedAction Choice(string key)
+        {
+            var hero = registry.Heroes[new StringName("hero." + key)];
+            return new KeyedAction(hero.Attributes.Identity.Key, new UiAction(hero.Attributes.Identity.DisplayName))
+                { Illustration = hero.Attributes.Identity.Illustration, Hero = HeroSelectionDetails.From(hero) };
+        }
+        var host = new Control(); owner.AddChild(host);
+        var selection = new HeroSelectionView(); host.AddChild(selection);
+        var second = new HeroSelectionView(); host.AddChild(second);
+        try
+        {
+            var paladin = Choice("paladin");
+            selection.Render("动效", [paladin]); second.Render("独立时钟", [paladin]);
+            var portrait = selection.GetNode<TextureRect>("CurrentPortrait");
+            if (portrait.Material is not ShaderMaterial material || !selection.IsProcessing()
+                || material == second.GetNode<TextureRect>("CurrentPortrait").Material
+                || portrait.Texture?.ResourcePath != paladin.Illustration.ToString()) return false;
+            var submitted = 0; selection.Selected += (_, _) => submitted++;
+            float Clock() => material.GetShaderParameter("motion_time").AsSingle();
+            selection._Process(1.25);
+            selection.Render("刷新", [paladin], 4);
+            if (Math.Abs(Clock() - 1.25f) > .001f) return false;
+            host.Hide(); selection._Process(2);
+            if (selection.IsProcessing() || Math.Abs(Clock() - 1.25f) > .001f) return false;
+            host.Show(); selection._Process(7);
+            if (!selection.IsProcessing() || Math.Abs(Clock() - .25f) > .001f) return false;
+            selection.Hide(); selection._Process(2);
+            if (selection.IsProcessing() || Math.Abs(Clock() - .25f) > .001f) return false;
+            selection.Show();
+            selection.Render("其他英雄", [Choice("mona")]);
+            if (portrait.Material is not null || selection.IsProcessing()) return false;
+            selection.Render("返回", [paladin]);
+            if (!selection.IsProcessing() || Clock() != 0 || submitted != 0) return false;
+            var thumbnail = selection.GetNode<VBoxContainer>("Roster/Entries").GetChild<Button>(0)
+                .GetNode<HBoxContainer>("Content").GetChild<TextureRect>(0);
+            if (thumbnail.Material is not null) return false;
+            selection.Render("空名单", []);
+            return portrait.Material is null && !selection.IsProcessing();
+        }
+        finally { owner.RemoveChild(host); host.Free(); }
+    }
+
+    // 实际选角页捕获八秒循环；同时检查图鉴暂停、返回继续和英雄切换。
+    internal static async Task CaptureMotion(Control owner)
+    {
+        const string directory = "res://output/paladin-motion";
+        DirAccess.MakeDirRecursiveAbsolute(directory);
+        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        owner.AddChild(root); root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        try
+        {
+            var shell = root.GetNode<MatchShell>("MatchShell");
+            var selection = shell.GetNode<HeroSelectionView>("ContextRow/ContextHost/HeroSelectionView");
+            var entries = selection.GetNode<VBoxContainer>("Roster/Entries");
+            entries.GetChild<Button>(3).EmitSignal(Button.SignalName.Pressed);
+            await owner.ToSignal(owner.GetTree().CreateTimer(.3), SceneTreeTimer.SignalName.Timeout);
+            var portrait = selection.GetNode<TextureRect>("CurrentPortrait");
+            if (portrait.Material is not ShaderMaterial material) throw new InvalidOperationException("圣骑士原画没有动效材质。");
+            float Clock() => material.GetShaderParameter("motion_time").AsSingle();
+            var before = Clock(); await Frame(); await Frame();
+            if (Clock() == before) throw new InvalidOperationException("圣骑士动效时钟未推进。");
+            shell.GetNode<Button>("OpenCardCatalog").EmitSignal(Button.SignalName.Pressed);
+            var paused = Clock(); await Frame(); await Frame();
+            if (selection.IsProcessing() || Clock() != paused) throw new InvalidOperationException("图鉴打开后动效未暂停。");
+            owner.GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = true }, true);
+            owner.GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = false }, true);
+            await Frame(); await Frame();
+            if (!selection.IsProcessing() || Clock() == paused) throw new InvalidOperationException("图鉴返回后动效未继续。");
+            entries.GetChild<Button>(2).EmitSignal(Button.SignalName.Pressed);
+            if (portrait.Material is not null || selection.IsProcessing()) throw new InvalidOperationException("其他英雄没有停用动效。");
+            entries.GetChild<Button>(3).EmitSignal(Button.SignalName.Pressed);
+            await owner.ToSignal(owner.GetTree().CreateTimer(.3), SceneTreeTimer.SignalName.Timeout);
+            selection.SetProcess(false);
+            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
+            {
+                owner.GetWindow().Size = size; owner.GetTree().Root.ContentScaleSize = size;
+                await Frame(); await Frame();
+                var rect = portrait.GetGlobalRect();
+                if (Math.Abs(rect.Size.X - rect.Size.Y) > 1 || rect.Position.X < 0 || rect.End.X > size.X || rect.End.Y > size.Y)
+                    throw new InvalidOperationException("选角原画非方形或越界。");
+                var count = size.X == 1280 ? 32 : 1;
+                for (var index = 0; index < count; index++)
+                {
+                    material.SetShaderParameter("motion_time", index * .25f);
+                    await Frame();
+                    await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                    using var image = owner.GetViewport().GetTexture().GetImage();
+                    if (owner.GetViewport().UseHdr2D)
+                        for (var y = 0; y < image.GetHeight(); y++)
+                            for (var x = 0; x < image.GetWidth(); x++) image.SetPixel(x, y, image.GetPixel(x, y).LinearToSrgb());
+                    image.Convert(Image.Format.Rgba8);
+                    if (image.SavePng($"{directory}/frame-{size.X}-{index:D2}.png") != Error.Ok)
+                        throw new InvalidOperationException("圣骑士动效截图保存失败。");
+                }
+                GD.Print($"圣骑士原画 {size.X}x{size.Y}：{rect}");
+            }
+            GD.Print("圣骑士动效时钟、图鉴暂停与恢复、英雄切换及两种窗口捕获通过。");
+        }
+        finally { owner.RemoveChild(root); root.Free(); }
+        async Task Frame() => await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
     internal static bool Check(Control owner)
     {
         var registry = DefinitionRegistry.Scan(typeof(HarlaHeroDefinition).Assembly);

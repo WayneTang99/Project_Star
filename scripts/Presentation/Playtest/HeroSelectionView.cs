@@ -32,6 +32,10 @@ public sealed partial class HeroSelectionView : Control
     private long _revision;
     private Rect2 _rosterRect, _detailsRect;
     private Tween? _portraitTween;
+    private ShaderMaterial? _portraitMotion;
+    private double _portraitMotionSeconds;
+    private static readonly StringName AnimatedHeroKey = new("hero.paladin");
+    private static readonly StringName MotionTimeParameter = new("motion_time");
     private static readonly Dictionary<StringName, Texture2D> Thumbnails = new();
 
     // 建立控件与本地浏览事件，不创建对局。
@@ -58,7 +62,16 @@ public sealed partial class HeroSelectionView : Control
             _choose.AddThemeColorOverride(state, Colors.White);
         _choose.AddThemeStyleboxOverride("pressed", MatchTheme.Surface(new Color("34779f"), MatchTheme.Blue));
         _choose.Pressed += Choose; _attributes.Toggled += ToggleAttributes; Resized += Layout;
+        VisibilityChanged += RefreshPortraitProcessing;
         RebuildRoster(); UpdatePreview(); Layout();
+    }
+
+    // 装饰时钟只在可见的圣骑士原画上推进，不使用战斗或对局状态。
+    public override void _Process(double delta)
+    {
+        if (_portraitMotion is null || _center.Material != _portraitMotion || !IsVisibleInTree()) return;
+        _portraitMotionSeconds = (_portraitMotionSeconds + delta) % 8.0;
+        _portraitMotion.SetShaderParameter(MotionTimeParameter, (float)_portraitMotionSeconds);
     }
 
     // 同页刷新保留浏览英雄；收到的身份、数值和操作条件都是只读副本。
@@ -92,6 +105,9 @@ public sealed partial class HeroSelectionView : Control
     public override void _ExitTree()
     {
         _choose.Pressed -= Choose; _attributes.Toggled -= ToggleAttributes; Resized -= Layout;
+        VisibilityChanged -= RefreshPortraitProcessing;
+        SetProcess(false); _center.Material = null;
+        _portraitMotion?.Dispose(); _portraitMotion = null;
         _portraitTween?.Kill(); ClearRoster();
     }
 
@@ -158,6 +174,7 @@ public sealed partial class HeroSelectionView : Control
         var hero = selected?.Hero;
         _rosterHeading.Text = $"英雄名册  ·  {_heroes.Count} 位";
         _center.Texture = selected is null ? null : Load(selected);
+        UpdatePortraitMotion(selected);
         _name.Text = hero?.DisplayName ?? selected?.Action.Text.Replace("选择：", "") ?? "暂无英雄";
         _title.Text = hero?.Title ?? "";
         _choose.Text = selected is null ? "暂无可选英雄" : $"以{_name.Text}开始冒险";
@@ -180,6 +197,29 @@ public sealed partial class HeroSelectionView : Control
         }
         QueueRedraw();
     }
+
+    private void UpdatePortraitMotion(KeyedAction? selected)
+    {
+        if (selected?.Key == AnimatedHeroKey && _center.Texture is not null)
+        {
+            _portraitMotion ??= new ShaderMaterial
+            { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/PaladinPortrait.gdshader") };
+            if (_center.Material != _portraitMotion)
+            {
+                _portraitMotionSeconds = 0;
+                _portraitMotion.SetShaderParameter(MotionTimeParameter, 0f);
+                _center.Material = _portraitMotion;
+            }
+        }
+        else
+        {
+            _center.Material = null; _portraitMotionSeconds = 0;
+        }
+        RefreshPortraitProcessing();
+    }
+
+    private void RefreshPortraitProcessing() => SetProcess(IsVisibleInTree()
+        && _portraitMotion is not null && _center.Material == _portraitMotion);
 
     private void ToggleAttributes(bool expanded)
     {
