@@ -38,7 +38,7 @@ public sealed partial class KeyedActionView : Control
                 Visible = action.Action.Visible, Disabled = !action.Action.Enabled, ClipText = true,
                 CustomMinimumSize = new Vector2(0, 56),
                 TooltipText = action.Action.Text + "\n" + action.Subtitle + "\n" + action.Action.Reason };
-            if (action.Subtitle.Contains('\n')) button.AddThemeFontSizeOverride("font_size", 13);
+            if (action.Subtitle.Contains('\n')) button.AddThemeFontSizeOverride("font_size", 16);
             Action handler = () => { if (!button.Disabled && button.Visible) Selected?.Invoke(action.Key, revision); };
             _actions.AddChild(button); button.Pressed += handler; _bindings.Add((button, handler));
         }
@@ -58,7 +58,7 @@ public sealed partial class KeyedActionView : Control
     {
         var inset = _art.Visible ? Size.X * .44f : 0;
         _art.Position = Vector2.Zero; _art.Size = new Vector2(Mathf.Max(1, inset - 16), Size.Y);
-        _message.Position = new Vector2(inset, 0); _message.Size = new Vector2(Size.X - inset, 44);
-        _scroll.Position = new Vector2(inset, 48); _scroll.Size = new Vector2(Size.X - inset, Mathf.Max(1, Size.Y - 48));
+        _message.Position = new Vector2(inset, 0); _message.Size = new Vector2(Size.X - inset, 28);
+        _scroll.Position = new Vector2(inset, 32); _scroll.Size = new Vector2(Size.X - inset, Mathf.Max(1, Size.Y - 32));
     }
 }

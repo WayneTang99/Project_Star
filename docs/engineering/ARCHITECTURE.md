@@ -44,6 +44,8 @@ DefinitionRegistry 扫描公开、非抽象、有无参构造的 Definition；�
 
 Definition 的维护和行为验证见 [内容数据规范](../design/CONTENT_DATA.md)。卡牌展示描述保存为只读有序 `CardDescriptionEntry`（StringName KeywordKey + string Text），随身份传入快照；UI按条目渲染，不参与规则解析或能力生成。
 
+技能图标原画资源标识位于`SkillIdentityAttributes.Illustration`，随实例与`SkillSnapshot`冻结传递；领域层不加载纹理。局外`SkillCatalogQuery`从内容目录投影全部支持等级，表现层只持有条目与快照；浏览不创建实体、获得技能、触发能力或推进随机。
+
 ## 对局用例与事务
 
 - GameCoordinator 协调创建、遭遇、战斗与结果；经济、棋盘、事件与奖励有明确应用入口。

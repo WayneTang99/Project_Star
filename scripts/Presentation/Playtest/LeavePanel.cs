@@ -20,7 +20,7 @@ public sealed partial class LeavePanel : HFlowContainer
         foreach (var intent in Enum.GetValues<MatchAction>())
         {
             var button = new Button { Name = intent.ToString(), ClipText = true };
-            button.AddThemeFontSizeOverride("font_size", 14);
+            button.AddThemeFontSizeOverride("font_size", 18);
             button.AddThemeConstantOverride("icon_max_width", 16);
             Action handler = () =>
             {
@@ -61,6 +61,17 @@ public sealed partial class LeavePanel : HFlowContainer
         foreach (var (intent, button) in _buttons) button.Pressed -= _handlers[intent];
     }
 
+    // 主行动保留原有意图与订阅，仅移到英雄栏右侧。
+    public void SetFooterHost(Control host)
+    {
+        foreach (var intent in new[] { MatchAction.Battle, MatchAction.Continue, MatchAction.Reward,
+            MatchAction.Pause, MatchAction.Speed, MatchAction.Skip, MatchAction.Developer })
+        {
+            _buttons[intent].Reparent(host);
+            MatchTheme.Accent(_buttons[intent]);
+        }
+    }
+
     private void Set(MatchAction intent, UiAction action)
     {
         var button = _buttons[intent]; button.Text = action.Text; button.Visible = action.Visible;
@@ -73,7 +84,7 @@ public sealed partial class LeavePanel : HFlowContainer
         };
         button.Icon = key.IsEmpty ? null : MatchTheme.Icon(key);
         button.CustomMinimumSize = new Vector2(Mathf.Max(40, button.GetThemeFont("font").GetStringSize(action.Text,
-            fontSize: button.GetThemeFontSize("font_size")).X + 24 + (button.Icon is null ? 0 : 20)), 34);
+            fontSize: button.GetThemeFontSize("font_size")).X + 24 + (button.Icon is null ? 0 : 20)), 38);
         button.Disabled = !action.Enabled; button.TooltipText = action.Text + "\n" + action.Reason;
     }
 }

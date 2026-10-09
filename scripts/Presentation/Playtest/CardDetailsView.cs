@@ -16,7 +16,7 @@ public sealed partial class CardDetailsView : PanelContainer
     public override void _Ready()
     {
         var column = new VBoxContainer { Name = "Content" }; AddChild(column);
-        var close = new Button { Text = "关闭详情" }; column.AddChild(close);
+        var close = new Button { Text = "关闭详情", Alignment = HorizontalAlignment.Right }; column.AddChild(close);
         close.Pressed += Hide;
         _text = new RichTextLabel { SizeFlagsVertical = SizeFlags.ExpandFill };
         column.AddChild(_text); Hide();
@@ -27,7 +27,7 @@ public sealed partial class CardDetailsView : PanelContainer
     // 展示完整卡牌语义，位置来自用户点击而非模型数据。
     public void ShowCard(CardSnapshot card, Vector2 position, Vector2 bounds)
     {
-        CardKeywordText.Render(_text, CardDisplayAdapter.Details(card));
+        CardKeywordText.RenderDetails(_text, CardDisplayAdapter.Details(card));
         _selling = null; _sell.Hide();
         Position = position; Show(); ClampTo(bounds);
     }

@@ -10,7 +10,8 @@ public sealed class DivineSmiteSkillDefinition : SkillDefinition
 {
     public DivineSmiteSkillDefinition()
         : base(new EntityAttributes<SkillIdentityAttributes>(
-            new SkillIdentityAttributes(new StringName("skill.divine_smite"), "至圣斩", new StringName("paladin"))),
+            new SkillIdentityAttributes(new StringName("skill.divine_smite"), "至圣斩", new StringName("paladin"),
+                illustration: new StringName("res://art/ui/skills/artwork/divine_smite-illustration.png"))),
             initialLevel: 4,
             levels:
             [new SkillLevelDefinition(4, null,

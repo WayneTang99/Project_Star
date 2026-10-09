@@ -35,7 +35,7 @@ public sealed partial class CardItemView : Button
         AddChild(_cooldownMask);
         _battleStatus = new Label { Name = "BattleStatus", Visible = false, MouseFilter = MouseFilterEnum.Ignore,
             ClipText = true, HorizontalAlignment = HorizontalAlignment.Center, ZIndex = 3 };
-        _battleStatus.AddThemeFontSizeOverride("font_size", 13);
+        _battleStatus.AddThemeFontSizeOverride("font_size", 16);
         _battleStatus.AddThemeColorOverride("font_color", Colors.White);
         _battleStatus.AddThemeConstantOverride("outline_size", 5);
         _battleStatus.AddThemeColorOverride("font_outline_color", Colors.Black);
@@ -101,7 +101,8 @@ public sealed partial class CardItemView : Button
     {
         var text = new RichTextLabel { FitContent = true, ScrollActive = false,
             CustomMinimumSize = new Vector2(420, 0), MouseFilter = MouseFilterEnum.Ignore };
-        CardKeywordText.Render(text, forText);
+        text.Theme = MatchTheme.Create();
+        CardKeywordText.RenderDetails(text, forText);
         return text;
     }
 

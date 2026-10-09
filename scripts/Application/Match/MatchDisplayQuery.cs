@@ -49,6 +49,7 @@ public static class MatchDisplayQuery
         var identity = definition.Attributes.Identity;
         return new SkillSnapshot(default, identity.Key, identity.DisplayName, level, identity.FactionKey)
         {
+            Illustration = identity.Illustration,
             Abilities = MatchSnapshot.CopyAbilities(configured?.Abilities ?? definition.Abilities),
             CurrentValues = values.SnapshotFinalValues(),
         };

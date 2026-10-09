@@ -11,6 +11,8 @@ namespace Project_Star.Presentation.CardFace;
 // 从正式卡牌定义与插画属性组成三种尺寸的卡面示例（表现层）。
 public sealed partial class CardFaceShowcase : Control
 {
+    private HBoxContainer? _compactCards;
+
     public override void _Ready()
     {
         var background = new ColorRect
@@ -31,6 +33,19 @@ public sealed partial class CardFaceShowcase : Control
         };
         cards.AddThemeConstantOverride("separation", 16);
         center.AddChild(cards);
+
+        if (OS.GetCmdlineUserArgs().Contains("--capture-overlay"))
+        {
+            var caption = new Label
+            {
+                Text = "紧凑展示（中型夹具：双元素、三孔、多效果、长数值）",
+                Position = new Vector2(16, 464),
+            };
+            AddChild(caption);
+            _compactCards = new HBoxContainer { Position = new Vector2(16, 494) };
+            _compactCards.AddThemeConstantOverride("separation", 16);
+            AddChild(_compactCards);
+        }
 
         var armguard = new ArmguardCardDefinition();
         var adapter = new CardDisplayAdapter();
@@ -84,7 +99,7 @@ public sealed partial class CardFaceShowcase : Control
             Callable.From(CaptureOverlay).CallDeferred();
     }
 
-    // 捕获原生400高卡面，核对三种尺寸共用整张插画底图与叠加信息。
+    // 捕获原生与紧凑卡面，双元素、孔位及效果溢出仅使用展示夹具。
     private async void CaptureOverlay()
     {
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -96,10 +111,23 @@ public sealed partial class CardFaceShowcase : Control
         GetTree().Quit(error == Error.Ok ? 0 : 1);
     }
 
-    private static void AddCard(HBoxContainer cards, CardFaceViewModel model)
+    private void AddCard(HBoxContainer cards, CardFaceViewModel model)
     {
         var card = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn").Instantiate<CardFace>();
         cards.AddChild(card);
         card.SetCard(model);
+        if (_compactCards is null) return;
+        var compactModel = model.Size == CardSize.Medium
+            ? new CardFaceViewModel(model.CardKey, model.DisplayName, model.FactionKey, model.Size, model.Level, 120,
+                model.Artwork, [GameElements.Fire, GameElements.Wood],
+                [new(CardFaceEffectKind.Damage, "1000"), new(CardFaceEffectKind.Poison, "20"),
+                    new(CardFaceEffectKind.Armor, "30"), new(CardFaceEffectKind.Healing, "40"), new(CardFaceEffectKind.Mana, "50")])
+                { GemNames = new string?[] { null, "展示宝石", null } }
+            : model;
+        var compact = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn").Instantiate<CardFace>();
+        _compactCards.AddChild(compact);
+        compact.SetCard(compactModel);
+        compact.SetDisplaySize(new Vector2(90 * (int)model.Size, 180));
+        compact.CustomMinimumSize = compact.Size;
     }
 }

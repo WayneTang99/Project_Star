@@ -14,7 +14,8 @@ public sealed class DefendSkillDefinition : SkillDefinition
                 new SkillIdentityAttributes(
                     new StringName("skill.defend"),
                     "捍卫",
-                    new StringName("paladin"))),
+                    new StringName("paladin"),
+                    illustration: new StringName("res://art/ui/skills/artwork/defend-illustration.png"))),
             initialLevel: 1,
             levels:
             [

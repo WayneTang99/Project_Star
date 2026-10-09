@@ -457,7 +457,7 @@ internal static class PlaytestVerification
             && presenter.View.Player.Wealth == current.Wealth;
     }
 
-    // 三种真实尺寸须完全贴合占格区间，上下栏等高且不随效果数量改变。
+    // 三种真实尺寸须贴合占格，角部身份与底部纵向效果在缩放后仍保持可读布局。
     public static bool CardAndSlotGeometry(Control owner)
     {
         var registry = Registry(); var factory = new EntityFactory();
@@ -474,28 +474,39 @@ internal static class PlaytestVerification
             foreach (var size in new[] { new Vector2(786, 185.2f), new Vector2(1000, 300), new Vector2(1400, 400), new Vector2(1300, 230) })
             {
                 board.Size = size; board.Render(snapshot, BoardZone.Battlefield, true, null, "尺寸验证");
-                float? band = null;
                 foreach (var placement in snapshot.BoardPlacements)
                 {
                     var card = board.GetNode<CardItemView>($"Card_{placement.CardId.Value:N}");
                     var first = board.GetNode<Button>($"Slot{placement.Start}");
                     var last = board.GetNode<Button>($"Slot{placement.EndExclusive - 1}");
                     var face = card.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single();
-                    var header = face.GetNode<Panel>("Header"); var footer = face.GetNode<Panel>("Footer");
+                    var level = face.GetNode<Control>("LevelGem");
+                    var sockets = face.GetNode<Control>("GemSockets");
+                    var value = face.GetNode<Control>("ValueBadge");
                     if (card.Position.DistanceTo(first.Position) > .1f || card.Size.DistanceTo(last.Position + last.Size - first.Position) > .1f
                         || face.Position.Length() > .1f || face.Size.DistanceTo(card.Size) > .1f
                         || Mathf.Abs(first.Size.Y - first.Size.X * 2) > .1f
-                        || Mathf.Abs(header.Size.Y - footer.Size.Y) > .1f
-                        || band.HasValue && Mathf.Abs(band.Value - header.Size.Y) > .1f)
+                        || face.HasNode("Title")
+                        || sockets.Position.Y < level.Position.Y + level.Size.Y * level.Scale.Y
+                        || value.Position.X < face.Size.X * .5f || value.Position.Y < face.Size.Y * .7f)
                     {
-                        GD.Print($"卡格检查：区域 {size}，卡 {card.Position}/{card.Size}，槽 {first.Position}/{first.Size}，末槽 {last.Position}/{last.Size}，卡面 {face.Position}/{face.Size}，栏 {header.Size}/{footer.Size}，其他栏 {band}");
+                        GD.Print($"卡格检查：区域 {size}，卡 {card.Position}/{card.Size}，槽 {first.Position}/{first.Size}，末槽 {last.Position}/{last.Size}，卡面 {face.Position}/{face.Size}");
                         return false;
                     }
-                    band = header.Size.Y;
                     var effects = face.GetNode<Control>("Effects");
+                    var previousBottom = 0f;
                     foreach (var effect in effects.GetChildren().OfType<CardEffectRow>().Where(effect => effect.Visible))
-                        if (effect.Position.X + effect.Size.X > effects.Size.X + 1)
-                        { GD.Print($"效果越界：{effect.Position}/{effect.Size}，区域 {effects.Size}"); return false; }
+                    {
+                        if (effect.Position.X != 0 || effect.Position.Y < previousBottom - .1f
+                            || effect.Position.X + effect.Size.X > effects.Size.X + 1
+                            || effect.Position.Y + effect.Size.Y > effects.Size.Y + 1)
+                        { GD.Print($"效果越界或重叠：{effect.Position}/{effect.Size}，区域 {effects.Size}"); return false; }
+                        previousBottom = effect.Position.Y + effect.Size.Y;
+                    }
+                    foreach (var element in face.GetNode<Control>("ElementLayer").GetChildren().OfType<Control>())
+                        if (element.Position.X < level.Position.X + level.Size.X * level.Scale.X
+                            || element.Position.Y + element.Size.Y * element.Scale.Y > face.Size.Y * .35f
+                            || element.Position.X + element.Size.X * element.Scale.X > face.Size.X + .1f) return false;
                 }
             }
             return session.Random.State == random && MatchSnapshot.From(session).Cards.Count == snapshot.Cards.Count;
@@ -544,9 +555,12 @@ internal static class PlaytestVerification
                 var hero = shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel");
                 var name = hero.GetNode<Label>("Identity/HeroName");
                 var host = shell.GetNode<Control>("ContextRow/ContextHost");
+                var benchCell = shell.GetNode<Control>("BenchRow/Content");
                 if (name.Size.X < 120 || name.Text != capture.Player!.Hero!.DisplayName
-                    || hero.GlobalPosition.X + hero.Size.X >= host.GlobalPosition.X)
-                    return Fail("英雄姓名被压缩或侧栏遮挡主内容");
+                    || hero.GlobalPosition.Y < benchCell.GlobalPosition.Y + benchCell.Size.Y
+                    || hero.GlobalPosition.Y + hero.Size.Y > shell.Size.Y
+                    || !Mathf.IsEqualApprox(benchCell.Size.X, board.Size.X))
+                    return Fail("英雄底栏被压缩、越界或双棋盘宽度不一致");
                 var offers = shell.GetNode<HBoxContainer>("ContextRow/ContextHost/ShopView/OfferScroll/Offers");
                 var buys = offers.GetChildren().OfType<Control>().Select(row => row.GetNode<Button>("Actions/Buy")).ToArray();
                 if (buys.Any(buy => buy.Size.X < 100 || buy.GlobalPosition.Y + buy.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1)
@@ -584,7 +598,7 @@ internal static class PlaytestVerification
             }
             var leave = shell.GetNode<LeavePanel>("ContextRow/Leave/LeaveScroll/LeavePanel");
             if (leave.GetNode<Button>("Verification").Visible) return Fail("开发入口未折叠");
-            leave.GetNode<Button>("Developer").EmitSignal(Button.SignalName.Pressed);
+            shell.GetNode<Button>("FooterActions/Developer").EmitSignal(Button.SignalName.Pressed);
             if (!leave.GetNode<Button>("Verification").Visible || !ReferenceEquals(capture, presenter.View))
                 return Fail("开发展开修改对局或未显示入口");
             var target = shell.GetNode<Button>("BenchRow/Content/Board/Slot0"); target.GrabFocus();
@@ -736,22 +750,22 @@ internal static class PlaytestVerification
                             .GetChildren().OfType<Button>().Any(button => button.TooltipText.Length > 0)) return false;
                         sawPvp |= presenter.View.Player!.Round > 1 && presenter.View.Player.Turn == 1;
                         sawMonster |= presenter.View.Player!.Turn == 5;
-                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Battle"));
+                        Press(scene.GetNode<Button>($"{root}/FooterActions/Battle"));
                         if (presenter.View.Page != MatchPage.BattlePlayback) return false;
                         var session = (MatchSession)typeof(MatchPresenter).GetField("_player",
                             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(presenter)!;
                         var settled = MatchSnapshot.From(session);
                         var random = session.Random.State;
-                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Pause"));
+                        Press(scene.GetNode<Button>($"{root}/FooterActions/Pause"));
                         presenter.AdvancePlayback(1);
                         if (presenter.View.Playback is not { Paused: true, Tick: 0 }) return false;
-                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Speed"));
+                        Press(scene.GetNode<Button>($"{root}/FooterActions/Speed"));
                         if (presenter.View.Playback.Speed != 2) return false;
                         presenter.StartBattle(); presenter.ContinueMatch(); presenter.ClaimMonsterReward();
-                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Pause"));
+                        Press(scene.GetNode<Button>($"{root}/FooterActions/Pause"));
                         presenter.AdvancePlayback(.1);
                         if (presenter.View.Playback?.Tick != 2) return false;
-                        Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Skip"));
+                        Press(scene.GetNode<Button>($"{root}/FooterActions/Skip"));
                         presenter.SkipPlayback();
                         var completed = MatchSnapshot.From(session);
                         if (completed.Wealth != settled.Wealth || completed.Experience != settled.Experience
@@ -761,10 +775,10 @@ internal static class PlaytestVerification
                             || session.Random.State != random || presenter.View.Playback is not null) return false;
                         break;
                 }
-                Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Continue"));
+                Press(scene.GetNode<Button>($"{root}/FooterActions/Continue"));
                 if (sawMonster && sawPvp && sawCardEvent && sawModifier) break;
             }
-            Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Developer"));
+            Press(scene.GetNode<Button>($"{root}/FooterActions/Developer"));
             Press(scene.GetNode<Button>($"{main}/Leave/LeaveScroll/LeavePanel/Reset"));
             return sawMonster && sawPvp && sawCardEvent && sawModifier && presenter.View.Player is null
                 && !scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible

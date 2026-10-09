@@ -10,7 +10,8 @@ public sealed class BanishSkillDefinition : SkillDefinition
 {
     public BanishSkillDefinition()
         : base(new EntityAttributes<SkillIdentityAttributes>(
-            new SkillIdentityAttributes(new StringName("skill.banish"), "放逐", GameFactions.Neutral)),
+            new SkillIdentityAttributes(new StringName("skill.banish"), "放逐", GameFactions.Neutral,
+                illustration: new StringName("res://art/ui/skills/artwork/banish-illustration.png"))),
             initialLevel: 2, levels: [CreateLevel(2, 10), CreateLevel(3, 20), CreateLevel(4, 30)])
     {
     }

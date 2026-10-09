@@ -114,14 +114,17 @@ public sealed class CardSetIdentityAttributes : IdentityAttributes
     }
 }
 
+// 技能只读身份与图标原画资源标识（领域定义层）。
 public sealed class SkillIdentityAttributes : IdentityAttributes
 {
-    public SkillIdentityAttributes(StringName key, string displayName, StringName factionKey) : base(key, displayName)
+    public SkillIdentityAttributes(StringName key, string displayName, StringName factionKey, StringName? illustration = null) : base(key, displayName)
     {
         FactionKey = factionKey;
+        Illustration = illustration ?? new StringName("");
     }
 
     public StringName FactionKey { get; }
+    public StringName Illustration { get; }
 }
 
 public sealed class EncounterIdentityAttributes : IdentityAttributes

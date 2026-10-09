@@ -62,7 +62,16 @@ public sealed partial class HeroDetailsView : PanelContainer
         {
             Text("技能");
             if (player.Skills.Count == 0) Text("尚未获得技能。");
-            foreach (var skill in player.Skills) Text(CardDisplayAdapter.SkillDetails(skill));
+            foreach (var skill in player.Skills)
+            {
+                var row = new HBoxContainer(); _items.AddChild(row);
+                var icon = new SkillItemView { CustomMinimumSize = new Vector2(72, 72),
+                    SizeFlagsVertical = SizeFlags.ShrinkBegin, FocusMode = FocusModeEnum.None };
+                row.AddChild(icon); icon.Render(skill, _adapter);
+                var description = new RichTextLabel { FitContent = true, ScrollActive = false,
+                    SizeFlagsHorizontal = SizeFlags.ExpandFill };
+                row.AddChild(description); CardKeywordText.Render(description, CardDisplayAdapter.SkillDetails(skill));
+            }
         }
         else if (_section == HeroSection.Sets)
         {

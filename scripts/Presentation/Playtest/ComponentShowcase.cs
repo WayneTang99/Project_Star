@@ -144,6 +144,9 @@ public sealed partial class ComponentShowcase : Control
                 Title = "商店 · 三尺寸合并预览", Message = "", Offers = Array.AsReadOnly(offers), Rewards = Array.Empty<RewardItemViewModel>(),
                 Reward = new UiAction("奖励", false), BoardEnabled = true, EnemyVisible = false });
             await Save("three-sizes-shop");
+            shell.GetNode<CardDetailsView>("CardDetails").ShowCard(MatchSnapshot.From(fixture).Cards.First(card => card.Size == CardSize.Medium),
+                new Vector2(Size.X * .58f, Size.Y * .2f), shell.Size);
+            await Save("card-details");
             GetTree().Quit(); return;
         }
         RemoveChild(root); root.QueueFree();
@@ -183,8 +186,8 @@ public sealed partial class ComponentShowcase : Control
             var directory = OS.GetCmdlineUserArgs().Contains("--capture-layout") ? "res://output/layout" : "res://docs/quality/encounter-art";
             DirAccess.MakeDirRecursiveAbsolute(directory);
             using var image = GetViewport().GetTexture().GetImage();
-            // HDR 视口读回的是线性色彩，PNG 预览需要转换为 sRGB。
-            if (GetViewport().UseHdr2D)
+            // Forward+/Mobile HDR读回线性色彩；Compatibility读回已是sRGB，不能重复转换。
+            if (GetViewport().UseHdr2D && RenderingServer.GetCurrentRenderingMethod() != "gl_compatibility")
                 for (var y = 0; y < image.GetHeight(); y++)
                     for (var x = 0; x < image.GetWidth(); x++)
                         image.SetPixel(x, y, image.GetPixel(x, y).LinearToSrgb());

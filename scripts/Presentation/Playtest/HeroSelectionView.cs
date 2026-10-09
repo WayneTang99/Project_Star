@@ -25,6 +25,7 @@ public sealed partial class HeroSelectionView : Control
     private readonly Label _message = new() { HorizontalAlignment = HorizontalAlignment.Center,
         MouseFilter = MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart };
     private readonly Button _choose = new() { Name = "Choose", Text = "选择英雄" };
+    private readonly AudioStreamPlayer _selectionVoice = new() { Name = "SelectionVoice", MaxPolyphony = 1, VolumeDb = -1f };
     private readonly List<(Button Button, Action Handler)> _buttons = new();
     private readonly List<Label> _values = new();
     private IReadOnlyList<KeyedAction> _heroes = Array.Empty<KeyedAction>();
@@ -36,6 +37,7 @@ public sealed partial class HeroSelectionView : Control
     private double _portraitMotionSeconds;
     private static readonly StringName AnimatedHeroKey = new("hero.paladin");
     private static readonly StringName MotionTimeParameter = new("motion_time");
+    private static readonly StringName PaladinVoicePath = new("res://audio/voices/heroes/paladin-selection.mp3");
     private static readonly Dictionary<StringName, Texture2D> Thumbnails = new();
 
     // 建立控件与本地浏览事件，不创建对局。
@@ -43,11 +45,12 @@ public sealed partial class HeroSelectionView : Control
     {
         foreach (var control in new Control[] { _heading, _rosterHeading, _roster, _center, _title, _name,
             _attributes, _stats, _otherAttributes, _hint, _message, _choose }) AddChild(control);
+        AddChild(_selectionVoice);
         _roster.AddChild(_entries); _entries.AddThemeConstantOverride("separation", 6);
         _heading.AddThemeFontSizeOverride("font_size", 24); _name.AddThemeFontSizeOverride("font_size", 36);
-        _title.AddThemeFontSizeOverride("font_size", 15); _title.AddThemeColorOverride("font_color", MatchTheme.Gold);
-        _hint.AddThemeFontSizeOverride("font_size", 12); _message.AddThemeFontSizeOverride("font_size", 12);
-        _otherAttributes.AddThemeFontSizeOverride("font_size", 13);
+        _title.AddThemeFontSizeOverride("font_size", 18); _title.AddThemeColorOverride("font_color", MatchTheme.Gold);
+        _hint.AddThemeFontSizeOverride("font_size", 16); _message.AddThemeFontSizeOverride("font_size", 16);
+        _otherAttributes.AddThemeFontSizeOverride("font_size", 16);
         _stats.AddThemeConstantOverride("h_separation", 16); _stats.AddThemeConstantOverride("v_separation", 12);
         foreach (var label in new[] { "最大生命", "最大魔法", "每轮收入" })
         {
@@ -56,11 +59,7 @@ public sealed partial class HeroSelectionView : Control
             var value = new Label { HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
             value.AddThemeFontSizeOverride("font_size", 20); _stats.AddChild(value); _values.Add(value);
         }
-        _choose.AddThemeStyleboxOverride("normal", MatchTheme.Surface(MatchTheme.Blue, MatchTheme.Blue));
-        _choose.AddThemeStyleboxOverride("hover", MatchTheme.Surface(new Color("34779f"), MatchTheme.Blue));
-        foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
-            _choose.AddThemeColorOverride(state, Colors.White);
-        _choose.AddThemeStyleboxOverride("pressed", MatchTheme.Surface(new Color("34779f"), MatchTheme.Blue));
+        MatchTheme.Accent(_choose);
         _choose.Pressed += Choose; _attributes.Toggled += ToggleAttributes; Resized += Layout;
         VisibilityChanged += RefreshPortraitProcessing;
         RebuildRoster(); UpdatePreview(); Layout();
@@ -106,6 +105,7 @@ public sealed partial class HeroSelectionView : Control
     {
         _choose.Pressed -= Choose; _attributes.Toggled -= ToggleAttributes; Resized -= Layout;
         VisibilityChanged -= RefreshPortraitProcessing;
+        _selectionVoice.Stop();
         SetProcess(false); _center.Material = null;
         _portraitMotion?.Dispose(); _portraitMotion = null;
         _portraitTween?.Kill(); ClearRoster();
@@ -138,9 +138,9 @@ public sealed partial class HeroSelectionView : Control
             row.AddChild(caption);
             var name = new Label { Text = item.Hero?.DisplayName ?? item.Action.Text.Replace("选择：", ""),
                 ClipText = true, MouseFilter = MouseFilterEnum.Ignore };
-            name.AddThemeFontSizeOverride("font_size", 16); caption.AddChild(name);
+            name.AddThemeFontSizeOverride("font_size", 18); caption.AddChild(name);
             var title = new Label { Text = item.Hero?.Title ?? "", ClipText = true, MouseFilter = MouseFilterEnum.Ignore };
-            title.AddThemeFontSizeOverride("font_size", 12); caption.AddChild(title);
+            title.AddThemeFontSizeOverride("font_size", 16); caption.AddChild(title);
             row.AddChild(new Label { Name = "SelectedMark", CustomMinimumSize = new Vector2(18, 0),
                 VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore });
             Action handler = () => SelectPreview(captured);
@@ -157,6 +157,13 @@ public sealed partial class HeroSelectionView : Control
 
     private void SelectPreview(int index)
     {
+        if (!IsVisibleInTree() || index < 0 || index >= _heroes.Count) return;
+        _selectionVoice.Stop();
+        if (_heroes[index].Key == AnimatedHeroKey)
+        {
+            _selectionVoice.Stream ??= GD.Load<AudioStream>(PaladinVoicePath.ToString());
+            if (_selectionVoice.Stream is not null) _selectionVoice.Play();
+        }
         if (index == _index) return;
         _index = index; UpdatePreview();
         _portraitTween?.Kill(); _center.Modulate = new Color(1, 1, 1, .65f);
@@ -171,6 +178,7 @@ public sealed partial class HeroSelectionView : Control
     private void UpdatePreview()
     {
         var selected = _heroes.Count == 0 ? null : _heroes[_index];
+        if (selected?.Key != AnimatedHeroKey) _selectionVoice.Stop();
         var hero = selected?.Hero;
         _rosterHeading.Text = $"英雄名册  ·  {_heroes.Count} 位";
         _center.Texture = selected is null ? null : Load(selected);
@@ -191,8 +199,8 @@ public sealed partial class HeroSelectionView : Control
         for (var index = 0; index < _buttons.Count; index++)
         {
             var button = _buttons[index].Button; var current = index == _index;
-            button.AddThemeStyleboxOverride("normal", MatchTheme.Surface(current ? new Color("e4f2fb") : new Color("fffaf0"),
-                current ? MatchTheme.Blue : new Color("a5bcc9")));
+            button.AddThemeStyleboxOverride("normal", MatchTheme.Surface(current ? new Color("294138") : MatchTheme.SurfaceColor,
+                current ? MatchTheme.Blue : new Color("756847")));
             button.GetNode<Label>("Content/SelectedMark").Text = current ? "✓" : "";
         }
         QueueRedraw();
@@ -218,8 +226,11 @@ public sealed partial class HeroSelectionView : Control
         RefreshPortraitProcessing();
     }
 
-    private void RefreshPortraitProcessing() => SetProcess(IsVisibleInTree()
-        && _portraitMotion is not null && _center.Material == _portraitMotion);
+    private void RefreshPortraitProcessing()
+    {
+        if (!IsVisibleInTree()) _selectionVoice.Stop();
+        SetProcess(IsVisibleInTree() && _portraitMotion is not null && _center.Material == _portraitMotion);
+    }
 
     private void ToggleAttributes(bool expanded)
     {

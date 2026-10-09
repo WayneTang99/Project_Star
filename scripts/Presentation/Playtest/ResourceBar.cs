@@ -16,14 +16,23 @@ public sealed partial class ResourceBar : ProgressBar
         ShowPercentage = false;
         MouseFilter = MouseFilterEnum.Pass;
         CustomMinimumSize = new Vector2(0, 24);
-        AddThemeStyleboxOverride("background", MatchTheme.Surface(new Color("edf1f3"), new Color("a5bcc9")));
+        AddThemeStyleboxOverride("background", MatchTheme.Surface(new Color("0b1713"), new Color("817449")));
         AddThemeStyleboxOverride("fill", MatchTheme.Surface(color, color));
         _caption.AddThemeFontSizeOverride("font_size", 14);
-        _caption.AddThemeColorOverride("font_color", new Color("172b3b"));
+        _caption.AddThemeColorOverride("font_color", new Color("f2f3d9"));
         AddChild(_caption);
         _caption.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _caption.OffsetLeft = 18;
         AddChild(_icon); _icon.Position = new Vector2(6, 4); _icon.Size = new Vector2(16, 16);
+    }
+
+    // 底部横向HUD使用紧凑资源条，数值与悬停语义保持完整。
+    public void SetDisplayHeight(float height)
+    {
+        CustomMinimumSize = new Vector2(0, height);
+        _caption.AddThemeFontSizeOverride("font_size", height < 22 ? 14 : 16);
+        _caption.OffsetLeft = 0;
+        _icon.Hide();
     }
 
     // 不改变实际资源，只更新填充比例和当前值／最大值文字。

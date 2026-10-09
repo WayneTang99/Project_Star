@@ -73,10 +73,10 @@ public sealed partial class CardCatalogView : PanelContainer
         foreach (var control in new Control[] { _name, _preview, _level, _text }) _detail.AddChild(control);
         _name.AddThemeFontSizeOverride("font_size", 20);
         _search.AddThemeColorOverride("font_color", MatchTheme.Ink);
-        _search.AddThemeColorOverride("font_placeholder_color", new Color("6e818b"));
+        _search.AddThemeColorOverride("font_placeholder_color", MatchTheme.Muted);
         _search.AddThemeColorOverride("caret_color", MatchTheme.Ink);
-        _search.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("f8fbfc"), new Color("a5bcc9")));
-        _search.AddThemeStyleboxOverride("focus", MatchTheme.Surface(new Color("f8fbfc"), MatchTheme.Blue));
+        _search.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("10211b"), new Color("756847")));
+        _search.AddThemeStyleboxOverride("focus", MatchTheme.Surface(new Color("10211b"), MatchTheme.Blue));
         _back.Pressed += Close;
         _search.TextChanged += SearchChanged; _level.ItemSelected += LevelChanged;
         foreach (var filter in new[] { _faction, _size, _element, _initialLevel, _sort }) filter.ItemSelected += FilterChanged;

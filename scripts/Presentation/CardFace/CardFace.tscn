@@ -15,20 +15,6 @@ mouse_filter = 2
 [node name="InnerFrame" type="Panel" parent="."]
 mouse_filter = 2
 
-[node name="Header" type="Panel" parent="."]
-mouse_filter = 2
-clip_contents = true
-
-[node name="Title" type="Label" parent="."]
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.16, 0.13, 0.1, 1)
-theme_override_colors/font_outline_color = Color(1, 0.98, 0.9, 0.9)
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 24
-text = "卡牌名"
-horizontal_alignment = 1
-vertical_alignment = 1
-
 [node name="ArtFrame" type="Panel" parent="."]
 mouse_filter = 2
 clip_contents = true
@@ -46,9 +32,10 @@ mouse_filter = 2
 [node name="InnerRim" type="Panel" parent="ArtFrame"]
 mouse_filter = 2
 
-[node name="Footer" type="Panel" parent="."]
-mouse_filter = 2
-clip_contents = true
+[node name="ValuePlate" type="Polygon2D" parent="."]
+
+[node name="ValueRim" type="Line2D" parent="."]
+antialiased = true
 
 [node name="Effects" type="Control" parent="."]
 mouse_filter = 2
@@ -59,19 +46,11 @@ theme_override_constants/separation = 0
 [node name="Ornament" type="NinePatchRect" parent="."]
 mouse_filter = 2
 texture = ExtResource("3_frame")
-patch_margin_left = 40
-patch_margin_top = 40
-patch_margin_right = 40
-patch_margin_bottom = 40
+patch_margin_left = 14
+patch_margin_top = 14
+patch_margin_right = 14
+patch_margin_bottom = 14
 draw_center = false
-
-[node name="BottomCrest" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(0, -7, 9, 0, 0, 7, -9, 0)
-color = Color(0.29, 0.18, 0.08, 1)
-
-[node name="BottomCrestLight" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(0, -5, 6, 0, 0, 5, -6, 0)
-color = Color(0.88, 0.69, 0.35, 1)
 
 [node name="ElementLayer" type="Control" parent="."]
 mouse_filter = 2

@@ -45,6 +45,7 @@ public sealed partial class MinimalPlaytest : Control
             new MentorService(registry, new SkillAcquisitionService(factory)), rewards, game, new LocalTestOpponentProvider(registry));
         _shell = GetNode<MatchShell>("MatchShell");
         _shell.SetCatalog(CardCatalogQuery.Capture(registry));
+        _shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
         _shell.ChoiceSelected += Choose;
         _shell.BuyRequested += _presenter.BuyCard;
         _shell.ActionRequested += Act;

@@ -14,7 +14,8 @@ public sealed class ChargeSkillDefinition : SkillDefinition
                 new SkillIdentityAttributes(
                     new StringName("skill.charge"),
                     "冲撞",
-                    GameFactions.Neutral)),
+                    GameFactions.Neutral,
+                    illustration: new StringName("res://art/ui/skills/artwork/charge-illustration.png"))),
             initialLevel: 1,
             levels:
             [

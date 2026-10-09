@@ -12,6 +12,22 @@ internal static class CardKeywordText
     public static void Render(RichTextLabel label, string text)
     {
         label.Clear();
+        Append(label, text);
+    }
+
+    // 卡名在卡面隐藏后由详情标题承载，正文仍保留全部冻结数值和规则。
+    public static void RenderDetails(RichTextLabel label, string text)
+    {
+        label.Clear();
+        var end = text.IndexOf('\n');
+        label.PushFontSize(24); label.PushColor(MatchTheme.Gold);
+        label.AddText(end < 0 ? text : text[..end]);
+        label.Pop(); label.Pop();
+        if (end >= 0) { label.AddText("\n\n"); Append(label, text[(end + 1)..]); }
+    }
+
+    private static void Append(RichTextLabel label, string text)
+    {
         var offset = 0;
         foreach (Match match in Keywords.Matches(text))
         {
@@ -21,10 +37,10 @@ internal static class CardKeywordText
                 "攻击" => "d74747",
                 "护甲" => "d9ad16",
                 "治疗" => "83c76c",
-                "中毒" => "28783b",
+                "中毒" => "77cf84",
                 "灼伤" => "e87e24",
-                "疾速" or "充能" => "20a6b5",
-                "禁锢" => "9852bd",
+                "疾速" or "充能" => "52d1d2",
+                "禁锢" => "c892e0",
                 _ => "243d52",
             }));
             label.AddText(match.Value);

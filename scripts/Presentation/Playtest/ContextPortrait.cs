@@ -12,22 +12,37 @@ public sealed partial class ContextPortrait : Control
 {
     private Label _title = null!;
     private CardLevelGem _level = null!;
-    private HBoxContainer _resources = null!;
+    private VBoxContainer _resources = null!;
+    private TextureRect _art = null!;
+    private ColorRect _shade = null!;
+    private Label _message = null!;
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
     private Label _armor = null!;
 
     public override void _Ready()
     {
+        _art = new TextureRect { MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered, ClipContents = true, Modulate = new Color(.65f, .72f, .61f) };
+        AddChild(_art); _art.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _shade = new ColorRect { Color = new Color(.04f, .09f, .07f, .74f), MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(_shade); _shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _title = new Label { ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_title); _title.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _title.AddThemeFontSizeOverride("font_size", 16);
+        _title.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _title.AddThemeColorOverride("font_color", new Color("f0deb5"));
+        _message = new Label { ClipText = true, AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            MouseFilter = MouseFilterEnum.Ignore };
+        _message.AddThemeFontSizeOverride("font_size", 16);
+        _message.AddThemeColorOverride("font_color", MatchTheme.Muted); AddChild(_message);
         _level = new CardLevelGem { Name = "EncounterLevelCrystal", Size = new Vector2(26, 34), MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_level); _level.Hide();
-        _resources = new HBoxContainer { Name = "EnemyResources" }; AddChild(_resources);
+        _resources = new VBoxContainer { Name = "EnemyResources" }; AddChild(_resources);
+        _resources.AddThemeConstantOverride("separation", 4);
         _health = new ResourceBar("EnemyHealth", new Color("86bf8c")) { CustomMinimumSize = new Vector2(112, 24) };
         _mana = new ResourceBar("EnemyMana", new Color("88c4eb")) { CustomMinimumSize = new Vector2(100, 24) };
+        _health.SetDisplayHeight(20); _mana.SetDisplayHeight(20);
         _resources.AddChild(_health); _resources.AddChild(_mana);
         var armor = MatchTheme.Stat("armor", "", "敌方护甲"); _resources.AddChild(armor); _armor = armor.GetChild<Label>(1);
         Resized += LayoutTitle; LayoutTitle();
@@ -50,15 +65,26 @@ public sealed partial class ContextPortrait : Control
         LayoutTitle();
     }
 
+    // 阶段插画与说明从当前只读页面模型加载，不按卡牌或遭遇key匹配资源。
+    public void SetContext(StringName illustration, string message)
+    {
+        _art.Texture = !illustration.IsEmpty && ResourceLoader.Exists(illustration.ToString())
+            ? GD.Load<Texture2D>(illustration.ToString()) : null;
+        _message.Text = message; _message.TooltipText = message;
+        LayoutTitle();
+    }
+
     public override void _ExitTree() => Resized -= LayoutTitle;
 
     private void LayoutTitle()
     {
-        _level.Position = new Vector2(0, 1);
-        _title.OffsetLeft = _level.Visible ? 34 : 0;
-        _title.OffsetBottom = _resources.Visible ? -23 : 0;
-        _resources.Position = new Vector2(_title.OffsetLeft, 19);
-        _resources.Size = new Vector2(Mathf.Max(1, Size.X - _title.OffsetLeft), 24);
-        _title.AddThemeFontSizeOverride("font_size", _resources.Visible ? 13 : 16);
+        _level.Position = new Vector2(12, 8); _level.Size = new Vector2(20, 25);
+        _title.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
+        _title.Position = new Vector2(12, 39); _title.Size = new Vector2(Mathf.Max(1, Size.X - 24), 52);
+        _title.AddThemeFontSizeOverride("font_size", _resources.Visible ? 20 : 24);
+        _message.Position = new Vector2(12, 91);
+        _message.Size = new Vector2(Mathf.Max(1, Size.X - 24), Mathf.Max(1, Size.Y - 157));
+        _message.Visible = !_resources.Visible;
+        _resources.Position = new Vector2(12, 83); _resources.Size = new Vector2(Mathf.Max(1, Size.X - 24), 73);
     }
 }

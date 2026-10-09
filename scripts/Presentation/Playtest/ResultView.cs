@@ -62,12 +62,12 @@ public sealed partial class ResultView : Control
                 row.AddChild(icon);
                 var name = new Label { Text = reward.Text, Position = new Vector2(44, 8), Size = new Vector2(172, 24),
                     ClipText = true, TooltipText = reward.Text, MouseFilter = MouseFilterEnum.Ignore };
-                name.AddThemeFontSizeOverride("font_size", 13); row.AddChild(name);
+                name.AddThemeFontSizeOverride("font_size", 16); row.AddChild(name);
             }
             var claim = new Button { Name = $"Claim{reward.Index}", Text = reward.Card is null ? "领取技能" : "领取",
                 Icon = MatchTheme.Icon("rewards"), TooltipText = reward.Text + "\n" + reward.Details,
                 Position = new Vector2(inset, height / 2 - 16), Size = new Vector2(width - inset, 32), ClipText = true };
-            claim.AddThemeFontSizeOverride("font_size", 13); claim.AddThemeConstantOverride("icon_max_width", 16);
+            claim.AddThemeFontSizeOverride("font_size", 16); claim.AddThemeConstantOverride("icon_max_width", 16);
             row.AddChild(claim);
             var match = view.Player?.MatchId ?? Guid.Empty;
             Action handler = () => ClaimRequested?.Invoke(match, reward.Index, reward.Revision);

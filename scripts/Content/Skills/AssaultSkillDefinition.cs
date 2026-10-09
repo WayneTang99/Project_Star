@@ -14,7 +14,8 @@ public sealed class AssaultSkillDefinition : SkillDefinition
                 new SkillIdentityAttributes(
                     new StringName("skill.assault"),
                     "突袭",
-                    GameFactions.Neutral)),
+                    GameFactions.Neutral,
+                    illustration: new StringName("res://art/ui/skills/artwork/assault-illustration.png"))),
             initialLevel: 1,
             levels:
             [

@@ -15,6 +15,59 @@ namespace Project_Star.Presentation.Verification;
 // 英雄身份、初始属性及选角和头像纹理的真实控件验证（表现层）。
 internal static class HeroArtworkChecks
 {
+    internal static bool CheckVoice(Control owner)
+    {
+        var registry = DefinitionRegistry.Scan(typeof(HarlaHeroDefinition).Assembly);
+        var choices = new[] { "paladin", "mona" }.Select(key =>
+        {
+            var hero = registry.Heroes[new StringName("hero." + key)];
+            return new KeyedAction(hero.Attributes.Identity.Key, new UiAction(hero.Attributes.Identity.DisplayName))
+                { Illustration = hero.Attributes.Identity.Illustration, Hero = HeroSelectionDetails.From(hero) };
+        }).ToArray();
+        var host = new Control(); owner.AddChild(host);
+        var selection = new HeroSelectionView(); host.AddChild(selection);
+        try
+        {
+            selection.Render("配音", choices);
+            var player = selection.GetNode<AudioStreamPlayer>("SelectionVoice");
+            var entries = selection.GetNode<VBoxContainer>("Roster/Entries");
+            var submitted = 0; selection.Selected += (_, _) => submitted++;
+            if (player.Playing) return false;
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+            if (!player.Playing || player.Stream is not AudioStreamMP3 stream || stream.Loop
+                || stream.GetLength() is < 0.5 or > 10 || player.MaxPolyphony != 1) return false;
+            using var decoder = stream.InstantiatePlayback();
+            decoder.Start();
+            var samples = decoder.MixAudio(1f, (int)(AudioServer.GetMixRate() * stream.GetLength()));
+            decoder.Stop();
+            if (!samples.Any(sample => sample.LengthSquared() > .0001f)) return false;
+            GD.Print($"圣骑士选角配音：{stream.GetLength():F2}秒，解码{samples.Length}帧，包含有效语音。");
+            var first = player.GetStreamPlayback();
+            selection.Render("刷新", choices, 9);
+            if (!player.Playing || player.GetStreamPlayback() != first) return false;
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+            if (!player.Playing || player.GetStreamPlayback() == first) return false;
+            selection._Input(new InputEventKey { Keycode = Key.Right, Pressed = true });
+            if (player.Playing) return false;
+            selection._Input(new InputEventKey { Keycode = Key.Left, Pressed = true });
+            if (!player.Playing || submitted != 0) return false;
+            host.Hide();
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+            if (player.Playing) return false;
+            host.Show();
+            if (player.Playing) return false;
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+            if (!player.Playing) return false;
+            selection.Hide();
+            if (player.Playing) return false;
+            selection.Show();
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+            selection.Render("空名单", []);
+            return !player.Playing && submitted == 0;
+        }
+        finally { owner.RemoveChild(host); host.Free(); }
+    }
+
     internal static bool CheckMotion(Control owner)
     {
         var registry = DefinitionRegistry.Scan(typeof(HarlaHeroDefinition).Assembly);
@@ -98,10 +151,10 @@ internal static class HeroArtworkChecks
                 var rect = portrait.GetGlobalRect();
                 if (Math.Abs(rect.Size.X - rect.Size.Y) > 1 || rect.Position.X < 0 || rect.End.X > size.X || rect.End.Y > size.Y)
                     throw new InvalidOperationException("选角原画非方形或越界。");
-                var count = size.X == 1280 ? 32 : 1;
+                var count = size.X == 1280 ? 129 : 1;
                 for (var index = 0; index < count; index++)
                 {
-                    material.SetShaderParameter("motion_time", index * .25f);
+                    material.SetShaderParameter("motion_time", index / 16f);
                     await Frame();
                     await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                     using var image = owner.GetViewport().GetTexture().GetImage();

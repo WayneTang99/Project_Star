@@ -38,31 +38,31 @@ public sealed partial class EncounterSelectionView : Control
             if (!choice.Illustration.IsEmpty && ResourceLoader.Exists(choice.Illustration.ToString()))
                 art.Texture = GD.Load<Texture2D>(choice.Illustration.ToString());
             button.AddChild(art); art.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            art.OffsetLeft = art.OffsetTop = 3; art.OffsetRight = -3; art.OffsetBottom = -62;
-            var shade = new ColorRect { Color = new Color("fffaf0"), MouseFilter = MouseFilterEnum.Ignore };
+            art.OffsetLeft = art.OffsetTop = 3; art.OffsetRight = -3; art.OffsetBottom = -3;
+            var shade = new ColorRect { Color = new Color(.04f, .08f, .06f, .85f), MouseFilter = MouseFilterEnum.Ignore };
             button.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); shade.OffsetTop = -62; shade.OffsetBottom = -3;
             var label = new Label { Name = "Title", Text = choice.Action.Text, MouseFilter = MouseFilterEnum.Ignore,
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
             label.AddThemeColorOverride("font_color", MatchTheme.Ink);
-            label.AddThemeFontSizeOverride("font_size", 16);
+            label.AddThemeFontSizeOverride("font_size", 20);
             button.AddChild(label); label.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
             label.OffsetLeft = 14; label.OffsetRight = -14; label.OffsetTop = -62; label.OffsetBottom = -30;
             var subtitle = new Label { Name = "Subtitle", Text = choice.Subtitle,
                 MouseFilter = MouseFilterEnum.Ignore, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis };
-            subtitle.AddThemeFontSizeOverride("font_size", 13);
+            subtitle.AddThemeFontSizeOverride("font_size", 16);
             button.AddChild(subtitle); subtitle.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
             subtitle.OffsetLeft = 14; subtitle.OffsetRight = -14; subtitle.OffsetTop = -28; subtitle.OffsetBottom = -5;
             if (choice.Level > 0)
             {
-                var badge = new ColorRect { Position = new Vector2(7, 7), Size = new Vector2(106, 36),
+                var badge = new ColorRect { Position = new Vector2(7, 7), Size = new Vector2(92, 26),
                     Color = new Color(0.06f, 0.12f, 0.18f, 0.82f), MouseFilter = MouseFilterEnum.Ignore };
                 button.AddChild(badge);
-                var crystal = new CardLevelGem { Name = "EncounterLevelCrystal", Position = new Vector2(4, 1),
-                    Size = new Vector2(28, 34), MouseFilter = MouseFilterEnum.Ignore };
+                var crystal = new CardLevelGem { Name = "EncounterLevelCrystal", Position = new Vector2(3, 1),
+                    Size = new Vector2(20, 24), MouseFilter = MouseFilterEnum.Ignore };
                 badge.AddChild(crystal); crystal.SetLevel(choice.Level);
-                var level = new Label { Name = "EncounterLevel", Text = choice.ShopLevel > 0 ? $"{choice.Level}级商店" : $"等级 {choice.Level}", Position = new Vector2(37, 0),
-                    Size = new Vector2(65, 36), MouseFilter = MouseFilterEnum.Ignore };
+                var level = new Label { Name = "EncounterLevel", Text = choice.ShopLevel > 0 ? $"{choice.Level}级商店" : $"等级 {choice.Level}", Position = new Vector2(27, 0),
+                    Size = new Vector2(62, 26), MouseFilter = MouseFilterEnum.Ignore };
                 level.AddThemeColorOverride("font_color", Colors.White); badge.AddChild(level);
             }
             // 焦点与悬停边框绘制在原画之上。

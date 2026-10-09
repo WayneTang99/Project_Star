@@ -250,12 +250,14 @@ public sealed partial class PhaseOneVerification : Control
             ("登神者召唤/转变仅本场成长与百分比配置验证", AscendantChecks.TemporarySourcesAndValidation),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("技能方形原画贯穿身份、实例、快照及全部支持等级", () => SkillCatalogChecks.ArtworkAndLevels(this)),
+            ("技能图鉴搜索、归属、等级、空结果、旧按钮及局外入口正确", () => SkillCatalogChecks.Interaction(this)),
             ("局外图鉴搜索、四维筛选与排序、等级、空结果、旧按钮与返回选角正确", () => CardCatalogChecks.Interaction(this)),
             ("导师技能选项真实渲染、完整提示与旧按钮解绑正确", () => MentorChecks.RenderedChoices(this)),
             ("飞行/狂暴快照、回放投影与真实状态显示一致", () => CardStateChecks.PlaybackAndDisplay(this)),
             ("上方拖拽出售贯穿真实入口、奖励、失效与战斗限制", () => DragSaleChecks.Transactions(this)),
             ("真实场景事件刷新、敌方可见性与重开事件连接", () => PlaytestVerification.RenderedScene(this)),
-            ("三尺寸卡牌贴合棋盘，上下栏等高，缩放不改变快照", () => PlaytestVerification.CardAndSlotGeometry(this)),
+            ("三尺寸卡牌贴合棋盘，角部身份与纵向效果布局正确，缩放不改变快照", () => PlaytestVerification.CardAndSlotGeometry(this)),
             ("独立组件渲染无命令、页面互斥与旧按钮解绑", () => PlaytestVerification.IsolatedComponents(this)),
             ("棋盘预览无副作用并在提交时重新验证阻挡", PlaytestVerification.BoardPreviewAndCommit),
             ("拖拽偏移、跨区目标、只读区域与过期对局", () => PlaytestVerification.DragTargets(this)),
@@ -271,6 +273,7 @@ public sealed partial class PhaseOneVerification : Control
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
             ("圣骑士动效时钟独立、刷新保留、隐藏暂停与英雄切换正确", () => HeroArtworkChecks.CheckMotion(this)),
+            ("圣骑士选角配音支持鼠标键盘、重复重播、刷新保留与隐藏停播", () => HeroArtworkChecks.CheckVoice(this)),
         ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();
@@ -308,6 +311,12 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await CardCatalogChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-skill-catalog"))
+            Callable.From((Action)(async () =>
+            {
+                try { await SkillCatalogChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-forest"))

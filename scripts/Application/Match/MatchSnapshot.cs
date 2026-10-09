@@ -58,6 +58,7 @@ public sealed record SkillSnapshot(
     int Level,
     StringName FactionKey)
 {
+    public StringName Illustration { get; init; } = new("");
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = Array.Empty<AbilityDefinition>();
     public IReadOnlyDictionary<StringName, int> CurrentValues { get; init; } =
         new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
@@ -140,6 +141,7 @@ public sealed record MatchSnapshot(
                 skill.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level),
                 skill.Attributes.Identity.FactionKey)
             {
+                Illustration = skill.Attributes.Identity.Illustration,
                 Abilities = CopyAbilities(skill.Abilities),
                 CurrentValues = skill.Attributes.BaseCombat.SnapshotFinalValues(),
             });

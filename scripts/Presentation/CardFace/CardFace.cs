@@ -14,18 +14,15 @@ public sealed partial class CardFace : Control
 
     private Panel _frame = null!;
     private Panel _innerFrame = null!;
-    private Panel _header = null!;
-    private Label _title = null!;
     private Control _sockets = null!;
     private Panel _artFrame = null!;
     private Panel _artInnerRim = null!;
     private TextureRect _artwork = null!;
-    private Panel _footer = null!;
     private Control _effects = null!;
     private CardValueBadge _valueBadge = null!;
     private NinePatchRect _ornament = null!;
-    private Polygon2D _bottomCrest = null!;
-    private Polygon2D _bottomCrestLight = null!;
+    private Polygon2D _valuePlate = null!;
+    private Line2D _valueRim = null!;
     private Control _elementLayer = null!;
     private PackedScene _elementScene = null!;
     private PackedScene _levelScene = null!;
@@ -39,23 +36,18 @@ public sealed partial class CardFace : Control
     {
         _frame = GetNode<Panel>("Frame");
         _innerFrame = GetNode<Panel>("InnerFrame");
-        _header = GetNode<Panel>("Header");
-        _title = GetNode<Label>("Title");
-        _title.ClipText = true;
-        _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _sockets = new Control { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1 };
         AddChild(_sockets);
         _artFrame = GetNode<Panel>("ArtFrame");
         _artwork = GetNode<TextureRect>("ArtFrame/Artwork");
         _artInnerRim = GetNode<Panel>("ArtFrame/InnerRim");
         MoveChild(_artFrame, 1);
-        _footer = GetNode<Panel>("Footer");
         _effects = GetNode<Control>("Effects"); _effects.ClipContents = true;
         _valueBadge = GetNode<CardValueBadge>("ValueBadge");
-        _title.ZIndex = _effects.ZIndex = _valueBadge.ZIndex = 1;
+        _effects.ZIndex = _valueBadge.ZIndex = 1;
         _ornament = GetNode<NinePatchRect>("Ornament");
-        _bottomCrest = GetNode<Polygon2D>("BottomCrest");
-        _bottomCrestLight = GetNode<Polygon2D>("BottomCrestLight");
+        _valuePlate = GetNode<Polygon2D>("ValuePlate");
+        _valueRim = GetNode<Line2D>("ValueRim");
         _elementLayer = GetNode<Control>("ElementLayer");
 
         _elementScene = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardElementBadge.tscn");
@@ -63,7 +55,10 @@ public sealed partial class CardFace : Control
         _effectScene = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardEffectRow.tscn");
         _ornament.Texture = GD.Load<Texture2D>("res://art/ui/card-face/card-frame.svg");
         _levelGem = (CardLevelGem)_levelScene.Instantiate();
+        _levelGem.Name = "LevelGem";
+        _levelGem.ZIndex = 2;
         AddChild(_levelGem);
+        _elementLayer.ZIndex = 2;
 
         _artwork.StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered;
         _artFrame.ClipContents = true;
@@ -94,7 +89,6 @@ public sealed partial class CardFace : Control
         var width = WidthPerSize * (int)viewModel.Size;
         CustomMinimumSize = _displaySize is null ? new Vector2(width, BaseHeight) : Vector2.Zero;
         Size = _displaySize ?? CustomMinimumSize;
-        _title.Text = viewModel.DisplayName;
         RebuildSockets(viewModel);
         _artwork.Texture = viewModel.Artwork;
         _levelGem.SetLevel(viewModel.Level);
@@ -103,10 +97,10 @@ public sealed partial class CardFace : Control
         var accent = FactionAccent(viewModel.FactionKey);
         _frame.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color("#31251a"), new Color("#26180e"), 4, 12));
         _innerFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(0, 0, 0, 0), accent.Lightened(0.1f), 1, 9));
-        _header.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(.98f, .95f, .86f, .88f), Colors.Transparent, 0, 3));
         _artFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, Colors.Transparent, 0, 0));
         _artInnerRim.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(0, 0, 0, 0), new Color("#f3d99e"), 1, 7));
-        _footer.AddThemeStyleboxOverride("panel", MakePanelStyle(new Color(.98f, .95f, .86f, .88f), Colors.Transparent, 0, 3));
+        _valuePlate.Color = new Color("#795329");
+        _valueRim.DefaultColor = new Color("#e9c77f");
         _ornament.Modulate = Colors.White;
 
         LayoutParts(Size.X);
@@ -118,32 +112,24 @@ public sealed partial class CardFace : Control
     {
         var height = Size.Y;
         var padding = Mathf.Clamp(height * .018f, 2, 7);
-        // 所有尺寸共享等高上下栏；栏高与效果数量无关，插画始终覆盖整卡。
-        var band = Mathf.Clamp(height * .14f, 22, 56);
-        var font = Mathf.Clamp(Mathf.RoundToInt(height * .065f), 12, 24);
+        var font = Mathf.Clamp(Mathf.RoundToInt(height * .07f), 14, 20);
         _artFrame.Position = _artwork.Position = Vector2.Zero;
         _artFrame.Size = _artwork.Size = Size;
         _artInnerRim.Position = Vector2.One * padding;
         _artInnerRim.Size = Size - Vector2.One * padding * 2;
         _frame.Position = Vector2.Zero; _frame.Size = Size;
         _innerFrame.Position = Vector2.One * padding; _innerFrame.Size = Size - Vector2.One * padding * 2;
-        _header.Position = Vector2.Zero; _header.Size = new Vector2(width, band);
-        _footer.Position = new Vector2(0, height - band); _footer.Size = new Vector2(width, band);
-        _title.AddThemeFontSizeOverride("font_size", font);
-        _title.Position = new Vector2(padding + 2, 0);
-        _title.Size = new Vector2(Mathf.Max(1, width - padding * 2 - 4), band);
 
         var scale = height / BaseHeight;
         _ornament.Position = Vector2.Zero; _ornament.Size = new Vector2(width / scale, BaseHeight);
         _ornament.Scale = Vector2.One * scale;
-        _bottomCrest.Position = new Vector2(width / 2, height - 1); _bottomCrest.Scale = Vector2.One * scale;
-        _bottomCrestLight.Position = _bottomCrest.Position; _bottomCrestLight.Scale = _bottomCrest.Scale;
-        var gemHeight = Mathf.Clamp(height * .12f, 20, 40);
+        // 等级与元素占据上方两角，中央留给插画；宝石孔紧随等级下方。
+        var gemHeight = Mathf.Min(Mathf.Clamp(height * .12f, 20, 40), width * .32f);
         _levelGem.Size = new Vector2(38, 40); _levelGem.Scale = Vector2.One * gemHeight / 40;
-        _levelGem.Position = new Vector2(padding + 1, band + 2);
+        _levelGem.Position = new Vector2(padding - gemHeight * .12f, -gemHeight * .08f);
 
-        _sockets.Position = new Vector2(padding + gemHeight + 3, band + 4);
-        _sockets.Size = new Vector2(Mathf.Max(1, width - padding * 2 - gemHeight - 3), gemHeight);
+        _sockets.Position = new Vector2(padding, _levelGem.Position.Y + gemHeight + 3);
+        _sockets.Size = new Vector2(Mathf.Max(1, width * .45f - padding), gemHeight);
         var sockets = _sockets.GetChildCount();
         var socketDiameter = Mathf.Min(height < BaseHeight ? 9 : 16, _sockets.Size.X / Math.Max(1, sockets) * .8f);
         for (var index = 0; index < sockets; index++)
@@ -153,34 +139,41 @@ public sealed partial class CardFace : Control
             socket.Size = Vector2.One * socketDiameter;
         }
         _elementLayer.Size = Size;
-        var diameter = Mathf.Clamp(height * .09f, 16, 44);
         var count = _elementLayer.GetChildCount();
+        var diameter = Mathf.Min(Mathf.Clamp(height * .11f, 18, 38), (width * .48f - Math.Max(0, count - 1) * 2) / Math.Max(1, count));
         for (var index = 0; index < count; index++)
         {
             var badge = _elementLayer.GetChild<Control>(index);
             badge.Size = Vector2.One * ElementBadgeDiameter; badge.Scale = Vector2.One * diameter / ElementBadgeDiameter;
-            badge.Position = new Vector2(width / 2 - (count * diameter + (count - 1) * 2) / 2 + index * (diameter + 2),
-                height - band - diameter - 2);
+            badge.Position = new Vector2(width - padding - count * diameter - (count - 1) * 2 + index * (diameter + 2), padding);
         }
 
-        var valueFont = height < 220 ? 11 : Mathf.Min(font, 18);
-        var valueWidth = Mathf.Max(22, valueFont * .65f * _viewModel!.CurrentValue.ToString().Length + valueFont + 3);
-        var rowHeight = Mathf.Max(18, band - 4);
+        var rowHeight = Mathf.Clamp(height * .11f, 24, 36);
+        var valueWidth = Mathf.Min(width * .42f,
+            font * .65f * _viewModel!.CurrentValue.ToString().Length + font * .65f + padding * 2);
+        var slant = Mathf.Min(rowHeight * .4f, width * .07f);
+        var valueLeft = width - padding - valueWidth;
+        var bottom = height - padding;
+        var top = bottom - rowHeight;
+        _valuePlate.Polygon = [new(valueLeft - slant, bottom), new(valueLeft, top), new(width - padding, top), new(width - padding, bottom)];
+        _valueRim.Points = [_valuePlate.Polygon[0], _valuePlate.Polygon[1], _valuePlate.Polygon[2]];
+        _valueRim.Width = Mathf.Clamp(height * .008f, 1, 3);
         _valueBadge.CustomMinimumSize = Vector2.Zero;
-        _valueBadge.SetDisplayMetrics(valueFont);
-        _valueBadge.Position = new Vector2(width - valueWidth - padding, height - band + 2);
-        _valueBadge.Size = new Vector2(valueWidth, rowHeight);
-        _effects.Position = new Vector2(padding + 1, height - band + 2);
-        _effects.Size = new Vector2(Mathf.Max(1, width - valueWidth - padding * 2 - 4), rowHeight);
+        _valueBadge.SetDisplayMetrics(font);
+        _valueBadge.Position = new Vector2(valueLeft + padding, top + 2);
+        _valueBadge.Size = new Vector2(Mathf.Max(1, valueWidth - padding * 2), rowHeight - 4);
         var rows = _effects.GetChildren();
-        var visibleEffects = Math.Min(rows.Count, Math.Max(1, (int)(_effects.Size.X / (valueFont * 1.7f + 2))));
-        var effectWidth = _effects.Size.X / Math.Max(1, visibleEffects);
+        var visibleEffects = Math.Min(rows.Count, Math.Max(1, (int)(height * .45f / rowHeight)));
+        var effectWidth = Mathf.Max(1, Mathf.Min(font * .65f * (_viewModel.Effects.Count == 0 ? 1
+            : _viewModel.Effects.Max(effect => effect.Value.Length)) + font + 5, valueLeft - slant - padding - 2));
+        _effects.Position = new Vector2(padding, bottom - visibleEffects * rowHeight);
+        _effects.Size = new Vector2(effectWidth, visibleEffects * rowHeight);
         for (var index = 0; index < rows.Count; index++)
         {
             var row = (CardEffectRow)rows[index];
             row.Visible = index < visibleEffects;
-            row.SetDisplayMetrics(valueFont, rowHeight);
-            row.Position = new Vector2(index * effectWidth, 0);
+            row.SetDisplayMetrics(font, rowHeight);
+            row.Position = new Vector2(0, index * rowHeight);
             row.Size = new Vector2(effectWidth, rowHeight);
         }
     }
