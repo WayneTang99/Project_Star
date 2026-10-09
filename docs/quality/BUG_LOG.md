@@ -136,3 +136,4 @@
 | BUG-116 | 2026-10-09 | `scripts/Presentation/Verification/JailbreakerChecks.cs` / 奖励初值断言 | 越狱者奖励验证初稿把新局金币与经验视为零，误判正常奖励结算。 | CreateMatchService创建时已发放首轮收入和首回合经验，验证未计入这些初值。 | 记录战前资源，断言胜利后金币增加3、经验增加2，并保留奖励池等级与真实领取检查。 | Fixed |
 | BUG-117 | 2026-10-09 | `scripts/Presentation/CardFace/CardDisplayAdapter.cs` / 随机持续状态技能说明 | 放逐说明会显示内部ImmobilizeDuration枚举和敌方英雄目标标题，无法正确说明双方随机卡牌禁锢。 | 随机卡牌效果直接插值状态枚举；能力标题仅读取通用Target字段，未反映组合效果的双方卡牌目标。 | 随机持续状态使用中文名称并显示目标数量；同时包含己方与敌方随机卡牌效果的能力标题显示双方战场卡牌，验证各等级说明；230/230回归通过。 | Fixed |
 | BUG-118 | 2026-10-09 | `scripts/Presentation/Verification/BanishChecks.cs` / 命名空间 | 放逐验证初稿因缺少GameFactions所在命名空间而构建失败。 | 验证文件遗漏Domain.Definitions引用。 | 添加对应using；构建0警告0错误，230/230行为回归通过。 | Fixed |
+| BUG-119 | 2026-10-09 | 小魔女卡牌原画 / 黑犀金龟、小型魔法药水、小型生命药水 | 三张小型卡牌仍引用方形原画，填满1:2卡面时横向裁切主体。 | 历史原画1254×1254与Definition的小型1:2比例不匹配。 | 内置图像工具重绘为887×1774，接入独立v2资源；9张小魔女现用插画比例全部匹配定义，实际卡面主体完整；构建0警告0错误，230/230回归通过。 | Fixed |

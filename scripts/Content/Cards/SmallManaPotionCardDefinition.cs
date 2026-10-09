@@ -13,7 +13,7 @@ public sealed class SmallManaPotionCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.small_mana_potion"), "小型魔法药水", new StringName("mona"),
                 CardSize.Small, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/small_mana_potion-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/small_mana_potion-illustration-v2.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却3秒，魔法消耗0，恢复己方英雄40/80/160/240魔法。"),

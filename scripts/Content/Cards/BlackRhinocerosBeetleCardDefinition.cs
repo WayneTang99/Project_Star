@@ -13,7 +13,7 @@ public sealed class BlackRhinocerosBeetleCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.black_rhinoceros_beetle"), "黑犀金龟", new StringName("mona"),
                 CardSize.Small, [GameElements.Earth],
-                illustration: new StringName("res://art/ui/card-face/artwork/black_rhinoceros_beetle-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/black_rhinoceros_beetle-illustration-v2.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却4秒，魔法消耗0，随机使一张敌方战场卡牌获得1秒迟缓。"),

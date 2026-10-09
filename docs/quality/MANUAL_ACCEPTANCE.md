@@ -2,6 +2,8 @@
 
 本清单对应 Playtest.tscn 与 Main.tscn。先运行 `dotnet build Project_Star.csproj`，再用 Godot 4.7 .NET 打开项目。自动回归、截图检查和完整人工试玩分别记录，互不代替。
 
+2026-10-09 小魔女原画比例：按正式定义审计9张卡牌，重绘3张不匹配的小型原画为887×1774（1:2），切换至独立v2资源。内置图像工具保留金龟及两种药瓶主体特征与现有画风，已检查完整主体、无文字／卡框和上下信息栏遮挡。9张现用插画比例全部匹配定义，Godot导入及纹理加载通过；构建0警告0错误，230/230回归通过。使用既有ComponentShowcase.tscn附加--capture-card-pool捕获并查看[实际全卡池卡面](card-art/card-pool-1920x3000.png)，三张新图加载且主体完整；BUG-119已修复。提示词、来源、审计及日志位于output/mona-art-redraw-2026-10-09/。Compatibility渲染的着色器缓存、证书读取及编辑器设置保存存在环境报错，未影响检查及截图；未执行完整人工试玩。
+
 2026-10-09 放逐与越狱者技能：新增无阵营初始2级技能放逐，组合现有开战被动、随机己方及敌方卡牌禁锢效果；越狱者固定携带2级放逐，战利品池按既有实例规则纳入该技能。构建0警告0错误，git diff --check通过，Godot 4.7.2 .NET隐藏headless全量230/230通过；新增3项验证覆盖2～4级时长、双方来源、开战仅一次、每侧随机一张、备战／摧毁排除、单侧及双侧空目标、冷却停止与到期恢复、禁锢累加、飞行减半、同种子复算、合并更新与旧技能／战斗输入冻结、中文目标及效果说明。越狱者原验证同步检查开战双方禁锢、控制发动延迟，以及三件战利品各自的等级与真实领取；固定战斗记录基线通过。BUG-117/118已修复，日志位于output/banish-engine.log；系统证书读取有环境报错，不影响回归。本次未执行新的界面截图或完整人工试玩。
 
 2026-10-09 开锁器：新增瓦洛斯正式卡牌与通用出售疾速时长奖励，使用永久属性贡献并由战斗层结算，快照详情按秒显示。内置图像工具生成的原画887×1774（1:2）已检查、接入并完成Godot导入；提示词和来源位于output/lockpick-artwork-2026-10-09.md。构建0警告0错误，Godot .NET headless全部227/227通过，新增3项覆盖2～4级数值、战场/备战/游离出售、位置优先筛选、实际疾速时长、重复拒绝、累加及合并等级更新、目标升级保留、新实例隔离、无目标、属性与单次时长溢出失败、标签倍率、回响和随机效果、任务能力及纯监听排除、无棋盘服务入口、旧输入冻结与确定性；固定战斗记录基线通过。日志位于output/lockpick-verification.log。系统证书读取和编辑器设置保存存在环境报错，不影响资源导入与回归；未执行新的窗口截图或完整人工试玩。
@@ -143,7 +145,7 @@ Godot 表示本机 .NET 版本编辑器的实际可执行文件。原生输入�
 
 ## 当前视觉证据
 
-- [全卡池卡面](card-art/card-pool-1920x1080.png) 与 [17张原画画廊](card-art/gallery.html)。原画是项目资源；[生成提示词](../design/card-art-prompts.json) 只记录来源与修订。
+- [全卡池卡面](card-art/card-pool-1920x3000.png) 与 [早期17张原画画廊](card-art/gallery.html)。原画是项目资源；[早期生成提示词](../design/card-art-prompts.json) 只记录来源与修订，后续修订记录见对应验收条目。
 - [三尺寸完整插画 overlay](card-overlay/native-1280x720.png)。CardFaceShowcase.tscn 附加 `--capture-overlay` 可复现。
 - [描述：狮鹫](card-description/holy_griffin-1280x720.png)、[大教堂](card-description/cathedral-1280x720.png)、[珠宝袋](card-description/jewelry_bag-1280x720.png)。ComponentShowcase.tscn 附加 `--capture-descriptions`。
 - [关键词详情及提示](card-keywords/keywords-1280x720.png)。`--capture-keywords` 使用纯展示文案夹具，不表示该卡的正式能力。
