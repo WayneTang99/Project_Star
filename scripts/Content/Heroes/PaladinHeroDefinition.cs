@@ -18,7 +18,7 @@ public sealed class PaladinHeroDefinition : HeroDefinition
                     "圣骑士", new StringName("res://art/ui/heroes/paladin-illustration.png")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
-                    [GameAttributeKeys.MaxHealth] = 100,
+                    [GameAttributeKeys.MaxHealth] = 200,
                     [GameAttributeKeys.Armor] = 0,
                     [GameAttributeKeys.MaxMana] = 100,
                     [GameAttributeKeys.Mana] = 0,

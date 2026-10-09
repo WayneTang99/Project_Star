@@ -124,7 +124,7 @@ internal static class BattleEffectResolver
                 break;
             case HealEffectDefinition heal:
                 var healing = checked(heal.Amount + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.HealingBonus));
-                hero.Health = Math.Min(hero.MaxHealth, checked(hero.Health + healing));
+                hero.Health = (int)Math.Min(hero.MaxHealth, (long)hero.Health + healing);
                 break;
             case RestoreManaEffectDefinition restoreMana:
                 var restored = (int)System.Math.Min(restoreMana.Amount, (long)hero.MaxMana - hero.Mana);
@@ -162,7 +162,8 @@ internal static class BattleEffectResolver
                 break;
             case ApplyStatusEffectDefinition status:
                 var appliedStatus = status.Status is BattleStatus.Burn or BattleStatus.Poison
-                    ? status with { Amount = BerserkAmount(pending, status.Amount) } : status;
+                    ? status with { Amount = BerserkAmount(pending, status.Amount) }
+                    : status with { Amount = BattleStatusResolver.DurationWithSourceBonus(runtime, pending, status.Status, status.Amount) };
                 var statusTarget = definition.Target is AbilityTarget.LeftAdjacentAlliedCard or AbilityTarget.RightAdjacentAlliedCard
                     ? GetTargetCard(runtime, pending)
                     : definition.Target == AbilityTarget.EventCard ? pending.EventCard : pending.Source;

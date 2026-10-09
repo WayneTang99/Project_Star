@@ -18,7 +18,7 @@ public sealed class MonaHeroDefinition : HeroDefinition
                     "小魔女", new StringName("res://art/ui/heroes/mona-illustration.png")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
-                    [GameAttributeKeys.MaxHealth] = 100,
+                    [GameAttributeKeys.MaxHealth] = 200,
                     [GameAttributeKeys.Armor] = 0,
                     [GameAttributeKeys.MaxMana] = 100,
                     [GameAttributeKeys.Mana] = 0,

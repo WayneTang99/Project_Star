@@ -31,12 +31,12 @@ internal static class HeroExperienceChecks
         }
         if (match.Progress.Round != 2 || match.Progress.Turn != 2
             || match.Player.Hero!.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 2
-            || match.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) != 140
+            || match.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) != 240
             || match.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana) != 140) return false;
         match.Player.AddExperience(25);
         var snapshot = MatchSnapshot.From(match);
         if (snapshot.Experience != 5 || snapshot.Hero!.Level != 4
-            || snapshot.Hero.CombatValues[GameAttributeKeys.MaxHealth] != 280
+            || snapshot.Hero.CombatValues[GameAttributeKeys.MaxHealth] != 380
             || snapshot.Hero.CombatValues[GameAttributeKeys.MaxMana] != 280) return false;
         var opponent = create.Create(43, 100, new MonaHeroDefinition());
         opponent.Player.Hero!.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, 4);
@@ -44,19 +44,19 @@ internal static class HeroExperienceChecks
             new BattleTick(1), 100, 0, System.Array.Empty<BattleEvent>());
         new MatchResultService(new BoardService(new BoardPlacementSolver())).Apply(match, result, MatchBattleKind.Monster, opponent: opponent);
         if (match.Player.Experience != 0 || match.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 5
-            || match.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) != 380
+            || match.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) != 480
             || match.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana) != 380) return false;
         var frozen = new BattleSetupFactory().Create(match, opponent, 42, new BattleTick(1));
         match.Player.Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), match.Player.Hero.Id, GameAttributeKeys.MaxHealth, 17));
         match.Player.Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), match.Player.Hero.Id, GameAttributeKeys.MaxMana, 11));
         match.Player.AddExperience(10);
         var next = new BattleSetupFactory().Create(match, opponent, 42, new BattleTick(1));
-        if (next.Player.Hero.MaxHealth != 517 || next.Player.Hero.MaxMana != 511
-            || frozen.Player.Hero.MaxHealth != 380 || frozen.Player.Hero.MaxMana != 380
-            || snapshot.Hero.CombatValues[GameAttributeKeys.MaxHealth] != 280) return false;
+        if (next.Player.Hero.MaxHealth != 617 || next.Player.Hero.MaxMana != 511
+            || frozen.Player.Hero.MaxHealth != 480 || frozen.Player.Hero.MaxMana != 380
+            || snapshot.Hero.CombatValues[GameAttributeKeys.MaxHealth] != 380) return false;
         var fresh = create.Create(42, 100, new MonaHeroDefinition());
         if (fresh.Player.Experience != 1 || fresh.Player.Hero!.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 1
-            || fresh.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) != 100
+            || fresh.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) != 200
             || fresh.Player.Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana) != 100) return false;
         match.Status = MatchStatus.Won; match.Progress.Turn++;
         if (service.SettleCurrentTurn(match).Value != 0 || match.Player.Experience != 0) return false;

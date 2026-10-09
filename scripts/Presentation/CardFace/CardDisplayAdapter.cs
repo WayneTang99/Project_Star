@@ -110,6 +110,8 @@ public sealed class CardDisplayAdapter
             var basic = card.BaseValues.TryGetValue(key, out var value) ? value : 0;
             lines.Add(key == GameAttributeKeys.CooldownTicks
                 ? $"冷却：基础 {basic / 10m:0.##}秒 / 当前 {current / 10m * card.CooldownMultiplier:0.##}秒"
+                : key == GameAttributeKeys.HasteDurationBonus
+                    ? $"疾速时长加成：基础 {basic / 10m:0.##}秒 / 当前 {current / 10m:0.##}秒"
                 : $"{AttributeName(key)}：基础 {basic} / 当前 {current}");
         }
         foreach (var quest in card.Quests)
@@ -132,7 +134,9 @@ public sealed class CardDisplayAdapter
             Array.Empty<StringName>(), Array.Empty<QuestProgressSnapshot>()) { Abilities = abilities };
         if (values is not null) card = card with { CurrentValues = values };
         return string.Join("\n", abilities.SelectMany(ability =>
-            new[] { $"{Activation(ability.Activation)} · {Target(ability.Target)}" }
+            new[] { $"{Activation(ability.Activation)} · {(ability.Effects.Any(effect => effect is ApplyStatusToRandomAlliedCardEffectDefinition)
+                && ability.Effects.Any(effect => effect is ApplyStatusToRandomEnemyCardEffectDefinition)
+                    ? "双方战场卡牌" : Target(ability.Target))}" }
                 .Concat(ability.Effects.Select(effect => Describe(card, effect)))));
     }
 
@@ -143,6 +147,7 @@ public sealed class CardDisplayAdapter
         : key == GameAttributeKeys.Flying ? "飞行" : key == GameAttributeKeys.Berserk ? "狂暴"
         : key == GameAttributeKeys.Armor ? "护甲" : key == GameAttributeKeys.CooldownTicks ? "冷却"
         : key == GameAttributeKeys.HealingBonus ? "治疗加成"
+        : key == GameAttributeKeys.HasteDurationBonus ? "疾速时长加成"
         : key == GameAttributeKeys.Multicast ? "多重" : key == GameAttributeKeys.Burn ? "灼伤"
         : key == GameAttributeKeys.Poison ? "中毒" : key.ToString();
     private static string Describe(CardSnapshot card, EffectDefinition effect) => effect switch
@@ -172,8 +177,8 @@ public sealed class CardDisplayAdapter
         IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition value => $"每张存活敌方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {value.AttributeKey} +{value.Amount}",
         IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition value => $"每张存活己方战场 {TagDisplayNames.Get(value.RequiredTag)} 卡牌使此卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（包含自身）",
         ApplyStatusEffectDefinition value => $"施加 {value.Status} {value.Amount}",
-        ApplyStatusToRandomEnemyCardEffectDefinition value => $"随机敌方战场卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒",
-        ApplyStatusToRandomAlliedCardEffectDefinition value => $"随机己方战场卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒",
+        ApplyStatusToRandomEnemyCardEffectDefinition value => $"随机{value.TargetCount}张敌方战场卡牌获得 {DurationStatusName(value.Status)} {value.Amount / 10m:0.##}秒",
+        ApplyStatusToRandomAlliedCardEffectDefinition value => $"随机1张己方战场卡牌获得 {DurationStatusName(value.Status)} {value.Amount / 10m:0.##}秒",
         ApplyAttributeStatusEffectDefinition value => $"施加 {value.Status} {Value(card, value.AttributeKey)}",
         ApplySourceAttributePercentStatusEffectDefinition value =>
             $"施加当前{AttributeName(value.AttributeKey)}的{value.Percent}%{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}（向下取整）",
@@ -196,6 +201,12 @@ public sealed class CardDisplayAdapter
         : element == GameElements.Lightning ? "雷" : element == GameElements.Wood ? "木"
         : element == GameElements.Ice ? "冰" : element == GameElements.Light ? "光"
         : element == GameElements.Dark ? "暗" : element.ToString();
+
+    private static string DurationStatusName(BattleStatus value) => value switch
+    {
+        BattleStatus.HasteDuration => "疾速", BattleStatus.SlowDuration => "迟缓",
+        BattleStatus.ImmobilizeDuration => "禁锢", _ => value.ToString(),
+    };
 
     private static string Activation(AbilityActivation value) => value switch
     {

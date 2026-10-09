@@ -23,6 +23,7 @@ public sealed class CardQuestService
         var unlocked = false;
         foreach (var card in session.Player.Inventory.Cards)
         {
+            if (questEvent is CardSoldQuestEvent && !session.Board.Contains(card.Id)) continue;
             if (questEvent is CardAcquiredQuestEvent acquired && acquired.ExcludedCardId == card.Id) continue;
             unlocked |= card.ApplyQuestEvent(questEvent);
         }

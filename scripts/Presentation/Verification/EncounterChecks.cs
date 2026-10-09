@@ -124,7 +124,7 @@ internal static class EncounterChecks
             && healthResult.IsSuccess
             && healthResult.Value!.Changes.Count == 1
             && healthResult.Value.Changes[0].Amount == 30
-            && healthSetup.Player.Hero.MaxHealth == 130
+            && healthSetup.Player.Hero.MaxHealth == 230
             && trainingResult.IsSuccess
             && trainingResult.Value!.CardChanges!.Count == 1
             && trainingResult.Value.CardChanges[0].CardCount == 2
@@ -254,10 +254,10 @@ internal static class EncounterChecks
             && insufficientSession.Player.Inventory.Cards.Count == 0
             && cheerResult.IsSuccess
             && cheerResult.Value!.PendingBattleMaxHealthBonus == 30
-            && boostedSetup.Player.Hero.MaxHealth == 130
+            && boostedSetup.Player.Hero.MaxHealth == 230
             && battleResult.IsSuccess
             && cheerSession.PendingBattleMaxHealthBonus == 0
-            && nextBattleSetup.Player.Hero.MaxHealth == 100;
+            && nextBattleSetup.Player.Hero.MaxHealth == 200;
     }
 
     internal static bool CheckNormalEncounterChoices()

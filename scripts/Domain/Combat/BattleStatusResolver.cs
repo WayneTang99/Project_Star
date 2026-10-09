@@ -53,6 +53,12 @@ internal static class BattleStatusResolver
         return amount;
     }
 
+    // 疾速加成属于施加来源，累加一次后再交给目标倍率；其他状态不受影响。
+    internal static int DurationWithSourceBonus(BattleRuntime runtime, PendingAbility pending, BattleStatus status, int amount)
+        => status == BattleStatus.HasteDuration
+            ? checked(amount + BattleEffectResolver.GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.HasteDurationBonus))
+            : amount;
+
     // 对直接相邻卡牌施加状态，再按稳定顺序处理状态获得反应。
     internal static void ApplyStatusToAdjacentAlliedCards(
         BattleRuntime runtime,
@@ -68,9 +74,10 @@ internal static class BattleStatusResolver
             var cardEnd = card.BoardStart + card.OccupiedSlots;
             if (cardEnd != source.BoardStart && card.BoardStart != sourceEnd)
                 continue;
+            var baseAmount = DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount);
             var amount = card.Tags.Contains(effect.BonusTag)
-                ? checked(effect.Amount * effect.BonusMultiplier)
-                : effect.Amount;
+                ? checked(baseAmount * effect.BonusMultiplier)
+                : baseAmount;
             ApplyCardStatus(runtime, pending, card, effect.Status, amount);
         }
     }
@@ -86,7 +93,8 @@ internal static class BattleStatusResolver
             var index = selected + runtime.NextRandomIndex(candidates.Length - selected);
             var target = candidates[index];
             (candidates[selected], candidates[index]) = (candidates[index], candidates[selected]);
-            ApplyCardStatus(runtime, pending, target, effect.Status, effect.Amount);
+            ApplyCardStatus(runtime, pending, target, effect.Status,
+                DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount));
         }
     }
 
@@ -96,7 +104,8 @@ internal static class BattleStatusResolver
     {
         var candidates = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
         if (candidates.Length == 0) return;
-        ApplyCardStatus(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)], effect.Status, effect.Amount);
+        ApplyCardStatus(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)], effect.Status,
+            DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount));
     }
 
     private static void ApplyCardStatus(BattleRuntime runtime, PendingAbility pending, CardBattleState target,

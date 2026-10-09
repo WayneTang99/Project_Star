@@ -24,6 +24,23 @@ public sealed record SourceCardActivationQuestConditionDefinition : QuestConditi
 // 一次成功获得卡牌，元素取自输入定义；新建来源不计入自己的本次拾取。
 public sealed record CardAcquiredQuestEvent(IReadOnlyList<StringName> ElementKeys, EntityId? ExcludedCardId = null) : QuestEvent;
 
+// 一次成功出售卡牌，标签取自被出售的真实实例（领域定义层）。
+public sealed record CardSoldQuestEvent(IReadOnlyList<StringName> Tags) : QuestEvent;
+
+// 按标签累计出售卡牌的可复用任务条件（领域定义层）。
+public sealed record SoldTaggedCardQuestConditionDefinition : QuestConditionDefinition
+{
+    public SoldTaggedCardQuestConditionDefinition(StringName requiredTag)
+    {
+        if (requiredTag.IsEmpty) throw new ArgumentException("Sale quest tag cannot be empty.", nameof(requiredTag));
+        RequiredTag = requiredTag;
+    }
+
+    public StringName RequiredTag { get; }
+    public override bool Matches(QuestEvent questEvent) => questEvent is CardSoldQuestEvent sold
+        && System.Linq.Enumerable.Contains(sold.Tags, RequiredTag);
+}
+
 // 按元素匹配成功拾取，包括合并获得（领域定义层）。
 public sealed record AcquiredElementCardQuestConditionDefinition : QuestConditionDefinition
 {

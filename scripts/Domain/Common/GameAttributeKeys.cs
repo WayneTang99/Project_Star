@@ -13,6 +13,7 @@ public static class GameAttributeKeys
     public static readonly StringName Armor = new("Armor");
     public static readonly StringName AttackDamage = new("AttackDamage");
     public static readonly StringName HealingBonus = new("HealingBonus");
+    public static readonly StringName HasteDurationBonus = new("HasteDurationBonus");
     public static readonly StringName CooldownTicks = new("CooldownTicks");
     public static readonly StringName Multicast = new("Multicast");
     public static readonly StringName MaxMana = new("MaxMana");

@@ -175,7 +175,7 @@ internal static class DefinitionChecks
             if (identity.DisplayName != name || identity.Title != title || identity.FactionKey != new StringName(key)
                 || hero.Key != heroKey || hero.DisplayName != name || hero.Title != title || hero.FactionKey != identity.FactionKey
                 || hero.Level != 1 || snapshot.Income != 5 || snapshot.Wealth != 105 || snapshot.Experience != 1
-                || hero.CombatValues[GameAttributeKeys.MaxHealth] != 100 || hero.CombatValues[GameAttributeKeys.Armor] != 0
+                || hero.CombatValues[GameAttributeKeys.MaxHealth] != 200 || hero.CombatValues[GameAttributeKeys.Armor] != 0
                 || hero.CombatValues[GameAttributeKeys.MaxMana] != 100 || hero.CombatValues[GameAttributeKeys.Mana] != 0
                 || hero.CombatValues[GameAttributeKeys.ManaRegen] != 10 || hero.CombatValues[GameAttributeKeys.HealthRegen] != 0
                 || PlaytestText.FormatHeroName(hero.DisplayName, hero.Title) != title + "·" + name) return false;

@@ -18,7 +18,7 @@ public sealed class JiyunHeroDefinition : HeroDefinition
                     "熊猫人", new StringName("res://art/ui/heroes/jiyun-illustration.png")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
-                    [GameAttributeKeys.MaxHealth] = 100,
+                    [GameAttributeKeys.MaxHealth] = 200,
                     [GameAttributeKeys.Armor] = 0,
                     [GameAttributeKeys.MaxMana] = 100,
                     [GameAttributeKeys.Mana] = 0,

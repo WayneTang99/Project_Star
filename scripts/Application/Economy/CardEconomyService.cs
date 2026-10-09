@@ -7,6 +7,7 @@ using Project_Star.Application.Common;
 using Project_Star.Application.Factories;
 using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Combat;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Random;
@@ -207,6 +208,40 @@ public sealed class CardEconomyService
                 return Result<int>.Fail(new Failure(InvalidValue, "Sale hero attribute bonus would overflow."));
         }
 
+        if (card.OnSellReward is IncreaseLeftmostHasteCardOnSellDefinition hasteBonus
+            && FindLeftmostHasteCard(session, cardId) is { } hasteTarget)
+        {
+            var pendingBonus = hasteTarget.SaleAttributeBonuses
+                .Where(bonus => bonus.AttributeKey == GameAttributeKeys.HasteDurationBonus && card.Tags.Contains(bonus.RequiredTag))
+                .Sum(bonus => (long)bonus.Amount) + hasteBonus.AmountTicks;
+            var finalBonus = (long)hasteTarget.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.HasteDurationBonus) + pendingBonus;
+            if (finalBonus > int.MaxValue || CardAbilityComposer.Compose(hasteTarget).SelectMany(ability => ability.Effects)
+                .Any(effect => HasteEffectRules.MaximumDurationTicks(effect, finalBonus) > int.MaxValue))
+                return Result<int>.Fail(new Failure(InvalidValue, "Sale haste duration bonus would overflow."));
+        }
+
+        if (card.OnSellReward is IncreaseLeftmostAttackCardOnSellDefinition attackBonus
+            && FindLeftmostAttackCard(session, cardId) is { } attackTarget)
+        {
+            var pendingBonus = attackTarget.SaleAttributeBonuses
+                .Where(bonus => bonus.AttributeKey == GameAttributeKeys.AttackDamage && card.Tags.Contains(bonus.RequiredTag))
+                .Sum(bonus => (long)bonus.Amount) + attackBonus.Amount;
+            if ((long)attackTarget.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) + pendingBonus > int.MaxValue)
+                return Result<int>.Fail(new Failure(InvalidValue, "Sale attack bonus would overflow."));
+        }
+
+        if (card.OnSellReward is IncreaseLeftmostHealingCardOnSellDefinition healingBonus
+            && FindLeftmostHealingCard(session, cardId) is { } healingTarget)
+        {
+            var pendingBonus = healingTarget.SaleAttributeBonuses
+                .Where(bonus => bonus.AttributeKey == GameAttributeKeys.HealingBonus && card.Tags.Contains(bonus.RequiredTag))
+                .Sum(bonus => (long)bonus.Amount) + healingBonus.Amount;
+            var finalBonus = (long)healingTarget.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.HealingBonus) + pendingBonus;
+            if (finalBonus > int.MaxValue || CardAbilityComposer.Compose(healingTarget).SelectMany(ability => ability.Effects)
+                .OfType<HealEffectDefinition>().Any(effect => effect.Amount + finalBonus > int.MaxValue))
+                return Result<int>.Fail(new Failure(InvalidValue, "Sale healing bonus would overflow."));
+        }
+
         foreach (var source in session.Player.Inventory.Cards)
         {
             if (source.Id == cardId || !session.Board.Contains(source.Id)) continue;
@@ -233,6 +268,7 @@ public sealed class CardEconomyService
         session.Player.Inventory.Remove(cardId);
         session.Player.AddWealth(check.Value);
         ApplySaleAttributeBonuses(session, card);
+        new CardQuestService(_boardService).ProcessEvent(session, new CardSoldQuestEvent(Array.AsReadOnly(card.Tags.ToArray())));
         ApplyOnSellReward(session, card);
         return check;
     }
@@ -249,8 +285,50 @@ public sealed class CardEconomyService
         }
     }
 
+    private static CardInstance? FindLeftmostHasteCard(MatchSession session, EntityId excludedCardId) =>
+        session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
+            .Where(placement => placement.CardId != excludedCardId)
+            .Select(placement => session.Player.Inventory.Find(placement.CardId))
+            .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
+                .Any(ability => ability.Effects.Any(HasteEffectRules.AppliesHaste)));
+
+    private static CardInstance? FindLeftmostAttackCard(MatchSession session, EntityId excludedCardId) =>
+        session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
+            .Where(placement => placement.CardId != excludedCardId)
+            .Select(placement => session.Player.Inventory.Find(placement.CardId))
+            .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
+                .Any(ability => ability.Effects.Any(effect => effect is
+                    DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
+                    or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
+                    or SourceHeroArmorDamageEffectDefinition)));
+
+    private static CardInstance? FindLeftmostHealingCard(MatchSession session, EntityId excludedCardId) =>
+        session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
+            .Where(placement => placement.CardId != excludedCardId)
+            .Select(placement => session.Player.Inventory.Find(placement.CardId))
+            .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
+                .Any(ability => ability.Effects.Any(effect => effect is HealEffectDefinition)));
+
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
     {
+        if (soldCard.OnSellReward is IncreaseLeftmostHasteCardOnSellDefinition hasteBonus)
+        {
+            FindLeftmostHasteCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), soldCard.Id, GameAttributeKeys.HasteDurationBonus, hasteBonus.AmountTicks));
+            return;
+        }
+        if (soldCard.OnSellReward is IncreaseLeftmostAttackCardOnSellDefinition attackBonus)
+        {
+            FindLeftmostAttackCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), soldCard.Id, GameAttributeKeys.AttackDamage, attackBonus.Amount));
+            return;
+        }
+        if (soldCard.OnSellReward is IncreaseLeftmostHealingCardOnSellDefinition healingBonus)
+        {
+            FindLeftmostHealingCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), soldCard.Id, GameAttributeKeys.HealingBonus, healingBonus.Amount));
+            return;
+        }
         if (soldCard.OnSellReward is IncreaseHeroCombatAttributeOnSellDefinition heroBonus)
         {
             session.Player.Hero!.Attributes.BaseCombat.ApplyModifier(new StatModifier(

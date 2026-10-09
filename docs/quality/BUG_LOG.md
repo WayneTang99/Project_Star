@@ -126,3 +126,13 @@
 | BUG-106 | 2026-10-09 | `scripts/Presentation/Verification/DuskSongJungleChecks.cs` / 流程夹具 | 首轮构建因不存在的Options字段失败，源码核对同时发现OptionsRevision误名。 | 未按实际页面模型的EventOptions/EventRevision字段读取选项及版本。 | 修正字段引用，构建0警告0错误，214/214回归通过，包含怪物战转场及回合保持检查。 | Fixed |
 | BUG-107 | 2026-10-09 | `PlaytestText.cs` / `KeyedActionView.cs` / 加权事件说明 | 1280×720首张实际截图只显示砍伐的植物分支，50%怪物风险被挤到滚动区下方。 | 每个分支重复完整奖励句式并各占一行，默认16px按钮文本超过阶段区高度。 | 加权结果使用简洁说明，每行最多两个分支，多行按钮13px；实际截图确认两项及三种概率首次显示即可读全，原生点击和两档窗口通过。 | Fixed |
 | BUG-108 | 2026-10-09 | `PlaytestVerification.cs` / `TestEncounterLevels` | 调整4级遭遇的验证初稿构建失败。 | 错误地从没有Level属性的EncounterDefinition基类读取等级。 | 保留原有普通排程隔离检查，断言当前正式候选未被统一覆盖为4级。 | Fixed |
+| BUG-109 | 2026-10-09 | `scripts/Presentation/Verification/MagicCauldronChecks.cs` / `ThresholdAndMerge` | 魔法坩埚任务回归在快照冷却检查处抛出多元素异常。 | 任务解锁后快照同时包含主动施毒和被动减冷却能力，验证错误地假定仅有一个能力。 | 按Active筛选主动能力后检查5秒冷却，保留任务完成、合并与区域迁移验证；构建0警告0错误，217/217全量回归通过。 | Fixed |
+| BUG-110 | 2026-10-09 | `SilverNeedleGrassChecks.cs` / 治疗验证夹具 | 初稿构建因战斗开始枚举名不存在而失败，后续临时诊断字符串也有转义错误。 | 错用OnBattleStart，并误对插值表达式内部引号转义。 | 改用PassiveOnBattleStart并移除临时诊断，保留实际治疗和冻结输入检查。 | Fixed |
+| BUG-111 | 2026-10-09 | `SilverNeedleGrassChecks.cs` / 卡面治疗断言 | 首轮回归误判银针草出售后的治疗显示。 | 正式卡详情保留分级描述，验证却假定详情内含动态治疗句式。 | 改为校验FaceEffects的实际治疗数值，同时保留战斗治疗和冻结快照断言。 | Fixed |
+| BUG-112 | 2026-10-09 | `BattleRuntime.cs` / CardBattleState治疗属性初始化 | 银针草出售后卡面显示治疗增加，但实际战斗仍使用原治疗量。 | 初始化治疗能力只登记HealingBonus为支持属性，未读取冻结CombatValues中的永久贡献。 | 从战斗输入复制HealingBonus，验证各等级实际治疗提升、旧输入不变和升级保留。 | Fixed |
+| BUG-113 | 2026-10-09 | `BattleEffectResolver.cs` / 治疗上限 | 极大但合法的治疗量在满血上限裁定之前可能抛出整数溢出。 | 当前生命与治疗量以checked int相加，随后才取最大生命上限。 | 先用long累加并限制到最大生命，再转回int；验证合法int上限治疗将生命补至上限。 | Fixed |
+| BUG-114 | 2026-10-09 | `BattleRuntime.cs` / 固定回放基线 | 永久治疗修复初版使无治疗加成的旧战斗记录出现额外零值属性键。 | 初始化对未配置HealingBonus的输入也写入0，改变了冻结状态字典。 | 仅复制输入中实际配置的HealingBonus，保留旧输入的字段集合及固定基线。 | Fixed |
+| BUG-115 | 2026-10-09 | `scripts/Presentation/Verification/WhetstoneChecks.cs` / 快照入口 | 磨刀石验证初稿因引用不存在的快照工厂而构建失败。 | 未按现行MatchSnapshot.From入口获取快照。 | 改为MatchSnapshot.From，构建0警告0错误，磨刀石3项行为验证通过。 | Fixed |
+| BUG-116 | 2026-10-09 | `scripts/Presentation/Verification/JailbreakerChecks.cs` / 奖励初值断言 | 越狱者奖励验证初稿把新局金币与经验视为零，误判正常奖励结算。 | CreateMatchService创建时已发放首轮收入和首回合经验，验证未计入这些初值。 | 记录战前资源，断言胜利后金币增加3、经验增加2，并保留奖励池等级与真实领取检查。 | Fixed |
+| BUG-117 | 2026-10-09 | `scripts/Presentation/CardFace/CardDisplayAdapter.cs` / 随机持续状态技能说明 | 放逐说明会显示内部ImmobilizeDuration枚举和敌方英雄目标标题，无法正确说明双方随机卡牌禁锢。 | 随机卡牌效果直接插值状态枚举；能力标题仅读取通用Target字段，未反映组合效果的双方卡牌目标。 | 随机持续状态使用中文名称并显示目标数量；同时包含己方与敌方随机卡牌效果的能力标题显示双方战场卡牌，验证各等级说明；230/230回归通过。 | Fixed |
+| BUG-118 | 2026-10-09 | `scripts/Presentation/Verification/BanishChecks.cs` / 命名空间 | 放逐验证初稿因缺少GameFactions所在命名空间而构建失败。 | 验证文件遗漏Domain.Definitions引用。 | 添加对应using；构建0警告0错误，230/230行为回归通过。 | Fixed |

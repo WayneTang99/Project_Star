@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
@@ -78,12 +79,20 @@ internal sealed class CardBattleState : IBattleAbilitySource
                     AbilityTarget.EnemyHero, 0, setup.CooldownTicks, [new DamageEffectDefinition(setup.AttackDamage)])]
                 : Array.Empty<AbilityDefinition>();
         foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition, CooldownMultiplier));
+        if (definitions.Any(definition => definition.Effects.Any(HasteEffectRules.AppliesHaste)))
+        {
+            SupportedCombatAttributes.Add(GameAttributeKeys.HasteDurationBonus);
+            if (setup.CombatValues.TryGetValue(GameAttributeKeys.HasteDurationBonus, out var hasteBonus))
+                CombatAttributes[GameAttributeKeys.HasteDurationBonus] = hasteBonus;
+        }
         foreach (var definition in definitions)
         foreach (var effect in definition.Effects)
             switch (effect)
             {
                 case HealEffectDefinition:
                     SupportedCombatAttributes.Add(GameAttributeKeys.HealingBonus);
+                    if (setup.CombatValues.TryGetValue(GameAttributeKeys.HealingBonus, out var healingBonus))
+                        CombatAttributes[GameAttributeKeys.HealingBonus] = healingBonus;
                     break;
                 case ApplyAttributeStatusEffectDefinition attributeStatus:
                     SupportedCombatAttributes.Add(attributeStatus.AttributeKey);

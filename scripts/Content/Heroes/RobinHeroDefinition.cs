@@ -18,7 +18,7 @@ public sealed class RobinHeroDefinition : HeroDefinition
                     "冒险家", new StringName("res://art/ui/heroes/robin-illustration-v2.png")),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
-                    [GameAttributeKeys.MaxHealth] = 100,
+                    [GameAttributeKeys.MaxHealth] = 200,
                     [GameAttributeKeys.Armor] = 0,
                     [GameAttributeKeys.MaxMana] = 100,
                     [GameAttributeKeys.Mana] = 0,

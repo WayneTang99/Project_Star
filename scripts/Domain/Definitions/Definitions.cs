@@ -84,6 +84,42 @@ public abstract class CardDefinition
 
 public abstract record CardOnSellRewardDefinition;
 
+// 出售后给战场最左侧施加疾速的卡牌累加永久时长贡献，以Tick配置。
+public sealed record IncreaseLeftmostHasteCardOnSellDefinition : CardOnSellRewardDefinition
+{
+    public IncreaseLeftmostHasteCardOnSellDefinition(int amountTicks)
+    {
+        if (amountTicks <= 0) throw new ArgumentOutOfRangeException(nameof(amountTicks));
+        AmountTicks = amountTicks;
+    }
+
+    public int AmountTicks { get; }
+}
+
+// 出售后给战场最左侧具有直接伤害能力的卡牌累加永久攻击贡献（领域定义层）。
+public sealed record IncreaseLeftmostAttackCardOnSellDefinition : CardOnSellRewardDefinition
+{
+    public IncreaseLeftmostAttackCardOnSellDefinition(int amount)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        Amount = amount;
+    }
+
+    public int Amount { get; }
+}
+
+// 出售后给战场最左侧具有治疗能力的卡牌累加永久治疗贡献（领域定义层）。
+public sealed record IncreaseLeftmostHealingCardOnSellDefinition : CardOnSellRewardDefinition
+{
+    public IncreaseLeftmostHealingCardOnSellDefinition(int amount)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        Amount = amount;
+    }
+
+    public int Amount { get; }
+}
+
 // 出售来源卡牌后，向己方英雄累加永久战斗属性贡献（领域定义层）。
 public sealed record IncreaseHeroCombatAttributeOnSellDefinition : CardOnSellRewardDefinition
 {

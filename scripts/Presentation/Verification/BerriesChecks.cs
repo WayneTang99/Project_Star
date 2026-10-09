@@ -71,15 +71,15 @@ internal static class BerriesChecks
         var second = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!.Card;
         _ = board.PlaceCard(session, second.Id, BoardZone.Battlefield, 0);
         var upgraded = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!;
-        if (upgraded.Id != second.Id || upgraded.CurrentLevel != 2 || MaxHealth(session) != 105
-            || economy.SellFromBoard(session, second.Id).IsFailure || MaxHealth(session) != 115
-            || session.Player.Hero!.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.MaxHealth) != 100) return false;
+        if (upgraded.Id != second.Id || upgraded.CurrentLevel != 2 || MaxHealth(session) != 205
+            || economy.SellFromBoard(session, second.Id).IsFailure || MaxHealth(session) != 215
+            || session.Player.Hero!.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.MaxHealth) != 200) return false;
         var final = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!.Card;
         _ = board.PlaceCard(session, final.Id, BoardZone.Battlefield, 0);
         var wealth = session.Player.Wealth;
         var random = session.Random.State;
         // 在棋盘上的卡不能从游离库存出售入口绕过区域检查。
-        if (economy.SellCard(session, final.Id).IsSuccess || MaxHealth(session) != 115) return false;
+        if (economy.SellCard(session, final.Id).IsSuccess || MaxHealth(session) != 215) return false;
         session.Player.Hero.Attributes.BaseCombat.SetBaseValue(GameAttributeKeys.MaxHealth, int.MaxValue - 19);
         if (economy.SellFromBoard(session, final.Id).IsSuccess || !session.Board.Contains(final.Id)
             || session.Player.Inventory.Find(final.Id) is null || session.Player.Wealth != wealth

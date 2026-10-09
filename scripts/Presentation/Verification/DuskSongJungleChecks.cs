@@ -107,9 +107,9 @@ internal static class DuskSongJungleChecks
         var formalResolver = new ResolveEncounterOptionService(factory, board, registry.Cards.Values, registry.Monsters.Values);
         var gatherSession = matches.Create(1, 0, new PaladinHeroDefinition());
         var gatherResult = formalResolver.Resolve(gatherSession, formalResolver.CreateOptionSet(gatherSession, forest, 4), forest.Options[0].Key);
-        if (gatherResult.Value?.GrantedCard is not { } berries
-            || berries.Attributes.Identity.Key != new StringName("card.berries")
-            || berries.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 4) return false;
+        if (gatherResult.Value?.GrantedCard is not { } plant || !plant.Tags.Contains(GameTags.Plant)
+            || plant.Attributes.Identity.Size != CardSize.Small
+            || plant.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 4) return false;
         var mergeSession = matches.Create(2, 0, new PaladinHeroDefinition());
         var existing = new CardEconomyService(factory, board).AcquireCard(mergeSession, plants[0], 2, CardAcquisitionSource.Reward).Value!.Card;
         board.PlaceCard(mergeSession, existing.Id, BoardZone.Battlefield, 0);

@@ -32,7 +32,7 @@ internal static class HeroArtworkChecks
                 var hero = snapshot.Hero!;
                 if (identity.DisplayName != name || identity.Title != title || identity.FactionKey != new StringName(key)
                     || identity.Illustration.IsEmpty || hero.Illustration != identity.Illustration || hero.Level != 1 || snapshot.Income != 5
-                    || hero.CombatValues[GameAttributeKeys.MaxHealth] != 100 || hero.CombatValues[GameAttributeKeys.MaxMana] != 100
+                    || hero.CombatValues[GameAttributeKeys.MaxHealth] != 200 || hero.CombatValues[GameAttributeKeys.MaxMana] != 100
                     || hero.CombatValues[GameAttributeKeys.Mana] != 0 || hero.CombatValues[GameAttributeKeys.Armor] != 0
                     || hero.CombatValues[GameAttributeKeys.ManaRegen] != 10 || hero.CombatValues[GameAttributeKeys.HealthRegen] != 0) return false;
                 panel.Render(hero);
@@ -43,7 +43,7 @@ internal static class HeroArtworkChecks
                     { Illustration = hero.Illustration, Hero = HeroSelectionDetails.From(definition) }]);
                 if (selection.GetNode<TextureRect>("CurrentPortrait").Texture?.ResourcePath != identity.Illustration.ToString()) return false;
                 if (selection.GetNode<Label>("HeroName").Text != name || selection.GetNode<Label>("HeroTitle").Text != title
-                    || selection.GetNode<GridContainer>("Stats").GetChild<Label>(1).Text != "100") return false;
+                    || selection.GetNode<GridContainer>("Stats").GetChild<Label>(1).Text != "200") return false;
             }
             var choices = registry.Heroes.Values.OrderBy(hero => hero.Attributes.Identity.Key.ToString())
                 .Select(hero => new KeyedAction(hero.Attributes.Identity.Key, new UiAction(hero.Attributes.Identity.DisplayName))
