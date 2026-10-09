@@ -31,6 +31,7 @@ description: Query, add, update, or remove Project Star cards, skills, mentors, 
 ## 增加和修改
 
 - 用户约定：新定义的卡牌默认同时生成并接入原画；仅在用户明确说明不需要时跳过。使用项目卡牌原画 Skill 和内置图像工具，按 Definition 尺寸生成并验证。
+- 用户约定：新定义的英雄默认同时生成并接入原画；仅在用户明确说明不需要时跳过。使用 imagegen Skill 与内置图像工具，按 [英雄专项说明](references/actors.md#英雄) 核对现有英雄风格、方形构图与资源接入，并验证选角及英雄面板显示。
 - 用展示名或完整 StringName key 定位；有同名或多个候选时先列出候选。重命名展示名与更改 key 是两个不同操作。
 - 具体身份、等级数值、描述和能力组合只维护在 Definition。文档记录通用规则；规则变化时同步更新权威文档，不重新建立手工数据清单。
 - 显示中文名，key 使用 card.、ability.、skill.、mentor.、encounter.、monster.、hero.、set. 前缀。新术语/标签同步术语表和代码名称映射。

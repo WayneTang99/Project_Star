@@ -49,7 +49,7 @@ public sealed partial class PhaseOneVerification : Control
             ("未知标签显示原始 Key", DefinitionChecks.CheckUnknownTagDisplay),
             ("卡牌定义组合身份、属性与标签", DefinitionChecks.CheckCardDefinition),
             ("注册表登记英雄、卡牌与遭遇定义", DefinitionChecks.CheckDefinitionDiscovery),
-            ("莫娜与帕拉帝恩独立注册且称号传入对局快照", DefinitionChecks.CheckFormalHeroes),
+            ("正式英雄独立注册且默认资源、称号与战斗初值传入新局快照", DefinitionChecks.CheckFormalHeroes),
             ("注册表拒绝同类型重复 Key", DefinitionChecks.CheckDuplicateDefinition),
             ("套装注册表拒绝未知套装归属", DefinitionChecks.CheckUnknownCardSet),
             ("定义中的初始属性不可修改", DefinitionChecks.CheckFrozenDefinition),
@@ -175,6 +175,9 @@ public sealed partial class PhaseOneVerification : Control
             ("小型生命药水分级治疗后仅本场摧毁并在下场恢复", SmallRedPotionChecks.HealingAndConsumption),
             ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
+            ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
+            ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
+            ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
             ("原木法杖拾取含合并、备战累计、统一发动与升级正确", LogStaffChecks.AcquisitionAndActivation),
             ("黑犀金龟等级、随机迟缓目标、叠加及飞行减时长正确", BlackRhinocerosBeetleChecks.LevelsAndSlow),
             ("破誓者分级随机不重复迟缓、双方光牌动态冷却及倍率正确", OathbreakerChecks.TargetsAndAura),
@@ -245,7 +248,7 @@ public sealed partial class PhaseOneVerification : Control
             ("真实遭遇原画图卡选择、商店晶体与旧按钮解绑", () => PlaytestVerification.EncounterArtworkScene(this)),
             ("测试关卡各类遭遇默认5级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
-            ("四位英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
+            ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
         ]));
         var categoryButtons = GetNode<HFlowContainer>("Margin/Panel/Margin/Content/Categories");
         var allChecks = _groups.SelectMany(group => group.Checks).ToArray();

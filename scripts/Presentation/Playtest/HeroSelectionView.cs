@@ -5,82 +5,236 @@ using Godot;
 
 namespace Project_Star.Presentation.Playtest;
 
-// 选角横向浏览器；切换只改变展示，确认才提交英雄key（表现层）。
+// 英雄名册、完整原画和只读初始属性；确认后才提交英雄key（表现层）。
 public sealed partial class HeroSelectionView : Control
 {
     public event Action<StringName, long>? Selected;
-    private readonly TextureRect _left = Portrait("PreviousPortrait");
-    private readonly TextureRect _center = Portrait("CurrentPortrait");
-    private readonly TextureRect _right = Portrait("NextPortrait");
-    private readonly Label _message = new() { HorizontalAlignment = HorizontalAlignment.Center };
-    private readonly Label _name = new() { Name = "HeroName", HorizontalAlignment = HorizontalAlignment.Center };
-    private readonly Button _previous = new() { Name = "Previous", Text = "←" };
-    private readonly Button _next = new() { Name = "Next", Text = "→" };
+    private readonly Label _heading = new() { Text = "选择你的英雄", MouseFilter = MouseFilterEnum.Ignore };
+    private readonly Label _rosterHeading = new() { MouseFilter = MouseFilterEnum.Ignore };
+    private readonly ScrollContainer _roster = new() { Name = "Roster", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+    private readonly VBoxContainer _entries = new() { Name = "Entries", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+    private readonly TextureRect _center = new() { Name = "CurrentPortrait", MouseFilter = MouseFilterEnum.Ignore,
+        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
+    private readonly Label _title = new() { Name = "HeroTitle", MouseFilter = MouseFilterEnum.Ignore };
+    private readonly Label _name = new() { Name = "HeroName", MouseFilter = MouseFilterEnum.Ignore, ClipText = true };
+    private readonly Button _attributes = new() { Name = "Attributes", Text = "初始属性 ▾", ToggleMode = true, ButtonPressed = true };
+    private readonly GridContainer _stats = new() { Name = "Stats", Columns = 2, MouseFilter = MouseFilterEnum.Ignore };
+    private readonly Label _otherAttributes = new() { Name = "OtherAttributes", MouseFilter = MouseFilterEnum.Ignore };
+    private readonly Label _hint = new() { Text = "方向键切换 · Enter 确认", HorizontalAlignment = HorizontalAlignment.Center,
+        MouseFilter = MouseFilterEnum.Ignore };
+    private readonly Label _message = new() { HorizontalAlignment = HorizontalAlignment.Center,
+        MouseFilter = MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart };
     private readonly Button _choose = new() { Name = "Choose", Text = "选择英雄" };
+    private readonly List<(Button Button, Action Handler)> _buttons = new();
+    private readonly List<Label> _values = new();
     private IReadOnlyList<KeyedAction> _heroes = Array.Empty<KeyedAction>();
     private int _index;
     private long _revision;
+    private Rect2 _rosterRect, _detailsRect;
+    private Tween? _portraitTween;
+    private static readonly Dictionary<StringName, Texture2D> Thumbnails = new();
 
+    // 建立控件与本地浏览事件，不创建对局。
     public override void _Ready()
     {
-        foreach (var control in new Control[] { _left, _center, _right, _message, _name, _previous, _next, _choose }) AddChild(control);
-        _previous.Pressed += Previous; _next.Pressed += Next; _choose.Pressed += Choose;
-        Resized += Layout; Layout();
+        foreach (var control in new Control[] { _heading, _rosterHeading, _roster, _center, _title, _name,
+            _attributes, _stats, _otherAttributes, _hint, _message, _choose }) AddChild(control);
+        _roster.AddChild(_entries); _entries.AddThemeConstantOverride("separation", 6);
+        _heading.AddThemeFontSizeOverride("font_size", 24); _name.AddThemeFontSizeOverride("font_size", 36);
+        _title.AddThemeFontSizeOverride("font_size", 15); _title.AddThemeColorOverride("font_color", MatchTheme.Gold);
+        _hint.AddThemeFontSizeOverride("font_size", 12); _message.AddThemeFontSizeOverride("font_size", 12);
+        _otherAttributes.AddThemeFontSizeOverride("font_size", 13);
+        _stats.AddThemeConstantOverride("h_separation", 16); _stats.AddThemeConstantOverride("v_separation", 12);
+        foreach (var label in new[] { "最大生命", "最大魔法", "每轮收入" })
+        {
+            _stats.AddChild(new Label { Text = label, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                MouseFilter = MouseFilterEnum.Ignore });
+            var value = new Label { HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
+            value.AddThemeFontSizeOverride("font_size", 20); _stats.AddChild(value); _values.Add(value);
+        }
+        _choose.AddThemeStyleboxOverride("normal", MatchTheme.Surface(MatchTheme.Blue, MatchTheme.Blue));
+        _choose.AddThemeStyleboxOverride("hover", MatchTheme.Surface(new Color("34779f"), MatchTheme.Blue));
+        foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
+            _choose.AddThemeColorOverride(state, Colors.White);
+        _choose.AddThemeStyleboxOverride("pressed", MatchTheme.Surface(new Color("34779f"), MatchTheme.Blue));
+        _choose.Pressed += Choose; _attributes.Toggled += ToggleAttributes; Resized += Layout;
+        RebuildRoster(); UpdatePreview(); Layout();
     }
 
-    // 同页刷新保留正在浏览的英雄；列表变动时仍按key定位。
+    // 同页刷新保留浏览英雄；收到的身份、数值和操作条件都是只读副本。
     public void Render(string message, IReadOnlyList<KeyedAction> heroes, long revision = 0)
     {
         var key = _heroes.Count == 0 ? new StringName("") : _heroes[_index].Key;
-        _heroes = Array.AsReadOnly(heroes.Where(hero => hero.Action.Visible).ToArray());
-        _index = Math.Max(0, Array.FindIndex(_heroes.ToArray(), hero => hero.Key == key));
-        _revision = revision; _message.Text = message; UpdatePortraits();
+        var visible = heroes.Where(hero => hero.Action.Visible).ToArray();
+        var changed = !_heroes.SequenceEqual(visible);
+        _heroes = Array.AsReadOnly(visible);
+        _index = Math.Max(0, Array.FindIndex(visible, hero => hero.Key == key));
+        _revision = revision; _message.Text = message;
+        if (!IsNodeReady()) return;
+        if (changed) RebuildRoster();
+        UpdatePreview(); Layout();
     }
 
+    // 键盘只在当前选角页及其焦点范围内生效；Enter不会同时触发按钮默认事件。
+    public override void _Input(InputEvent input)
+    {
+        if (!IsVisibleInTree() || input is not InputEventKey { Pressed: true, Echo: false } key) return;
+        var focus = GetViewport().GuiGetFocusOwner();
+        if (focus is not null && !IsAncestorOf(focus)) return;
+        if (key.Keycode is Key.Left or Key.Up) Browse(-1);
+        else if (key.Keycode is Key.Right or Key.Down) Browse(1);
+        else if (key.Keycode is Key.Enter or Key.KpEnter) Choose();
+        else return;
+        GetViewport().SetInputAsHandled();
+    }
+
+    // 清理按钮订阅和原画过渡，避免过期界面继续提交。
     public override void _ExitTree()
     {
-        _previous.Pressed -= Previous; _next.Pressed -= Next; _choose.Pressed -= Choose; Resized -= Layout;
+        _choose.Pressed -= Choose; _attributes.Toggled -= ToggleAttributes; Resized -= Layout;
+        _portraitTween?.Kill(); ClearRoster();
     }
 
-    private void Previous() => Move(-1);
-    private void Next() => Move(1);
-    private void Move(int direction)
+    private void ClearRoster()
     {
-        if (_heroes.Count < 2) return;
-        _index = (_index + direction + _heroes.Count) % _heroes.Count; UpdatePortraits();
+        foreach (var (button, handler) in _buttons)
+        { button.Pressed -= handler; _entries.RemoveChild(button); button.QueueFree(); }
+        _buttons.Clear();
     }
-    private void Choose()
+
+    private void RebuildRoster()
     {
-        if (_heroes.Count > 0 && !_choose.Disabled && Visible) Selected?.Invoke(_heroes[_index].Key, _revision);
-    }
-    private void UpdatePortraits()
-    {
-        _previous.Disabled = _next.Disabled = _heroes.Count < 2;
-        _left.Visible = _right.Visible = _heroes.Count > 1;
-        _choose.Disabled = _heroes.Count == 0 || !_heroes[_index].Action.Enabled;
-        _center.Texture = _heroes.Count == 0 ? null : Load(_heroes[_index]);
-        _name.Text = _heroes.Count == 0 ? "暂无英雄" : _heroes[_index].Action.Text.Replace("选择：", "");
-        if (_heroes.Count > 1)
+        ClearRoster();
+        for (var index = 0; index < _heroes.Count; index++)
         {
-            _left.Texture = Load(_heroes[(_index - 1 + _heroes.Count) % _heroes.Count]);
-            _right.Texture = Load(_heroes[(_index + 1) % _heroes.Count]);
+            var item = _heroes[index]; var captured = index;
+            var button = new Button { Name = $"Hero{index}", CustomMinimumSize = new Vector2(0, 72),
+                SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = item.Action.Text };
+            var row = new HBoxContainer { Name = "Content", MouseFilter = MouseFilterEnum.Ignore };
+            button.AddChild(row); row.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            row.OffsetLeft = row.OffsetTop = 8; row.OffsetRight = row.OffsetBottom = -8;
+            row.AddThemeConstantOverride("separation", 10);
+            row.AddChild(new TextureRect { Texture = Thumbnail(item), CustomMinimumSize = new Vector2(52, 52),
+                MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
+            var caption = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                Alignment = BoxContainer.AlignmentMode.Center, MouseFilter = MouseFilterEnum.Ignore };
+            row.AddChild(caption);
+            var name = new Label { Text = item.Hero?.DisplayName ?? item.Action.Text.Replace("选择：", ""),
+                ClipText = true, MouseFilter = MouseFilterEnum.Ignore };
+            name.AddThemeFontSizeOverride("font_size", 16); caption.AddChild(name);
+            var title = new Label { Text = item.Hero?.Title ?? "", ClipText = true, MouseFilter = MouseFilterEnum.Ignore };
+            title.AddThemeFontSizeOverride("font_size", 12); caption.AddChild(title);
+            row.AddChild(new Label { Name = "SelectedMark", CustomMinimumSize = new Vector2(18, 0),
+                VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore });
+            Action handler = () => SelectPreview(captured);
+            button.Pressed += handler; _buttons.Add((button, handler)); _entries.AddChild(button);
         }
     }
+
+    private void Browse(int direction)
+    {
+        if (_heroes.Count == 0) return;
+        SelectPreview((_index + direction + _heroes.Count) % _heroes.Count);
+        _buttons[_index].Button.GrabFocus(); _roster.EnsureControlVisible(_buttons[_index].Button);
+    }
+
+    private void SelectPreview(int index)
+    {
+        if (index == _index) return;
+        _index = index; UpdatePreview();
+        _portraitTween?.Kill(); _center.Modulate = new Color(1, 1, 1, .65f);
+        _portraitTween = CreateTween(); _portraitTween.TweenProperty(_center, "modulate:a", 1f, .15);
+    }
+
+    private void Choose()
+    {
+        if (_heroes.Count > 0 && !_choose.Disabled && IsVisibleInTree()) Selected?.Invoke(_heroes[_index].Key, _revision);
+    }
+
+    private void UpdatePreview()
+    {
+        var selected = _heroes.Count == 0 ? null : _heroes[_index];
+        var hero = selected?.Hero;
+        _rosterHeading.Text = $"英雄名册  ·  {_heroes.Count} 位";
+        _center.Texture = selected is null ? null : Load(selected);
+        _name.Text = hero?.DisplayName ?? selected?.Action.Text.Replace("选择：", "") ?? "暂无英雄";
+        _title.Text = hero?.Title ?? "";
+        _choose.Text = selected is null ? "暂无可选英雄" : $"以{_name.Text}开始冒险";
+        _choose.Disabled = selected is null || !selected.Action.Enabled;
+        _choose.TooltipText = selected?.Action.Reason ?? "";
+        _attributes.Visible = hero is not null;
+        _stats.Visible = _otherAttributes.Visible = hero is not null && _attributes.ButtonPressed;
+        if (hero is not null)
+        {
+            _values[0].Text = hero.MaxHealth.ToString(); _values[1].Text = hero.MaxMana.ToString(); _values[2].Text = hero.Income.ToString();
+            _otherAttributes.Text = $"初始等级 {hero.Level}\n初始魔法 {hero.Mana} · 魔法再生 {hero.ManaRegen}";
+            _otherAttributes.TooltipText = $"初始护甲 {hero.Armor}\n生命再生 {hero.HealthRegen}";
+        }
+        for (var index = 0; index < _buttons.Count; index++)
+        {
+            var button = _buttons[index].Button; var current = index == _index;
+            button.AddThemeStyleboxOverride("normal", MatchTheme.Surface(current ? new Color("e4f2fb") : new Color("fffaf0"),
+                current ? MatchTheme.Blue : new Color("a5bcc9")));
+            button.GetNode<Label>("Content/SelectedMark").Text = current ? "✓" : "";
+        }
+        QueueRedraw();
+    }
+
+    private void ToggleAttributes(bool expanded)
+    {
+        _attributes.Text = expanded ? "初始属性 ▾" : "初始属性 ▸";
+        _stats.Visible = _otherAttributes.Visible = expanded && _heroes.Count > 0 && _heroes[_index].Hero is not null;
+    }
+
     private void Layout()
     {
-        var main = Mathf.Max(1, Mathf.Min(Size.Y - 125, Size.X * .42f));
-        var side = main * .55f; var gap = 24f;
-        _message.Position = Vector2.Zero; _message.Size = new Vector2(Size.X, 30);
-        _center.Position = new Vector2((Size.X - main) / 2, 38); _center.Size = Vector2.One * main;
-        _left.Position = new Vector2(_center.Position.X - side - gap, 38); _left.Size = Vector2.One * side;
-        _right.Position = new Vector2(_center.Position.X + main + gap, 38); _right.Size = Vector2.One * side;
-        _previous.Position = _left.Position + new Vector2((side - 64) / 2, side + 20); _previous.Size = new Vector2(64, 44);
-        _next.Position = _right.Position + new Vector2((side - 64) / 2, side + 20); _next.Size = new Vector2(64, 44);
-        _name.Position = new Vector2(_center.Position.X, main + 44); _name.Size = new Vector2(main, 28);
-        _choose.Position = new Vector2(_center.Position.X, main + 77); _choose.Size = new Vector2(main, 40);
+        var bodyHeight = Mathf.Max(1, Size.Y - 84);
+        var rosterWidth = Mathf.Clamp(Size.X * .19f, 190, 250);
+        var detailsWidth = Mathf.Clamp(Size.X * .25f, 250, 300);
+        const float gap = 24;
+        var main = Mathf.Max(1, Mathf.Min(bodyHeight - 12, Size.X - rosterWidth - detailsWidth - gap * 2 - 32));
+        var total = rosterWidth + detailsWidth + main + gap * 2;
+        var left = (Size.X - total) / 2; const float top = 48;
+        _heading.Position = new Vector2(left, 4); _heading.Size = new Vector2(total, 36);
+        _rosterRect = new Rect2(left, top, rosterWidth, bodyHeight);
+        _rosterHeading.Position = new Vector2(left + 12, top + 8); _rosterHeading.Size = new Vector2(rosterWidth - 24, 28);
+        _roster.Position = new Vector2(left + 8, top + 44); _roster.Size = new Vector2(rosterWidth - 16, bodyHeight - 52);
+        _center.Position = new Vector2(left + rosterWidth + gap, top + (bodyHeight - main) / 2); _center.Size = Vector2.One * main;
+        var right = left + rosterWidth + gap + main + gap;
+        _detailsRect = new Rect2(right, top, detailsWidth, bodyHeight);
+        var contentWidth = detailsWidth - 32;
+        _title.Position = new Vector2(right + 16, top + 20); _title.Size = new Vector2(contentWidth, 26);
+        _name.Position = new Vector2(right + 16, top + 48); _name.Size = new Vector2(contentWidth, 54);
+        _attributes.Position = new Vector2(right + 16, top + 122); _attributes.Size = new Vector2(contentWidth, 32);
+        _stats.Position = new Vector2(right + 16, top + 172); _stats.Size = new Vector2(contentWidth, 116);
+        _otherAttributes.Position = new Vector2(right + 16, top + 310); _otherAttributes.Size = new Vector2(contentWidth, 52);
+        _choose.Position = new Vector2(right + 16, top + bodyHeight - 92); _choose.Size = new Vector2(contentWidth, 48);
+        _hint.Position = new Vector2(right + 8, top + bodyHeight - 36); _hint.Size = new Vector2(detailsWidth - 16, 24);
+        _message.Position = new Vector2(left, top + bodyHeight + 6); _message.Size = new Vector2(total, 30);
+        QueueRedraw();
     }
-    private static TextureRect Portrait(string name) => new() { Name = name, MouseFilter = MouseFilterEnum.Ignore,
-        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
+
+    // 面板和原画边框复用项目主题；不把装饰写入图片。
+    public override void _Draw()
+    {
+        MatchTheme.DrawSurface(this, _rosterRect); MatchTheme.DrawSurface(this, _detailsRect);
+        MatchTheme.DrawSurface(this, new Rect2(_center.Position - Vector2.One * 5, _center.Size + Vector2.One * 10));
+        DrawLine(_detailsRect.Position + new Vector2(16, 110), _detailsRect.Position + new Vector2(_detailsRect.Size.X - 16, 110),
+            new Color(MatchTheme.Gold, .4f));
+    }
+
     private static Texture2D? Load(KeyedAction hero) => !hero.Illustration.IsEmpty && ResourceLoader.Exists(hero.Illustration.ToString())
         ? GD.Load<Texture2D>(hero.Illustration.ToString()) : null;
+
+    private static Texture2D? Thumbnail(KeyedAction hero)
+    {
+        if (Thumbnails.TryGetValue(hero.Illustration, out var cached)) return cached;
+        var original = Load(hero);
+        if (original is null) return null;
+        using var image = original.GetImage();
+        image.Resize(104, Math.Max(1, image.GetHeight() * 104 / image.GetWidth()), Image.Interpolation.Lanczos);
+        var thumbnail = ImageTexture.CreateFromImage(image); Thumbnails.Add(hero.Illustration, thumbnail);
+        return thumbnail;
+    }
 }

@@ -120,3 +120,5 @@
 | BUG-100 | 2026-10-08 | `scripts/Presentation/Verification/AscendantChecks.cs` / `MergePreservesProgress` | 连续合并验证初版构建失败，随后零值多重读取及位置断言失败。 | 误用不存在的发动事件；假定属性快照必含零值 `Multicast`；把放入材料前的位置误当作合并前的位置，忽略正常棋盘推挤。 | 改用 `AbilityActivatedEvent.SourceCardId` 并排除回响；多重读取使用零值默认；在材料放置完成后捕获位置。 | Fixed |
 | BUG-101 | 2026-10-08 | `scripts/Presentation/Verification/CardCatalogChecks.cs` / `Interaction` | 图鉴首次场景验证找不到卡牌列表节点。 | 验证路径假定未命名控件会使用类型名，Godot实际生成自动节点名。 | 浏览区显式命名Browser，验证使用稳定节点路径。 | Fixed |
 | BUG-102 | 2026-10-08 | `scripts/Presentation/Verification/CardCatalogChecks.cs` / 搜索夹具 | 搜索验证与分尺寸截图未刷新列表，图片仍为全卡池。 | 夹具只直接设置LineEdit.Text，程序赋值不会发出用户输入的TextChanged信号。 | 设置文字后显式发送TextChanged，检查过滤结果与详情，并重新截图。 | Fixed |
+| BUG-103 | 2026-10-09 | `scripts/Presentation/Verification/JadeToadChecks.cs` / 标签断言 | 验证初稿假定尺寸标签排在野兽标签前，源码核对发现断言会误判合法定义。 | 将无序标签集合按数组顺序比较。 | 改为检查标签数量及集合成员，不依赖枚举顺序；构建0警告0错误，209/209回归通过。 | Fixed |
+| BUG-104 | 2026-10-09 | `scripts/Presentation/Playtest/HeroSelectionView.cs` / 名册缩略图 | 首次实际截图中英雄缩略图细节出现明显锯齿。 | 原画未生成mipmap，直接从1254像素缩至52像素显示，缺少足够的缩小预滤波。 | 表现层用Lanczos生成104像素缩略纹理并按插画key缓存，完整原画继续使用原资源；1280×720实际截图复查细节，四档窗口及缩回通过。 | Fixed |

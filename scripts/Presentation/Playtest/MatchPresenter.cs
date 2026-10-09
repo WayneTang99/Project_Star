@@ -341,7 +341,7 @@ public sealed class MatchPresenter
         if (_selected is not null && (player is null || !player.Cards.Any(card => card.Id == _selected))) _selected = null;
         var heroes = _registry.Heroes.Values.OrderBy(hero => hero.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .Select(hero => new KeyedAction(hero.Attributes.Identity.Key, new UiAction($"选择：{PlaytestText.FormatHeroName(hero.Attributes.Identity.DisplayName, hero.Attributes.Identity.Title)}"))
-                { Illustration = hero.Attributes.Identity.Illustration }).ToArray();
+                { Illustration = hero.Attributes.Identity.Illustration, Hero = HeroSelectionDetails.From(hero) }).ToArray();
         var choices = _page != MatchPage.EncounterChoice || player is null ? Array.Empty<KeyedAction>()
             : player.EncounterChoices.Select(choice => new KeyedAction(choice.Key,
                 new UiAction(choice.DisplayName))

@@ -56,7 +56,8 @@ public sealed class EntityFactory
             levelDefinition?.OnSellReward ?? definition.OnSellReward,
             definition.Quests,
             levelDefinition?.SaleAttributeBonuses,
-            levelDefinition?.BattleVictoryBonuses);
+            levelDefinition?.BattleVictoryBonuses,
+            levelDefinition?.BattleValueBonus ?? 0);
     }
 
     public SkillInstance CreateSkill(SkillDefinition definition, int? level = null)
@@ -107,6 +108,7 @@ public sealed class EntityFactory
         card.ReplaceAbilities(levelDefinition?.Abilities ?? definition.Abilities);
         card.ReplaceSaleAttributeBonuses(levelDefinition?.SaleAttributeBonuses);
         card.ReplaceBattleVictoryBonuses(levelDefinition?.BattleVictoryBonuses);
+        card.ReplaceBattleValueBonus(levelDefinition?.BattleValueBonus ?? 0);
         card.ReplaceOnSellReward(levelDefinition?.OnSellReward ?? definition.OnSellReward);
     }
 

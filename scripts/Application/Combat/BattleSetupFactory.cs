@@ -71,6 +71,10 @@ public sealed class BattleSetupFactory
             }
 
             var abilities = CardAbilityComposer.Compose(card);
+            var combatValues = new Dictionary<StringName, int>(card.Attributes.BaseCombat.SnapshotFinalValues())
+            {
+                [GameAttributeKeys.Value] = card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value),
+            };
             cards.Add(new CardBattleSetup(
                 card.Id,
                 placement.Start,
@@ -83,7 +87,7 @@ public sealed class BattleSetupFactory
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount)
-                { CombatValues = card.Attributes.BaseCombat.SnapshotFinalValues(), CooldownMultiplier = card.CooldownMultiplier,
+                { CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(combatValues), CooldownMultiplier = card.CooldownMultiplier,
                     Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), Quests = card.Quests,
                     QuestProgress = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
                         card.Quests.ToDictionary(quest => quest.Key, quest => card.GetQuestProgress(quest.Key))) });

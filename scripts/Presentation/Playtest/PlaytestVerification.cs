@@ -660,7 +660,7 @@ internal static class PlaytestVerification
                 {
                     var candidates = scene.GetNode<HeroSelectionView>(main + "/ContextHost/HeroSelectionView");
                     var heroIndex = presenter.View.Heroes.ToList().FindIndex(hero => hero.Key == new StringName("hero.paladin"));
-                    for (var index = 0; index < heroIndex; index++) Press(candidates.GetNode<Button>("Next"));
+                    Press(candidates.GetNode<Button>($"Roster/Entries/Hero{heroIndex}"));
                     Press(candidates.GetNode<Button>("Choose"));
                 }
                 var choices = presenter.View.Choices;

@@ -201,13 +201,59 @@ public sealed partial class ComponentShowcase : Control
         AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var shell = root.GetNode<MatchShell>("MatchShell");
         var selector = shell.GetNode<HeroSelectionView>("ContextRow/ContextHost/HeroSelectionView");
-        await Save("selection");
-        selector.GetNode<Button>("Next").EmitSignal(Button.SignalName.Pressed);
-        await Save("next");
-        selector.GetNode<Button>("Previous").EmitSignal(Button.SignalName.Pressed);
-        selector.GetNode<Button>("Choose").EmitSignal(Button.SignalName.Pressed);
+        var submitted = 0; shell.ChoiceSelected += (_, _, _) => submitted++;
+        foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080),
+            new Vector2I(2560, 1440), new Vector2I(2560, 1080), new Vector2I(1280, 720) })
+        {
+            GetWindow().Size = size; GetTree().Root.ContentScaleSize = size;
+            await Frame(); await Frame();
+            Click(selector.GetNode<Button>("Roster/Entries/Hero4"));
+            await Frame(); await Frame();
+            if (selector.GetNode<Label>("HeroName").Text != "罗宾" || submitted != 0)
+                throw new InvalidOperationException("名册鼠标切换未刷新或提前创建对局。");
+            await Save("robin");
+            Click(selector.GetNode<Button>("Roster/Entries/Hero5"));
+            await Frame(); await Frame();
+            if (selector.GetNode<Label>("HeroName").Text != "瓦洛斯" || submitted != 0)
+                throw new InvalidOperationException("女性潜行者预览未刷新。");
+            var roster = selector.GetNode<ScrollContainer>("Roster");
+            var last = selector.GetNode<Button>("Roster/Entries/Hero5");
+            var portrait = selector.GetNode<TextureRect>("CurrentPortrait");
+            var confirm = selector.GetNode<Button>("Choose");
+            if (last.GetGlobalRect().End.Y > roster.GetGlobalRect().End.Y + 1
+                || portrait.GetGlobalRect().End.X > selector.GetGlobalRect().End.X + 1
+                || confirm.GetGlobalRect().End.Y > selector.GetGlobalRect().End.Y + 1)
+                throw new InvalidOperationException("名册、原画或确认按钮越界。");
+            await Save("valos");
+            KeyInput(Key.Left); await Frame();
+            if (selector.GetNode<Label>("HeroName").Text != "罗宾" || submitted != 0)
+                throw new InvalidOperationException("方向键切换异常。");
+        }
+        var catalogButton = shell.GetNode<Button>("OpenCardCatalog");
+        catalogButton.GrabFocus(); KeyInput(Key.Enter); await Frame();
+        if (!shell.GetNode<CardCatalogView>("CardCatalog").Visible || submitted != 0)
+            throw new InvalidOperationException("图鉴Enter被选角截获。");
+        KeyInput(Key.Escape); await Frame();
+        if (!selector.Visible || selector.GetNode<Label>("HeroName").Text != "罗宾")
+            throw new InvalidOperationException("返回图鉴后未保留英雄。");
+        selector.GetNode<Button>("Roster/Entries/Hero4").GrabFocus(); KeyInput(Key.Enter); await Frame();
+        if (submitted != 1 || selector.Visible) throw new InvalidOperationException("Enter未仅确认一次或未进入对局。");
         await Save("selected");
+        GD.Print("选角四种窗口及缩回、鼠标预览、方向键、图鉴焦点与Enter确认通过。");
         GetTree().Quit();
+
+        async System.Threading.Tasks.Task Frame() => await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        void KeyInput(Key key)
+        {
+            GetViewport().PushInput(new InputEventKey { Keycode = key, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventKey { Keycode = key, Pressed = false }, true);
+        }
+        void Click(Button button)
+        {
+            var point = button.GetGlobalRect().GetCenter();
+            GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.Left, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.Left, Pressed = false }, true);
+        }
 
         async System.Threading.Tasks.Task Save(string name)
         {

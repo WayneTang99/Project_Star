@@ -136,8 +136,10 @@ public sealed class CardDisplayAdapter
                 .Concat(ability.Effects.Select(effect => Describe(card, effect)))));
     }
 
-    private static int Value(CardSnapshot card, StringName key) => card.CurrentValues.TryGetValue(key, out var value) ? value : 0;
+    private static int Value(CardSnapshot card, StringName key) => card.CurrentValues.TryGetValue(key, out var value)
+        ? value : key == GameAttributeKeys.Value ? card.Value : 0;
     private static string AttributeName(StringName key) => key == GameAttributeKeys.AttackDamage ? "攻击"
+        : key == GameAttributeKeys.Value ? "价值"
         : key == GameAttributeKeys.Flying ? "飞行" : key == GameAttributeKeys.Berserk ? "狂暴"
         : key == GameAttributeKeys.Armor ? "护甲" : key == GameAttributeKeys.CooldownTicks ? "冷却"
         : key == GameAttributeKeys.HealingBonus ? "治疗加成"

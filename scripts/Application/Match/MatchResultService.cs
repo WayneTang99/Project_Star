@@ -53,9 +53,9 @@ public sealed class MatchResultService
                 ModifierId.New(), bonus.CardId, bonus.AttributeKey, bonus.Amount));
         }
         _quests.ApplyBattleProgress(session, battle);
+        ApplyBattleBonuses(session, battle);
         if (battle.Outcome == BattleOutcome.PlayerVictory)
         {
-            ApplyBattleVictoryBonuses(session, battle);
             _quests.ProcessEvent(session, new BattleWonQuestEvent());
         }
         if (kind == MatchBattleKind.Monster)
@@ -74,7 +74,7 @@ public sealed class MatchResultService
     }
 
     // 依据开战快照筛选实际参战卡牌，永久加成不读取本场临时数值。
-    private static void ApplyBattleVictoryBonuses(MatchSession session, BattleResult battle)
+    private static void ApplyBattleBonuses(MatchSession session, BattleResult battle)
     {
         if (battle.States.Count == 0) return;
         foreach (var participant in battle.States[0].Cards)
@@ -82,6 +82,10 @@ public sealed class MatchResultService
             if (participant.Side != SideId.Player || participant.IsOnBench) continue;
             var card = session.Player.Inventory.Find(participant.Id);
             if (card is null) continue;
+            if (card.BattleValueBonus > 0)
+                card.Attributes.Persistent.ApplyModifier(new StatModifier(
+                    ModifierId.New(), card.Id, GameAttributeKeys.Value, card.BattleValueBonus));
+            if (battle.Outcome != BattleOutcome.PlayerVictory) continue;
             foreach (var bonus in card.BattleVictoryBonuses)
                 card.Attributes.BaseCombat.ApplyModifier(new StatModifier(
                     ModifierId.New(), card.Id, bonus.AttributeKey, bonus.Amount));

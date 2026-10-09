@@ -30,7 +30,8 @@ public sealed class CardInstance
         CardOnSellRewardDefinition? onSellReward,
         IReadOnlyList<CardQuestDefinition>? quests = null,
         IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null,
-        IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null)
+        IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null,
+        int battleValueBonus = 0)
     {
         Id = id;
         _attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
@@ -39,6 +40,8 @@ public sealed class CardInstance
         OnSellReward = onSellReward;
         SaleAttributeBonuses = saleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>();
         BattleVictoryBonuses = battleVictoryBonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
+        ArgumentOutOfRangeException.ThrowIfNegative(battleValueBonus);
+        BattleValueBonus = battleValueBonus;
         Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
         _gemSockets = new GemIdentityAttributes?[attributes.Identity.GemSocketCount];
         GemSockets = Array.AsReadOnly(_gemSockets);
@@ -69,6 +72,7 @@ public sealed class CardInstance
     public decimal CooldownMultiplier { get; private set; } = 1m;
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; private set; }
     public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; private set; }
+    public int BattleValueBonus { get; private set; }
 
     public IReadOnlyList<CardQuestDefinition> Quests { get; }
 
@@ -123,6 +127,8 @@ public sealed class CardInstance
 
     internal void ReplaceBattleVictoryBonuses(IReadOnlyList<BattleVictoryAttributeBonus>? bonuses) =>
         BattleVictoryBonuses = bonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
+
+    internal void ReplaceBattleValueBonus(int amount) => BattleValueBonus = amount;
 
     // 累乘对局内永久冷却倍率，升级不重置已获得的缩减。
     internal void ReduceCooldown(int percent)

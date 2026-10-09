@@ -118,12 +118,14 @@ public sealed class CardLevelDefinition
         int acquiredValueBonus = 0,
         IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null,
         CardOnSellRewardDefinition? onSellReward = null,
-        IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null)
+        IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null,
+        int battleValueBonus = 0)
     {
         if (level is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(level));
         ArgumentNullException.ThrowIfNull(abilities);
         if (initialValue < 0) throw new ArgumentOutOfRangeException(nameof(initialValue));
         ArgumentOutOfRangeException.ThrowIfNegative(acquiredValueBonus);
+        ArgumentOutOfRangeException.ThrowIfNegative(battleValueBonus);
         Level = level;
         BaseCombatValues = baseCombatValues is null
             ? new Dictionary<StringName, int>()
@@ -136,6 +138,7 @@ public sealed class CardLevelDefinition
         OnSellReward = onSellReward;
         BattleVictoryBonuses = battleVictoryBonuses is null ? Array.Empty<BattleVictoryAttributeBonus>()
             : new List<BattleVictoryAttributeBonus>(battleVictoryBonuses).AsReadOnly();
+        BattleValueBonus = battleValueBonus;
     }
 
     public int Level { get; }
@@ -149,6 +152,7 @@ public sealed class CardLevelDefinition
     public int AcquiredValueBonus { get; }
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; }
     public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; }
+    public int BattleValueBonus { get; }
     public CardOnSellRewardDefinition? OnSellReward { get; }
 }
 

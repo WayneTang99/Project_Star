@@ -159,26 +159,28 @@ internal static class DefinitionChecks
     internal static bool CheckFormalHeroes()
     {
         var registry = DefinitionRegistry.Scan(typeof(MonaHeroDefinition).Assembly);
-        var mona = registry.Heroes[new StringName("hero.mona")];
-        var paladin = registry.Heroes[new StringName("hero.paladin")];
-        var session = new CreateMatchService(new EntityFactory()).Create(42, 100, mona);
-        var snapshot = MatchSnapshot.From(session);
-        return mona.Attributes.Identity.DisplayName == "莫娜"
-            && mona.Attributes.Identity.Title == "小魔女"
-            && mona.Attributes.Identity.FactionKey == new StringName("mona")
-            && paladin.Attributes.Identity.DisplayName == "帕拉帝恩"
-            && paladin.Attributes.Identity.Title == "圣骑士"
-            && paladin.Attributes.Identity.FactionKey == new StringName("paladin")
-            && typeof(HeroIdentityAttributes).GetProperty(nameof(HeroIdentityAttributes.Title))!.SetMethod is null
-            && snapshot.Hero is { Title: "小魔女", DisplayName: "莫娜", Level: 1 }
-            && snapshot.Income == 5
-            && snapshot.Hero.CombatValues[GameAttributeKeys.MaxHealth] == 100
-            && snapshot.Hero.CombatValues[GameAttributeKeys.Armor] == 0
-            && snapshot.Hero.CombatValues[GameAttributeKeys.MaxMana] == 100
-            && snapshot.Hero.CombatValues[GameAttributeKeys.Mana] == 0
-            && snapshot.Hero.CombatValues[GameAttributeKeys.ManaRegen] == 10
-            && snapshot.Hero.CombatValues[GameAttributeKeys.HealthRegen] == 0
-            && PlaytestText.FormatHeroName(snapshot.Hero.DisplayName, snapshot.Hero.Title) == "小魔女·莫娜"
+        foreach (var (key, name, title) in new[]
+        {
+            ("mona", "莫娜", "小魔女"), ("paladin", "帕拉帝恩", "圣骑士"),
+            ("harla", "哈尔拉", "机械师"), ("jiyun", "极云", "熊猫人"),
+            ("robin", "罗宾", "冒险家"), ("valos", "瓦洛斯", "潜行者"),
+        })
+        {
+            var heroKey = new StringName("hero." + key);
+            if (!registry.Heroes.TryGetValue(heroKey, out var definition)) return false;
+            var identity = definition.Attributes.Identity;
+            var session = new CreateMatchService(new EntityFactory()).Create(42, 100, definition);
+            var snapshot = MatchSnapshot.From(session);
+            var hero = snapshot.Hero!;
+            if (identity.DisplayName != name || identity.Title != title || identity.FactionKey != new StringName(key)
+                || hero.Key != heroKey || hero.DisplayName != name || hero.Title != title || hero.FactionKey != identity.FactionKey
+                || hero.Level != 1 || snapshot.Income != 5 || snapshot.Wealth != 105 || snapshot.Experience != 1
+                || hero.CombatValues[GameAttributeKeys.MaxHealth] != 100 || hero.CombatValues[GameAttributeKeys.Armor] != 0
+                || hero.CombatValues[GameAttributeKeys.MaxMana] != 100 || hero.CombatValues[GameAttributeKeys.Mana] != 0
+                || hero.CombatValues[GameAttributeKeys.ManaRegen] != 10 || hero.CombatValues[GameAttributeKeys.HealthRegen] != 0
+                || PlaytestText.FormatHeroName(hero.DisplayName, hero.Title) != title + "·" + name) return false;
+        }
+        return typeof(HeroIdentityAttributes).GetProperty(nameof(HeroIdentityAttributes.Title))!.SetMethod is null
             && PlaytestText.FormatHeroName("野猪", "") == "野猪";
     }
 

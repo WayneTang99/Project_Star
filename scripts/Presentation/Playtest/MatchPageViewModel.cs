@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Presentation.Playtest;
 
@@ -15,6 +16,26 @@ public sealed record KeyedAction(StringName Key, UiAction Action)
     public int ShopLevel { get; init; }
     public int Level { get; init; }
     public string Subtitle { get; init; } = "";
+    public HeroSelectionDetails? Hero { get; init; }
+}
+
+// 选角页读取的英雄身份与初始数值副本（表现层）。
+public sealed record HeroSelectionDetails(string DisplayName, string Title, int Level, int Income,
+    int MaxHealth, int MaxMana, int Mana, int ManaRegen, int Armor, int HealthRegen)
+{
+    internal static HeroSelectionDetails From(HeroDefinition definition)
+    {
+        var attributes = definition.Attributes;
+        return new(attributes.Identity.DisplayName, attributes.Identity.Title,
+            Math.Max(1, attributes.Persistent.GetFinalValue(GameAttributeKeys.Level)),
+            attributes.Persistent.GetFinalValue(GameAttributeKeys.Income),
+            attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth),
+            attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana),
+            attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Mana),
+            attributes.BaseCombat.GetFinalValue(GameAttributeKeys.ManaRegen),
+            attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Armor),
+            attributes.BaseCombat.GetFinalValue(GameAttributeKeys.HealthRegen));
+    }
 }
 public sealed record ShopItemViewModel(int Index, long Revision, UiAction Action, CardSnapshot Card)
 {

@@ -237,6 +237,7 @@ public sealed partial class MatchShell : Control
         GetNode<Control>("ContextRow/Portrait").Visible = GetNode<Control>("ContextRow/Leave").Visible = !choosing;
         if (choosing)
         {
+            _top.Position = new Vector2(margin, margin); _top.Size = new Vector2(Size.X - margin * 2, 36);
             var host = GetNode<Control>("ContextRow/ContextHost");
             host.Position = new Vector2(margin, top); host.Size = new Vector2(Size.X - margin * 2, available);
             _heroes.Size = host.Size;

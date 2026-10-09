@@ -70,6 +70,8 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 
 卡牌等级的 BattleVictoryBonuses 是可复用的对局结算配置。MatchResultService 根据 BattleResult 的开战快照筛选己方非备战区卡牌，获胜后给仍在库存的实例累加永久 Modifier；不读取战斗临时属性，不复用一次性任务解锁。EntityFactory 在升级时刷新增量并保留 Modifier。
 
+卡牌等级的 BattleValueBonus 复用同一参战筛选，不区分战斗胜负，将永久价值贡献累加到实例 Persistent 分区。BattleSetupFactory 复制实例实际价值到只读 CombatValues，供通用属性施毒读取；战斗与回放不读取结算后的价值，EntityFactory 升级只刷新后续成长增量。
+
 ## 战斗模块与固定顺序
 
 | 协作者 | 职责 |
