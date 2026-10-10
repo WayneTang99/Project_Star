@@ -78,7 +78,7 @@ public sealed class CardDisplayAdapter
     }
 
     // 正式卡牌显示内容定义中的描述，并另列实例当前值；无文案的验证夹具沿用能力说明。
-    public static string Details(CardSnapshot card)
+    public static string Details(CardSnapshot card, bool includeQuestProgress = true)
     {
         var lines = new List<string> { $"{card.DisplayName} · {card.Level}级 · 当前价值 {card.Value}",
             $"标签：{string.Join("、", card.Tags.Select(TagDisplayNames.Get))}" };
@@ -114,7 +114,7 @@ public sealed class CardDisplayAdapter
                     ? $"疾速时长加成：基础 {basic / 10m:0.##}秒 / 当前 {current / 10m:0.##}秒"
                 : $"{AttributeName(key)}：基础 {basic} / 当前 {current}");
         }
-        foreach (var quest in card.Quests)
+        foreach (var quest in includeQuestProgress ? card.Quests : Array.Empty<QuestProgressSnapshot>())
             lines.Add($"任务 {quest.Key}：{quest.Progress}/{quest.RequiredCount}{(quest.Unlocked ? " · 已解锁" : "")}");
         if (card.CooldownMultiplier != 1m) lines.Add($"冷却倍率：{card.CooldownMultiplier:0.####}");
         var states = new[] { card.IsFlying ? "飞行" : "", card.IsBerserk ? "狂暴" : "" }.Where(text => text.Length > 0);
@@ -125,6 +125,30 @@ public sealed class CardDisplayAdapter
     // 技能复用卡牌的能力语义，不按内容名称推导规则。
     public static string SkillDetails(SkillSnapshot skill) =>
         $"{skill.DisplayName} · {skill.Level}级\n" + AbilityDetails(skill.Abilities, skill.CurrentValues);
+
+    // 任务条件取自正式定义，不读取或解析卡牌展示文案。
+    public static string QuestCondition(CardQuestDefinition quest) => quest.Condition switch
+    {
+        SourceCardActivationQuestConditionDefinition => $"累计发动 {quest.RequiredCount} 次",
+        AcquiredElementCardQuestConditionDefinition value => $"拾取 {quest.RequiredCount} 张{(value.ElementKey == GameElements.General ? "无属性" : ElementName(value.ElementKey) + "属性")}卡牌",
+        SoldTaggedCardQuestConditionDefinition value => $"累计出售 {quest.RequiredCount} 张{TagDisplayNames.Get(value.RequiredTag)}卡牌",
+        BattleVictoryQuestConditionDefinition => $"赢得 {quest.RequiredCount} 场战斗",
+        _ => throw new NotSupportedException($"No quest formatter for {quest.Condition.GetType().Name}."),
+    };
+
+    // 同一任务完整显示能力、追加发动效果及身份奖励，数值使用当前等级快照。
+    public static string QuestReward(CardSnapshot card, CardQuestDefinition quest)
+    {
+        string Effect(EffectDefinition effect) => effect is ModifyAttributeEffectDefinition value && value.AttributeKey == GameAttributeKeys.CooldownTicks
+            ? $"冷却 {value.Amount / 10m:+0.##;-0.##;0}秒" : Describe(card, effect);
+        var rewards = quest.Abilities.Select(ability =>
+            (ability.Activation == AbilityActivation.PassiveWhileEnabled ? "" : $"{Activation(ability.Activation)} · {Target(ability.Target)}：")
+            + string.Join("；", ability.Effects.Select(Effect))).ToList();
+        if (quest.AdditionalActiveEffects.Count > 0) rewards.Add("发动时额外" + string.Join("；", quest.AdditionalActiveEffects.Select(Effect)));
+        if (quest.UnlockedElementKeys.Count > 0) rewards.Add("改为" + string.Join(" / ", quest.UnlockedElementKeys.Select(key => key == GameElements.General ? "无" : ElementName(key))) + "属性");
+        if (quest.UnlockedTags.Count > 0) rewards.Add("获得" + string.Join("、", quest.UnlockedTags.Select(TagDisplayNames.Get)) + "标签");
+        return string.Join("；", rewards);
+    }
 
     // 描述非卡牌来源的只读能力，不创建运行时实体。
     public static string AbilityDetails(IReadOnlyList<AbilityDefinition> abilities,
@@ -210,8 +234,8 @@ public sealed class CardDisplayAdapter
 
     private static string Activation(AbilityActivation value) => value switch
     {
-        AbilityActivation.Active => "发动", AbilityActivation.PassiveAura => "被动光环",
-        AbilityActivation.PassiveOnBattleStart => "战斗开始", AbilityActivation.PassiveWhileEnabled => "持续加成",
+        AbilityActivation.Active => "发动", AbilityActivation.PassiveAura => "光环",
+        AbilityActivation.PassiveOnBattleStart => "开战", AbilityActivation.PassiveWhileEnabled => "持续加成",
         AbilityActivation.EchoOnFirstAlliedCardActivated => "己方首张卡牌发动后回响",
         AbilityActivation.EchoOnMatchingAlliedCardActivated => "己方符合条件的卡牌发动后回响",
         AbilityActivation.EchoOnSourceCardActivated => "此卡牌发动后回响",

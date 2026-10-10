@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-10",
+  "prototype": "docs/design/prototypes/game-16x9.html",
+  "sha256": "52cf5bff1c728acd6f3a828cf8353d2c02266e56cc12e9d48cc54c65579d0e23",
+  "status": "Implemented; user confirmed per-attribute plate colors with uniform ivory numbers",
+  "approvedBaseline": "docs/design/prototypes/game-16x9.html",
+  "activeHtmlCount": 1,
+  "externalCssJsCount": 0,
+  "windowChecks": [
+    {
+      "viewport": "1280x720",
+      "frame": [
+        0,
+        0,
+        1280,
+        720
+      ]
+    },
+    {
+      "viewport": "1920x1080",
+      "frame": [
+        0,
+        0,
+        1920,
+        1080
+      ]
+    },
+    {
+      "viewport": "2560x1440",
+      "frame": [
+        0,
+        0,
+        2560,
+        1440
+      ]
+    },
+    {
+      "viewport": "2560x1080",
+      "frame": [
+        320,
+        0,
+        1920,
+        1080
+      ]
+    }
+  ],
+  "allFramesInsideViewport": true,
+  "economyMenuBoardsInside": true,
+  "noCanvasScroll": true,
+  "actualDragSaleWealth": [
+    34,
+    42
+  ],
+  "cancelledDragWealth": 34,
+  "blockedDragWealth": 34,
+  "purchaseWealth": [
+    34,
+    26
+  ],
+  "rewardWealth": 26,
+  "emptyBenchSaleWealth": 56,
+  "berryMaxHealth": [
+    600,
+    605
+  ],
+  "menuFocusLoopVerified": true,
+  "settingsCancelTimeoutVerified": true,
+  "mentorCandidates": {
+    "unrestrictedLayoutLevel4": [
+      "defend",
+      "charge",
+      "smite"
+    ],
+    "archbishopLevel4": [
+      "defend",
+      "smite"
+    ],
+    "archbishopLevel1": [
+      "defend"
+    ]
+  },
+  "consoleErrorWarnCount": 0,
+  "nativeRegressionCount": 245,
+  "nativeDragPreviewBug": "BUG-184 Fixed",
+  "fullVisualParityAccepted": false,
+  "attributeColors": {
+    "damage": "#ff9c83",
+    "armor": "#8ccbff",
+    "poison": "#b5dc65",
+    "burn": "#ffba66",
+    "healing": "#7ad99b",
+    "health": "#f38faa",
+    "mana": "#b6a1f2",
+    "regen": "#70d6b6",
+    "value": "#f4d56b",
+    "haste": "#66d9e8",
+    "slow": "#c0aaa0",
+    "stop": "#e2b8e8"
+  },
+  "previousApprovedArchive": "docs/quality/ui-16x9/approved-layout-source.zip",
+  "historicalBrowserQaSha256": "62e1c7ddd5340144667980f10a621d87e3c12a57873d036e9869cc70bd17bc6e",
+  "nativeRecord": "docs/quality/UI_UNIFIED_NATIVE_2026_10_10.md",
+  "cardNumberColor": "#fff2cd",
+  "cardEffectPlate": {
+    "semanticColorStartMultiplier": 0.52,
+    "semanticColorEndMultiplier": 0.28,
+    "valueColorMultiplier": 0.35,
+    "perAttribute": true,
+    "border": "#d4b276"
+  },
+  "cardColorsBug": "BUG-191 Fixed after user clarification",
+  "nativePreviewLayerBug": "BUG-192 Fixed",
+  "currentHtmlEffectStyleVerified": true,
+  "nativeScreenshots": [
+    "unified-shop-1280x720.png",
+    "unified-shop-1920x1080.png",
+    "unified-shop-2560x1440.png",
+    "unified-shop-2560x1080.png",
+    "unified-sale-preview.png"
+  ],
+  "currentColorScreenshots": [
+    "attribute-plates-shop-1280x720.png",
+    "attribute-plates-blue-1280x720.png"
+  ],
+  "previousScreenshotsNote": "unified-* are earlier layout and interaction evidence; uniform dark card plates were rejected by user",
+  "currentStyleVerification": "Build 0 warnings and errors, browser computed styles, native forest and blue theme captures; full 245 regression predates final style-only change",
+  "resourceBarColors": {
+    "health": "#f38faa",
+    "number": "#fff2cd",
+    "endMultiplier": 0.4,
+    "mana": "#b6a1f2",
+    "startMultiplier": 0.65
+  },
+  "resourceBarBug": "BUG-193 Fixed",
+  "currentResourceScreenshots": [
+    "resource-colors-shop-1280x720.png",
+    "resource-colors-blue-1280x720.png",
+    "resource-colors-battle-1280x720.png"
+  ]
+}

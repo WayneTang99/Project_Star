@@ -44,6 +44,8 @@ public sealed partial class MinimalPlaytest : Control
         _presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(), events,
             new MentorService(registry, new SkillAcquisitionService(factory)), rewards, game, new LocalTestOpponentProvider(registry));
         _shell = GetNode<MatchShell>("MatchShell");
+        if (!OS.GetCmdlineUserArgs().Any(argument => argument.StartsWith("--verify") || argument.StartsWith("--capture")))
+            _shell.LoadDisplaySettings();
         _shell.SetCatalog(CardCatalogQuery.Capture(registry));
         _shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
         _shell.ChoiceSelected += Choose;
@@ -53,6 +55,7 @@ public sealed partial class MinimalPlaytest : Control
         _shell.MoveRequested += Move;
         _shell.MovePreviewRequested += Preview;
         _shell.CancelRequested += _presenter.CancelSelection;
+        _shell.AbandonRequested += _presenter.AbandonMatch;
         _shell.SellRequested += _presenter.SellCard;
         _shell.DragSellRequested += _presenter.SellDraggedCard;
         _shell.SellPreviewRequested += PreviewSale;
@@ -72,6 +75,7 @@ public sealed partial class MinimalPlaytest : Control
             _shell.MoveRequested -= Move;
             _shell.MovePreviewRequested -= Preview;
             _shell.CancelRequested -= _presenter.CancelSelection;
+            _shell.AbandonRequested -= _presenter.AbandonMatch;
             _shell.SellRequested -= _presenter.SellCard;
             _shell.DragSellRequested -= _presenter.SellDraggedCard;
             _shell.SellPreviewRequested -= PreviewSale;

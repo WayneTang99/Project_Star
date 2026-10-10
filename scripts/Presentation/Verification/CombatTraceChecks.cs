@@ -74,7 +74,10 @@ internal static class CombatTraceChecks
     {
         var text = new StringBuilder();
         text.AppendLine($"{result.Outcome}|{result.EndReason}|{result.EndedAt.Value}|{result.PlayerRemainingHealth}|{result.OpponentRemainingHealth}");
-        foreach (var item in result.Events) text.AppendLine(item.ToString());
+        // 新增的只读伤害来源由CombatFeedbackChecks单独验证，旧指纹继续保护全部原字段。
+        foreach (var item in result.Events)
+            text.AppendLine(item is DamageDealtEvent damage
+                ? item.ToString().Replace($", StatusOrigin = {damage.StatusOrigin}", "", StringComparison.Ordinal) : item.ToString());
         foreach (var item in result.PermanentChanges) text.AppendLine(item.ToString());
         foreach (var frame in result.States)
         {

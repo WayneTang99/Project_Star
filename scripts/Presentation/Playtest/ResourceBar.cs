@@ -20,7 +20,7 @@ public sealed partial class ResourceBar : ProgressBar
         AddThemeStyleboxOverride("fill", MatchTheme.Plate(name.Contains("Mana") ? "bar-mana" : "bar-health", 0));
         _caption.AddThemeFontSizeOverride("font_size", 14);
         _caption.AddThemeFontOverride("font", MatchTheme.Font(true, true));
-        _caption.AddThemeColorOverride("font_color", new Color("f2f3d9"));
+        _caption.AddThemeColorOverride("font_color", new Color("fff2cd"));
         AddChild(_caption);
         _caption.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _caption.OffsetLeft = 18;
@@ -44,6 +44,13 @@ public sealed partial class ResourceBar : ProgressBar
         _caption.Text = $"{current} / {maximum}";
         _icon.Texture = MatchTheme.Icon(label == "生命" ? new StringName("health")
             : label == "魔法" ? new StringName("mana") : new StringName("experience"));
+        if (AttributePalette.Find(label == "生命" ? AttributePalette.Health : label == "魔法"
+            ? Project_Star.Domain.Common.GameAttributeKeys.Mana : Project_Star.Domain.Common.GameAttributeKeys.Experience) is { } color)
+        {
+            _caption.AddThemeColorOverride("font_outline_color", new Color("071513"));
+            _caption.AddThemeConstantOverride("outline_size", 1);
+            _icon.Modulate = color; _icon.Material = AttributePalette.IconMaterial;
+        }
         TooltipText = $"{label} {current}/{maximum}";
     }
 }

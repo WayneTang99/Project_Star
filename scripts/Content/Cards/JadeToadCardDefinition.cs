@@ -17,7 +17,7 @@ public sealed class JadeToadCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却5秒，魔法消耗0，对敌方英雄施加等同于此卡牌当前价值的中毒。"),
-                    new(CardKeywords.Passive, "每场战斗结束后，若此卡牌开战时位于战场区，其价值永久增加3/5/8/12，不论胜负。"),
+                    new(CardKeywords.AfterBattle, "每场战斗结束后，若此卡牌开战时位于战场区，其价值永久增加3/5/8/12，不论胜负。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             { [GameAttributeKeys.CooldownTicks] = 50 })),

@@ -11,7 +11,7 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class HeroDetailsView : PanelContainer
 {
     public event Action<Guid, int, long>? ClaimRequested;
-    public event Action<CardSnapshot>? DetailsRequested;
+    public event Action<CardSnapshot, Rect2>? DetailsRequested;
     private VBoxContainer _items = null!;
     private Button _close = null!;
     private HeroSection _section;
@@ -93,21 +93,29 @@ public sealed partial class HeroDetailsView : PanelContainer
             foreach (var reward in view.Rewards)
             {
                 Text(reward.Text);
+                CardItemView? rewardCard = null;
                 if (reward.Card is { } snapshot)
                 {
-                    var card = new CardItemView { CustomMinimumSize = new Vector2(70 * (int)snapshot.Size, 140),
+                    var card = new CardItemView { Name = $"RewardCard{reward.Index}", CustomMinimumSize = new Vector2(70 * (int)snapshot.Size, 140),
                         SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
                     _items.AddChild(card); card.Render(snapshot, _adapter); card.DetailsRequested += ShowCard; _cards.Add(card);
+                    rewardCard = card;
                 }
                 else Text(reward.Details);
-                var button = new Button { Name = $"Claim{reward.Index}", Text = "领取", Disabled = !view.Reward.Enabled };
-                Action handler = () => { if (Visible && !button.Disabled) ClaimRequested?.Invoke(player.MatchId, reward.Index, reward.Revision); };
-                _items.AddChild(button); button.Pressed += handler; _bindings.Add((button, handler));
+                Control hint = rewardCard is null ? new Button { Text = "领取", Disabled = !view.Reward.Enabled }
+                    : new Label { Text = "点击卡牌获取", MouseFilter = MouseFilterEnum.Ignore };
+                hint.Name = $"Claim{reward.Index}";
+                Action handler = () => { if (IsVisibleInTree() && view.Reward.Enabled && (rewardCard is null || !rewardCard.ConsumeClickSuppression()))
+                    ClaimRequested?.Invoke(player.MatchId, reward.Index, reward.Revision); };
+                _items.AddChild(hint);
+                if (rewardCard is null) LevelPresentation.Frame(hint, reward.Level, 3);
+                if (hint is Button skill) { skill.Pressed += handler; _bindings.Add((skill, handler)); }
+                if (rewardCard is not null) { rewardCard.Pressed += handler; _bindings.Add((rewardCard, handler)); }
             }
         }
     }
     private void Text(string text) => _items.AddChild(new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart });
-    private void ShowCard(CardSnapshot card) => DetailsRequested?.Invoke(card);
+    private void ShowCard(CardSnapshot card, Rect2 rect) => DetailsRequested?.Invoke(card, rect);
     private void Clear()
     {
         foreach (var (button, handler) in _bindings) button.Pressed -= handler;

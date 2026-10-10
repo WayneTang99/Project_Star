@@ -70,7 +70,7 @@ internal static class PlaytestVerification
             for (var item = 0; item < buttons.GetChildCount(); item++)
             {
                 var tile = buttons.GetChild<Button>(item);
-                if (!tile.FindChild("EncounterLevelCrystal", true, false)!.IsClass("Control")
+                if (!tile.GetNode<Panel>("LevelBorder").Visible
                     || !tile.FindChild("EncounterLevel", true, false)!.Get("text").AsString()
                         .Contains(presenter.View.Choices[item].Level.ToString())) return false;
             }
@@ -79,7 +79,7 @@ internal static class PlaytestVerification
                 || !button.TooltipText.Contains($"{choice.ShopLevel}级商店")) return false;
             button.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Page != MatchPage.Shop || presenter.View.ShopLevel != choice.ShopLevel
-                || !scene.GetNode<CardLevelGem>("MatchShell/ContextRow/Portrait/ContextPortrait/EncounterLevelCrystal").Visible) return false;
+                || !scene.GetNode<Panel>("MatchShell/ContextRow/Portrait/ContextPortrait/LevelBorder").Visible) return false;
             var turn = presenter.View.Player!.Turn;
             button.EmitSignal(Button.SignalName.Pressed);
             return presenter.View.Player.Turn == turn;
@@ -264,7 +264,7 @@ internal static class PlaytestVerification
             presenter.ChooseEncounter(shop.Key);
             var offer = presenter.View.Offers.First(item => item.Action.Enabled);
             scene.GetNode<HBoxContainer>("MatchShell/ContextRow/ContextHost/ShopView/OfferScroll/Offers")
-                .GetChild<Node>(offer.Index).GetNode<Button>("Actions/Buy").EmitSignal(Button.SignalName.Pressed);
+                .GetChild<Node>(offer.Index).GetNode<Button>("Card").EmitSignal(Button.SignalName.Pressed);
             var card = presenter.View.Player!.Cards.Single();
             var placement = presenter.View.Player.BoardPlacements.Single();
             var zone = placement.Zone == BoardZone.Battlefield ? "BattlefieldRow" : "BenchRow";
@@ -294,7 +294,7 @@ internal static class PlaytestVerification
             if (presenter.View.Player!.Skills.Count != 1 || presenter.View.Rewards.Count != 1 || !rewards.Visible) return false;
             rewards.Hide();
             var resultReward = scene.GetNode<ResultView>("MatchShell/ContextRow/ContextHost/ResultView")
-                .GetNode<ScrollContainer>("Rewards").GetChild<HBoxContainer>(0).GetChild<Control>(0).GetNode<Button>("Claim0");
+                .GetNode<ScrollContainer>("Rewards").GetChild<HBoxContainer>(0).GetChild<Control>(0).GetNode<Button>("RewardCard0");
             resultReward.EmitSignal(Button.SignalName.Pressed); resultReward.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Player!.Cards.Count != 1 || presenter.View.Rewards.Count != 0 || rewards.Visible) return false;
             presenter.Reset();
@@ -527,7 +527,7 @@ internal static class PlaytestVerification
         var capture = presenter.View;
         var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
         var shell = root.GetNode<MatchShell>("MatchShell"); root.RemoveChild(shell); root.Free();
-        var viewport = new SubViewport { Size = new Vector2I(1280, 720), Disable3D = true, HandleInputLocally = true };
+        var viewport = new SubViewport { Size = new Vector2I(1280, 720), Size2DOverride = new Vector2I(1600, 900), Size2DOverrideStretch = true, Disable3D = true, HandleInputLocally = true };
         owner.AddChild(viewport); viewport.AddChild(shell);
         shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
         presenter.ViewChanged += shell.Render;
@@ -540,10 +540,10 @@ internal static class PlaytestVerification
             var board = shell.GetNode<BoardZoneView>("BattlefieldRow/Content/Board");
             var item = board.GetNode<CardItemView>("Card_" + placement.CardId.Value.ToString("N"));
             var identity = item.GetInstanceId();
-            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080),
+            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1600, 900), new Vector2I(1920, 1080),
                 new Vector2I(2560, 1440), new Vector2I(2560, 1080), new Vector2I(1280, 720) })
             {
-                viewport.Size = size; shell.Size = size;
+                viewport.Size = size; shell.Size = new Vector2(1600, 900);
                 await Frame(); await Frame();
                 if (!ReferenceEquals(capture, presenter.View) || presenter.View.SelectedCardId != placement.CardId
                     || item.GetInstanceId() != identity || !item.GetNode<Panel>("SelectionOutline").Visible)
@@ -559,12 +559,12 @@ internal static class PlaytestVerification
                 var host = shell.GetNode<Control>("ContextRow/ContextHost");
                 var benchCell = shell.GetNode<Control>("BenchRow/Content");
                 if (name.Size.X < 100 || name.Text != capture.Player!.Hero!.DisplayName
-                    || hero.GlobalPosition.Y < benchCell.GlobalPosition.Y + benchCell.Size.Y
+                    || hero.GlobalPosition.X + hero.Size.X >= benchCell.GlobalPosition.X
                     || hero.GlobalPosition.Y + hero.Size.Y + shell.GetNode<VScrollBar>("DesktopScroll").Value > shell.GetNode<VScrollBar>("DesktopScroll").MaxValue
                     || !Mathf.IsEqualApprox(benchCell.Size.X, board.Size.X))
-                    return Fail("英雄底栏被压缩、越界或双棋盘宽度不一致");
+                    return Fail("英雄侧栏被压缩、越界或双棋盘宽度不一致");
                 var offers = shell.GetNode<HBoxContainer>("ContextRow/ContextHost/ShopView/OfferScroll/Offers");
-                var buys = offers.GetChildren().OfType<Control>().Select(row => row.GetNode<Button>("Actions/Buy")).ToArray();
+                var buys = offers.GetChildren().OfType<Control>().Select(row => row.GetNode<Control>("Actions/Price")).ToArray();
                 if (buys.Any(buy => buy.Size.X < 61 || buy.GlobalPosition.Y + buy.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1)
                     || buys.Any(buy => Mathf.Abs(buy.GlobalPosition.Y - buys[0].GlobalPosition.Y) > 1))
                 {
@@ -578,7 +578,7 @@ internal static class PlaytestVerification
                     || item.Position.Y + item.Size.Y > board.Size.Y + 1)
                 { GD.Print($"卡牌区域：窗口 {size}，卡 {item.Position}/{item.Size}，棋盘 {board.Size}"); return Fail("卡牌越界"); }
                 var details = shell.GetNode<CardDetailsView>("CardDetails");
-                if (details.Position.X + details.Size.X > shell.Size.X + 1 || details.Position.Y + details.Size.Y > shell.Size.Y + 1)
+                if (details.GetGlobalRect().End.X > shell.GetGlobalRect().End.X + 1 || details.GetGlobalRect().End.Y > shell.GetGlobalRect().End.Y + 1)
                     return Fail("详情越界");
                 var detailCard = capture.Player!.Cards.First(card => card.Id == placement.CardId);
                 await owner.ToSignal(owner.GetTree().CreateTimer(.15), SceneTreeTimer.SignalName.Timeout);
@@ -592,19 +592,21 @@ internal static class PlaytestVerification
                 var longCard = detailCard with { Value = 0, Abilities = Array.Empty<AbilityDefinition>(),
                     DescriptionEntries = Array.AsReadOnly(Enumerable.Range(0, 20).Select(_ => new CardDescriptionEntry(CardKeywords.Passive,
                         "当前数值 0；攻击公式 = 英雄最大生命 × 20% + 护甲 × 1.5。长说明与宝石属性展开后应保留完整内容并在正文区域滚动阅读。")).ToArray()) };
-                details.ShowNear(longCard, new Rect2(new Vector2(size.X - 100, size.Y - 80), new Vector2(70, 60)), size);
+                details.ShowNear(longCard, new Rect2(new Vector2(shell.Size.X - 100, shell.Size.Y - 80), new Vector2(70, 60)), shell.Size);
                 details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
                 for (var frame = 0; frame < 6; frame++) await Frame();
                 var body = details.GetNode<ScrollContainer>("Content/CardContent/BodyScroll");
-                if (details.Position.X < 12 || details.Position.Y < 12 || details.Position.X + details.Size.X > size.X - 11
-                    || details.Position.Y + details.Size.Y > size.Y - 11 || details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible
+                var detailMargin = 12 * details.Scale.X;
+                if (details.Position.X < detailMargin - .1f || details.Position.Y < detailMargin - .1f
+                    || details.Position.X + details.Size.X * details.Scale.X > shell.Size.X - detailMargin + .1f
+                    || details.Position.Y + details.Size.Y * details.Scale.Y > shell.Size.Y - detailMargin + .1f || details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible
                     || body.GetVScrollBar().MaxValue <= body.GetVScrollBar().Page)
                     return Fail($"长说明展开后越界、缺少滚动或无主动能力仍显示冷却：窗口 {size}，详情 {details.Position}/{details.Size}，冷却 {details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible}，滚动 {body.GetVScrollBar().MaxValue}/{body.GetVScrollBar().Page}");
                 body.ScrollVertical = 40; await Frame();
                 if (body.ScrollVertical <= 0) return Fail("详情正文无法滚动");
-                details.ShowNear(detailCard, new Rect2(new Vector2(20, 20), new Vector2(60, 60)), size);
+                details.ShowNear(detailCard, new Rect2(new Vector2(20, 20), new Vector2(60, 60)), shell.Size);
                 for (var frame = 0; frame < 6; frame++) await Frame();
-                if (!Mathf.IsEqualApprox(details.Position.X, 96) || details.Size.Y >= size.Y - 24)
+                if (!Mathf.IsEqualApprox(details.Position.X, 80 + 16 * details.Scale.X) || details.Size.Y * details.Scale.Y >= shell.Size.Y - detailMargin * 2)
                     return Fail("左侧卡牌未邻接显示或短详情未收缩");
                 shell.Render(capture); await Frame(); await Frame();
                 item.GrabFocus();
@@ -619,7 +621,7 @@ internal static class PlaytestVerification
                 var rewardScroll = shell.GetNode<ScrollContainer>("ContextRow/ContextHost/ResultView/Rewards");
                 var rewardRow = rewardScroll.GetChild<HBoxContainer>(0).GetChild<Control>(0);
                 var rewardItem = rewardRow.GetNode<CardItemView>("RewardCard0");
-                var claim = rewardRow.GetNode<Button>("Claim0");
+                var claim = rewardRow.GetNode<Control>("Claim0");
                 if (rewardScroll.GlobalPosition.Y + rewardScroll.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1
                     || rewardItem.GlobalPosition.Y + rewardItem.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1
                     || claim.Size.X < 99) return Fail("奖励卡面或领取按钮缩回后越界");
@@ -665,17 +667,17 @@ internal static class PlaytestVerification
             {
                 shell.Render(capture with { Page = page, Enemy = capture.Player,
                     EnemyVisible = page is MatchPage.Preparation or MatchPage.BattlePlayback });
-                if (host.GetChildren().OfType<Control>().Count(view => view.Visible) != 1) return false;
+                if (host.GetChildren().OfType<Control>().Count(view => view.Visible) != (page is MatchPage.Preparation or MatchPage.BattlePlayback ? 2 : 1)) return false;
             }
             shell.Render(capture);
             var offers = host.GetNode<HBoxContainer>("ShopView/OfferScroll/Offers");
-            var old = offers.GetChild<Node>(0).GetNode<Button>("Actions/Buy");
+            var old = offers.GetChild<Node>(0).GetNode<Button>("Card");
             var count = 0; var index = -1; var revision = -1L;
             shell.BuyRequested += (selected, version) => { count++; index = selected; revision = version; };
             for (var render = 0; render < 3; render++) shell.Render(capture);
             old.EmitSignal(Button.SignalName.Pressed);
             if (count != 0) return false;
-            offers.GetChild<Node>(0).GetNode<Button>("Actions/Buy").EmitSignal(Button.SignalName.Pressed);
+            offers.GetChild<Node>(0).GetNode<Button>("Card").EmitSignal(Button.SignalName.Pressed);
             var detailCard = capture.Offers[0].Card;
             var detailView = capture with { Player = capture.Player! with { Cards = Array.AsReadOnly(new[] { detailCard }) } };
             shell.Render(detailView);
@@ -689,6 +691,8 @@ internal static class PlaytestVerification
                 || details.Modulate.A != 1 || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) return false;
             shell.Render(detailView with { SelectedCardId = detailCard.Id });
             if (details.Position != position || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) return false;
+            detailCard = detailCard with { QuestDefinitions = Array.AsReadOnly(new[] { new CardQuestDefinition(new StringName("ui.verify.quest"),
+                new BattleVictoryQuestConditionDefinition(), 5, [], [new ArmorEffectDefinition(1)]) }) };
             var state = new CardBattleSnapshot(detailCard.Id, SideId.Player, true, 15, 20, 30, Array.Empty<decimal>(), detailCard.CurrentValues)
             { IsFlying = true, IsBerserk = true,
                 Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.verify.quest"), 3, 5, false) }) };
@@ -696,12 +700,13 @@ internal static class PlaytestVerification
             var paragraphs = details.GetNode<VBoxContainer>("Content/CardContent/BodyScroll/Paragraphs");
             var status = paragraphs.GetNode<RichTextLabel>("BattleState").GetParsedText();
             if (new[] { "飞行", "狂暴", "禁锢 3.0s", "疾速 1.5s", "迟缓 2.0s", "已摧毁" }.Any(text => !status.Contains(text))
-                || paragraphs.GetNode<RichTextLabel>("BattleQuest").GetParsedText() != "任务 3/5") return false;
+                || paragraphs.GetNode<Label>("Quests/ui_verify_quest/Column/Meter/Count").Text != "3 / 5") return false;
             details.RefreshCard(detailCard, shell.Size, state with { Destroyed = false, Haste = 0, Slow = 0, Immobilize = 0,
                 IsFlying = false, IsBerserk = false,
                 Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.verify.quest"), 5, 5, true) }) });
-            if (paragraphs.HasNode("BattleState") || paragraphs.GetNode<RichTextLabel>("BattleQuest").GetParsedText() != "任务 5/5 · 已解锁") return false;
-            shell.Render(capture);
+            if (paragraphs.HasNode("BattleState") || paragraphs.GetNode<Label>("Quests/ui_verify_quest/Column/Meter/Count").Text != "5 / 5"
+                || paragraphs.GetNode<Label>("Quests/ui_verify_quest/Column/Heading/State").Text != "✓ 已解锁") return false;
+            shell.Render(capture with { Offers = Array.Empty<ShopItemViewModel>() });
             if (details.Visible) return false;
             return count == 1 && index == capture.Offers[0].Index && revision == capture.Offers[0].Revision
                 && ReferenceEquals(capture, presenter.View);
@@ -745,7 +750,7 @@ internal static class PlaytestVerification
                         var offer = presenter.View.Offers.FirstOrDefault(item => item.Action.Enabled
                             && item.Card.Abilities.Any(ability => ability.Effects.Any(effect => effect is AttributeDamageEffectDefinition)))
                             ?? presenter.View.Offers.FirstOrDefault(item => item.Action.Enabled);
-                        if (offer is not null) Press(scene.GetNode<HBoxContainer>($"{main}/ContextHost/ShopView/OfferScroll/Offers").GetChild<Node>(offer.Index).GetNode<Button>("Actions/Buy"));
+                        if (offer is not null) Press(scene.GetNode<HBoxContainer>($"{main}/ContextHost/ShopView/OfferScroll/Offers").GetChild<Node>(offer.Index).GetNode<Button>("Card"));
                         break;
                     case MatchPage.Event:
                         if (presenter.View.EventOptions.Count == 0) break;
@@ -763,7 +768,9 @@ internal static class PlaytestVerification
                             var gridPath = placement.Zone == BoardZone.Battlefield
                                 ? $"{root}/BattlefieldRow/Content/Board"
                                 : $"{root}/BenchRow/Content/Board";
-                            if (!scene.GetNode<Control>(gridPath).GetNode<Button>("Card_" + added.Id.Value.ToString("N")).TooltipText.Contains(added.DisplayName)) return false;
+                            if (scene.GetNode<Control>(gridPath).GetNode<Button>("Card_" + added.Id.Value.ToString("N"))
+                                .GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single()
+                                .GetNode<TextureRect>("ArtFrame/Artwork").Texture?.ResourcePath != added.Illustration.ToString()) return false;
                             var board = scene.GetNode<Control>(gridPath);
                             var cardNode = board.GetNode<Button>("Card_" + added.Id.Value.ToString("N"));
                             var instance = cardNode.GetInstanceId();
@@ -795,22 +802,21 @@ internal static class PlaytestVerification
                                     var placement = after.BoardPlacements.Single(item => item.CardId == card.Id);
                                     var slot = scene.GetNode<Control>($"{root}/BattlefieldRow/Content/Board")
                                         .GetNode<Button>("Card_" + card.Id.Value.ToString("N"));
-                                    if (!slot.TooltipText.Contains($"当前 {damage}")) return false;
+                                    if (!slot.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single()
+                                        .GetNode<Control>("Effects").GetChildren().OfType<CardEffectRow>()
+                                        .Any(effect => effect.GetNode<Label>("Value").Text == damage.ToString())) return false;
                                     sawModifier = true;
                                 }
                             }
                         break;
                     case MatchPage.Preparation:
                         if (!scene.GetNode<Control>($"{main}/ContextHost/BattleStage").Visible) return false;
-                        Press(scene.GetNode<Button>($"{main}/ContextHost/BattleStage/Controls/Inspect"));
-                        if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible) return false;
-                        if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard")
-                            .GetChildren().OfType<Button>().Any(button => button.TooltipText.Length > 0)) return false;
-                        Press(scene.GetNode<Button>($"{main}/ContextHost/EnemyBack"));
-                        if (!scene.GetNode<Control>($"{main}/ContextHost/BattleStage").Visible
-                            || scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible) return false;
-                        Press(scene.GetNode<Button>($"{main}/ContextHost/BattleStage/Controls/Inspect"));
-                        if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible) return false;
+                        if (!scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").Visible
+                            || !scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard")
+                                .GetChildren().OfType<CardItemView>().Any()) return false;
+                        var enemyRect = scene.GetNode<Control>($"{main}/ContextHost/EnemyBoard").GetGlobalRect();
+                        var ownRect = scene.GetNode<Control>($"{root}/BattlefieldRow/Content/Board").GetGlobalRect();
+                        if (enemyRect.End.Y >= ownRect.Position.Y) return false;
                         sawPvp |= presenter.View.Player!.Round > 1 && presenter.View.Player.Turn == 1;
                         sawMonster |= presenter.View.Player!.Turn == 5;
                         Press(scene.GetNode<Button>($"{root}/FooterActions/Battle"));

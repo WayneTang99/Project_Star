@@ -252,6 +252,7 @@ internal static class AscendantChecks
         playback.Skip();
         var temporary = playback.Project(SideId.Player).Cards.Single();
         if (temporary.ElementKeys.Single() != GameElements.Light || temporary.Quests[1].Progress != 60
+            || CardQuestViewModel.From(temporary, null).Count != 3 || !CardQuestViewModel.From(temporary, null)[1].Unlocked
             || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.General
             || before.Cards.Single().ElementKeys.Single() != GameElements.General) return false;
         foreach (var percent in new[] { 0, 101 })

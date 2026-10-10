@@ -11,7 +11,6 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class ContextPortrait : Control
 {
     private Label _title = null!;
-    private CardLevelGem _level = null!;
     private VBoxContainer _resources = null!;
     private TextureRect _art = null!;
     private ColorRect _shade = null!;
@@ -41,8 +40,6 @@ public sealed partial class ContextPortrait : Control
             MouseFilter = MouseFilterEnum.Ignore };
         MatchTheme.Text(_message, 11, new Color("c1c7b3")); _message.AddThemeConstantOverride("line_spacing", 7);
         _message.AddThemeColorOverride("font_color", MatchTheme.Muted); AddChild(_message);
-        _level = new CardLevelGem { Name = "EncounterLevelCrystal", Size = new Vector2(26, 34), MouseFilter = MouseFilterEnum.Ignore };
-        AddChild(_level); _level.Hide();
         _resources = new VBoxContainer { Name = "EnemyResources" }; AddChild(_resources);
         _resources.AddThemeConstantOverride("separation", 4);
         _health = new ResourceBar("EnemyHealth", new Color("86bf8c")) { CustomMinimumSize = new Vector2(112, 24) };
@@ -57,7 +54,7 @@ public sealed partial class ContextPortrait : Control
     public void Render(string title, int encounterLevel = 0, HeroSnapshot? enemy = null, HeroBattleSnapshot? battle = null)
     {
         _title.Text = title; TooltipText = encounterLevel > 0 ? $"{title} · 等级 {encounterLevel}" : title;
-        _level.Visible = encounterLevel > 0; _level.SetLevel(encounterLevel);
+        LevelPresentation.Frame(this, encounterLevel);
         _resources.Visible = enemy is not null || battle is not null;
         if (_resources.Visible)
         {
@@ -86,7 +83,6 @@ public sealed partial class ContextPortrait : Control
 
     private void LayoutTitle()
     {
-        _level.Position = new Vector2(12, 8); _level.Size = new Vector2(20, 25); _level.Modulate = Colors.Transparent;
         _eyebrow.Position = new Vector2(24, Size.Y / 2 - 77); _eyebrow.Size = new Vector2(Size.X - 48, 18);
         _title.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
         _title.Position = new Vector2(24, Size.Y / 2 - 49); _title.Size = new Vector2(Mathf.Max(1, Size.X - 48), 43);

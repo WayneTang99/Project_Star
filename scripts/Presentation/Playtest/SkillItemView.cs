@@ -21,6 +21,7 @@ public sealed partial class SkillItemView : Button
     {
         _artwork.Texture = adapter.Artwork(skill.Illustration);
         TooltipText = CardDisplayAdapter.SkillDetails(skill);
+        LevelPresentation.Frame(this, skill.Level, 3);
     }
 
     // 选中轮廓只影响展示，不执行技能能力。
@@ -31,6 +32,10 @@ public sealed partial class SkillItemView : Button
     {
         var text = new RichTextLabel { FitContent = true, ScrollActive = false,
             CustomMinimumSize = new Vector2(420, 0), MouseFilter = MouseFilterEnum.Ignore };
-        CardKeywordText.Render(text, forText); return text;
+        CardKeywordText.Render(text, forText);
+        var panel = new PanelContainer(); panel.AddChild(text);
+        var color = GetNodeOrNull<Panel>("LevelBorder")?.GetThemeStylebox("panel") as StyleBoxFlat;
+        var style = MatchTheme.Surface(MatchTheme.SurfaceColor, color?.BorderColor ?? MatchTheme.Gold);
+        style.SetBorderWidthAll(2); panel.AddThemeStyleboxOverride("panel", style); return panel;
     }
 }

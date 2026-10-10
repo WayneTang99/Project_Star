@@ -80,7 +80,11 @@ public sealed record DamageDealtEvent(
     int ArmorAbsorbed,
     int HealthDamage,
     int RemainingHealth,
-    DamageSourceKind SourceKind = DamageSourceKind.Card) : BattleEvent(Tick);
+    DamageSourceKind SourceKind = DamageSourceKind.Card) : BattleEvent(Tick)
+{
+    // 冻结周期伤害的实际来源，回放不按Tick或生命差猜测灼伤／中毒。
+    public BattleStatus? StatusOrigin { get; init; }
+}
 
 public sealed record HeroDefeatedEvent(BattleTick Tick, SideId Side) : BattleEvent(Tick);
 

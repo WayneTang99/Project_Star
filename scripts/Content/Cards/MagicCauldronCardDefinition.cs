@@ -17,7 +17,7 @@ public sealed class MagicCauldronCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却7秒，魔法消耗0，对敌方英雄施加3中毒（随此卡牌施毒加成提高）。"),
-                    new(CardKeywords.Passive, "在战场区或备战区时，每出售一张植物卡牌，此卡牌施加的中毒永久增加1/2/3/4。"),
+                    new(CardKeywords.Trade, "在战场区或备战区时，每出售一张植物卡牌，此卡牌施加的中毒永久增加1/2/3/4。"),
                     new(CardKeywords.Quest, "累计出售20张植物卡牌，解锁：此卡牌冷却减少2秒。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>

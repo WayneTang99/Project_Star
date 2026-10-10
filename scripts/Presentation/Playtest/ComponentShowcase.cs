@@ -89,8 +89,13 @@ public sealed partial class ComponentShowcase : Control
     }
 
     public override void _ExitTree() { if (_details is not null) Resized -= ClampDetails; }
-    private async void CaptureHtmlParity() => await HtmlParityCapture.Run(this);
-    private void ShowDetails(CardSnapshot card) => _details.ShowCard(card, GetLocalMousePosition(), Size);
+    private async void CaptureHtmlParity()
+    {
+        try { await HtmlParityCapture.Run(this); }
+        catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+    }
+    private void ShowDetails(CardSnapshot card, Rect2 rect)
+    { _details.SetPinned(true); _details.ShowNear(card, new Rect2(rect.Position - GlobalPosition, rect.Size), Size); }
     private void ClampDetails() => _details.ClampTo(Size);
 
     // 捕获真实遭遇图卡与商店页面，再总览全部正式原画和五档等级晶体。
@@ -448,8 +453,8 @@ public sealed partial class ComponentShowcase : Control
             }), IsFlying = OS.GetCmdlineUserArgs().Contains("--capture-card-states"),
                 IsBerserk = OS.GetCmdlineUserArgs().Contains("--capture-card-states") };
             shell.GetNode<CardDetailsView>("CardDetails").ShowCard(sample, new Vector2(280, 90), shell.Size);
-            var item = new CardItemView();
-            var tooltip = (Control)item._MakeCustomTooltip(CardDisplayAdapter.Details(sample)); item.Free();
+            var tooltip = new CardDetailsContent();
+            tooltip.Ready += () => tooltip.Render(sample, 288, 240);
             var tooltipPanel = new PanelContainer(); shell.AddChild(tooltipPanel);
             tooltipPanel.AddChild(tooltip); tooltipPanel.Position = new Vector2(760, 330);
             await Save(OS.GetCmdlineUserArgs().Contains("--capture-card-states") ? "card-states" : "keywords");
@@ -472,7 +477,7 @@ public sealed partial class ComponentShowcase : Control
         {
             var scroll = shell.GetNode<ScrollContainer>("ContextRow/ContextHost/ShopView/OfferScroll");
             scroll.ScrollVertical = (int)scroll.GetVScrollBar().MaxValue;
-            shell.GetNode<Button>("ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer2/Actions/Buy").GrabFocus();
+            shell.GetNode<Button>("ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer2/Card").GrabFocus();
             await Save("shop-last");
         }
         shell.Render(view with { SelectedCardId = card.Id });

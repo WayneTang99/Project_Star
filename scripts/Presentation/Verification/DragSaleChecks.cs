@@ -128,13 +128,23 @@ internal static class DragSaleChecks
             {
                 var item = scene.GetNode<CardItemView>(path + "/Card_" + card.Id.Value.ToString("N"));
                 var press = item.GlobalPosition + item.Size / 2;
-                var target = new Vector2(650, 140);
+                var target = drop.GetGlobalRect().GetCenter();
                 var wealth = session.Player.Wealth;
                 var value = card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value);
                 var placements = presenter.View.Player!.BoardPlacements.ToArray();
                 await Send(Motion(press, Vector2.Zero, false)); await Send(Button(press, true));
                 await Send(Motion(target, target - press, true));
                 if (!viewport.GuiIsDragging() || !drop.Visible || !session.Board.Contains(card.Id)) return false;
+                var preview = viewport.FindChild("CardDragPreview", true, false) as Control;
+                var sourceFace = item.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single();
+                var previewFace = preview?.GetNode<Project_Star.Presentation.CardFace.CardFace>("Face");
+                if (previewFace is null || !previewFace.Size.IsEqualApprox(sourceFace.Size) || item.Modulate.A != .28f) return Fail("卡面预览及原卡淡化");
+                var expectedOffset = sourceFace.Position - item.Size / 2;
+                if (previewFace.GlobalPosition.DistanceTo(target + expectedOffset) > .5f)
+                { GD.Print($"抓取定位：预览{previewFace.GlobalPosition}，鼠标{target}，预期偏移{expectedOffset}，预览根{preview!.GlobalPosition}。"); return Fail("抓取位置"); }
+                var beforeMove = previewFace.GlobalPosition;
+                await Send(Motion(target + new Vector2(20, 10), new Vector2(20, 10), true));
+                if (!previewFace.GlobalPosition.IsEqualApprox(beforeMove + new Vector2(20, 10))) return Fail("卡面跟随鼠标");
                 // 第一次拖拽先取消，确认未出售，然后再次拖到上方松开。
                 if (card == boar)
                 {
@@ -164,5 +174,6 @@ internal static class DragSaleChecks
             Input.ParseInputEvent(new InputEventKey { Keycode = Key.Escape, PhysicalKeycode = Key.Escape, Pressed = false });
             Input.FlushBufferedEvents(); owner.RemoveChild(viewport); viewport.Free();
         }
+        static bool Fail(string reason) { GD.Print($"原生出售预览失败：{reason}"); return false; }
     }
 }

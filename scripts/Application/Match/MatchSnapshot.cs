@@ -36,6 +36,7 @@ public sealed record CardSnapshot(
     public IReadOnlyDictionary<StringName, int> CurrentValues { get; init; } =
         new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = Array.Empty<AbilityDefinition>();
+    public IReadOnlyList<CardQuestDefinition> QuestDefinitions { get; init; } = Array.Empty<CardQuestDefinition>();
     public bool IsFlying { get; init; }
     public bool IsBerserk { get; init; }
     public decimal CooldownMultiplier { get; init; } = 1m;
@@ -126,6 +127,7 @@ public sealed record MatchSnapshot(
                 BaseValues = card.Attributes.BaseCombat.CreateMutableCopy().SnapshotFinalValues(),
                 CurrentValues = card.Attributes.BaseCombat.SnapshotFinalValues(),
                 Abilities = CopyAbilities(CardAbilityComposer.Compose(card, includePersistent: true)),
+                QuestDefinitions = Array.AsReadOnly(card.Quests.ToArray()),
                 CooldownMultiplier = card.CooldownMultiplier,
                 GemSockets = Array.AsReadOnly(card.GemSockets.Select(gem => gem is null ? null
                     : new GemSnapshot(gem.Key, gem.DisplayName, gem.Description)).ToArray()),

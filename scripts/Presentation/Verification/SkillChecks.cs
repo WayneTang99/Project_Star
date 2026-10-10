@@ -160,7 +160,7 @@ internal static class SkillChecks
                 || result.States.Last().Player.Armor != initialArmor - damage.Sum(value => value.ArmorAbsorbed)
                 || result.States.Any(value => value.Opponent.Armor != 11)
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)
-                || !details.Contains("战斗开始") || !details.Contains($"己方英雄等级 × {multipliers[level - 1]}"))
+                || !details.Contains("开战") || !details.Contains($"己方英雄等级 × {multipliers[level - 1]}"))
                 return false;
         }
         try

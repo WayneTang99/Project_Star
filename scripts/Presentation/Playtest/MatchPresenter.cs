@@ -64,7 +64,9 @@ public sealed class MatchPresenter
 
     private MatchSnapshot Snapshot(MatchSession session) => MatchDisplayQuery.Capture(session, _registry.Sets);
 
-    public void Reset() => Execute(() =>
+    public void Reset() => Execute(ResetFlow);
+
+    private void ResetFlow()
     {
         _player = null; _enemy = null; _stock = null; _options = null; _selected = null;
         _mentorVisit = null;
@@ -75,6 +77,15 @@ public sealed class MatchPresenter
         _page = MatchPage.HeroSelection; _title = "选择英雄";
         _message = _registry.Heroes.Count == 0 ? "尚未配置正式英雄内容。"
             : "选择英雄后，对局会从第 1 轮第 1 回合正式开始。";
+    }
+
+    // 确认绑定打开弹窗时的对局，旧确认不能放弃新局。
+    public void AbandonMatch(Guid matchId) => Execute(() =>
+    {
+        if (_player is null || _player.Id != matchId || _player.Status != MatchStatus.InProgress) return;
+        var result = _game.AbandonMatch(_player);
+        if (result.IsFailure) { _message = result.Failure!.Message; return; }
+        ResetFlow(); _message = "已放弃对局。选择英雄开始新的旅程。";
     });
 
     public void SelectHero(StringName key) => Execute(() =>
@@ -374,7 +385,7 @@ public sealed class MatchPresenter
             {
                 var skill = MatchDisplayQuery.FromSkill(_registry.Skills[offer.SkillKey], offer.Level);
                 return new KeyedAction(offer.SkillKey, new UiAction($"{offer.DisplayName} · {offer.Level}级"))
-                    { Subtitle = CardDisplayAdapter.AbilityDetails(skill.Abilities, skill.CurrentValues).Replace("\n", " · ") };
+                    { Level = offer.Level, Subtitle = CardDisplayAdapter.AbilityDetails(skill.Abilities, skill.CurrentValues).Replace("\n", " · ") };
             }).ToArray();
         var canContinue = _page is MatchPage.Shop or MatchPage.BattleResult or MatchPage.MatchEnded
             || _page == MatchPage.Event && _eventCompleted;
@@ -410,7 +421,7 @@ public sealed class MatchPresenter
                     reward.Kind == MonsterRewardKind.Card ? MatchDisplayQuery.FromOffer(
                         ShopOffer.Create(_registry.Cards[reward.Key], reward.Level)) : null,
                     reward.Kind == MonsterRewardKind.Skill ? CardDisplayAdapter.SkillDetails(
-                        MatchDisplayQuery.FromSkill(_registry.Skills[reward.Key], reward.Level)) : ""))
+                        MatchDisplayQuery.FromSkill(_registry.Skills[reward.Key], reward.Level)) : "") { Level = reward.Level })
                 .ToArray()),
         };
         ViewChanged?.Invoke(View);

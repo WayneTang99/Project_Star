@@ -54,19 +54,20 @@ public sealed partial class EncounterSelectionView : Control
             subtitle.OffsetLeft = 17; subtitle.OffsetRight = -17; subtitle.OffsetTop = -32; subtitle.OffsetBottom = -15;
             if (choice.Level > 0)
             {
-                var badge = new Control { Position = new Vector2(7, 7), Size = new Vector2(92, 26), MouseFilter = MouseFilterEnum.Ignore };
+                var badge = new Control { Position = new Vector2(12, 10), Size = new Vector2(92, 26), MouseFilter = MouseFilterEnum.Ignore };
                 button.AddChild(badge);
-                var crystal = new CardLevelGem { Name = "EncounterLevelCrystal", Position = new Vector2(3, 1),
-                    Size = new Vector2(20, 24), MouseFilter = MouseFilterEnum.Ignore };
-                badge.AddChild(crystal); crystal.SetLevel(choice.Level);
-                var level = new Label { Name = "EncounterLevel", Text = choice.ShopLevel > 0 ? $"{choice.Level}级商店" : $"等级 {choice.Level}", Position = new Vector2(27, 0),
-                    Size = new Vector2(62, 26), MouseFilter = MouseFilterEnum.Ignore };
+                var level = new Label { Name = "EncounterLevel", Text = choice.ShopLevel > 0 ? $"{choice.Level}级商店" : $"等级 {choice.Level}",
+                    Size = new Vector2(92, 26), MouseFilter = MouseFilterEnum.Ignore };
                 level.AddThemeColorOverride("font_color", Colors.White); badge.AddChild(level);
-                MatchTheme.Text(level, 10, MatchTheme.Gold);
+                MatchTheme.Text(level, 11, CardLevelGem.LevelColor(choice.Level));
+                level.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("11211adb"), Colors.Transparent));
             }
+            LevelPresentation.Frame(button, choice.Level);
             // 焦点与悬停边框绘制在原画之上。
             var outline = new Panel { Name = "Outline", MouseFilter = MouseFilterEnum.Ignore };
             outline.AddThemeStyleboxOverride("panel", MatchTheme.Outline(MatchTheme.Blue));
+            var focus = (StyleBoxFlat)outline.GetThemeStylebox("panel");
+            focus.ExpandMarginLeft = focus.ExpandMarginRight = focus.ExpandMarginTop = focus.ExpandMarginBottom = 3;
             button.AddChild(outline); outline.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); outline.Hide();
             button.MouseEntered += outline.Show;
             button.MouseExited += () => { if (!button.HasFocus()) outline.Hide(); };

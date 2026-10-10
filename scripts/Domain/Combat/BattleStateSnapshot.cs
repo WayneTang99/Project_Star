@@ -20,6 +20,7 @@ public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed
     IReadOnlyDictionary<StringName, int> Values)
 {
     public IReadOnlyList<CardQuestBattleSnapshot> Quests { get; init; } = System.Array.Empty<CardQuestBattleSnapshot>();
+    public IReadOnlyList<CardQuestDefinition> QuestDefinitions { get; init; } = System.Array.Empty<CardQuestDefinition>();
     public IReadOnlyList<StringName> QuestElementKeys { get; init; } = System.Array.Empty<StringName>();
     public IReadOnlyList<StringName> QuestTags { get; init; } = System.Array.Empty<StringName>();
     public IReadOnlyList<AbilityDefinition> QuestAbilities { get; init; } = System.Array.Empty<AbilityDefinition>();

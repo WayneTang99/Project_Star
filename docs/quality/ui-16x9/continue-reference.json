@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-10",
+  "baseline": "docs/quality/ui-16x9/approved-layout-source.zip::game-16x9.html",
+  "originalComponentsUnchangedIgnoringEofNewline": true,
+  "cardFaceCodeChangedThisIteration": false,
+  "sources": [
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::game-16x9.html",
+      "sha256": "2d32397138c085b514cd817da6c4723ca5b75558aba9182abe7f1fbd5c48d417",
+      "originalSource": "docs/design/prototypes/game-16x9.html"
+    },
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::game-16x9.css",
+      "sha256": "f2d18dce051f46e752a6eb5594b4df52a7d93dae609067154e324b4a2ee0ed77",
+      "originalSource": "docs/design/prototypes/game-16x9.css"
+    },
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::game-16x9.js",
+      "sha256": "846ac67aff7cf230e9c69fbcc27ffdfd9a60a8facf0a03446f2336f83145f629",
+      "originalSource": "docs/design/prototypes/game-16x9.js"
+    },
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::combat-status.html",
+      "sha256": "5cbf25ab3e5edf1e054d97476b3bf1073678092cb0f426a6031a3b16d0079642",
+      "originalSource": "docs/design/prototypes/combat-status.html"
+    },
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::combat-status.css",
+      "sha256": "7345d2b7e6847bd850b63b33f365d9f148031db0b3ac0f550b21395f1c2c70d9",
+      "originalSource": "docs/design/prototypes/combat-status.css"
+    },
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::combat-status.js",
+      "sha256": "3e5cfe865e75cf4c4e4f63853c9f7b3bebc713e6c752913fd30cb755e8bb3045",
+      "originalSource": "docs/design/prototypes/combat-status.js"
+    },
+    {
+      "source": "docs/quality/ui-16x9/approved-layout-source.zip::card-interactions.html",
+      "sha256": "95acbda7d8cec6e9068ece35ab7fcf682c3a3342a0c9fec24f45cd1fdb9747d9",
+      "originalSource": "docs/design/prototypes/card-interactions.html"
+    }
+  ],
+  "htmlDetailMetrics": {
+    "screenWidth": 380,
+    "borderWidth": 2,
+    "padding": 20,
+    "titleFontSize": 20,
+    "titleLetterSpacing": 2,
+    "cooldownDiameter": 49,
+    "bodyFontSize": 12,
+    "bodyLineHeight": 22.2,
+    "revealPixels": 6,
+    "revealSeconds": 0.12,
+    "adjacentPixels": 16,
+    "shadowOffsetY": 12,
+    "shadowBlur": 32
+  },
+  "nativeChecks": {
+    "resolutions": [
+      "1280x720",
+      "1920x1080",
+      "2560x1440",
+      "2560x1080"
+    ],
+    "widthPixels": 380,
+    "gapPixels": 16,
+    "pixelTolerance": 0.05,
+    "attack10TextWidth": 18,
+    "attack10AvailableWidth": 18,
+    "attack10Definition": "card.armguard",
+    "attack10Level": 2,
+    "fullRegressionCount": 243,
+    "fullVisualParityAccepted": false,
+    "keyboardSaleVerified": true,
+    "normalBoardTopY": [
+      362,
+      623.8
+    ],
+    "monsterBoardTopY": [
+      137,
+      372.4,
+      634.2
+    ]
+  },
+  "remaining": [
+    "字体栅格和335/336px正文宽度差异",
+    "同位置叠加和阴影边缘",
+    "精确CSS缓动曲线",
+    "星形背景和价值牌渐变",
+    "全部页面浮层及两套主题",
+    "完整人工对局"
+  ],
+  "scope": "Native details and board verification before the subsequently requested unified HTML draft"
+}

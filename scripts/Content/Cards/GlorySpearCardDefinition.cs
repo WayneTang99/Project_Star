@@ -17,7 +17,7 @@ public sealed class GlorySpearCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却9秒，魔法消耗0，对敌方英雄造成40伤害（随此卡牌攻击加成提高）。"),
-                    new(CardKeywords.Passive, "每当此卡牌位于战场区参与战斗并获胜，此卡牌永久增加20/40/80/160攻击。"),
+                    new(CardKeywords.Victory, "每当此卡牌位于战场区参与战斗并获胜，此卡牌永久增加20/40/80/160攻击。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {

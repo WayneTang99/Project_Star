@@ -132,7 +132,7 @@ internal static class HeroArtworkChecks
             float Clock() => material.GetShaderParameter("motion_time").AsSingle();
             var before = Clock(); await Frame(); await Frame();
             if (Clock() == before) throw new InvalidOperationException("圣骑士动效时钟未推进。");
-            shell.GetNode<Button>("OpenCardCatalog").EmitSignal(Button.SignalName.Pressed);
+            shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenCardCatalog").EmitSignal(Button.SignalName.Pressed);
             var paused = Clock(); await Frame(); await Frame();
             if (selection.IsProcessing() || Clock() != paused) throw new InvalidOperationException("图鉴打开后动效未暂停。");
             owner.GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = true }, true);

@@ -10,7 +10,7 @@ namespace Project_Star.Presentation.Playtest;
 // 卡牌输入外层；卡面只负责装饰，详情与操作由外层分发。
 public sealed partial class CardItemView : Button
 {
-    public event Action<CardSnapshot>? DetailsRequested;
+    public event Action<CardSnapshot, Rect2>? DetailsRequested;
     private CardFaceControl _face = null!;
     private CardSnapshot? _card;
     private Guid _matchId;
@@ -19,28 +19,19 @@ public sealed partial class CardItemView : Button
     private Panel _outline = null!;
     private bool _selected;
     private bool _hovered;
-    private Label _battleStatus = null!;
-    private ColorRect _cooldownMask = null!;
-    private float _cooldownRemaining;
+    private CardBattleOverlay _battleOverlay = null!;
     private Panel _feedback = null!;
     private Tween? _feedbackTween;
     private Label _selectedMark = null!;
     private CardBattleSnapshot? _battleState;
+    private CardFaceViewModel? _faceModel;
 
     public override void _Ready()
     {
         _face = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn").Instantiate<CardFaceControl>();
         AddChild(_face);
-        _cooldownMask = new ColorRect { Name = "CooldownMask", Visible = false,
-            MouseFilter = MouseFilterEnum.Ignore, Color = new Color("62c8e3"), ZIndex = 2 };
-        AddChild(_cooldownMask);
-        _battleStatus = new Label { Name = "BattleStatus", Visible = false, MouseFilter = MouseFilterEnum.Ignore,
-            ClipText = true, HorizontalAlignment = HorizontalAlignment.Center, ZIndex = 3 };
-        _battleStatus.AddThemeFontSizeOverride("font_size", 16);
-        _battleStatus.AddThemeColorOverride("font_color", Colors.White);
-        _battleStatus.AddThemeConstantOverride("outline_size", 5);
-        _battleStatus.AddThemeColorOverride("font_outline_color", Colors.Black);
-        AddChild(_battleStatus);
+        _battleOverlay = new CardBattleOverlay { Name = "BattleOverlay", Visible = false, ZIndex = 2 };
+        AddChild(_battleOverlay);
         _feedback = new Panel { Name = "ChangeFeedback", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 3 };
         _feedback.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color(1, .9f, .55f, .3f), MatchTheme.Gold));
         AddChild(_feedback); _feedback.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -59,62 +50,26 @@ public sealed partial class CardItemView : Button
     {
         _card = card;
         _matchId = matchId;
-        _face.SetCard(adapter.Build(card));
+        _faceModel = adapter.Build(card);
+        _face.SetCard(_faceModel);
         IgnoreDecoration(_face);
-        TooltipText = CardDisplayAdapter.Details(card) + (_selected ? "\n已选中" : "");
+        TooltipText = "";
         LayoutFace();
     }
 
     // 临时状态和发动亮度只属于表现；摧毁不删除战前身份或修改模型。
-    public void RenderBattle(CardBattleSnapshot? state, bool activated)
+    public void RenderBattle(CardBattleSnapshot? state, bool activated, BattlePlaybackViewModel? playback = null)
     {
         _battleState = state;
-        _battleStatus.Visible = state is not null;
         _face.Modulate = state?.Destroyed == true ? new Color(.35f, .35f, .35f)
-            : activated ? new Color(1.3f, 1.3f, .85f) : Colors.White;
-        _cooldownRemaining = 0;
-        if (state is { Destroyed: false, IsOnBench: false })
-        {
-            for (var index = 0; index < state.CooldownUnits.Count && index < state.CooldownDurationUnits.Count; index++)
-            {
-                var duration = state.CooldownDurationUnits[index];
-                if (duration > 0)
-                    _cooldownRemaining = Mathf.Max(_cooldownRemaining,
-                        (float)Math.Clamp(state.CooldownUnits[index] / duration, 0m, 1m));
-            }
-        }
-        _cooldownMask.Visible = _cooldownRemaining > 0;
-        LayoutFace();
-        if (state is null) return;
-        var status = string.Join(" · ", Array.FindAll(new[] {
-            state.IsFlying ? "飞行" : "", state.IsBerserk ? "狂暴" : "",
-            state.Immobilize > 0 ? $"禁锢 {state.Immobilize / 10m:0.0}s" : "",
-            state.Haste > 0 ? $"疾速 {state.Haste / 10m:0.0}s" : "",
-            state.Slow > 0 ? $"迟缓 {state.Slow / 10m:0.0}s" : "" }, text => text.Length > 0));
-        _battleStatus.Text = state.Destroyed ? "已摧毁" : status;
-        _battleStatus.Visible = _battleStatus.Text.Length > 0;
-        if (_card is not null) TooltipText = CardDisplayAdapter.Details(_card) + "\n" + status
-            + (state.Destroyed ? "\n已摧毁" : "");
+            : state?.IsBerserk == true ? new Color(1.08f, .95f, .9f)
+            : state?.IsFlying == true ? new Color(1.03f, 1.08f, 1.05f) : Colors.White;
+        _battleOverlay.Render(state, activated, playback);
         LayoutFace();
     }
 
-    // 卡牌悬停提示与详情共用关键词配色，TooltipText仍保持纯文本。
-    public override GodotObject _MakeCustomTooltip(string forText)
-    {
-        if (_card is not null)
-        {
-            var content = new CardDetailsContent { Theme = MatchTheme.Create(), CustomMinimumSize = new Vector2(288, 0) };
-            content.Ready += () => content.Render(_card, 288, Mathf.Max(60, GetViewportRect().Size.Y - 240));
-            return content;
-        }
-        var text = new RichTextLabel { FitContent = true, ScrollActive = false,
-            CustomMinimumSize = new Vector2(420, 0), MouseFilter = MouseFilterEnum.Ignore };
-        text.Theme = MatchTheme.Create();
-        CardKeywordText.RenderDetails(text, forText);
-        return text;
-    }
-
-    public override string _GetTooltip(Vector2 atPosition) => FindShell() is null ? TooltipText : "";
+    // 卡牌详情统一由页面展示，禁止引擎延时再生成第二个悬停窗。
+    public override string _GetTooltip(Vector2 atPosition) => "";
 
     public override void _GuiInput(InputEvent input)
     {
@@ -130,7 +85,7 @@ public sealed partial class CardItemView : Button
         }
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } && _card is not null)
         {
-            DetailsRequested?.Invoke(_card);
+            DetailsRequested?.Invoke(_card, GetGlobalRect());
             AcceptEvent();
         }
     }
@@ -148,7 +103,31 @@ public sealed partial class CardItemView : Button
         _suppressClick = true;
         return new BoardDragData(_matchId, _card.Id, ClickSlotOffset, (int)_card.Size);
     }
-    private Label DragPreview() => new() { Text = _card!.DisplayName, MouseFilter = MouseFilterEnum.Ignore };
+    private Control DragPreview()
+    {
+        var preview = new Control { Name = "CardDragPreview", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 100, ZAsRelative = false,
+            Scale = GetGlobalTransform().Scale };
+        var face = GD.Load<PackedScene>("res://scripts/Presentation/CardFace/CardFace.tscn").Instantiate<CardFaceControl>();
+        face.Name = "Face"; preview.AddChild(face);
+        var size = _face.Size;
+        var offset = _face.Position - _pressPoint;
+        var model = _faceModel!;
+        preview.Ready += () =>
+        {
+            face.SetCard(model); face.SetDisplaySize(size); face.Position = offset;
+            IgnoreDecoration(preview);
+        };
+        FindShell()?.HideHoverCard();
+        return preview;
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationDragBegin && _card is not null
+            && GetViewport().GuiGetDragData().AsGodotObject() is BoardDragData drag && drag.CardId == _card.Id)
+            Modulate = new Color(1, 1, 1, .28f);
+        if (what == NotificationDragEnd) Modulate = Colors.White;
+    }
 
     // 点击和拖拽共用按下位置的格偏移，键盘操作默认起始格。
     public int ClickSlotOffset => _card is null ? 0 : Mathf.Clamp(
@@ -196,16 +175,19 @@ public sealed partial class CardItemView : Button
         _outline.AddThemeStyleboxOverride("panel", style);
     }
     private Tween? _hoverTween;
+    private float _hoverOffset;
     private void EnterHover()
     {
         _hovered = true; UpdateOutline(); _hoverTween?.Kill();
-        _hoverTween = CreateTween(); _hoverTween.TweenProperty(_face, "position:y", -6f, .2);
+        _hoverTween = CreateTween();
+        _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, -6f, .2);
         if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState);
     }
     private void ExitHover()
     {
         _hovered = false; UpdateOutline(); _hoverTween?.Kill();
-        _hoverTween = CreateTween(); _hoverTween.TweenProperty(_face, "position:y", 0f, .2);
+        _hoverTween = CreateTween();
+        _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, 0f, .2);
         FindShell()?.HideHoverCard();
     }
     private MatchShell? FindShell()
@@ -225,11 +207,8 @@ public sealed partial class CardItemView : Button
         var height = Mathf.Min(Size.Y, Size.X / ratio);
         var faceSize = GetParent() is BoardZoneView ? Size : new Vector2(height * ratio, height);
         _face.SetDisplaySize(faceSize);
-        _face.Position = (Size.IsEqualApprox(faceSize) ? Vector2.Zero : (Size - faceSize) / 2) + new Vector2(0, _hovered ? -6 : 0);
-        _cooldownMask.Position = _face.Position + new Vector2(0, faceSize.Y - Mathf.Clamp(faceSize.Y * .14f, 22, 56) - 3);
-        _cooldownMask.Size = new Vector2(faceSize.X * (1 - _cooldownRemaining), 3);
-        _battleStatus.Position = new Vector2(0, Mathf.Max(24, Size.Y * .35f));
-        _battleStatus.Size = new Vector2(Size.X, 36);
+        _face.Position = (Size.IsEqualApprox(faceSize) ? Vector2.Zero : (Size - faceSize) / 2) + new Vector2(0, _hoverOffset);
+        _battleOverlay.Position = _face.Position; _battleOverlay.Size = faceSize;
         _selectedMark.Position = new Vector2(4, Mathf.Max(0, Size.Y - 25));
     }
 

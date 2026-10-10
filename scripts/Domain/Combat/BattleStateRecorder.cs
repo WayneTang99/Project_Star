@@ -40,6 +40,7 @@ internal static class BattleStateRecorder
                 SummonedCard = card.SummonedCard,
                 Quests = Array.AsReadOnly(card.Quests.Select(quest => new CardQuestBattleSnapshot(quest.Key,
                     card.QuestProgress[quest.Key], quest.RequiredCount, card.QuestProgress[quest.Key] >= quest.RequiredCount)).ToArray()),
+                QuestDefinitions = Array.AsReadOnly(card.Quests.ToArray()),
                 QuestElementKeys = Array.AsReadOnly(card.ElementKeys.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
                 QuestTags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
                 QuestAbilities = card.Quests.Count == 0 ? Array.Empty<AbilityDefinition>()

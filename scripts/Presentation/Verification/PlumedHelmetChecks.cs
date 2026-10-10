@@ -25,7 +25,7 @@ internal static class PlumedHelmetChecks
             || identity.Size != CardSize.Small || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
             || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Equipment)
             || definition.InitialLevel != 2 || definition.SupportsLevel(1) || definition.SupportsLevel(5)
-            || !identity.DescriptionEntries.Select(entry => entry.KeywordKey).SequenceEqual(new[] { CardKeywords.Activate, CardKeywords.Aura })
+            || !identity.DescriptionEntries.Select(entry => entry.KeywordKey).SequenceEqual(new[] { CardKeywords.Activate, CardKeywords.Echo })
             || texture is null || texture.GetWidth() * 2 != texture.GetHeight()) return false;
         for (var level = 2; level <= 4; level++)
         {

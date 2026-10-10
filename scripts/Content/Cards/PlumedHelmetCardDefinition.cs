@@ -17,7 +17,7 @@ public sealed class PlumedHelmetCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却5秒，魔法消耗0，对敌方英雄造成20/40/80伤害（随此卡牌攻击加成提高）。"),
-                    new(CardKeywords.Aura, "相邻己方战场人类卡牌发动时，此卡牌获得1秒充能；多重发动分别触发。"),
+                    new(CardKeywords.Echo, "相邻己方战场人类卡牌发动时，此卡牌获得1秒充能；多重发动分别触发。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 20,

@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Application.Match;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
+using Project_Star.Domain.Combat;
+using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Playtest;
 
@@ -42,7 +45,23 @@ public sealed record ShopItemViewModel(int Index, long Revision, UiAction Action
     public int Price { get; init; }
     public int MergeLevel { get; init; }
 }
-public sealed record RewardItemViewModel(int Index, long Revision, string Text, CardSnapshot? Card, string Details);
+public sealed record RewardItemViewModel(int Index, long Revision, string Text, CardSnapshot? Card, string Details)
+{
+    public int Level { get; init; }
+}
+
+// 任务定义与冻结进度按key关联的只读投影；回放不读取战后的实例。
+public sealed record CardQuestViewModel(StringName Key, string Condition, string Reward, int Progress, int RequiredCount, bool Unlocked)
+{
+    internal static IReadOnlyList<CardQuestViewModel> From(CardSnapshot card, CardBattleSnapshot? battle) =>
+        Array.AsReadOnly(card.QuestDefinitions.Select(quest =>
+        {
+            var replay = battle?.Quests.FirstOrDefault(value => value.Key == quest.Key);
+            var current = card.Quests.FirstOrDefault(value => value.Key == quest.Key);
+            return new CardQuestViewModel(quest.Key, CardDisplayAdapter.QuestCondition(quest), CardDisplayAdapter.QuestReward(card, quest),
+                replay?.Progress ?? current?.Progress ?? 0, quest.RequiredCount, replay?.Unlocked ?? current?.Unlocked ?? false);
+        }).ToArray());
+}
 
 /// <summary>One captured refresh; views never receive mutable sessions or visit contexts.</summary>
 public sealed record MatchPageViewModel(

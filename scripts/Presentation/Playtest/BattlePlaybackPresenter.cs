@@ -12,7 +12,10 @@ namespace Project_Star.Presentation.Playtest;
 
 // 回放的只读刷新数据，不包含可变对局或结算服务。
 public sealed record BattlePlaybackViewModel(long Tick, bool Paused, int Speed, bool Completed,
-    BattleStateSnapshot State, IReadOnlyList<string> Feedback, IReadOnlyDictionary<EntityId, long> Activations);
+    BattleStateSnapshot State, IReadOnlyList<string> Feedback, IReadOnlyDictionary<EntityId, long> Activations)
+{
+    public IReadOnlyList<BattleEvent> VisualEvents { get; init; } = Array.Empty<BattleEvent>();
+}
 
 // 仅推进冻结记录的游标；暂停、倍速和跳过均不执行玩法计算。
 public sealed class BattlePlaybackPresenter
@@ -20,6 +23,7 @@ public sealed class BattlePlaybackPresenter
     private readonly BattleResolution _source;
     private readonly List<string> _feedback = new();
     private readonly Dictionary<EntityId, long> _activations = new();
+    private readonly List<BattleEvent> _visualEvents = new();
     private int _frameIndex = 1;
     private int _eventIndex;
     private double _seconds;
@@ -40,7 +44,8 @@ public sealed class BattlePlaybackPresenter
 
     // 返回游标和集合的冻结副本，后续播放不改变之前的展示数据。
     public BattlePlaybackViewModel Capture() => new(Tick, Paused, Speed, Completed, _state,
-        Array.AsReadOnly(_feedback.ToArray()), new ReadOnlyDictionary<EntityId, long>(new Dictionary<EntityId, long>(_activations)));
+        Array.AsReadOnly(_feedback.ToArray()), new ReadOnlyDictionary<EntityId, long>(new Dictionary<EntityId, long>(_activations)))
+        { VisualEvents = Array.AsReadOnly(_visualEvents.Where(item => item.Tick.Value >= Tick - 8).ToArray()) };
 
     // 暂停仅改变播放状态。
     public void TogglePause() { if (!Completed) Paused = !Paused; }
@@ -74,6 +79,7 @@ public sealed class BattlePlaybackPresenter
             while (_eventIndex < next.EventCount)
             {
                 var item = _source.Result.Events[_eventIndex++];
+                if (item is CardChargedEvent or DamageDealtEvent) _visualEvents.Add(item);
                 switch (item)
                 {
                     case AbilityActivatedEvent ability:
@@ -93,6 +99,7 @@ public sealed class BattlePlaybackPresenter
             Recovery(_state.Player, next.Player, "我方"); Recovery(_state.Opponent, next.Opponent, "敌方");
             _state = next; changed = true;
         }
+        _visualEvents.RemoveAll(item => item.Tick.Value < tick - 8);
         return changed;
     }
 
@@ -122,6 +129,7 @@ public sealed class BattlePlaybackPresenter
             {
                 SetKey = identity.SetKey, Illustration = identity.Illustration, DescriptionEntries = identity.DescriptionEntries,
                 Tags = summoned.Tags, BaseValues = summoned.BaseValues, CurrentValues = state.Values, Abilities = summoned.Abilities,
+                QuestDefinitions = state.QuestDefinitions,
                 IsFlying = state.IsFlying, IsBerserk = state.IsBerserk,
                 GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
             };
@@ -143,6 +151,7 @@ public sealed class BattlePlaybackPresenter
                     BaseValues = state.Values, CurrentValues = state.Values, Abilities = state.TransformedAbilities,
                     IsFlying = state.IsFlying, IsBerserk = state.IsBerserk, CooldownMultiplier = 1m,
                     Quests = Array.Empty<QuestProgressSnapshot>(),
+                    QuestDefinitions = state.QuestDefinitions,
                     GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
                 };
             if (state is null) return card;
@@ -152,6 +161,7 @@ public sealed class BattlePlaybackPresenter
                 ElementKeys = state.QuestElementKeys, Tags = state.QuestTags, Abilities = state.QuestAbilities,
                 Quests = Array.AsReadOnly(state.Quests.Select(quest => new QuestProgressSnapshot(
                     quest.Key, quest.Progress, quest.RequiredCount, quest.Unlocked)).ToArray()),
+                QuestDefinitions = state.QuestDefinitions.Count > 0 ? state.QuestDefinitions : projected.QuestDefinitions,
             };
         }).ToArray()) };
     }

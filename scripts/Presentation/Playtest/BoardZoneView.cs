@@ -15,10 +15,11 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class BoardZoneView : Control
 {
     public event Action<int>? SlotPressed;
-    public event Action<CardSnapshot>? DetailsRequested;
+    public event Action<CardSnapshot, Rect2>? DetailsRequested;
     public event Action<BoardDragData, BoardZone, int>? DropRequested;
     public Func<BoardDragData, BoardZone, int, Result<BoardPlacementResult>>? PreviewRequested { get; set; }
     public int SharedCapacity { get; set; }
+    public bool ShowHeading { get; set; } = true;
     private readonly Dictionary<EntityId, CardItemView> _cards = new();
     private readonly List<Button> _slots = new();
     private readonly CardDisplayAdapter _adapter = new();
@@ -112,7 +113,7 @@ public sealed partial class BoardZoneView : Control
                     if (current is not null && !item.Disabled && !item.ConsumeClickSuppression())
                         SlotPressed?.Invoke(current.Start + item.ClickSlotOffset);
                 };
-                item.DetailsRequested += card => DetailsRequested?.Invoke(card);
+                item.DetailsRequested += (card, rect) => DetailsRequested?.Invoke(card, rect);
                 AddChild(item); _cards.Add(id, item);
             }
             item.Disabled = !interactive;
@@ -159,7 +160,7 @@ public sealed partial class BoardZoneView : Control
             var state = playback?.State.Cards.FirstOrDefault(item => item.Id == id);
             var activated = playback is not null && playback.Activations.TryGetValue(id, out var tick)
                 && playback.Tick - tick <= 2;
-            card.RenderBattle(state, activated);
+            card.RenderBattle(state, activated, playback);
         }
     }
 
@@ -195,14 +196,16 @@ public sealed partial class BoardZoneView : Control
     {
         ClearPreview(); _title.Position = new Vector2(4, -2); _title.Size = new Vector2(Mathf.Min(120, Size.X), 20); _preview.Size = Size;
         _count.Position = new Vector2(_caption.Length <= 3 ? 55 : 125, 0); _count.Size = new Vector2(90, 16);
-        _tip.Position = new Vector2(Size.X - 310, 0); _tip.Size = new Vector2(306, 16); _tip.Visible = GetViewportRect().Size.X > 900;
+        _title.Visible = _count.Visible = ShowHeading;
+        _tip.Position = new Vector2(Size.X - 310, 0); _tip.Size = new Vector2(306, 16); _tip.Visible = ShowHeading && GetViewportRect().Size.X > 900;
         if (_slots.Count == 0) return;
         var gap = GetViewportRect().Size.X <= 900 ? 4 : 6;
         var left = GetViewportRect().Size.X <= 900 ? 8 : 10;
         var capacity = Math.Max(_slots.Count, SharedCapacity);
-        var track = Mathf.Max(1, Mathf.Min((Size.X - left * 2 - gap * (capacity - 1)) / capacity, (Size.Y - 27 - left * 2) / 2));
+        var headingHeight = ShowHeading ? 27 : 0;
+        var track = Mathf.Max(1, Mathf.Min((Size.X - left * 2 - gap * (capacity - 1)) / capacity, (Size.Y - headingHeight - left * 2) / 2));
         var unit = track + gap;
-        _unit = unit; _left = left; _track = track; _cardTop = 27 + left;
+        _unit = unit; _left = left; _track = track; _cardTop = headingHeight + left;
         for (var index = 0; index < _slots.Count; index++)
         {
             _slots[index].Position = new Vector2(left + index * unit, _cardTop);
@@ -220,6 +223,6 @@ public sealed partial class BoardZoneView : Control
     public override void _Draw()
     {
         if (_unit <= 0) return;
-        MatchTheme.DrawSurface(this, new Rect2(new Vector2(0, 27), new Vector2(Size.X, _track * 2 + _left * 2)));
+        MatchTheme.DrawSurface(this, new Rect2(new Vector2(0, _cardTop - _left), new Vector2(Size.X, _track * 2 + _left * 2)));
     }
 }

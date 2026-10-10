@@ -132,6 +132,16 @@ public sealed class MatchResultService
         return Result.Success();
     }
 
+    // 放弃的是整局，区别于单场PvP认输；不结算奖励或推进随机。
+    public Result AbandonMatch(MatchSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (session.Status != MatchStatus.InProgress)
+            return Result.Fail(new Failure(new Godot.StringName("match.already_ended"), "此对局已经结束。"));
+        End(session, MatchStatus.Lost);
+        return Result.Success();
+    }
+
     private void ApplyPermanentChanges(MatchSession session, BattleResult battle)
     {
         foreach (var change in battle.PermanentChanges)

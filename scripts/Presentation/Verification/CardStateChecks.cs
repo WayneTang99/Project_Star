@@ -94,13 +94,14 @@ internal static class CardStateChecks
         try
         {
             item.Render(displayed, new CardDisplayAdapter()); item.RenderBattle(frozen, false);
-            var label = item.GetNode<Label>("BattleStatus");
-            if (!label.Text.Contains("飞行") || !label.Text.Contains("狂暴")) return false;
+            var flying = item.GetNode<Label>("BattleOverlay/Flying");
+            var berserk = item.GetNode<Label>("BattleOverlay/Berserk");
+            if (!flying.Visible || !berserk.Visible) return false;
             playback.Skip();
             var cleared = playback.Project(SideId.Player).Cards.Single();
             item.Render(cleared, new CardDisplayAdapter()); item.RenderBattle(playback.Capture().State.Cards.Single(), false);
             return !cleared.IsFlying && !cleared.IsBerserk && !CardDisplayAdapter.Details(cleared).Contains("状态：")
-                && !label.Text.Contains("飞行") && !label.Text.Contains("狂暴") && frozen.IsFlying && frozen.IsBerserk;
+                && !flying.Visible && !berserk.Visible && frozen.IsFlying && frozen.IsBerserk;
         }
         finally { owner.RemoveChild(item); item.Free(); }
     }

@@ -12,8 +12,10 @@ public sealed partial class CardValueBadge : HBoxContainer
     {
         _value = GetNode<Label>("Value");
         GetNode<TextureRect>("Icon").Texture = MatchTheme.Icon("coin");
-        MatchTheme.Text(_value, 13, new Color("ffe8b5"), true, true);
-        _value.AddThemeColorOverride("font_color", new Color("fff2cd"));
+        var color = AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Value)!.Value;
+        MatchTheme.Text(_value, 13, new Color("fff2cd"), true, true);
+        GetNode<TextureRect>("Icon").Modulate = color;
+        GetNode<TextureRect>("Icon").Material = AttributePalette.IconMaterial;
         _value.AddThemeColorOverride("font_outline_color", new Color("241810"));
     }
 

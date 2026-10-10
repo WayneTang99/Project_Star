@@ -25,12 +25,13 @@ public sealed partial class KeyedActionView : Control
     }
 
     // 快照版本随按钮绑定；过期选项交给协调器拒绝。
-    public void Render(string message, IReadOnlyList<KeyedAction> actions, long revision = 0, StringName? illustration = null)
+    public void Render(string message, IReadOnlyList<KeyedAction> actions, long revision = 0, StringName? illustration = null, int level = 0)
     {
         Clear(); _message.Text = message;
         var path = illustration?.ToString() ?? "";
         _art.Texture = path.Length > 0 && ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
         _art.Visible = _art.Texture is not null;
+        LevelPresentation.Frame(_art, level);
         foreach (var action in actions)
         {
             var button = new Button { Name = $"Action{_actions.GetChildCount()}", Text = action.Action.Text
@@ -41,6 +42,7 @@ public sealed partial class KeyedActionView : Control
             if (action.Subtitle.Contains('\n')) button.AddThemeFontSizeOverride("font_size", 16);
             Action handler = () => { if (!button.Disabled && button.Visible) Selected?.Invoke(action.Key, revision); };
             _actions.AddChild(button); button.Pressed += handler; _bindings.Add((button, handler));
+            LevelPresentation.Frame(button, action.Level);
         }
         LayoutView();
     }

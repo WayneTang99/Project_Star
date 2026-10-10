@@ -17,7 +17,7 @@ public sealed class AlchemyCauldronCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却6秒，魔法消耗0，对敌方英雄施加10中毒和10灼伤。"),
-                    new(CardKeywords.Passive, "在战场区或备战区时，当你出售一张消耗品卡牌后，此卡牌施加的中毒和灼伤永久各增加6/12/20。"),
+                    new(CardKeywords.Trade, "在战场区或备战区时，当你出售一张消耗品卡牌后，此卡牌施加的中毒和灼伤永久各增加6/12/20。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {

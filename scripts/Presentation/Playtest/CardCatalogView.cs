@@ -13,7 +13,7 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class CardCatalogView : PanelContainer
 {
     public event Action? Closed;
-    private readonly Button _back = new() { Name = "Back", Text = "返回英雄选择" };
+    private readonly Button _back = new() { Name = "Back", Text = "返回" };
     private readonly LineEdit _search = new() { Name = "Search", PlaceholderText = "搜索卡名、标签或效果", SizeFlagsHorizontal = SizeFlags.ExpandFill };
     private readonly OptionButton _faction = new() { Name = "Faction", CustomMinimumSize = new Vector2(160, 0) };
     private readonly OptionButton _size = new() { Name = "Size", CustomMinimumSize = new Vector2(110, 0) };
@@ -205,6 +205,7 @@ public sealed partial class CardCatalogView : PanelContainer
 
     public override void _Input(InputEvent input)
     {
+        if (IsVisibleInTree() && input is InputEventKey { Pressed: true, Keycode: Key.Tab } tab) MatchMenuView.TrapTab(this, tab);
         if (IsVisibleInTree() && input is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { Close(); GetViewport().SetInputAsHandled(); }
     }

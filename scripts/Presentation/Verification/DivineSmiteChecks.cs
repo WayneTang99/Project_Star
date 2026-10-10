@@ -37,7 +37,7 @@ internal static class DivineSmiteChecks
         if (!high.Offers.Any(offer => offer.SkillKey == definition.Attributes.Identity.Key && offer.Level == 4)
             || service.ChooseSkill(session, high, definition.Attributes.Identity.Key).Value?.CurrentLevel != 4) return false;
         var details = CardDisplayAdapter.SkillDetails(MatchDisplayQuery.FromSkill(definition, 4));
-        return details.Contains("光属性卡牌攻击 × 2") && details.Contains("恶魔或亡灵") && details.Contains("被动光环");
+        return details.Contains("光属性卡牌攻击 × 2") && details.Contains("恶魔或亡灵") && details.Contains("光环");
     }
 
     internal static bool FilteringAndDamage()

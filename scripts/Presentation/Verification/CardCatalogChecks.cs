@@ -46,7 +46,7 @@ internal static class CardCatalogChecks
         try
         {
             var shell = root.GetNode<MatchShell>("MatchShell");
-            var open = shell.GetNode<Button>("OpenCardCatalog");
+            var open = shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenCardCatalog");
             var catalog = shell.GetNode<CardCatalogView>("CardCatalog");
             var search = catalog.GetNode<LineEdit>("Content/Filters/Search");
             var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards");
@@ -54,9 +54,10 @@ internal static class CardCatalogChecks
             var level = catalog.GetNode<OptionButton>("Content/Body/DetailPanel/Details/Level");
             var text = catalog.GetNode<RichTextLabel>("Content/Body/DetailPanel/Details/Effects");
             var choices = 0; shell.ChoiceSelected += (_, _, _) => choices++;
-            if (!open.Visible || catalog.Visible || grid.GetChildCount() == 0) return Fail("初始入口或列表");
+            var menu = shell.GetNode<Button>("OpenGameMenu"); menu.EmitSignal(Button.SignalName.Pressed);
+            if (!open.IsVisibleInTree() || catalog.Visible || grid.GetChildCount() == 0) return Fail("初始入口或列表");
             open.EmitSignal(Button.SignalName.Pressed);
-            if (!catalog.Visible || open.Visible || shell.GetNode<Control>("ContextRow/ContextHost/HeroSelectionView").Visible) return Fail("打开页面");
+            if (!catalog.Visible || open.IsVisibleInTree() || shell.GetNode<Control>("ContextRow/ContextHost/HeroSelectionView").Visible) return Fail("打开页面");
             var old = grid.GetChild<VBoxContainer>(0).GetNode<CardItemView>("Card");
             search.Text = "野猪";
             search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
@@ -80,13 +81,13 @@ internal static class CardCatalogChecks
             }
             if (!FiltersAndSorting(catalog)) return Fail("分类筛选与排序");
             catalog._Input(new InputEventKey { Pressed = true, Keycode = Key.Escape });
-            if (catalog.Visible || !open.Visible || choices != 0) return Fail("Escape关闭与只读");
+            if (catalog.Visible || !menu.HasFocus() || choices != 0) return Fail("Escape关闭与只读");
             open.EmitSignal(Button.SignalName.Pressed);
             catalog.GetNode<Button>("Content/Header/Back").EmitSignal(Button.SignalName.Pressed);
             shell.GetNode<Button>("ContextRow/ContextHost/HeroSelectionView/Choose").EmitSignal(Button.SignalName.Pressed);
-            if (choices != 1 || open.Visible || catalog.Visible) return Fail("返回后选角");
+            if (choices != 1 || open.IsVisibleInTree() || catalog.Visible) return Fail("返回后选角");
             open.EmitSignal(Button.SignalName.Pressed);
-            return !catalog.Visible;
+            return catalog.Visible && choices == 1;
         }
         finally { owner.RemoveChild(root); root.Free(); }
 
@@ -212,7 +213,8 @@ internal static class CardCatalogChecks
                 owner.GetWindow().Size = size; owner.GetTree().Root.ContentScaleSize = size;
                 await Frame(); await Frame();
                 await Save("entry");
-                var open = shell.GetNode<Button>("OpenCardCatalog"); open.GrabFocus();
+                shell.GetNode<Button>("OpenGameMenu").EmitSignal(Button.SignalName.Pressed);
+                var open = shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenCardCatalog"); open.GrabFocus();
                 KeyInput(Key.Enter); await Frame();
                 if (!catalog.Visible || !search.HasFocus()) throw new InvalidOperationException("键盘打开图鉴或搜索焦点失败。");
                 foreach (var character in "野猪") KeyInput(Key.None, character);
@@ -253,7 +255,7 @@ internal static class CardCatalogChecks
                 elementFilter.Select(0); elementFilter.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
                 sort.Select(0); sort.EmitSignal(OptionButton.SignalName.ItemSelected, 0); direction.ButtonPressed = false;
                 KeyInput(Key.Escape); await Frame();
-                if (catalog.Visible || !open.HasFocus()) throw new InvalidOperationException("Escape关闭或焦点恢复失败。");
+                if (catalog.Visible || !shell.GetNode<Button>("OpenGameMenu").HasFocus()) throw new InvalidOperationException("Escape关闭或焦点恢复失败。");
             }
             GD.Print("图鉴两种窗口、三种卡牌尺寸、组合筛选、键盘排序、鼠标升降序、搜索与焦点检查通过。");
         }

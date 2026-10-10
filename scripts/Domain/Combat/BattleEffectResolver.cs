@@ -610,7 +610,8 @@ internal static class BattleEffectResolver
         HeroBattleState target,
         int amount,
         bool bypassArmor,
-        DamageSourceKind sourceKind = DamageSourceKind.Card)
+        DamageSourceKind sourceKind = DamageSourceKind.Card,
+        BattleStatus? statusOrigin = null)
     {
         var absorbed = bypassArmor ? 0 : Math.Min(target.Armor, amount);
         target.Armor -= absorbed;
@@ -624,7 +625,7 @@ internal static class BattleEffectResolver
             absorbed,
             healthDamage,
             target.Health,
-            sourceKind));
+            sourceKind) { StatusOrigin = statusOrigin });
         BattleStateRecorder.CaptureState(runtime);
     }
 

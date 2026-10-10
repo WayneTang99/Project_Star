@@ -74,6 +74,7 @@ public static class MatchDisplayQuery
             Tags = Array.AsReadOnly(definition.Tags.ToArray()),
             BaseValues = values.SnapshotFinalValues(), CurrentValues = values.SnapshotFinalValues(),
             Abilities = MatchSnapshot.CopyAbilities(level?.Abilities ?? definition.Abilities),
+            QuestDefinitions = Array.AsReadOnly(definition.Quests.ToArray()),
         };
     }
 }

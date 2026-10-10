@@ -71,7 +71,7 @@ internal static class SkillCatalogChecks
         var root = CreateRoot(owner);
         try
         {
-            var shell = root.GetNode<MatchShell>("MatchShell"); var open = shell.GetNode<Button>("OpenSkillCatalog");
+            var shell = root.GetNode<MatchShell>("MatchShell"); var open = shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenSkillCatalog");
             var catalog = shell.GetNode<SkillCatalogView>("SkillCatalog");
             var search = catalog.GetNode<LineEdit>("Content/Filters/Search");
             var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills");
@@ -79,9 +79,10 @@ internal static class SkillCatalogChecks
             var level = catalog.GetNode<OptionButton>("Content/Body/DetailPanel/Details/Level");
             var text = catalog.GetNode<RichTextLabel>("Content/Body/DetailPanel/Details/Effects");
             var choices = 0; shell.ChoiceSelected += (_, _, _) => choices++;
-            if (!open.Visible || catalog.Visible || grid.GetChildCount() == 0) return Fail("初始列表");
+            var menu = shell.GetNode<Button>("OpenGameMenu"); menu.EmitSignal(Button.SignalName.Pressed);
+            if (!open.IsVisibleInTree() || catalog.Visible || grid.GetChildCount() == 0) return Fail("初始列表");
             open.EmitSignal(Button.SignalName.Pressed);
-            if (!catalog.Visible || open.Visible || shell.GetNode<Control>("CardCatalog").Visible
+            if (!catalog.Visible || open.IsVisibleInTree() || shell.GetNode<Control>("CardCatalog").Visible
                 || shell.GetNode<Control>("ContextRow/ContextHost/HeroSelectionView").Visible) return Fail("页面互斥");
             var old = grid.GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill");
             Search("突袭");
@@ -109,13 +110,13 @@ internal static class SkillCatalogChecks
             Pick(initial, 0); Search("没有这个技能");
             if (grid.GetChildCount() != 0 || catalog.GetNode<Control>("Content/Body/DetailPanel/Details").Visible) return Fail("空结果");
             catalog.Close();
-            if (catalog.Visible || !open.Visible || choices != 0) return Fail("关闭与只读");
-            shell.GetNode<Button>("OpenCardCatalog").EmitSignal(Button.SignalName.Pressed);
+            if (catalog.Visible || !menu.HasFocus() || choices != 0) return Fail("关闭与只读");
+            shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenCardCatalog").EmitSignal(Button.SignalName.Pressed);
             if (!shell.GetNode<Control>("CardCatalog").Visible || catalog.Visible) return Fail("卡牌图鉴保留");
             shell.GetNode<CardCatalogView>("CardCatalog").Close();
             shell.GetNode<Button>("ContextRow/ContextHost/HeroSelectionView/Choose").EmitSignal(Button.SignalName.Pressed);
             open.EmitSignal(Button.SignalName.Pressed);
-            return choices == 1 && !catalog.Visible && !open.Visible;
+            return choices == 1 && catalog.Visible && !open.IsVisibleInTree();
 
             void Search(string value) { search.Text = value; search.EmitSignal(LineEdit.SignalName.TextChanged, value); }
             static void Pick(OptionButton button, int index) { button.Select(index); button.EmitSignal(OptionButton.SignalName.ItemSelected, index); }
@@ -130,12 +131,13 @@ internal static class SkillCatalogChecks
         var root = CreateRoot(owner);
         try
         {
-            var shell = root.GetNode<MatchShell>("MatchShell"); var open = shell.GetNode<Button>("OpenSkillCatalog");
+            var shell = root.GetNode<MatchShell>("MatchShell"); var open = shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenSkillCatalog");
             var catalog = shell.GetNode<SkillCatalogView>("SkillCatalog"); var search = catalog.GetNode<LineEdit>("Content/Filters/Search");
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
             {
                 owner.GetWindow().Size = size; owner.GetTree().Root.ContentScaleSize = size;
                 await Frame(); await Frame(); await Save("entry");
+                shell.GetNode<Button>("OpenGameMenu").EmitSignal(Button.SignalName.Pressed);
                 open.GrabFocus(); KeyInput(Key.Enter); await Frame();
                 if (!catalog.Visible || !search.HasFocus()) throw new InvalidOperationException("技能图鉴键盘入口失败。");
                 foreach (var character in "放逐") KeyInput(Key.None, character);
@@ -151,7 +153,7 @@ internal static class SkillCatalogChecks
                     await Save(label);
                 }
                 search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, ""); KeyInput(Key.Escape); await Frame();
-                if (catalog.Visible || !open.HasFocus()) throw new InvalidOperationException("技能图鉴返回焦点失败。");
+                if (catalog.Visible || !shell.GetNode<Button>("OpenGameMenu").HasFocus()) throw new InvalidOperationException("技能图鉴返回焦点失败。");
             }
             shell.Render(SkillView(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly)));
             shell.GetNode<HeroDetailsView>("HeroDetails").ShowSection(HeroSection.Skills, shell.Size);

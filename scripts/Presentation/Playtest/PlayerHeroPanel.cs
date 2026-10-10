@@ -17,10 +17,7 @@ public sealed partial class PlayerHeroPanel : Control
     public event Action<HeroSection>? SectionRequested;
     private Label _name = null!;
     private Label _subtitle = null!;
-    private HBoxContainer _battle = null!;
-    private Label _armor = null!;
-    private Label _burn = null!;
-    private Label _poison = null!;
+    private HeroBattleStatusView _battle = null!;
     private HFlowContainer _buttons = null!;
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
@@ -53,11 +50,7 @@ public sealed partial class PlayerHeroPanel : Control
         _health = new ResourceBar("HealthBar", new Color("729c51")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("438fa2")); AddChild(_mana);
         _health.SetDisplayHeight(15); _mana.SetDisplayHeight(10);
-        _battle = new HBoxContainer { Name = "BattleResources", Visible = false }; AddChild(_battle);
-        var armor = MatchTheme.Stat("armor", "", "护甲"); var burn = MatchTheme.Stat("burn", "", "灼伤");
-        var poison = MatchTheme.Stat("poison", "", "中毒");
-        _battle.AddChild(armor); _battle.AddChild(burn); _battle.AddChild(poison);
-        _armor = armor.GetChild<Label>(1); _burn = burn.GetChild<Label>(1); _poison = poison.GetChild<Label>(1);
+        _battle = new HeroBattleStatusView { Name = "BattleResources", Visible = false }; AddChild(_battle);
         _buttons = new HFlowContainer(); AddChild(_buttons);
         _skillIcons = new HBoxContainer { Name = "SkillIcons" }; _skillIcons.AddThemeConstantOverride("separation", 7); AddChild(_skillIcons);
         AddEntry("技能", HeroSection.Skills); AddEntry("套装", HeroSection.Sets); AddEntry("奖励", HeroSection.Rewards);
@@ -89,15 +82,14 @@ public sealed partial class PlayerHeroPanel : Control
         LayoutPanel();
     }
     // 战斗HUD只显示播放中的英雄数值，播放结束恢复构筑入口。
-    public void RenderBattle(HeroBattleSnapshot? hero)
+    public void RenderBattle(HeroBattleSnapshot? hero, BattlePlaybackViewModel? playback = null)
     {
-        _battle.Visible = hero is not null;
+        _battle.Render(hero, playback);
         if (hero is not null)
         {
             _health.Show(); _mana.Show();
             _health.Render("生命", hero.Health, hero.MaxHealth);
             _mana.Render("魔法", hero.Mana, hero.MaxMana);
-            _armor.Text = hero.Armor.ToString(); _burn.Text = hero.Burn.ToString(); _poison.Text = hero.Poison.ToString();
             _buttons.Hide();
         }
         LayoutPanel();
@@ -117,6 +109,7 @@ public sealed partial class PlayerHeroPanel : Control
                 var style = MatchTheme.Surface(Colors.Transparent, new Color("c1aa76")); style.SetCornerRadiusAll(12);
                 style.ContentMarginLeft = style.ContentMarginRight = style.ContentMarginTop = style.ContentMarginBottom = 0;
                 button.AddThemeStyleboxOverride("normal", style); _skillIcons.AddChild(button);
+                LevelPresentation.Frame(button, skill.Level, 12);
                 if (!skill.Illustration.IsEmpty && ResourceLoader.Exists(skill.Illustration.ToString()))
                 {
                     var art = new TextureRect { Texture = GD.Load<Texture2D>(skill.Illustration.ToString()), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
@@ -166,7 +159,7 @@ public sealed partial class PlayerHeroPanel : Control
         _mana.Position = new Vector2(left, 53); _mana.Size = new Vector2(width, 10);
         _skillIcons.Position = new Vector2(left, 72); _skillIcons.Size = new Vector2(_skillIcons.GetChildCount() * 31, 24);
         _buttons.Position = new Vector2(left + _skillIcons.GetChildCount() * 31 + 5, 73);
-        _battle.Position = new Vector2(left, 72);
+        _battle.Position = new Vector2(left, 103);
         _buttons.Size = new Vector2(Mathf.Max(1, width - _skillIcons.GetChildCount() * 31 - 5), 24);
         _battle.Size = new Vector2(width, 24);
     }

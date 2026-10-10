@@ -7,11 +7,8 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class TopBar : HBoxContainer
 {
     private Control _journey = null!;
-    private Control _economy = null!;
     private Label _round = null!;
     private Label _turn = null!;
-    private Label _wealth = null!;
-    private Label _income = null!;
     private int _currentTurn;
     public override void _Ready()
     {
@@ -27,11 +24,7 @@ public sealed partial class TopBar : HBoxContainer
             _journey.AddChild(new Control { Name = $"Turn{index + 1}", Position = new Vector2(92 + 23 * index, 36), Size = new Vector2(12, 12),
                 TooltipText = index == 3 ? "第4回合 · 怪物战" : index == 7 ? "第8回合 · 玩家对战" : $"第{index + 1}回合" });
         AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
-        _economy = new Control { Name = "Economy", CustomMinimumSize = new Vector2(144, 82), MouseFilter = MouseFilterEnum.Ignore }; AddChild(_economy);
-        var income = new Label { Text = "每轮收入", Position = new Vector2(0, 32), Size = new Vector2(50, 20) }; MatchTheme.Text(income, 11, MatchTheme.Muted); _economy.AddChild(income);
-        _income = new Label { Position = new Vector2(52, 29), Size = new Vector2(28, 22) }; MatchTheme.Text(_income, 15, MatchTheme.Gold, bold: true); _economy.AddChild(_income);
-        _economy.AddChild(new TextureRect { Texture = MatchTheme.Icon("coin"), Position = new Vector2(93, 32), Size = new Vector2(19, 19), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize });
-        _wealth = new Label { Position = new Vector2(118, 22), Size = new Vector2(50, 34) }; MatchTheme.Text(_wealth, 24, new Color("ffedb3"), true); _economy.AddChild(_wealth);
+        AddChild(new Control { Name = "MenuSpace", CustomMinimumSize = new Vector2(96, 82), MouseFilter = MouseFilterEnum.Ignore });
         Resized += Redraw;
         _journey.ItemRectChanged += Redraw;
     }
@@ -42,8 +35,7 @@ public sealed partial class TopBar : HBoxContainer
         _currentTurn = displayTurn > 0 ? displayTurn : snapshot?.Turn ?? 0;
         _round.Text = $"第 {(displayRound > 0 ? displayRound : snapshot?.Round ?? 0)} 轮";
         _turn.Text = $"{_currentTurn:00} / 08";
-        _wealth.Text = snapshot?.Wealth.ToString() ?? ""; _income.Text = snapshot is null ? "" : $"+{snapshot.Income}";
-        _journey.Visible = _economy.Visible = snapshot is not null; QueueRedraw();
+        _journey.Visible = snapshot is not null; QueueRedraw();
     }
 
     public override void _Draw()

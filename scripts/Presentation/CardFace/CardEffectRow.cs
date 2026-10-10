@@ -8,14 +8,6 @@ public sealed partial class CardEffectRow : HBoxContainer
 {
     private TextureRect _icon = null!;
     private Label _value = null!;
-    private readonly StyleBoxFlat _plate = new()
-    {
-        BgColor = new Color("#9b3433"),
-        BorderColor = new Color("#e9c77f"),
-        BorderWidthLeft = 1, BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
-        CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
-        CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3,
-    };
 
     public override void _Ready()
     {
@@ -29,31 +21,13 @@ public sealed partial class CardEffectRow : HBoxContainer
     // 按效果语义选择图标与显示值。
     public void Configure(CardFaceEffect effect)
     {
-        var iconPath = effect.Kind switch
-        {
-            CardFaceEffectKind.Damage => "res://art/ui/card-face/icons/damage.svg",
-            CardFaceEffectKind.Healing => "res://art/ui/card-face/icons/healing.svg",
-            CardFaceEffectKind.Armor => "res://art/ui/card-face/icons/armor.svg",
-            CardFaceEffectKind.Poison => "res://art/ui/card-face/icons/poison.svg",
-            CardFaceEffectKind.Burn => "res://art/ui/card-face/icons/burn.svg",
-            CardFaceEffectKind.Mana => "res://art/ui/card-face/icons/mana.svg",
-            _ => "res://art/ui/card-face/icons/damage.svg",
-        };
         _kind = effect.Kind.ToString().ToLowerInvariant();
         _icon.Texture = MatchTheme.Icon(new StringName(_kind));
         _value.Text = effect.Value;
-        _plate.BgColor = new Color(effect.Kind switch
-        {
-            CardFaceEffectKind.Healing => "#527d3e",
-            CardFaceEffectKind.Armor => "#947027",
-            CardFaceEffectKind.Poison => "#3c7344",
-            CardFaceEffectKind.Burn => "#a55d29",
-            CardFaceEffectKind.Mana => "#326d84",
-            _ => "#9b3433",
-        });
-        _value.AddThemeColorOverride("font_color", new Color("fff2cd"));
+        _icon.Modulate = AttributePalette.Effect(effect.Kind);
+        _icon.Material = AttributePalette.IconMaterial;
         _value.AddThemeColorOverride("font_outline_color", new Color("241810"));
-        MatchTheme.Text(_value, 15, new Color("fff5db"), true, true);
+        MatchTheme.Text(_value, 15, new Color("fff2cd"), true, true);
     }
 
     // 缩小装饰留白并保留文字下限，长值完整内容由详情承载。

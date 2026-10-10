@@ -97,7 +97,7 @@ public sealed partial class CardFace : Control
         _innerFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, new Color(levelColor, .65f), 1, 3));
         _artFrame.AddThemeStyleboxOverride("panel", MakePanelStyle(Colors.Transparent, Colors.Transparent, 0, 0));
         _artInnerRim.Hide();
-        _valuePlate.Color = new Color("4b321c");
+        _valuePlate.Color = AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Value)!.Value.Darkened(.65f);
         _valueRim.DefaultColor = new Color("#e9c77f");
         _ornament.Modulate = Colors.White;
 

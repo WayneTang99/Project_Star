@@ -36,7 +36,9 @@
     "date": "2026-10-10",
     "source": "docs/design/prototypes/card-interactions.html",
     "sha256": "2918d2cf14fbaa19321271cdc773f50d050ecc83756c92918a3a6de4e3918aba",
-    "screenshot": "docs/design/prototypes/card-interactions-1280.jpg",
-    "changes": "用户确认单一右侧详情、点击商品或奖励卡直接购买或获取、独立任务进度与奖励区；本轮仅提交HTML原型和计划，项目接入待执行。"
+    "screenshot": "docs/quality/ui-16x9/approved-prototype-card-interactions-1280.jpg",
+    "changes": "用户确认单一右侧详情、点击商品或奖励卡直接购买或获取、独立任务进度与奖励区；本轮仅提交HTML原型和计划，项目接入待执行。",
+    "sourceStatus": "Historical source path and hash; current approved layout archive contains a later revision.",
+    "currentApprovedLayoutArchive": "docs/quality/ui-16x9/approved-layout-source.zip"
   }
 }

@@ -69,4 +69,7 @@ public sealed class GameCoordinator
 
     public Result Surrender(MatchSession session, MatchBattleKind kind) =>
         _results.Surrender(session, kind);
+
+    // 放弃整局，保留终局摘要；不推进随机或发放奖励。
+    public Result AbandonMatch(MatchSession session) => _results.AbandonMatch(session);
 }

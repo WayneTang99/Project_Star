@@ -250,6 +250,17 @@ public sealed partial class PhaseOneVerification : Control
             ("登神者召唤/转变仅本场成长与百分比配置验证", AscendantChecks.TemporarySourcesAndValidation),
         ]));
         _groups.Add(new VerificationGroup("试玩场景集成", [
+            ("分辨率预览确认保存、取消、Escape、超时与隐藏回退正确", () => DisplayLayoutChecks.Settings(this)),
+            ("局内菜单图鉴只读、确认放弃整局与旧确认隔离正确", () => UnifiedUiChecks.MenuAndAbandon(this)),
+            ("属性词语及数值在两主题保持专属色且不串色", () => UnifiedUiChecks.AttributeText(this)),
+            ("怪物战场直接显示正式槽位，怪物在英雄上方且三排完整只读", () => DisplayLayoutChecks.MonsterBoard(this)),
+            ("发动条读取半Tick冷却，疾速迟缓抵消、禁锢、充能与摧毁清理正确", () => CombatFeedbackChecks.CardLayer(this)),
+            ("双方灼伤中毒反馈读取真实伤害事件，暂停与旧回放快照保持冻结", () => CombatFeedbackChecks.RecordedDamage(this)),
+            ("技能、遭遇、导师及详情保留等级框，英雄不使用等级色", () => CombatFeedbackChecks.LevelFrames(this)),
+            ("单一卡牌详情、直接购买与奖励领取、右键及旧节点门控正确", () => CardInteractionChecks.DirectAcquisition(this)),
+            ("大型卡牌悬浮、刷新和缩放后恢复居中位置", () => CardInteractionChecks.HoverRestoration(this)),
+            ("详情6px淡入、刷新固定、等级框缩放及关闭重开无累计偏移", () => CardInteractionChecks.DetailsReveal(this)),
+            ("正式任务条件奖励、key关联、冻结进度及独立任务区正确", () => CardInteractionChecks.QuestProjection(this)),
             ("技能方形原画贯穿身份、实例、快照及全部支持等级", () => SkillCatalogChecks.ArtworkAndLevels(this)),
             ("技能图鉴搜索、归属、等级、空结果、旧按钮及局外入口正确", () => SkillCatalogChecks.Interaction(this)),
             ("局外图鉴搜索、四维筛选与排序、等级、空结果、旧按钮与返回选角正确", () => CardCatalogChecks.Interaction(this)),
@@ -301,6 +312,12 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-card-interactions"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardInteractionChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-portrait-motion"))
             Callable.From((Action)(async () =>
             {
@@ -346,6 +363,16 @@ public sealed partial class PhaseOneVerification : Control
                     var passed = await PlaytestVerification.NativeDrag(this) && await DragSaleChecks.Native(this);
                     GD.Print($"原生拖拽输入验证：{(passed ? "通过" : "失败")}");
                     GetTree().Quit(passed ? 0 : 1);
+                }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-unified-input"))
+            Callable.From((Action)(async () =>
+            {
+                try
+                {
+                    var passed = await UnifiedUiChecks.NativeMenu(this);
+                    GD.Print($"统一菜单原生键盘验证：{(passed ? "通过" : "失败")}"); GetTree().Quit(passed ? 0 : 1);
                 }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();

@@ -54,10 +54,12 @@ public sealed partial class HeroSelectionView : Control
         _stats.AddThemeConstantOverride("h_separation", 16); _stats.AddThemeConstantOverride("v_separation", 12);
         foreach (var label in new[] { "最大生命", "最大魔法", "每轮收入" })
         {
-            _stats.AddChild(new Label { Text = label, SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                MouseFilter = MouseFilterEnum.Ignore });
+            var color = AttributePalette.Find(label == "最大生命" ? AttributePalette.Health : label == "最大魔法"
+                ? Project_Star.Domain.Common.GameAttributeKeys.Mana : Project_Star.Domain.Common.GameAttributeKeys.Income)!.Value;
+            var caption = new Label { Text = label, SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore };
+            caption.AddThemeColorOverride("font_color", color); _stats.AddChild(caption);
             var value = new Label { HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
-            value.AddThemeFontSizeOverride("font_size", 20); _stats.AddChild(value); _values.Add(value);
+            value.AddThemeFontSizeOverride("font_size", 20); value.AddThemeColorOverride("font_color", color); _stats.AddChild(value); _values.Add(value);
         }
         MatchTheme.Accent(_choose);
         _choose.Pressed += Choose; _attributes.Toggled += ToggleAttributes; Resized += Layout;

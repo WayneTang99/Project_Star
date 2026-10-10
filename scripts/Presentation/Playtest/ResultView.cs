@@ -11,7 +11,7 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class ResultView : Control
 {
     public event Action<Guid, int, long>? ClaimRequested;
-    public event Action<CardSnapshot>? DetailsRequested;
+    public event Action<CardSnapshot, Rect2>? DetailsRequested;
     private Label _summary = null!;
     private RichTextLabel _log = null!;
     private ScrollContainer _scroll = null!;
@@ -48,11 +48,13 @@ public sealed partial class ResultView : Control
             var row = new Control { CustomMinimumSize = new Vector2(width, height), MouseFilter = MouseFilterEnum.Ignore };
             _rewards.AddChild(row);
             var inset = 44f;
+            CardItemView? rewardCard = null;
             if (reward.Card is not null)
             {
                 var card = new CardItemView { Name = $"RewardCard{reward.Index}", Size = new Vector2(width - 112, height) };
                 row.AddChild(card); card.Render(reward.Card, _adapter);
                 card.DetailsRequested += ShowDetails; _cards.Add(card); inset = card.Size.X + 12;
+                rewardCard = card;
             }
             else
             {
@@ -64,14 +66,18 @@ public sealed partial class ResultView : Control
                     ClipText = true, TooltipText = reward.Text, MouseFilter = MouseFilterEnum.Ignore };
                 name.AddThemeFontSizeOverride("font_size", 16); row.AddChild(name);
             }
-            var claim = new Button { Name = $"Claim{reward.Index}", Text = reward.Card is null ? "领取技能" : "领取",
-                Icon = MatchTheme.Icon("rewards"), TooltipText = reward.Text + "\n" + reward.Details,
-                Position = new Vector2(inset, height / 2 - 16), Size = new Vector2(width - inset, 32), ClipText = true };
-            claim.AddThemeFontSizeOverride("font_size", 16); claim.AddThemeConstantOverride("icon_max_width", 16);
+            Control claim = rewardCard is null ? new Button { Text = "领取技能", Disabled = !view.Reward.Enabled,
+                Icon = MatchTheme.Icon("rewards"), TooltipText = reward.Text + "\n" + reward.Details, ClipText = true }
+                : new Label { Text = "点击获取", MouseFilter = MouseFilterEnum.Ignore };
+            claim.Name = $"Claim{reward.Index}"; claim.Position = new Vector2(inset, height / 2 - 16); claim.Size = new Vector2(width - inset, 32);
+            claim.AddThemeFontSizeOverride("font_size", 12); claim.AddThemeConstantOverride("icon_max_width", 16);
             row.AddChild(claim);
+            if (rewardCard is null) LevelPresentation.Frame(row, reward.Level);
             var match = view.Player?.MatchId ?? Guid.Empty;
-            Action handler = () => ClaimRequested?.Invoke(match, reward.Index, reward.Revision);
-            claim.Pressed += handler; _bindings.Add((claim, handler));
+            Action handler = () => { if (IsVisibleInTree() && view.Reward.Enabled && (rewardCard is null || !rewardCard.ConsumeClickSuppression()))
+                ClaimRequested?.Invoke(match, reward.Index, reward.Revision); };
+            if (claim is Button skill) { skill.Pressed += handler; _bindings.Add((skill, handler)); }
+            if (rewardCard is not null) { rewardCard.Pressed += handler; _bindings.Add((rewardCard, handler)); }
         }
         LayoutView();
     }
@@ -85,7 +91,7 @@ public sealed partial class ResultView : Control
 
     public override void _ExitTree() { Resized -= LayoutView; Clear(); }
 
-    private void ShowDetails(CardSnapshot card) => DetailsRequested?.Invoke(card);
+    private void ShowDetails(CardSnapshot card, Rect2 rect) => DetailsRequested?.Invoke(card, rect);
 
     private void Clear()
     {
@@ -105,7 +111,7 @@ public sealed partial class ResultView : Control
         foreach (Control row in _rewards.GetChildren())
         {
             var card = row.GetChildren().OfType<CardItemView>().SingleOrDefault();
-            var claim = row.GetChildren().OfType<Button>().Single(child => child is not CardItemView);
+            var claim = row.GetChildren().OfType<Control>().Single(child => child.Name.ToString().StartsWith("Claim", StringComparison.Ordinal));
             var width = card is null ? 220 : height * card.Size.X / card.Size.Y + 112;
             var inset = card is null ? 44 : width - 100;
             row.CustomMinimumSize = new Vector2(width, height);
