@@ -84,17 +84,18 @@ internal static class MatchTheme
     public static void DrawSurface(Control canvas, Rect2 rect, string kind = "surface")
     {
         var shadow = Surface(Colors.Transparent, Colors.Transparent);
-        shadow.ShadowColor = new Color(0, 0, 0, .25f); shadow.ShadowSize = 10; shadow.ShadowOffset = new Vector2(0, 8);
+        shadow.ShadowColor = new Color(0, 0, 0, kind == "tooltip" ? .667f : .25f); shadow.ShadowSize = kind == "tooltip" ? 22 : 10; shadow.ShadowOffset = new Vector2(0, kind == "tooltip" ? 14 : 8);
         canvas.DrawStyleBox(shadow, rect);
-        var width = Mathf.RoundToInt(rect.Size.X); var height = Mathf.RoundToInt(rect.Size.Y);
+        var width = Mathf.Max(1, Mathf.RoundToInt(rect.Size.X)); var height = Mathf.Max(1, Mathf.RoundToInt(rect.Size.Y));
         var key = $"{kind}/{BluePalette}/{width}/{height}";
         if (!Panels.TryGetValue(key, out var texture))
         {
-            var angle = Mathf.DegToRad(BluePalette ? 125 : kind == "stage" ? 120 : kind == "hero" ? 100 : 150);
+            var angle = Mathf.DegToRad(kind == "tooltip" ? 130 : BluePalette ? 125 : kind == "stage" ? 120 : kind == "hero" ? 100 : 150);
             var direction = new Vector2(Mathf.Sin(angle), -Mathf.Cos(angle));
             var length = Mathf.Abs(width * direction.X) + Mathf.Abs(height * direction.Y);
             var start = rect.Size / 2 - direction * length / 2; var end = rect.Size / 2 + direction * length / 2;
-            var stops = BluePalette ? "<stop stop-color='#293c46'/><stop offset='1' stop-color='#172b34'/>"
+            var stops = kind == "tooltip" ? "<stop stop-color='#282a22'/><stop offset='1' stop-color='#131f1b'/>"
+                : BluePalette ? "<stop stop-color='#293c46'/><stop offset='1' stop-color='#172b34'/>"
                 : kind == "stage" ? "<stop stop-color='#1d322d'/><stop offset='.65' stop-color='#142622'/><stop offset='1' stop-color='#23342c'/>"
                 : kind == "hero" ? "<stop stop-color='#1c2b25'/><stop offset='1' stop-color='#17251f'/>"
                 : "<stop stop-color='#253a2c'/><stop offset='1' stop-color='#182b24'/>";
@@ -103,11 +104,11 @@ internal static class MatchTheme
             texture = ImageTexture.CreateFromImage(image); Panels.Add(key, texture);
         }
         canvas.DrawTextureRect(texture, rect, false);
-        var border = Surface(Colors.Transparent, new Color(BluePalette ? "698d98" : kind == "stage" ? "7f744b" : kind == "hero" ? "716444" : "968358")); border.SetCornerRadiusAll(0);
+        var border = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "c0a269" : BluePalette ? "698d98" : kind == "stage" ? "7f744b" : kind == "hero" ? "716444" : "968358")); border.SetCornerRadiusAll(0);
         canvas.DrawStyleBox(border, rect);
-        var inset = Surface(Colors.Transparent, new Color(kind == "stage" ? "0c1c19" : kind == "hero" ? "0c1916" : "0b1915")); inset.SetBorderWidthAll(3); inset.SetCornerRadiusAll(0);
+        var inset = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "141a15" : kind == "stage" ? "0c1c19" : kind == "hero" ? "0c1916" : "0b1915")); inset.SetBorderWidthAll(kind == "tooltip" ? 4 : 3); inset.SetCornerRadiusAll(0);
         canvas.DrawStyleBox(inset, rect.Grow(-1));
-        if (kind != "hero") canvas.DrawRect(rect.Grow(kind == "stage" ? -8 : -5), new Color(Gold, kind == "stage" ? .15f : .22f), false, 1);
+        if (kind != "hero" && kind != "tooltip") canvas.DrawRect(rect.Grow(kind == "stage" ? -8 : -5), new Color(Gold, kind == "stage" ? .15f : .22f), false, 1);
     }
 
     // 背景星图作为低对比纹理，不承载交互或玩法信息。

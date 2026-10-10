@@ -18,12 +18,17 @@ public sealed partial class CardDetailsView : PanelContainer
     private Guid _matchId;
     private Button _close = null!;
     private Vector2 _bounds;
+    private CardSnapshot? _card;
+    private CardBattleSnapshot? _battle;
+    private Tween? _fade;
+    private int _placementVersion;
     public EntityId? CurrentCardId { get; private set; }
     public override void _Ready()
     {
         var column = new VBoxContainer { Name = "Content" }; AddChild(column);
-        var plate = MatchTheme.Plate("tooltip"); plate.ContentMarginLeft = plate.ContentMarginRight = plate.ContentMarginTop = plate.ContentMarginBottom = 20;
+        var plate = new StyleBoxEmpty { ContentMarginLeft = 21, ContentMarginRight = 21, ContentMarginTop = 21, ContentMarginBottom = 21 };
         AddThemeStyleboxOverride("panel", plate);
+        Resized += QueueRedraw;
         _close = new Button { Name = "Close", Text = "×", Alignment = HorizontalAlignment.Center, TopLevel = true, ZAsRelative = false, ZIndex = ZIndex + 1, Size = new Vector2(20, 20) }; AddChild(_close);
         _close.AddThemeStyleboxOverride("normal", new StyleBoxEmpty()); _close.AddThemeFontSizeOverride("font_size", 12);
         _close.Pressed += Close;
@@ -36,32 +41,35 @@ public sealed partial class CardDetailsView : PanelContainer
     // 展示完整卡牌语义，位置来自用户点击而非模型数据。
     public void ShowCard(CardSnapshot card, Vector2 position, Vector2 bounds, CardBattleSnapshot? battle = null)
     {
-        var width = Mathf.Min(bounds.X - 24, bounds.X < 900 ? 290 : 330);
-        _bounds = bounds;
+        _placementVersion++;
         CurrentCardId = card.Id;
-        _content.Render(card, width - 42, Mathf.Max(60, bounds.Y - 240), battle);
-        Size = new Vector2(width, 0);
+        RenderContent(card, bounds, battle, false);
+        Size = new Vector2(Size.X, 0);
         _selling = null; _sell.Hide();
         Position = position + new Vector2(16, 0); Show(); ClampTo(bounds);
-        Modulate = new Color(1, 1, 1, 0); CreateTween().TweenProperty(this, "modulate:a", 1f, .12);
+        _fade?.Kill();
+        Modulate = new Color(1, 1, 1, 0); _fade = CreateTween(); _fade.TweenProperty(this, "modulate:a", 1f, .12);
     }
 
     // 详情紧邻卡牌，右侧不足时翻到左侧，最后限制在窗口内。
     public void ShowNear(CardSnapshot card, Rect2 anchor, Vector2 bounds, CardBattleSnapshot? battle = null)
     {
         ShowCard(card, new Vector2(anchor.End.X, anchor.Position.Y), bounds, battle);
+        var version = _placementVersion;
         Callable.From(() => {
-            if (!GodotObject.IsInstanceValid(this)) return;
+            if (!GodotObject.IsInstanceValid(this) || !Visible || version != _placementVersion) return;
             var left = anchor.End.X + 16;
-            if (left + Size.X > bounds.X - 12) left = anchor.Position.X - Size.X - 16;
-            Position = new Vector2(left, anchor.Position.Y); ClampTo(bounds);
+            if (left + Size.X > _bounds.X - 12) left = anchor.Position.X - Size.X - 16;
+            Position = new Vector2(left, anchor.Position.Y); ClampTo(_bounds);
         }).CallDeferred();
     }
 
     // 选中卡牌显示明确金额的出售确认；普通右键详情不提供出售。
     public void ShowSelected(CardSnapshot card, Guid matchId, UiAction sell, Vector2 position, Vector2 bounds, CardBattleSnapshot? battle = null)
     {
-        ShowCard(card, position, bounds, battle); _selling = card; _matchId = matchId;
+        if (Visible && CurrentCardId == card.Id) RefreshCard(card, bounds, battle);
+        else ShowCard(card, position, bounds, battle);
+        _selling = card; _matchId = matchId;
         _sell.Text = $"确认出售 {card.DisplayName}（{card.Level}级）· 回补 {card.Value}";
         _sell.Visible = sell.Visible; _sell.Disabled = !sell.Enabled; _sell.TooltipText = _sell.Text + "\n" + sell.Reason;
     }
@@ -70,12 +78,21 @@ public sealed partial class CardDetailsView : PanelContainer
     public void RefreshCard(CardSnapshot card, Vector2 bounds, CardBattleSnapshot? battle = null)
     {
         if (!Visible || CurrentCardId != card.Id) return;
-        var position = Position;
-        ShowCard(card, position, bounds, battle);
+        RenderContent(card, bounds, battle, true);
+        ClampTo(bounds);
     }
 
-    public override void _ExitTree() { _sell.Pressed -= ConfirmSale; _close.Pressed -= Close; }
-    private void Close() { Hide(); CurrentCardId = null; Closed?.Invoke(); }
+    private void RenderContent(CardSnapshot card, Vector2 bounds, CardBattleSnapshot? battle, bool preserveExpansion)
+    {
+        _bounds = bounds; _card = card; _battle = battle;
+        var width = Mathf.Max(1, Mathf.Min(bounds.X - 24, bounds.X < 900 ? 290 : 330));
+        _content.Render(card, width - 42, Mathf.Max(60, bounds.Y - 240), battle, preserveExpansion);
+        Size = new Vector2(width, Size.Y);
+    }
+
+    public override void _Draw() => MatchTheme.DrawSurface(this, new Rect2(Vector2.Zero, Size), "tooltip");
+    public override void _ExitTree() { _fade?.Kill(); Resized -= QueueRedraw; _sell.Pressed -= ConfirmSale; _close.Pressed -= Close; }
+    private void Close() { _fade?.Kill(); _placementVersion++; Hide(); CurrentCardId = null; _card = null; Closed?.Invoke(); }
     public override void _Process(double delta)
     {
         if (!Visible) return;
@@ -90,9 +107,10 @@ public sealed partial class CardDetailsView : PanelContainer
             SellRequested?.Invoke(_matchId, card.Id, card.Level, card.Value);
     }
 
-    // 只调整浮层几何，不触发数据刷新。
+    // 窗口变化时重新排版已有快照，保持详情和属性展开状态。
     public void ClampTo(Vector2 bounds)
     {
+        if (_bounds != bounds && _card is not null) RenderContent(_card, bounds, _battle, true);
         _bounds = bounds;
         if (Size.X > bounds.X - 24) Size = new Vector2(Mathf.Max(1, bounds.X - 24), Size.Y);
         Position = new Vector2(Mathf.Clamp(Position.X, 12, Mathf.Max(12, bounds.X - Size.X - 12)),

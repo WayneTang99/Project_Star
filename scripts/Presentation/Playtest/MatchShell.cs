@@ -400,7 +400,7 @@ public sealed partial class MatchShell : Control
         _layingOut = false; QueueRedraw();
     }
 
-    private void ScrollChanged(double value) { _details.Hide(); LayoutShell(); }
+    private void ScrollChanged(double value) { if (!_pinnedDetails) _details.Hide(); LayoutShell(); }
     // 原生纵向滚动保留 HTML 自然高度；浮层和图鉴自行消费滚轮。
     public override void _Input(InputEvent input)
     {

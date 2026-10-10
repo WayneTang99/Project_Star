@@ -580,6 +580,33 @@ internal static class PlaytestVerification
                 var details = shell.GetNode<CardDetailsView>("CardDetails");
                 if (details.Position.X + details.Size.X > shell.Size.X + 1 || details.Position.Y + details.Size.Y > shell.Size.Y + 1)
                     return Fail("详情越界");
+                var detailCard = capture.Player!.Cards.First(card => card.Id == placement.CardId);
+                await owner.ToSignal(owner.GetTree().CreateTimer(.15), SceneTreeTimer.SignalName.Timeout);
+                details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
+                await Frame(); await Frame();
+                var detailPosition = details.Position;
+                shell.Render(capture); await Frame(); await Frame();
+                if (details.Position != detailPosition || details.Modulate.A < .99f
+                    || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible)
+                    return Fail($"刷新移动详情、重启淡入或收起实例属性：{detailPosition}→{details.Position}，淡入 {details.Modulate.A}，展开 {details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible}");
+                var longCard = detailCard with { Value = 0, Abilities = Array.Empty<AbilityDefinition>(),
+                    DescriptionEntries = Array.AsReadOnly(Enumerable.Range(0, 20).Select(_ => new CardDescriptionEntry(CardKeywords.Passive,
+                        "当前数值 0；攻击公式 = 英雄最大生命 × 20% + 护甲 × 1.5。长说明与宝石属性展开后应保留完整内容并在正文区域滚动阅读。")).ToArray()) };
+                details.ShowNear(longCard, new Rect2(new Vector2(size.X - 100, size.Y - 80), new Vector2(70, 60)), size);
+                details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
+                for (var frame = 0; frame < 6; frame++) await Frame();
+                var body = details.GetNode<ScrollContainer>("Content/CardContent/BodyScroll");
+                if (details.Position.X < 12 || details.Position.Y < 12 || details.Position.X + details.Size.X > size.X - 11
+                    || details.Position.Y + details.Size.Y > size.Y - 11 || details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible
+                    || body.GetVScrollBar().MaxValue <= body.GetVScrollBar().Page)
+                    return Fail($"长说明展开后越界、缺少滚动或无主动能力仍显示冷却：窗口 {size}，详情 {details.Position}/{details.Size}，冷却 {details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible}，滚动 {body.GetVScrollBar().MaxValue}/{body.GetVScrollBar().Page}");
+                body.ScrollVertical = 40; await Frame();
+                if (body.ScrollVertical <= 0) return Fail("详情正文无法滚动");
+                details.ShowNear(detailCard, new Rect2(new Vector2(20, 20), new Vector2(60, 60)), size);
+                for (var frame = 0; frame < 6; frame++) await Frame();
+                if (!Mathf.IsEqualApprox(details.Position.X, 96) || details.Size.Y >= size.Y - 24)
+                    return Fail("左侧卡牌未邻接显示或短详情未收缩");
+                shell.Render(capture); await Frame(); await Frame();
                 item.GrabFocus();
                 viewport.PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = true }, true);
                 viewport.PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = false }, true);
@@ -649,15 +676,33 @@ internal static class PlaytestVerification
             old.EmitSignal(Button.SignalName.Pressed);
             if (count != 0) return false;
             offers.GetChild<Node>(0).GetNode<Button>("Actions/Buy").EmitSignal(Button.SignalName.Pressed);
-            var detailCard = presenter.View.Player!.Cards.FirstOrDefault();
-            if (detailCard is not null)
-            {
-                var details = shell.GetNode<CardDetailsView>("CardDetails");
-                details.ShowCard(detailCard, new Vector2(20, 20), shell.Size);
-                shell.Render(presenter.View);
-                if (!details.Visible || details.CurrentCardId != detailCard.Id) return false;
-                details.Hide();
-            }
+            var detailCard = capture.Offers[0].Card;
+            var detailView = capture with { Player = capture.Player! with { Cards = Array.AsReadOnly(new[] { detailCard }) } };
+            shell.Render(detailView);
+            var details = shell.GetNode<CardDetailsView>("CardDetails");
+            details.ShowCard(detailCard, new Vector2(20, 20), shell.Size);
+            details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
+            var position = details.Position;
+            details.Modulate = Colors.White;
+            for (var refresh = 0; refresh < 3; refresh++) shell.Render(detailView);
+            if (!details.Visible || details.CurrentCardId != detailCard.Id || details.Position != position
+                || details.Modulate.A != 1 || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) return false;
+            shell.Render(detailView with { SelectedCardId = detailCard.Id });
+            if (details.Position != position || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) return false;
+            var state = new CardBattleSnapshot(detailCard.Id, SideId.Player, true, 15, 20, 30, Array.Empty<decimal>(), detailCard.CurrentValues)
+            { IsFlying = true, IsBerserk = true,
+                Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.verify.quest"), 3, 5, false) }) };
+            details.RefreshCard(detailCard, shell.Size, state);
+            var paragraphs = details.GetNode<VBoxContainer>("Content/CardContent/BodyScroll/Paragraphs");
+            var status = paragraphs.GetNode<RichTextLabel>("BattleState").GetParsedText();
+            if (new[] { "飞行", "狂暴", "禁锢 3.0s", "疾速 1.5s", "迟缓 2.0s", "已摧毁" }.Any(text => !status.Contains(text))
+                || paragraphs.GetNode<RichTextLabel>("BattleQuest").GetParsedText() != "任务 3/5") return false;
+            details.RefreshCard(detailCard, shell.Size, state with { Destroyed = false, Haste = 0, Slow = 0, Immobilize = 0,
+                IsFlying = false, IsBerserk = false,
+                Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.verify.quest"), 5, 5, true) }) });
+            if (paragraphs.HasNode("BattleState") || paragraphs.GetNode<RichTextLabel>("BattleQuest").GetParsedText() != "任务 5/5 · 已解锁") return false;
+            shell.Render(capture);
+            if (details.Visible) return false;
             return count == 1 && index == capture.Offers[0].Index && revision == capture.Offers[0].Revision
                 && ReferenceEquals(capture, presenter.View);
         }

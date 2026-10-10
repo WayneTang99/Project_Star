@@ -66,7 +66,21 @@ internal static class HtmlParityCapture
         details.ShowNear(hammer, item.GetGlobalRect(), shell.Size); await Save("details");
         details.ShowNear(cauldron, item.GetGlobalRect(), shell.Size); await Save("details-multiple");
         details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
-        await Save("details-instance"); details.Hide();
+        await Save("details-instance");
+        var state = new CardBattleSnapshot(cauldron.Id, SideId.Player, true, 15, 20, 30, Array.Empty<decimal>(), cauldron.CurrentValues)
+        {
+            IsFlying = true, IsBerserk = true,
+            Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.sample.quest"), 3, 5, false) }),
+        };
+        details.ShowNear(cauldron, item.GetGlobalRect(), shell.Size, state); await Save("details-status");
+        details.RefreshCard(cauldron, shell.Size, state with { Destroyed = false, Haste = 0, Slow = 0, Immobilize = 0, IsFlying = false, IsBerserk = false,
+            Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.sample.quest"), 5, 5, true) }) }); await Save("details-quest");
+        var longCard = cauldron with { Value = 0, Abilities = Array.Empty<AbilityDefinition>(),
+            DescriptionEntries = Array.AsReadOnly(Enumerable.Range(0, 20).Select(_ => new CardDescriptionEntry(CardKeywords.Passive,
+                "当前数值 0；攻击公式 = 英雄最大生命 × 20% + 护甲 × 1.5。长说明保留全部文字，展开宝石和当前属性后正文仍可滚动阅读。")).ToArray()) };
+        details.ShowNear(longCard, new Rect2(new Vector2(shell.Size.X - 100, shell.Size.Y - 80), new Vector2(70, 60)), shell.Size);
+        details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
+        await Save("details-long"); details.Hide();
         var choices = new[]
         {
             new KeyedAction(new StringName("ui.sample.shop"), new UiAction("旅人集市")) { Illustration = view.ContextIllustration, Subtitle = "购买卡牌，完善你的构筑" },
