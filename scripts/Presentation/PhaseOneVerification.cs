@@ -188,6 +188,7 @@ public sealed partial class PhaseOneVerification : Control
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
             ("浆果各等级出售永久增加英雄最大生命，区域与快照正确", BerriesChecks.LevelsAndSales),
             ("浆果出售加成叠加、合并等级更新且失败无残留", BerriesChecks.StackingMergeAndFailures),
+            ("树根精粹分级出售永久增加再生、合并叠加与实际战斗恢复正确", RootEssenceChecks.SalesAndRegeneration),
             ("银针草各等级出售强化最左侧治疗卡牌，实际治疗与冻结正确", SilverNeedleGrassChecks.LevelsAndHealing),
             ("银针草出售累加、升级保留、空目标及溢出失败正确", SilverNeedleGrassChecks.StackingAndFailures),
             ("磨刀石各等级出售强化最左侧攻击卡牌，实际伤害与冻结正确", WhetstoneChecks.LevelsAndDamage),
