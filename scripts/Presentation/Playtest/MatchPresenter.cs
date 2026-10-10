@@ -244,7 +244,10 @@ public sealed class MatchPresenter
     });
 
     // Escape 只取消界面选择，不修改棋盘。
-    public void CancelSelection() => Execute(() => _selected = null);
+    public void CancelSelection()
+    {
+        if (_selected is not null) Execute(() => _selected = null);
+    }
 
     public void StartBattle() => Execute(() =>
     {

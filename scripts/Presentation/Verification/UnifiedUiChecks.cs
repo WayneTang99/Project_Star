@@ -79,13 +79,13 @@ internal static class UnifiedUiChecks
             foreach (var blue in new[] { false, true })
             {
                 MatchTheme.SetPalette(blue); CardKeywordText.RenderRule(label, text);
-                if (label.GetParsedText() != text || AttributePalette.Find(GameAttributeKeys.Armor) != new Color("8ccbff")
-                    || AttributePalette.Find(GameAttributeKeys.HealingBonus) != new Color("7ad99b")) return false;
+                if (label.GetParsedText() != text || AttributePalette.Find(GameAttributeKeys.Armor) != new Color("72b7ff")
+                    || AttributePalette.Find(GameAttributeKeys.HealingBonus) != new Color("55d6a5")) return false;
                 var tokens = new System.Text.RegularExpressions.Regex("护甲|普通伤害|治疗|最大生命|疾速|(?<number>[0-9]+(?:\\.[0-9]+)?)").Matches(text)
                     .Cast<System.Text.RegularExpressions.Match>().ToArray();
                 var numbers = tokens.Where(token => token.Groups["number"].Success).ToArray();
-                if (CardKeywordText.NumberColor(text, numbers[0], tokens) != new Color("8ccbff")
-                    || CardKeywordText.NumberColor(text, numbers[1], tokens) != new Color("ff9c83")
+                if (CardKeywordText.NumberColor(text, numbers[0], tokens) != new Color("72b7ff")
+                    || CardKeywordText.NumberColor(text, numbers[1], tokens) != new Color("f58b73")
                     || CardKeywordText.NumberColor(text, numbers[4], tokens) is not null) return false;
             }
             return true;

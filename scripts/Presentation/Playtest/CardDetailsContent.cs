@@ -28,11 +28,13 @@ public sealed partial class CardDetailsContent : VBoxContainer
     public override void _Ready()
     {
         AddThemeConstantOverride("separation", 0);
-        var header = new HBoxContainer { Name = "Header" }; header.AddThemeConstantOverride("separation", 10); AddChild(header);
+        var headerMargin = new MarginContainer { Name = "HeaderMargin" }; headerMargin.AddThemeConstantOverride("margin_right", 5); AddChild(headerMargin);
+        var header = new HBoxContainer { Name = "Header" }; header.AddThemeConstantOverride("separation", 10); headerMargin.AddChild(header);
         var titles = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; titles.AddThemeConstantOverride("separation", 4); header.AddChild(titles);
-        _tags = new HFlowContainer { Name = "Tags" }; _tags.AddThemeConstantOverride("h_separation", 6); titles.AddChild(_tags);
-        _name = new Label { Name = "CardName", AutowrapMode = TextServer.AutowrapMode.WordSmart }; MatchTheme.Text(_name, 20, new Color("f0deb5"), bold: true, spacing: 2); titles.AddChild(_name);
-        titles.AddChild(new Control { CustomMinimumSize = new Vector2(0, 4), MouseFilter = MouseFilterEnum.Ignore });
+        _tags = new HFlowContainer { Name = "Tags" }; _tags.AddThemeConstantOverride("h_separation", 6); _tags.AddThemeConstantOverride("v_separation", 6); titles.AddChild(_tags);
+        _name = new Label { Name = "CardName", AutowrapMode = TextServer.AutowrapMode.WordSmart }; MatchTheme.Text(_name, 24, new Color("f0deb5"), bold: true, spacing: 2); titles.AddChild(_name);
+        _name.AddThemeFontOverride("font", new FontVariation { BaseFont = MatchTheme.Font(bold: true), SpacingGlyph = 2, SpacingTop = -1, SpacingBottom = -1 });
+        titles.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2), MouseFilter = MouseFilterEnum.Ignore });
         _cooldown = new PanelContainer { Name = "Cooldown", CustomMinimumSize = new Vector2(49, 49), SizeFlagsVertical = SizeFlags.ShrinkCenter, SizeFlagsHorizontal = SizeFlags.ShrinkEnd };
         var circle = MatchTheme.Plate("cooldown-circle", 0);
         circle.ContentMarginLeft = circle.ContentMarginRight = 1; circle.ContentMarginTop = 9; circle.ContentMarginBottom = 0;
@@ -40,20 +42,23 @@ public sealed partial class CardDetailsContent : VBoxContainer
         var time = new VBoxContainer(); time.AddThemeConstantOverride("separation", 1); _cooldown.AddChild(time);
         _seconds = new Label { Name = "Seconds", HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(_seconds, 20, new Color("efddb7"), true, true); time.AddChild(_seconds);
         var unit = new Label { Text = "秒", HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(unit, 8, new Color("a7b19c")); time.AddChild(unit);
-        Space(15); AddChild(Line()); Space(13);
+        Space(15);
+        var ruleMargin = new MarginContainer(); ruleMargin.AddThemeConstantOverride("margin_right", 2); AddChild(ruleMargin); ruleMargin.AddChild(Line());
+        Space(13);
         _scroll = new ScrollContainer { Name = "BodyScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(_scroll);
+        _scroll.AddThemeStyleboxOverride("panel", new StyleBoxEmpty { ContentMarginRight = 2 });
         _paragraphs = new VBoxContainer { Name = "Paragraphs", SizeFlagsHorizontal = SizeFlags.ExpandFill }; _paragraphs.AddThemeConstantOverride("separation", 8); _scroll.AddChild(_paragraphs);
         Space(14); AddChild(Line()); Space(12);
-        var footer = new HBoxContainer { Name = "Footer" }; footer.AddThemeConstantOverride("separation", 4); AddChild(footer);
-        _identity = new Label { Name = "Identity", SizeFlagsHorizontal = SizeFlags.ExpandFill }; MatchTheme.Text(_identity, 10, new Color("acb59f")); footer.AddChild(_identity);
-        var caption = new Label { Text = "价值" }; MatchTheme.Text(caption, 10, AttributePalette.Find(GameAttributeKeys.Value)); footer.AddChild(caption);
+        var footer = new HBoxContainer { Name = "Footer" }; footer.AddThemeConstantOverride("separation", 3); AddChild(footer);
+        _identity = new Label { Name = "Identity", SizeFlagsHorizontal = SizeFlags.ExpandFill }; MatchTheme.Text(_identity, 14, new Color("acb59f")); footer.AddChild(_identity);
+        var caption = new Label { Text = "价值" }; MatchTheme.Text(caption, 14, AttributePalette.Find(GameAttributeKeys.Value), bold: true); footer.AddChild(caption);
         footer.AddChild(new TextureRect { Texture = MatchTheme.Icon("coin"), CustomMinimumSize = new Vector2(10, 10), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             Modulate = AttributePalette.Find(GameAttributeKeys.Value)!.Value, Material = AttributePalette.IconMaterial });
         _value = new Label { Name = "Value" }; MatchTheme.Text(_value, 14, AttributePalette.Find(GameAttributeKeys.Value), true, true); footer.AddChild(_value);
         _extra = new Button { Name = "InstanceToggle", Text = "宝石 · 当前属性  ▾", Alignment = HorizontalAlignment.Left };
-        _extra.AddThemeFontSizeOverride("font_size", 10); _extra.AddThemeStyleboxOverride("normal", new StyleBoxEmpty()); AddChild(_extra);
+        _extra.AddThemeFontSizeOverride("font_size", 14); _extra.AddThemeStyleboxOverride("normal", new StyleBoxEmpty()); AddChild(_extra);
         _attributes = new RichTextLabel { Name = "InstanceDetails", CustomMinimumSize = new Vector2(0, 160), Visible = false };
-        _attributes.AddThemeFontSizeOverride("normal_font_size", 12); AddChild(_attributes); _extra.Pressed += ToggleAttributes;
+        _attributes.AddThemeFontSizeOverride("normal_font_size", 16); AddChild(_attributes); _extra.Pressed += ToggleAttributes;
     }
 
     // 规则主体与实例属性分区，保留宝石、任务和能力公式的完整语义。
@@ -66,14 +71,20 @@ public sealed partial class CardDetailsContent : VBoxContainer
             .Select(TagDisplayNames.Get).Concat(card.ElementKeys.Select(element => element == GameElements.General ? "无属性" : CardDisplayAdapter.ElementName(element)));
         foreach (var tag in tags)
         {
-            var badge = new Label { Text = tag }; MatchTheme.Text(badge, 10, new Color("9aaa91"), spacing: 1);
-            var plate = MatchTheme.Surface(new Color("1c2922"), new Color("727255")); plate.ContentMarginLeft = plate.ContentMarginRight = 5; plate.ContentMarginTop = plate.ContentMarginBottom = 3;
+            var badge = new Label { Text = tag }; MatchTheme.Text(badge, 13, new Color("9aaa91"), spacing: 1);
+            var plate = MatchTheme.Surface(new Color("1c2922"), new Color("727255")); plate.ContentMarginLeft = 6; plate.ContentMarginRight = 7; plate.ContentMarginTop = plate.ContentMarginBottom = 4;
             plate.SetCornerRadiusAll(0);
             badge.AddThemeStyleboxOverride("normal", plate); _tags.AddChild(badge);
         }
         var ticks = card.CurrentValues.GetValueOrDefault(GameAttributeKeys.CooldownTicks);
         _cooldown.Visible = ticks > 0 && card.Abilities.Any(ability => ability.Activation == AbilityActivation.Active);
         _seconds.Text = $"{ticks / 10m * card.CooldownMultiplier:0.0}";
+        // 先给换行控件明确正文宽度，避免延迟容器排版把标签和标题误算成多行。
+        var titleWidth = Mathf.Max(1, width - 5 - (_cooldown.Visible ? _cooldown.GetCombinedMinimumSize().X + 10 : 0));
+        _tags.Size = new Vector2(titleWidth, _tags.Size.Y);
+        _tags.Notification((int)Container.NotificationSortChildren);
+        _name.Size = new Vector2(titleWidth, _name.Size.Y);
+        _name.GetLineCount();
         foreach (var child in _paragraphs.GetChildren()) { _paragraphs.RemoveChild(child); child.QueueFree(); }
         var details = CardDisplayAdapter.Details(card, includeQuestProgress: false).Split('\n');
         var count = card.DescriptionEntries.Count > 0 ? card.DescriptionEntries.Count : card.Abilities.Sum(ability => 1 + ability.Effects.Count);
@@ -86,7 +97,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         foreach (var paragraph in rules)
         {
             AddParagraph("Rule", paragraph, width);
-            height += Math.Max(22, MatchTheme.Font().GetMultilineStringSize(paragraph, width: width, fontSize: 12).Y * 1.3f) + 8;
+            height += Math.Max(28, MatchTheme.Font().GetMultilineStringSize(paragraph, width: width, fontSize: 18).Y * 1.3f) + 8;
         }
         if (battle is not null)
         {
@@ -102,7 +113,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
             if (status.Length > 0)
             {
                 AddParagraph("BattleState", $"战斗状态：{status}", width, new Color("e6c784"));
-                height += Math.Max(22, MatchTheme.Font().GetMultilineStringSize($"战斗状态：{status}", width: width, fontSize: 12).Y * 1.3f) + 8;
+                height += Math.Max(28, MatchTheme.Font().GetMultilineStringSize($"战斗状态：{status}", width: width, fontSize: 18).Y * 1.3f) + 8;
             }
         }
         var quests = CardQuestViewModel.From(card, battle);
@@ -112,16 +123,18 @@ public sealed partial class CardDetailsContent : VBoxContainer
         CardKeywordText.Render(_attributes, string.Join("\n", details.Skip(2).Take(1 + card.GemSockets.Count).Concat(details.Skip(offset + count))));
         _attributes.CustomMinimumSize = new Vector2(0, Mathf.Min(160, maximumBodyHeight / 2));
         if (!preserveExpansion) { _attributes.Hide(); _scroll.ScrollVertical = 0; _attributes.GetVScrollBar().Value = 0; }
+        UpdateBodyHeight();
     }
 
     public override void _ExitTree() => _extra.Pressed -= ToggleAttributes;
-    public override void _Process(double delta)
+    public override void _Process(double delta) => UpdateBodyHeight();
+    private void UpdateBodyHeight()
     {
         var available = _maximumBodyHeight - (_attributes.Visible ? _attributes.CustomMinimumSize.Y : 0);
         var height = Mathf.Min(available, Mathf.Max(22, _paragraphs.GetCombinedMinimumSize().Y));
         if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height)) _scroll.CustomMinimumSize = new Vector2(0, height);
     }
-    private void ToggleAttributes() => _attributes.Visible = !_attributes.Visible;
+    private void ToggleAttributes() { _attributes.Visible = !_attributes.Visible; UpdateBodyHeight(); }
     private void RenderQuests(IReadOnlyList<CardQuestViewModel> quests, float width)
     {
         var section = new VBoxContainer { Name = "Quests", SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -132,7 +145,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         var title = new Label { Text = "成长任务", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         MatchTheme.Text(title, 15, new Color("efd9a8"), spacing: 2); heading.AddChild(title);
         var total = new Label { Text = $"{quests.Count}项 · 已解锁 {quests.Count(quest => quest.Unlocked)}项" };
-        MatchTheme.Text(total, 11, new Color("adbaaa")); heading.AddChild(total);
+        MatchTheme.Text(total, 14, new Color("adbaaa")); heading.AddChild(total);
         foreach (var quest in quests)
         {
             var panel = new PanelContainer { Name = quest.Key.ToString().Replace('.', '_'), SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -144,9 +157,9 @@ public sealed partial class CardDetailsContent : VBoxContainer
             var row = new HBoxContainer { Name = "Heading" }; column.AddChild(row);
             var condition = new Label { Name = "Condition", Text = quest.Condition, AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            MatchTheme.Text(condition, 13, new Color("eee1c0")); row.AddChild(condition);
+            MatchTheme.Text(condition, 16, new Color("eee1c0")); row.AddChild(condition);
             var state = new Label { Name = "State", Text = quest.Unlocked ? "✓ 已解锁" : "进行中" };
-            MatchTheme.Text(state, 10, new Color(quest.Unlocked ? "a4dfbc" : "dac78f")); row.AddChild(state);
+            MatchTheme.Text(state, 13, new Color(quest.Unlocked ? "a4dfbc" : "dac78f")); row.AddChild(state);
             var meter = new HBoxContainer { Name = "Meter" }; meter.AddThemeConstantOverride("separation", 12); column.AddChild(meter);
             var bar = new ProgressBar { Name = "Progress", MaxValue = quest.RequiredCount, Value = Math.Clamp(quest.Progress, 0, quest.RequiredCount),
                 ShowPercentage = false, CustomMinimumSize = new Vector2(0, 7), SizeFlagsVertical = SizeFlags.ShrinkCenter,
@@ -162,17 +175,18 @@ public sealed partial class CardDetailsContent : VBoxContainer
             MatchTheme.Text(count, 17, new Color("ead4a5"), serif: true, bold: true); meter.AddChild(count);
             var reward = new RichTextLabel { Name = "Reward", FitContent = true, ScrollActive = false, Size = new Vector2(Mathf.Max(1, width - 26), 0),
                 MouseFilter = MouseFilterEnum.Ignore };
-            reward.AddThemeFontSizeOverride("normal_font_size", 12); reward.AddThemeColorOverride("default_color", new Color("d5dac7")); column.AddChild(reward);
+            reward.AddThemeFontSizeOverride("normal_font_size", 16); reward.AddThemeColorOverride("default_color", new Color("d5dac7")); column.AddChild(reward);
             CardKeywordText.RenderRule(reward, $"解锁奖励：{quest.Reward}");
         }
     }
     private RichTextLabel AddParagraph(string name, string paragraph, float width, Color? color = null)
     {
         var text = new RichTextLabel { Name = name, FitContent = true, ScrollActive = false, Size = new Vector2(width, 0), MouseFilter = MouseFilterEnum.Ignore };
-        text.AddThemeFontSizeOverride("normal_font_size", 12); text.AddThemeColorOverride("default_color", color ?? new Color("d9dbc3"));
-        var leading = Mathf.Max(0, 22.2f - MatchTheme.Font().GetHeight(12));
-        text.AddThemeConstantOverride("line_separation", Mathf.RoundToInt(leading));
-        text.AddThemeStyleboxOverride("normal", new StyleBoxEmpty { ContentMarginTop = leading / 2, ContentMarginBottom = leading / 2 });
+        text.AddThemeFontSizeOverride("normal_font_size", 18); text.AddThemeColorOverride("default_color", color ?? new Color("d9dbc3"));
+        text.AddThemeFontOverride("normal_font", new FontVariation { BaseFont = MatchTheme.Font(), SpacingTop = 3, SpacingBottom = 2 });
+        text.AddThemeFontOverride("bold_font", new FontVariation { BaseFont = MatchTheme.Font(bold: true), SpacingTop = 3, SpacingBottom = 2 });
+        text.AddThemeConstantOverride("line_separation", 0);
+        text.AddThemeStyleboxOverride("normal", new StyleBoxEmpty());
         _paragraphs.AddChild(text); CardKeywordText.RenderRule(text, paragraph);
         return text;
     }

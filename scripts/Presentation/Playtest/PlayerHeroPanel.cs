@@ -14,6 +14,15 @@ public enum HeroSection { Skills, Sets, Rewards }
 // 底部横向英雄栏展示身份、资源与技能、套装、奖励入口。
 public sealed partial class PlayerHeroPanel : Control
 {
+    private static readonly Dictionary<StringName, Vector3> PortraitCrops = new()
+    {
+        [new("hero.paladin")] = new(2.7f, .52f, .09f),
+        [new("hero.mona")] = new(2.5f, .43f, .15f),
+        [new("hero.harla")] = new(2.65f, .48f, 0),
+        [new("hero.jiyun")] = new(2.5f, .53f, .03f),
+        [new("hero.robin")] = new(2.5f, .58f, .01f),
+        [new("hero.valos")] = new(2.8f, .42f, .02f),
+    };
     public event Action<HeroSection>? SectionRequested;
     private Label _name = null!;
     private Label _subtitle = null!;
@@ -65,8 +74,15 @@ public sealed partial class PlayerHeroPanel : Control
         _buttons.Visible = _health.Visible = _mana.Visible = hero is not null;
         _portrait.Texture = hero is not null && !hero.Illustration.IsEmpty && ResourceLoader.Exists(hero.Illustration.ToString())
             ? GD.Load<Texture2D>(hero.Illustration.ToString()) : null;
-        if (_portrait.Texture is { } texture && texture.GetHeight() > texture.GetWidth())
-            _portrait.Texture = new AtlasTexture { Atlas = texture, Region = new Rect2(0, (texture.GetHeight() - texture.GetWidth()) * .22f, texture.GetWidth(), texture.GetWidth()) };
+        if (_portrait.Texture is { } texture && hero is not null && PortraitCrops.TryGetValue(hero.Key, out var crop))
+        {
+            // 对应HTML小头像的放大倍数与背景定位，仅裁显示区域，原画资源保持完整。
+            var side = texture.GetWidth() / crop.X;
+            _portrait.Texture = new AtlasTexture { Atlas = texture, Region = new Rect2(
+                (texture.GetWidth() - side) * crop.Y, (texture.GetHeight() - side) * crop.Z, side, side) };
+        }
+        else if (_portrait.Texture is { } tallTexture && tallTexture.GetHeight() > tallTexture.GetWidth())
+            _portrait.Texture = new AtlasTexture { Atlas = tallTexture, Region = new Rect2(0, (tallTexture.GetHeight() - tallTexture.GetWidth()) * .22f, tallTexture.GetWidth(), tallTexture.GetWidth()) };
         _portrait.Visible = _portrait.Texture is not null;
         LayoutPanel();
         if (hero is null) return;

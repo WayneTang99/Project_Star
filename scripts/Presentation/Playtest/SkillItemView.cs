@@ -26,7 +26,8 @@ public sealed partial class SkillItemView : Button
 
     // 选中轮廓只影响展示，不执行技能能力。
     public void SetSelected(bool selected) => AddThemeStyleboxOverride("normal",
-        MatchTheme.Surface(new Color("f8fbfc"), selected ? MatchTheme.Gold : new Color("a5bcc9")));
+        MatchTheme.Surface(selected ? new Color(MatchTheme.BluePalette ? "314c57" : "354c38") : MatchTheme.SurfaceColor,
+            selected ? MatchTheme.Gold : new Color("a5bcc9")));
 
     public override GodotObject _MakeCustomTooltip(string forText)
     {

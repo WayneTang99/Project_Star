@@ -1,5 +1,7 @@
 # 单一HTML界面设计计划
 
+2026-10-10最新澄清：HTML详情文字原本正确，文字太小和比例问题来自Godot项目。已撤回HTML字号、浮层尺寸与缩放修改；保留用户明确要求先在HTML完成的六位英雄头像取景、独立属性色和灼伤归零隐藏。六位英雄小头像及新独立属性色已同步项目；项目修复可读性及基本悬停、按下、键盘焦点反馈，按实际操作验收，不以逐像素追齐为目标。见[项目体验修复](../quality/UI_PROJECT_FEEDBACK_2026_10_10.md)及[HTML改进记录](../quality/UI_READABILITY_HTML_2026_10_10.md)。
+
 日期：2026-10-10。状态：用户已确认统一HTML及推荐属性色，出售预览、经济区、菜单和属性色已接入Godot。用户随后要求收敛卡面颜色：效果底板按各自专属色渐变、价值底板为金色，数字统一浅象牙白，属性色保留于图标和详情。浏览器历史检查见[记录](../quality/UI_UNIFIED_PROTOTYPE_QA_2026_10_10.md)，本轮原生证据见[记录](../quality/UI_UNIFIED_NATIVE_2026_10_10.md)，当前主文件SHA256见[核对数据](../quality/ui-16x9/unified-reference.json)。整体字体／材质专项仍单独保留。
 
 唯一活动入口为[game-16x9.html](../design/prototypes/game-16x9.html)，当前为本次新增区域的获批设计基准。上一版冻结在[源文件备份](../quality/ui-16x9/approved-layout-source.zip)。旧交互／状态HTML和外置CSS／JS并入主文件，旧截图归档到quality；插画保留为资源文件，运行时不依赖HTML。

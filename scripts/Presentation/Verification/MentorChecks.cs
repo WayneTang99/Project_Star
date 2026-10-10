@@ -252,10 +252,11 @@ internal static class MentorChecks
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
             {
                 owner.GetWindow().Size = size;
-                owner.GetTree().Root.ContentScaleSize = size;
+                owner.GetTree().Root.ContentScaleSize = new Vector2I(1600, 900);
                 shell.Render(presenter.View);
-                await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
-                await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+                for (var frame = 0; frame < 8; frame++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (shell.Size != new Vector2(1600, 900) || shell.GetNode<Control>("BenchRow/Content/Board").GetGlobalRect().End.Y > 900)
+                    throw new InvalidOperationException("导师捕获画布或完整备战区越界。");
                 await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                 using var image = owner.GetViewport().GetTexture().GetImage();
                 if (owner.GetViewport().UseHdr2D)

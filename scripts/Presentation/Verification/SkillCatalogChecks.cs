@@ -152,12 +152,42 @@ internal static class SkillCatalogChecks
                         throw new InvalidOperationException("技能详情溢出窗口。");
                     await Save(label);
                 }
+                search.Text = "至圣斩"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Frame();
+                var level = catalog.GetNode<OptionButton>("Content/Body/DetailPanel/Details/Level");
+                level.Select(level.ItemCount - 1); level.EmitSignal(OptionButton.SignalName.ItemSelected, level.Selected);
+                var selectedLevel = level.GetItemId(level.Selected); search.GrabFocus();
+                var selected = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills").FindChildren("*", "Button", true, false).OfType<SkillItemView>().Single();
+                foreach (var blue in new[] { true, false })
+                {
+                    shell.SetDesktopPalette(blue); await Frame(); await Frame();
+                    if (!search.HasFocus() || search.Text != "至圣斩" || level.GetItemId(level.Selected) != selectedLevel
+                        || ((StyleBoxFlat)selected.GetThemeStylebox("normal")).BgColor != new Color(blue ? "314c57" : "354c38")
+                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color(blue ? "102432" : "10211b"))
+                        throw new InvalidOperationException("配色切换未同步图鉴样式或丢失焦点、筛选、预览等级。");
+                    await Save(blue ? "palette-blue" : "palette-green-restored");
+                }
                 search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, ""); KeyInput(Key.Escape); await Frame();
                 if (catalog.Visible || !shell.GetNode<Button>("OpenGameMenu").HasFocus()) throw new InvalidOperationException("技能图鉴返回焦点失败。");
             }
             shell.Render(SkillView(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly)));
+            var opener = shell.GetNode<Button>("OpenGameMenu"); opener.GrabFocus();
             shell.GetNode<HeroDetailsView>("HeroDetails").ShowSection(HeroSection.Skills, shell.Size);
+            var close = shell.GetNode<Button>("HeroDetails/Content/Close");
+            if (!close.HasFocus()) throw new InvalidOperationException("技能浮层打开后焦点仍在背景。");
+            KeyInput(Key.Tab); await Frame();
+            if (owner.GetViewport().GuiGetFocusOwner() is not { } focus || !shell.GetNode<HeroDetailsView>("HeroDetails").IsAncestorOf(focus))
+                throw new InvalidOperationException("技能浮层Tab焦点泄漏到背景。");
             await Frame(); await Frame(); await Save("acquired-skills");
+            var scroll = shell.GetNode<ScrollContainer>("HeroDetails/Content/Scroll");
+            scroll.ScrollVertical = (int)(scroll.GetVScrollBar().MaxValue - scroll.GetVScrollBar().Page);
+            await Frame(); await Frame();
+            var items = scroll.GetNode<VBoxContainer>("Items");
+            if (scroll.ScrollVertical <= 0 || items.GetChild<Control>(items.GetChildCount() - 1).GetGlobalRect().End.Y > scroll.GetGlobalRect().End.Y + 1)
+                throw new InvalidOperationException("长技能详情未能滚动到最后一项。");
+            await Save("acquired-skills-bottom");
+            close.GrabFocus(); KeyInput(Key.Enter); await Frame();
+            if (shell.GetNode<HeroDetailsView>("HeroDetails").Visible || !opener.HasFocus())
+                throw new InvalidOperationException("技能浮层键盘关闭后未恢复入口焦点。");
             GD.Print("技能图鉴两种窗口、真实键盘、详情与焦点检查通过。");
         }
         finally { owner.RemoveChild(root); root.Free(); }

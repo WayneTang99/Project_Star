@@ -58,6 +58,8 @@ internal static class CardInteractionChecks
             if (details.Position != begin || details.CurrentCardId != card.Id) return false;
             Step(.06);
             if (details.Position.Y <= 80 || details.Position.Y >= begin.Y || details.Modulate.A <= 0 || details.Modulate.A >= 1) return false;
+            if (Mathf.Abs(details.Modulate.A - .8024034f) > .0001f
+                || Mathf.Abs(details.Position.Y - (80 + 6 * (1 - .8024034f) * details.Scale.Y)) > .001f) return false;
             Step(.12); details._Process(0);
             var end = details.Position;
             if (!Mathf.IsEqualApprox(end.Y, 80) || !Mathf.IsEqualApprox(details.Modulate.A, 1)) return false;
@@ -86,6 +88,8 @@ internal static class CardInteractionChecks
             var offer = presenter.View.Offers.First(value => value.Action.Enabled);
             CardItemView Item() => shell.GetNode<CardItemView>($"ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer{offer.Index}/Card");
             var item = Item(); var wealth = presenter.View.Player!.Wealth;
+            presenter.CancelSelection();
+            if (!ReferenceEquals(item, Item()) || presenter.View.Player.Wealth != wealth) return false;
             item._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
             var details = shell.GetNode<CardDetailsView>("CardDetails");
             if (!details.Visible || details.CurrentCardKey != offer.Card.Key || presenter.View.Player.Wealth != wealth
@@ -178,11 +182,45 @@ internal static class CardInteractionChecks
         owner.GetWindow().MinSize = Vector2I.Zero;
         try
         {
-            var presenter = Presenter(scene); presenter.SelectHero("hero.paladin");
-            presenter.ChooseEncounter(presenter.View.Choices.First(choice => choice.ShopLevel > 0).Key);
+            var presenter = Presenter(scene);
             var shell = scene.GetNode<MatchShell>("MatchShell");
             var details = shell.GetNode<CardDetailsView>("CardDetails");
             await Frames();
+            owner.GetViewport().NotifyMouseEntered();
+            var roster = shell.GetNode<Button>("ContextRow/ContextHost/HeroSelectionView/Roster/Entries/Hero0");
+            await Feedback(roster, "hero-roster");
+            presenter.SelectHero("hero.paladin"); await Frames();
+            var encounter = shell.GetNode<EncounterSelectionView>("ContextRow/ContextHost/EncounterChoiceView")
+                .FindChildren("*", "Button", true, false).OfType<Button>().First(button => button.IsVisibleInTree() && !button.Disabled);
+            await Feedback(encounter, "encounter");
+            presenter.ChooseEncounter(presenter.View.Choices.First(choice => choice.ShopLevel > 0).Key); await Frames();
+            var menu = shell.GetNode<Button>("OpenGameMenu");
+            await Feedback(menu, "menu");
+            var primary = shell.GetNode<VBoxContainer>("FooterActions").GetChildren().OfType<Button>().First(button => button.IsVisibleInTree() && !button.Disabled);
+            await Feedback(primary, "primary");
+            shell.SetDesktopPalette(true); await Frames();
+            await Feedback(menu, "menu-blue"); await Feedback(primary, "primary-blue");
+            shell.SetDesktopPalette(false); await Frames();
+            menu.GrabFocus(); KeyDown(Key.Space); await Frames(); await Save("feedback-keyboard-down");
+            if (menu.GetDrawMode() is not BaseButton.DrawMode.Pressed and not BaseButton.DrawMode.HoverPressed)
+                throw new InvalidOperationException("Space按住时按钮缺少按下状态。");
+            KeyUp(Key.Space); await Frames();
+            if (!shell.GetNode<MatchMenuView>("GameMenu").Visible) throw new InvalidOperationException("Space释放没有打开菜单。");
+            KeyInput(Key.Escape); await Frames();
+            if (shell.GetNode<MatchMenuView>("GameMenu").Visible) throw new InvalidOperationException("Escape未关闭菜单。");
+            menu.EmitSignal(Button.SignalName.Pressed);
+            shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenDisplaySettings").EmitSignal(Button.SignalName.Pressed); await Frames();
+            var settings = shell.GetNode<DisplaySettingsView>("DisplaySettings");
+            await Feedback(settings.FindChildren("Apply", "Button", true, false).OfType<Button>().Single(), "settings");
+            KeyInput(Key.Escape); await Frames();
+            if (settings.Visible) throw new InvalidOperationException("设置反馈检查后Escape未关闭。");
+            menu.EmitSignal(Button.SignalName.Pressed);
+            shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenSkillCatalog").EmitSignal(Button.SignalName.Pressed); await Frames();
+            var skills = shell.GetNode<SkillCatalogView>("SkillCatalog");
+            await Feedback(skills.FindChildren("*", "Button", true, false).OfType<SkillItemView>()
+                .First(button => button.IsVisibleInTree() && !button.Disabled && button.MouseFilter != Control.MouseFilterEnum.Ignore), "skill-catalog");
+            KeyInput(Key.Escape); await Frames();
+            if (skills.Visible) throw new InvalidOperationException("技能反馈检查后Escape未关闭。");
             var offer = presenter.View.Offers.First(value => value.Action.Enabled);
             var item = shell.GetNode<CardItemView>($"ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer{offer.Index}/Card");
             Mouse(item, MouseButton.Right); await Frames();
@@ -227,7 +265,7 @@ internal static class CardInteractionChecks
             await Save("sale-keyboard-confirm");
             KeyInput(Key.Enter); await Frames();
             if (details.Visible || presenter.View.Player.Wealth != wealth + ownedSaleCard.Value || presenter.View.Player.Cards.Any(card => card.Id == ownedSaleCard.Id))
-                throw new InvalidOperationException("Enter确认出售未按显示金额移除同一实例。");
+                throw new InvalidOperationException($"Enter确认出售检查失败：详情{details.Visible}/{details.CurrentCardId}/{details.CurrentCardKey}，金币{presenter.View.Player.Wealth}/{wealth + ownedSaleCard.Value}，原卡存在{presenter.View.Player.Cards.Any(card => card.Id == ownedSaleCard.Id)}，焦点{owner.GetViewport().GuiGetFocusOwner()?.GetPath()}。");
             KeyInput(Key.Enter); await Frames();
             if (presenter.View.Player.Wealth != wealth + ownedSaleCard.Value) throw new InvalidOperationException("确认出售后重复Enter触发了额外交易。");
             GD.Print($"出售键盘确认通过：Enter只选中，Escape取消，Tab {saleFocusPath.Count}步到达确认，Enter只出售一次。");
@@ -278,8 +316,20 @@ internal static class CardInteractionChecks
                 owner.GetViewport().PushInput(new InputEventMouseMotion { Position = Vector2.One }, true); await Frames();
                 owner.GetViewport().PushInput(new InputEventMouseMotion { Position = item.GetGlobalRect().GetCenter() }, true); await Frames();
                 if (!details.Visible || details.MouseFilter != Control.MouseFilterEnum.Ignore) throw new InvalidOperationException("关闭后不能重新悬停详情。");
-                KeyInput(Key.Escape); await Frames();
-                if (details.Visible) throw new InvalidOperationException("Escape未关闭详情。");
+                for (var attempt = 0; attempt < 12; attempt++)
+                {
+                    if (attempt > 0)
+                    {
+                        item.GrabFocus(); await Frames();
+                        owner.GetViewport().PushInput(new InputEventMouseMotion { Position = Vector2.One }, true); await Frames();
+                        owner.GetViewport().PushInput(new InputEventMouseMotion { Position = item.GetGlobalRect().GetCenter() }, true); await Frames();
+                        if (!details.Visible) throw new InvalidOperationException("Escape后不能重新查看详情。");
+                    }
+                    KeyInput(Key.Escape); await Frames();
+                    if (details.Visible || !ReferenceEquals(item, shell.GetNode<CardItemView>($"ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer{offer.Index}/Card")))
+                        throw new InvalidOperationException($"Escape关闭后详情重新打开或商品重建：窗口{size}，第{attempt + 1}次，焦点{owner.GetViewport().GuiGetFocusOwner()?.GetPath()}。");
+                }
+                GD.Print($"{size}连续12次Escape关闭与重新查看详情通过，商品节点保持。");
             }
             GD.Print("卡牌原生右键、鼠标购买、Enter购买、Space奖励领取及三种窗口任务截图通过。");
         }
@@ -292,10 +342,39 @@ internal static class CardInteractionChecks
             owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = button, Pressed = true }, true);
             owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = button, Pressed = false }, true);
         }
-        void KeyInput(Key key)
+        void KeyDown(Key key) => owner.GetViewport().PushInput(new InputEventKey { Keycode = key, Pressed = true }, true);
+        void KeyUp(Key key) => owner.GetViewport().PushInput(new InputEventKey { Keycode = key, Pressed = false }, true);
+        void KeyInput(Key key) { KeyDown(key); KeyUp(key); }
+        async Task Feedback(Button button, string name)
         {
-            owner.GetViewport().PushInput(new InputEventKey { Keycode = key, Pressed = true }, true);
-            owner.GetViewport().PushInput(new InputEventKey { Keycode = key, Pressed = false }, true);
+            if (button.GetNodeOrNull<ButtonFeedback>("InteractionFeedback") is null) throw new InvalidOperationException($"{name}缺少交互反馈层。");
+            owner.GetViewport().GuiReleaseFocus();
+            owner.GetViewport().PushInput(new InputEventMouseMotion { Position = Vector2.Zero }, true); await Settle();
+            var normal = await Pixels(button); await Save($"feedback-{name}-normal");
+            var point = button.GetGlobalRect().GetCenter();
+            owner.GetViewport().PushInput(new InputEventMouseMotion { Position = point }, true); await Settle();
+            var hover = await Pixels(button); await Save($"feedback-{name}-hover");
+            owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.Left, Pressed = true }, true); await Frames();
+            var down = await Pixels(button); await Save($"feedback-{name}-down");
+            if (normal.SequenceEqual(hover) || hover.SequenceEqual(down)) throw new InvalidOperationException($"{name}实际渲染缺少悬停／按下变化。");
+            // 移出后释放取消点击，避免视觉验证触发页面命令。
+            owner.GetViewport().PushInput(new InputEventMouseMotion { Position = Vector2.Zero }, true);
+            owner.GetViewport().PushInput(new InputEventMouseButton { Position = Vector2.Zero, ButtonIndex = MouseButton.Left, Pressed = false }, true);
+            owner.GetViewport().GuiReleaseFocus(); await Settle();
+            var restored = await Pixels(button);
+            await Save($"feedback-{name}-restored");
+            if (!normal.SequenceEqual(restored)) throw new InvalidOperationException($"{name}松开／移出后未恢复普通状态。");
+            GD.Print($"{name}真实鼠标悬停、按下、移出释放及恢复的渲染反馈通过。");
+        }
+        async Task Settle() { await owner.ToSignal(owner.GetTree().CreateTimer(.18), SceneTreeTimer.SignalName.Timeout); await Frames(); }
+        async Task<byte[]> Pixels(Control control)
+        {
+            await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            using var image = owner.GetViewport().GetTexture().GetImage();
+            var scale = (Vector2)image.GetSize() / owner.GetViewportRect().Size;
+            var rect = control.GetGlobalRect();
+            using var region = image.GetRegion(new Rect2I((Vector2I)(rect.Position * scale), (Vector2I)(rect.Size * scale)));
+            return region.GetData();
         }
         async Task Save(string label)
         {

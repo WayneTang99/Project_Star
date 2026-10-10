@@ -599,9 +599,9 @@ internal static class PlaytestVerification
                 var detailMargin = 12 * details.Scale.X;
                 if (details.Position.X < detailMargin - .1f || details.Position.Y < detailMargin - .1f
                     || details.Position.X + details.Size.X * details.Scale.X > shell.Size.X - detailMargin + .1f
-                    || details.Position.Y + details.Size.Y * details.Scale.Y > shell.Size.Y - detailMargin + .1f || details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible
+                    || details.Position.Y + details.Size.Y * details.Scale.Y > shell.Size.Y - detailMargin + .1f || details.GetNode<Control>("Content/CardContent/HeaderMargin/Header/Cooldown").Visible
                     || body.GetVScrollBar().MaxValue <= body.GetVScrollBar().Page)
-                    return Fail($"长说明展开后越界、缺少滚动或无主动能力仍显示冷却：窗口 {size}，详情 {details.Position}/{details.Size}，冷却 {details.GetNode<Control>("Content/CardContent/Header/Cooldown").Visible}，滚动 {body.GetVScrollBar().MaxValue}/{body.GetVScrollBar().Page}");
+                    return Fail($"长说明展开后越界、缺少滚动或无主动能力仍显示冷却：窗口 {size}，详情 {details.Position}/{details.Size}，冷却 {details.GetNode<Control>("Content/CardContent/HeaderMargin/Header/Cooldown").Visible}，滚动 {body.GetVScrollBar().MaxValue}/{body.GetVScrollBar().Page}");
                 body.ScrollVertical = 40; await Frame();
                 if (body.ScrollVertical <= 0) return Fail("详情正文无法滚动");
                 details.ShowNear(detailCard, new Rect2(new Vector2(20, 20), new Vector2(60, 60)), shell.Size);
@@ -667,7 +667,7 @@ internal static class PlaytestVerification
             {
                 shell.Render(capture with { Page = page, Enemy = capture.Player,
                     EnemyVisible = page is MatchPage.Preparation or MatchPage.BattlePlayback });
-                if (host.GetChildren().OfType<Control>().Count(view => view.Visible) != (page is MatchPage.Preparation or MatchPage.BattlePlayback ? 2 : 1)) return false;
+                if (host.GetChildren().OfType<Control>().Count(view => view.Visible) != (page is MatchPage.Preparation or MatchPage.BattlePlayback ? 2 : 1)) throw new InvalidOperationException($"页面互斥失败：{page}");
             }
             shell.Render(capture);
             var offers = host.GetNode<HBoxContainer>("ShopView/OfferScroll/Offers");
@@ -676,7 +676,7 @@ internal static class PlaytestVerification
             shell.BuyRequested += (selected, version) => { count++; index = selected; revision = version; };
             for (var render = 0; render < 3; render++) shell.Render(capture);
             old.EmitSignal(Button.SignalName.Pressed);
-            if (count != 0) return false;
+            if (count != 0) throw new InvalidOperationException("旧购买按钮仍触发命令。");
             offers.GetChild<Node>(0).GetNode<Button>("Card").EmitSignal(Button.SignalName.Pressed);
             var detailCard = capture.Offers[0].Card;
             var detailView = capture with { Player = capture.Player! with { Cards = Array.AsReadOnly(new[] { detailCard }) } };
@@ -688,9 +688,9 @@ internal static class PlaytestVerification
             details.Modulate = Colors.White;
             for (var refresh = 0; refresh < 3; refresh++) shell.Render(detailView);
             if (!details.Visible || details.CurrentCardId != detailCard.Id || details.Position != position
-                || details.Modulate.A != 1 || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) return false;
+                || details.Modulate.A != 1 || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) throw new InvalidOperationException("详情刷新改变了身份、位置、淡入或展开状态。");
             shell.Render(detailView with { SelectedCardId = detailCard.Id });
-            if (details.Position != position || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) return false;
+            if (details.Position != position || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible) throw new InvalidOperationException($"选中详情未保持：{details.Position}/{position}。");
             detailCard = detailCard with { QuestDefinitions = Array.AsReadOnly(new[] { new CardQuestDefinition(new StringName("ui.verify.quest"),
                 new BattleVictoryQuestConditionDefinition(), 5, [], [new ArmorEffectDefinition(1)]) }) };
             var state = new CardBattleSnapshot(detailCard.Id, SideId.Player, true, 15, 20, 30, Array.Empty<decimal>(), detailCard.CurrentValues)
@@ -707,7 +707,7 @@ internal static class PlaytestVerification
             if (paragraphs.HasNode("BattleState") || paragraphs.GetNode<Label>("Quests/ui_verify_quest/Column/Meter/Count").Text != "5 / 5"
                 || paragraphs.GetNode<Label>("Quests/ui_verify_quest/Column/Heading/State").Text != "✓ 已解锁") return false;
             shell.Render(capture with { Offers = Array.Empty<ShopItemViewModel>() });
-            if (details.Visible) return false;
+            if (details.Visible) throw new InvalidOperationException("失效商品仍保留详情。");
             return count == 1 && index == capture.Offers[0].Index && revision == capture.Offers[0].Revision
                 && ReferenceEquals(capture, presenter.View);
         }

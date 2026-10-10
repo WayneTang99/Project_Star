@@ -49,8 +49,6 @@ public sealed partial class SkillCatalogView : PanelContainer
         _search.AddThemeColorOverride("font_color", MatchTheme.Ink);
         _search.AddThemeColorOverride("font_placeholder_color", MatchTheme.Muted);
         _search.AddThemeColorOverride("caret_color", MatchTheme.Ink);
-        _search.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("10211b"), new Color("756847")));
-        _search.AddThemeStyleboxOverride("focus", MatchTheme.Surface(new Color("10211b"), MatchTheme.Blue));
         _back.Pressed += Close; _search.TextChanged += SearchChanged;
         _faction.ItemSelected += FilterChanged; _initialLevel.ItemSelected += FilterChanged; _level.ItemSelected += LevelChanged;
         Resized += LayoutColumns; _scroll.Resized += LayoutColumns; Hide();
@@ -71,6 +69,11 @@ public sealed partial class SkillCatalogView : PanelContainer
     public void Open() { Show(); LayoutColumns(); _search.GrabFocus(); }
     // 返回只改变局外展示，不执行对局用例。
     public void Close() { Hide(); Closed?.Invoke(); }
+    // 配色只刷新现有条目的选中样式，保留筛选、等级和键盘焦点。
+    public void RefreshPalette()
+    {
+        foreach (var (button, _, key) in _buttons) button.SetSelected(key == _selected?.InitialSkill.Key);
+    }
     private void SearchChanged(string _) => RefreshList();
     private void FilterChanged(long _) => RefreshList();
     private void LevelChanged(long index) => ShowLevel((int)index);

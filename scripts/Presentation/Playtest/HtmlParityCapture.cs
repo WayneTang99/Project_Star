@@ -25,6 +25,7 @@ internal static class HtmlParityCapture
 {
     public static async Task Run(Control owner)
     {
+        if (OS.GetCmdlineUserArgs().Contains("--details-component")) { await CaptureDetailsComponent(owner); return; }
         var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
         var shell = root.GetNode<MatchShell>("MatchShell"); root.RemoveChild(shell); root.Free(); owner.AddChild(shell);
         shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -65,6 +66,33 @@ internal static class HtmlParityCapture
             new UiAction("刷新 · 8"), new UiAction("开始战斗", false), new UiAction("继续旅程　→"), new UiAction("奖励", false))
         { ShopLevel = 4, DisplayRound = 2, DisplayTurn = 3, ContextIllustration = new StringName("res://art/ui/encounters/artwork/large_shop-illustration.png") };
         shell.Render(view);
+        if (OS.GetCmdlineUserArgs().Contains("--attribute-colors"))
+        {
+            var sample = hammer with { DisplayName = "属性配色预览", DescriptionEntries = Array.AsReadOnly(new[]
+            {
+                new CardDescriptionEntry(CardKeywords.Activate, "攻击10，护甲20，中毒3，灼伤4。"),
+                new CardDescriptionEntry(CardKeywords.Passive, "治疗20，生命200，魔法80。"),
+                new CardDescriptionEntry(CardKeywords.Aura, "生命再生10，魔法再生5，金币34。"),
+            }) };
+            view = view with { Player = snapshot with { Cards = Array.AsReadOnly(snapshot.Cards.Select(card => card.Id == sample.Id ? sample : card).ToArray()) } };
+            shell.Render(view);
+            shell.GetNode<CardDetailsView>("CardDetails").ShowCard(sample, new Vector2(660, 130), owner.Size);
+            await Save("attribute-colors");
+            shell.SetDesktopPalette(true); await Save("attribute-colors-blue");
+            GD.Print("项目十种属性色及两套桌面主题捕获完成。");
+            owner.GetTree().Quit(); return;
+        }
+        if (OS.GetCmdlineUserArgs().Contains("--hero-portraits"))
+        {
+            foreach (var definition in registry.Heroes.Values)
+            {
+                var hero = MatchSnapshot.From(new CreateMatchService(new EntityFactory()).Create(42, 34, definition)).Hero!;
+                shell.Render(view with { Player = snapshot with { Hero = hero } });
+                await Save("hero-portrait-" + hero.Key.ToString().Replace("hero.", ""));
+            }
+            GD.Print("六位英雄的项目小头像捕获完成，选角原画保持完整。");
+            owner.GetTree().Quit(); return;
+        }
         shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel").GetNode<ResourceBar>("HealthBar").Render("生命", 450, 600);
         await Save("shop");
         shell.GetNode<Button>("OpenGameMenu").EmitSignal(Button.SignalName.Pressed); await Save("menu");
@@ -88,7 +116,7 @@ internal static class HtmlParityCapture
         var item = shell.GetNode<BoardZoneView>("BattlefieldRow/Content/Board").GetNode<CardItemView>($"Card_{hammer.Id.Value:N}");
         item._GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true }); await Save("details");
         var physicalDetailSize = details.Size * details.Scale * owner.GetViewport().GetStretchTransform().Scale;
-        if (!Mathf.IsEqualApprox(physicalDetailSize.X, 380)) throw new InvalidOperationException($"详情屏幕宽度错误：{physicalDetailSize}。");
+        if (!Mathf.IsEqualApprox(physicalDetailSize.X, 440)) throw new InvalidOperationException($"详情屏幕宽度错误：{physicalDetailSize}。");
         GD.Print($"详情屏幕尺寸{physicalDetailSize}，正文宽{details.GetNode<CardDetailsContent>("Content/CardContent").Size.X}，伸缩{details.Scale}。");
         var originalWindowSize = owner.GetWindow().Size;
         owner.GetWindow().Size = originalWindowSize.X == 1280 ? new Vector2I(1920, 1080) : new Vector2I(1280, 720);
@@ -96,12 +124,12 @@ internal static class HtmlParityCapture
         var resizedScale = owner.GetViewport().GetStretchTransform().Scale.X;
         var resizedWidth = details.GetGlobalRect().Size.X * resizedScale;
         var resizedGap = (details.GlobalPosition.X - item.GetGlobalRect().End.X) * resizedScale;
-        if (Mathf.Abs(resizedWidth - 380) > .05f || Mathf.Abs(resizedGap - 16) > .05f
+        if (Mathf.Abs(resizedWidth - 440) > .05f || Mathf.Abs(resizedGap - 16) > .05f
             || details.CurrentCardId != hammer.Id || !details.Visible)
             throw new InvalidOperationException($"固定详情缩放后未跟随：宽{resizedWidth}，间距{resizedGap}，可见{details.Visible}，身份{details.CurrentCardId}/{hammer.Id}。");
         owner.GetWindow().Size = originalWindowSize;
         await Save("details-restored");
-        GD.Print("固定详情分辨率变化及恢复：380px宽度、16px相邻间距与卡牌身份保持。");
+        GD.Print("固定详情分辨率变化及恢复：440px宽度、16px相邻间距与卡牌身份保持。");
         details.ShowNear(cauldron, item.GetGlobalRect(), shell.Size); await Save("details-multiple");
         details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
         await Save("details-instance");
@@ -198,5 +226,60 @@ internal static class HtmlParityCapture
             var suffix = window == new Vector2I(image.GetWidth(), image.GetHeight()) ? "" : $"-window-{window.X}x{window.Y}";
             if (image.SavePng($"res://output/ui-html-parity/native/{name}-{image.GetWidth()}x{image.GetHeight()}{suffix}.png") != Error.Ok) throw new InvalidOperationException("视觉对照截图保存失败。");
         }
+    }
+
+    private static async Task CaptureDetailsComponent(Control owner)
+    {
+        var background = new ColorRect { Color = new Color("31463b"), MouseFilter = Control.MouseFilterEnum.Ignore };
+        owner.AddChild(background); background.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        var blue = OS.GetCmdlineUserArgs().Contains("--blue-details");
+        MatchTheme.SetPalette(blue); owner.Theme = MatchTheme.Create();
+        var details = new CardDetailsView { ZIndex = 100 }; owner.AddChild(details);
+        var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(new JudgmentHammerCardDefinition(), 3)) with
+        {
+            Id = EntityId.New(), Value = 24,
+            DescriptionEntries = Array.AsReadOnly(new[] { new CardDescriptionEntry(CardKeywords.Activate, "对敌方英雄造成其最大生命 20% 的普通伤害。") }),
+        };
+        var scale = owner.GetViewport().GetStretchTransform().Scale.X;
+        details.ShowCard(card, new Vector2(184, 150) / scale, owner.Size);
+        details.GetNode<Button>("Content/CardContent/InstanceToggle").Hide();
+        await owner.ToSignal(owner.GetTree().CreateTimer(.25), SceneTreeTimer.SignalName.Timeout);
+        for (var frame = 0; frame < 6; frame++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+        await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        DirAccess.MakeDirRecursiveAbsolute("res://output/ui-html-parity/details-component");
+        using var image = owner.GetViewport().GetTexture().GetImage();
+        var window = owner.GetWindow().Size;
+        var windowSuffix = window == new Vector2I(image.GetWidth(), image.GetHeight()) ? "" : $"-window-{window.X}x{window.Y}";
+        var suffix = $"{image.GetWidth()}x{image.GetHeight()}{windowSuffix}{(blue ? "-blue" : "")}";
+        GD.Print($"详情组件：窗口{window}，图像{image.GetWidth()}x{image.GetHeight()}，内容坐标(200,150)，主题{(blue ? "星辉蓝" : "森林金")}。");
+        if (image.SavePng($"res://output/ui-html-parity/details-component/native-{suffix}.png") != Error.Ok) throw new InvalidOperationException("详情组件截图保存失败。");
+        var measurements = new Dictionary<string, object>();
+        foreach (var path in new[] { ".", "Content/CardContent/HeaderMargin" })
+        {
+            if (details.GetNodeOrNull<Control>(path) is { } control) Measure(path, control);
+        }
+        Measure("title", Find<Label>(details, "CardName"));
+        Measure("tags", Find<Control>(details, "Tags"));
+        Measure("cooldown", Find<Control>(details, "Cooldown"));
+        Measure("body", Find<Control>(details, "BodyScroll"));
+        Measure("rule", Find<Control>(details, "Rule"));
+        Measure("footer", Find<Control>(details, "Footer"));
+        Measure("close", Find<Control>(details, "Close"));
+        var tags = Find<Control>(details, "Tags");
+        for (var index = 0; index < tags.GetChildCount(); index++) Measure($"tag{index}", tags.GetChild<Control>(index));
+        var rule = Find<RichTextLabel>(details, "Rule");
+        GD.Print($"规则文字：内容高{rule.GetContentHeight()}，字体高{rule.GetThemeFont("normal_font").GetHeight(12)}，normal{rule.GetThemeStylebox("normal").GetMinimumSize()}，行距{rule.GetThemeConstant("line_separation")}，字体大小{rule.GetThemeFontSize("normal_font_size")}/{rule.GetThemeFontSize("bold_font_size")}。");
+        var close = Find<Button>(details, "Close");
+        GD.Print($"关闭：字体高{close.GetThemeFont("font").GetHeight(18)}，最小{close.GetCombinedMinimumSize()}，style{close.GetThemeStylebox("normal").GetMinimumSize()}/{close.GetThemeStylebox("disabled").GetMinimumSize()}。");
+        using var file = Godot.FileAccess.Open($"res://output/ui-html-parity/details-component/native-{suffix}.json", Godot.FileAccess.ModeFlags.Write);
+        file.StoreString(System.Text.Json.JsonSerializer.Serialize(measurements));
+        owner.GetTree().Quit();
+
+        void Measure(string name, Control control)
+        {
+            var rect = control.GetGlobalRect();
+            measurements[name] = new { x = rect.Position.X * scale, y = rect.Position.Y * scale, width = rect.Size.X * scale, height = rect.Size.Y * scale };
+        }
+        T Find<T>(Node parent, string name) where T : Node => parent.FindChild(name, true, false) as T ?? throw new InvalidOperationException($"缺少详情组件{name}。");
     }
 }

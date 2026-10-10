@@ -155,6 +155,8 @@ public sealed partial class MatchShell : Control
         _battlefield.DropRequested += DropMove; _bench.DropRequested += DropMove;
         _battlefield.DetailsRequested += ShowDetails; _bench.DetailsRequested += ShowDetails; _enemy.DetailsRequested += ShowDetails;
         Resized += LayoutShell; LayoutShell();
+        GetTree().NodeAdded += AddButtonFeedback;
+        foreach (var button in FindChildren("*", "BaseButton", true, false).OfType<BaseButton>()) AddButtonFeedback(button);
     }
 
     // 子组件共享同一页面捕获，只有当前中央页面可见。
@@ -246,6 +248,7 @@ public sealed partial class MatchShell : Control
 
     public override void _ExitTree()
     {
+        GetTree().NodeAdded -= AddButtonFeedback;
         _desktopScroll.ValueChanged -= ScrollChanged;
         _toastTween?.Kill();
         _battleStage.Requested -= RequestAction;
@@ -339,6 +342,18 @@ public sealed partial class MatchShell : Control
     }
 
     private static T Add<T>(Control parent, T child) where T : Control { parent.AddChild(child); return child; }
+
+    private void AddButtonFeedback(Node node)
+    {
+        if (node is not BaseButton button || !IsAncestorOf(button)) return;
+        // NodeAdded期间节点仍在进入树，延后挂载装饰以免修改中的树重入。
+        Callable.From(() =>
+        {
+            if (!GodotObject.IsInstanceValid(button) || !button.IsInsideTree() || !IsAncestorOf(button)
+                || button.GetNodeOrNull<ButtonFeedback>("InteractionFeedback") is not null) return;
+            button.AddChild(new ButtonFeedback { Name = "InteractionFeedback" });
+        }).CallDeferred();
+    }
 
     private void LayoutShell()
     {
@@ -446,6 +461,8 @@ public sealed partial class MatchShell : Control
     {
         MatchTheme.SetPalette(blue); Theme = MatchTheme.Create();
         _menu.RefreshPalette();
+        _skillCatalog.RefreshPalette();
+        _leave.RefreshPalette();
         foreach (var child in _footerActions.GetChildren().OfType<Button>()) MatchTheme.Accent(child);
         if (_view is not null) Render(_view); QueueRedraw();
     }

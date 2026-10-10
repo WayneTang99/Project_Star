@@ -15,9 +15,9 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
     {
         MouseFilter = MouseFilterEnum.Ignore;
         AddThemeConstantOverride("separation", 5);
-        _armor = Chip("Armor", "armor", "668799", "22343d", "8ccbff", "护甲抵消普通伤害");
-        _burn = Chip("Burn", "burn", "a58052", "322a20", "ffba66", "灼伤：每0.6秒结算，先扣护甲，每次减少1");
-        _poison = Chip("Poison", "poison", "68955d", "203325", "b5dc65", "中毒：每1秒结算，无视护甲，不衰减");
+        _armor = Chip("Armor", "armor", "668799", "22343d", AttributePalette.Find(GameAttributeKeys.Armor)!.Value, "护甲抵消普通伤害");
+        _burn = Chip("Burn", "burn", "a58052", "322a20", AttributePalette.Find(GameAttributeKeys.Burn)!.Value, "灼伤：每0.6秒结算，先扣护甲，每次减少1");
+        _poison = Chip("Poison", "poison", "68955d", "203325", AttributePalette.Find(GameAttributeKeys.Poison)!.Value, "中毒：每1秒结算，无视护甲，不衰减");
     }
     // 状态从有到无时立即隐藏；暂停保持同一Tick的反馈。
     public void Render(HeroBattleSnapshot? hero, BattlePlaybackViewModel? playback = null, SideId side = SideId.Player)
@@ -44,7 +44,7 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
             feedback.Modulate = new Color(1, 1, 1, Mathf.Max(0, 1 - age / 9f)); feedback.Show();
         }
     }
-    private PanelContainer Chip(string name, StringName icon, string border, string background, string ink, string tooltip)
+    private PanelContainer Chip(string name, StringName icon, string border, string background, Color ink, string tooltip)
     {
         var chip = new PanelContainer { Name = name, TooltipText = tooltip, MouseFilter = MouseFilterEnum.Pass, Visible = false };
         var style = MatchTheme.Surface(new Color(background), new Color(border));
@@ -53,11 +53,11 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
         var row = new HBoxContainer { Name = "Row", MouseFilter = MouseFilterEnum.Ignore }; row.AddThemeConstantOverride("separation", 3); chip.AddChild(row);
         row.AddChild(new TextureRect { Texture = MatchTheme.Icon(icon), CustomMinimumSize = new Vector2(12, 12),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = MouseFilterEnum.Ignore,
-            Material = AttributePalette.IconMaterial, Modulate = new Color(ink) });
-        var value = new Label { Name = "Amount", MouseFilter = MouseFilterEnum.Ignore }; MatchTheme.Text(value, 14, new Color(ink), true, true); row.AddChild(value);
-        var period = new Label { Name = "Period", MouseFilter = MouseFilterEnum.Ignore }; MatchTheme.Text(period, 9, new Color(ink), true); row.AddChild(period);
+            Material = AttributePalette.IconMaterial, Modulate = ink });
+        var value = new Label { Name = "Amount", MouseFilter = MouseFilterEnum.Ignore }; MatchTheme.Text(value, 14, ink, true, true); row.AddChild(value);
+        var period = new Label { Name = "Period", MouseFilter = MouseFilterEnum.Ignore }; MatchTheme.Text(period, 9, ink, true); row.AddChild(period);
         var damage = new Label { Name = "Damage", Visible = false, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 3 };
-        MatchTheme.Text(damage, 10, new Color(ink), true, true); damage.AddThemeConstantOverride("outline_size", 2);
+        MatchTheme.Text(damage, 10, ink, true, true); damage.AddThemeConstantOverride("outline_size", 2);
         damage.AddThemeColorOverride("font_outline_color", new Color("071513"));
         // 普通Control承载跳字，避免跳字参与徽章最小宽高排版。
         var overlay = new Control { Name = "Overlay", MouseFilter = MouseFilterEnum.Ignore }; chip.AddChild(overlay); overlay.AddChild(damage);

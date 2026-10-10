@@ -14,6 +14,7 @@ public sealed partial class HeroDetailsView : PanelContainer
     public event Action<CardSnapshot, Rect2>? DetailsRequested;
     private VBoxContainer _items = null!;
     private Button _close = null!;
+    private Control? _returnFocus;
     private HeroSection _section;
     private MatchPageViewModel? _view;
     private readonly List<(Button Button, Action Handler)> _bindings = new();
@@ -26,7 +27,7 @@ public sealed partial class HeroDetailsView : PanelContainer
         var scroll = new ScrollContainer { Name = "Scroll", SizeFlagsVertical = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; column.AddChild(scroll);
         _items = new VBoxContainer { Name = "Items", SizeFlagsHorizontal = SizeFlags.ExpandFill }; scroll.AddChild(_items);
-        Hide();
+        VisibilityChanged += RestoreFocus; Hide();
     }
 
     // 刷新已打开的浮层，领取失败仍显示原有奖励和局部反馈。
@@ -41,9 +42,11 @@ public sealed partial class HeroDetailsView : PanelContainer
     public void ShowSection(HeroSection section, Vector2 bounds)
     {
         if (_view?.Player is null) return;
+        if (!Visible) _returnFocus = GetViewport().GuiGetFocusOwner();
         _section = section; Show(); Populate();
         Size = new Vector2(Mathf.Min(520, bounds.X), Mathf.Min(450, bounds.Y));
         Position = (bounds - Size) / 2;
+        _close.GrabFocus();
     }
 
     // 窗口变化只调整几何尺寸。
@@ -54,7 +57,21 @@ public sealed partial class HeroDetailsView : PanelContainer
             Mathf.Clamp(Position.Y, 0, Mathf.Max(0, bounds.Y - Size.Y)));
     }
 
-    public override void _ExitTree() { _close.Pressed -= Hide; Clear(); }
+    public override void _Input(InputEvent input)
+    {
+        var focus = GetViewport().GuiGetFocusOwner();
+        if (IsVisibleInTree() && input is InputEventKey { Pressed: true, Keycode: Key.Tab } tab
+            && (focus is null || IsAncestorOf(focus))) MatchMenuView.TrapTab(this, tab);
+    }
+    private void RestoreFocus()
+    {
+        if (Visible) return;
+        var focus = GetViewport().GuiGetFocusOwner();
+        if ((focus is null || IsAncestorOf(focus)) && GodotObject.IsInstanceValid(_returnFocus)
+            && _returnFocus!.IsInsideTree() && _returnFocus.IsVisibleInTree()) _returnFocus.GrabFocus();
+        _returnFocus = null;
+    }
+    public override void _ExitTree() { VisibilityChanged -= RestoreFocus; _close.Pressed -= Hide; Clear(); }
     private void Populate()
     {
         Clear(); var view = _view!; var player = view.Player!;

@@ -41,9 +41,15 @@ public sealed partial class LeavePanel : HFlowContainer
         _stageContinue = new Button { Name = "Leave", Text = "离开 →", CustomMinimumSize = new Vector2(50, 26), Visible = false };
         _stageContinue.AddThemeFontSizeOverride("font_size", 10); AddChild(_stageContinue); _stageContinue.Pressed += LeaveStage;
         MoveChild(_buttons[MatchAction.Refresh], 0); MoveChild(_stageContinue, 1);
+        RefreshPalette();
+    }
+
+    // 固定操作按钮的局部样式跟随当前桌面配色。
+    public void RefreshPalette()
+    {
         foreach (var intent in new[] { MatchAction.Refresh, MatchAction.Developer })
         {
-            var plate = MatchTheme.Surface(new Color("1e3128"), new Color("6b775a"));
+            var plate = MatchTheme.Surface(new Color(MatchTheme.BluePalette ? "233747" : "1e3128"), new Color(MatchTheme.BluePalette ? "617d85" : "6b775a"));
             plate.ContentMarginLeft = plate.ContentMarginRight = 9; plate.ContentMarginTop = plate.ContentMarginBottom = 6;
             _buttons[intent].AddThemeStyleboxOverride("normal", plate);
         }

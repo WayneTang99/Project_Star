@@ -8,7 +8,7 @@ namespace Project_Star.Presentation.Playtest;
 // 表现层为卡牌文本中的效果关键词着色，保留原始描述及字面文本。
 internal static class CardKeywordText
 {
-    private static readonly Regex RuleTokens = new("最大生命值|最大生命|生命值|生命|普通伤害|治疗加成|疾速时长加成|魔法回复|魔法|再生|价值|金币|金钱|发动|回响|任务|光环|拾取|开战|战后|凯旋|被动|消耗|出售|攻击|伤害|护甲|治疗|中毒|灼伤|疾速|迟缓|飞行|狂暴|充能|禁锢|Poison|Burn|Haste|Slow|Immobilize|(?<number>[0-9]+(?:\\.[0-9]+)?%?)");
+    private static readonly Regex RuleTokens = new("生命再生|魔法再生|最大生命值|最大生命|生命值|生命|普通伤害|治疗加成|疾速时长加成|魔法回复|魔法|再生|价值|金币|金钱|发动|回响|任务|光环|拾取|开战|战后|凯旋|被动|消耗|出售|攻击|伤害|护甲|治疗|中毒|灼伤|疾速|迟缓|飞行|狂暴|充能|禁锢|Poison|Burn|Haste|Slow|Immobilize|(?<number>[0-9]+(?:\\.[0-9]+)?%?)");
 
     // 用富文本颜色栈显示纯文本，避免将内容中的括号解释为BBCode。
     public static void Render(RichTextLabel label, string text)
@@ -47,7 +47,7 @@ internal static class CardKeywordText
             if (!number && color is null) color = new Color("83cec6");
             if (color is not null) label.PushColor(color.Value);
             var bold = !number || emphasizeNumbers;
-            if (bold) label.PushFont(MatchTheme.Font(bold: true));
+            if (bold) label.PushFont(label.GetThemeFont("bold_font"));
             label.AddText(match.Value);
             if (bold) label.Pop();
             if (color is not null) label.Pop();

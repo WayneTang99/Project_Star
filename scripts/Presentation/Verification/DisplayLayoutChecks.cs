@@ -17,6 +17,7 @@ internal static class DisplayLayoutChecks
     internal static bool Settings(Control owner)
     {
         const string path = "res://output/ui-16x9/settings-check.cfg";
+        if (DirAccess.MakeDirRecursiveAbsolute("res://output/ui-16x9") != Error.Ok) return false;
         var window = new Window { Size = new Vector2I(1280, 720), Position = new Vector2I(20, 30), Visible = false };
         owner.AddChild(window);
         var settings = new DisplaySettingsView { TargetWindow = window, ConfigurationPath = path, Size = new Vector2(1600, 900) };

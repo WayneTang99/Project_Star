@@ -251,6 +251,18 @@ internal static class CardCatalogChecks
                     || direction.GetGlobalRect().End.X > catalog.GetGlobalRect().End.X)
                     throw new InvalidOperationException("分类筛选结果为空或排序控件越界。");
                 await Save("filtered");
+                var currentFocus = owner.GetViewport().GuiGetFocusOwner();
+                var selectedSort = sort.Selected; var selectedCount = catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount();
+                foreach (var blue in new[] { true, false })
+                {
+                    shell.SetDesktopPalette(blue); await Frame(); await Frame();
+                    if (owner.GetViewport().GuiGetFocusOwner() != currentFocus || sort.Selected != selectedSort || !direction.ButtonPressed
+                        || sizeFilter.Selected != 2 || elementFilter.Selected != 9
+                        || catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount() != selectedCount
+                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color(blue ? "102432" : "10211b"))
+                        throw new InvalidOperationException("卡牌图鉴切换配色后样式遗漏或筛选、排序、焦点改变。");
+                    await Save(blue ? "filtered-blue" : "filtered-green-restored");
+                }
                 sizeFilter.Select(0); sizeFilter.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
                 elementFilter.Select(0); elementFilter.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
                 sort.Select(0); sort.EmitSignal(OptionButton.SignalName.ItemSelected, 0); direction.ButtonPressed = false;

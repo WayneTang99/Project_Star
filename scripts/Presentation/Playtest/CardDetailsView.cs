@@ -35,12 +35,18 @@ public sealed partial class CardDetailsView : PanelContainer
         var plate = new StyleBoxEmpty { ContentMarginLeft = 22, ContentMarginRight = 22, ContentMarginTop = 22, ContentMarginBottom = 22 };
         AddThemeStyleboxOverride("panel", plate);
         Resized += QueueRedraw;
-        _close = new Button { Name = "Close", Text = "×", Alignment = HorizontalAlignment.Center, TopLevel = true, ZAsRelative = false, ZIndex = ZIndex + 1, Size = new Vector2(20, 20) }; AddChild(_close);
-        _close.AddThemeStyleboxOverride("normal", new StyleBoxEmpty()); _close.AddThemeFontSizeOverride("font_size", 12);
+        _close = new Button { Name = "Close", Text = "×", Alignment = HorizontalAlignment.Center, TopLevel = true, ZAsRelative = false, ZIndex = ZIndex + 1, Size = new Vector2(21.36f, 26) }; AddChild(_close);
+        var closePlate = new StyleBoxEmpty { ContentMarginLeft = 4, ContentMarginRight = 4, ContentMarginTop = 4, ContentMarginBottom = 4 };
+        foreach (var state in new[] { "normal", "hover", "pressed" }) _close.AddThemeStyleboxOverride(state, closePlate);
+        _close.AddThemeFontSizeOverride("font_size", 18);
+        _close.AddThemeFontOverride("font", new FontVariation { BaseFont = MatchTheme.Font(), SpacingTop = -3, SpacingBottom = -4 });
+        _close.AddThemeColorOverride("font_color", MatchTheme.Muted);
+        _close.AddThemeColorOverride("font_hover_color", new Color("ffedb3"));
+        _close.Size = _close.GetCombinedMinimumSize();
         _close.Pressed += Close;
         _content = new CardDetailsContent { Name = "CardContent" }; column.AddChild(_content); Hide();
         _sell = new Button { Name = "Sell", Visible = false, ClipText = true }; column.AddChild(_sell);
-        _sell.AddThemeFontSizeOverride("font_size", 11);
+        _sell.AddThemeFontSizeOverride("font_size", 16);
         _sell.Pressed += ConfirmSale;
     }
 
@@ -55,10 +61,12 @@ public sealed partial class CardDetailsView : PanelContainer
         _selling = null; _sell.Hide();
         _placementPosition = position + new Vector2(16 / _pixelScale, 0); Show();
         _revealOffset = 6; ClampTo(bounds);
-        Modulate = new Color(1, 1, 1, 0); _fade = CreateTween().SetParallel();
-        _fade.SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-        _fade.TweenProperty(this, "modulate:a", 1f, .12);
-        _fade.TweenMethod(Callable.From<float>(offset => { _revealOffset = offset; ClampTo(_bounds); }), 6f, 0f, .12);
+        Modulate = new Color(1, 1, 1, 0); _fade = CreateTween();
+        _fade.TweenMethod(Callable.From<float>(progress =>
+        {
+            var eased = CssEase(progress);
+            Modulate = new Color(1, 1, 1, eased); _revealOffset = 6 * (1 - eased); ClampTo(_bounds);
+        }), 0f, 1f, .12);
     }
 
     // 详情紧邻卡牌，右侧不足时翻到左侧，最后限制在窗口内。
@@ -100,10 +108,11 @@ public sealed partial class CardDetailsView : PanelContainer
         Scale = Vector2.One / _pixelScale;
         LevelPresentation.Frame(this, card.Level);
         var pixels = bounds * _pixelScale;
-        var width = Mathf.Max(1, Mathf.Min(pixels.X - 24, pixels.X <= 650 ? pixels.X - 24 : pixels.X < 900 ? 340 : 380));
-        _content.Render(card, width - 44, Mathf.Max(60, pixels.Y - 240), battle, preserveExpansion);
+        var width = Mathf.Max(1, Mathf.Min(pixels.X - 24, pixels.X <= 650 ? pixels.X - 24 : pixels.X < 900 ? 340 : 440));
+        _content.CustomMinimumSize = new Vector2(width - 44, 0);
+        _content.Render(card, width - 44, Mathf.Max(60, pixels.Y - 280), battle, preserveExpansion);
         SetPinned(_pinned);
-        Size = new Vector2(width, Size.Y);
+        Size = new Vector2(width, GetCombinedMinimumSize().Y);
         if (resized && _anchor is { } anchor) PlaceNearAnchor(anchor);
     }
 
@@ -130,7 +139,7 @@ public sealed partial class CardDetailsView : PanelContainer
         if (!Mathf.IsEqualApprox(Size.Y, height)) Size = new Vector2(Size.X, height);
         ClampTo(_bounds);
         _close.Scale = GetGlobalTransform().Scale;
-        _close.GlobalPosition = GlobalPosition + new Vector2(Size.X - 23, 3) * _close.Scale;
+        _close.GlobalPosition = GlobalPosition + new Vector2(Size.X - 9 - _close.Size.X, 7) * _close.Scale;
     }
     private void ConfirmSale()
     {
@@ -161,5 +170,20 @@ public sealed partial class CardDetailsView : PanelContainer
         var left = anchor.End.X + 16 / _pixelScale;
         if (left + Size.X * Scale.X > _bounds.X - 12 / _pixelScale) left = anchor.Position.X - Size.X * Scale.X - 16 / _pixelScale;
         _placementPosition = new Vector2(left, anchor.Position.Y);
+    }
+
+    // CSS默认ease为cubic-bezier(.25,.1,.25,1)，先按时间反解横轴再求进度。
+    private static float CssEase(float progress)
+    {
+        if (progress <= 0 || progress >= 1) return progress;
+        var low = 0f; var high = 1f;
+        for (var index = 0; index < 16; index++)
+        {
+            var t = (low + high) / 2; var inverse = 1 - t;
+            var x = .75f * inverse * inverse * t + .75f * inverse * t * t + t * t * t;
+            if (x < progress) low = t; else high = t;
+        }
+        var value = (low + high) / 2; var remaining = 1 - value;
+        return .3f * remaining * remaining * value + 3 * remaining * value * value + value * value * value;
     }
 }

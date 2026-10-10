@@ -11,7 +11,7 @@ internal static class MatchTheme
     public static readonly Color Ink = new("edf0dd");
     public static Color Gold => new(BluePalette ? "94c5d1" : "d9b777");
     public static Color Blue => new(BluePalette ? "a9e5ef" : "85d8da");
-    public static readonly Color SurfaceColor = new("182b24");
+    public static Color SurfaceColor => new(BluePalette ? "172c39" : "182b24");
     public static readonly Color Muted = new("aeb4a3");
     public const int Gap = 8;
     private static readonly Dictionary<StringName, Texture2D> Icons = new();
@@ -19,6 +19,7 @@ internal static class MatchTheme
     private static Vector2 _backgroundSize;
     private static readonly Dictionary<string, Godot.Font> Fonts = new();
     private static readonly Dictionary<string, Texture2D> Panels = new();
+    private static readonly Dictionary<Vector2I, Texture2D> TooltipShadows = new();
     public static bool BluePalette { get; private set; }
 
     // 与 HTML 共用系统字体，按控件角色缓存字重与字距。
@@ -83,10 +84,14 @@ internal static class MatchTheme
     // 双层金属边线限制在边缘，深色面板不遮挡数字和插画。
     public static void DrawSurface(Control canvas, Rect2 rect, string kind = "surface")
     {
-        var shadow = Surface(Colors.Transparent, Colors.Transparent);
-        shadow.ShadowColor = new Color(0, 0, 0, kind == "tooltip" ? .667f : .25f); shadow.ShadowSize = kind == "tooltip" ? 16 : 10; shadow.ShadowOffset = new Vector2(0, kind == "tooltip" ? 12 : 8);
-        canvas.DrawStyleBox(shadow, rect);
         var width = Mathf.Max(1, Mathf.RoundToInt(rect.Size.X)); var height = Mathf.Max(1, Mathf.RoundToInt(rect.Size.Y));
+        if (kind == "tooltip") canvas.DrawTextureRect(TooltipShadow(new Vector2I(width, height)), new Rect2(rect.Position + new Vector2(-48, -36), rect.Size + new Vector2(96, 96)), false);
+        else
+        {
+            var shadow = Surface(Colors.Transparent, Colors.Transparent);
+            shadow.ShadowColor = new Color(0, 0, 0, .25f); shadow.ShadowSize = 10; shadow.ShadowOffset = new Vector2(0, 8);
+            canvas.DrawStyleBox(shadow, rect);
+        }
         var key = $"{kind}/{BluePalette}/{width}/{height}";
         if (!Panels.TryGetValue(key, out var texture))
         {
@@ -107,8 +112,41 @@ internal static class MatchTheme
         var border = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "c0a269" : BluePalette ? "698d98" : kind == "stage" ? "7f744b" : kind == "hero" ? "716444" : "968358")); border.SetCornerRadiusAll(0);
         canvas.DrawStyleBox(border, rect);
         var inset = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "0b1814" : kind == "stage" ? "0c1c19" : kind == "hero" ? "0c1916" : "0b1915")); inset.SetBorderWidthAll(3); inset.SetCornerRadiusAll(0);
-        canvas.DrawStyleBox(inset, rect.Grow(-1));
+        canvas.DrawStyleBox(inset, rect.Grow(kind == "tooltip" ? -2 : -1));
         if (kind != "hero" && kind != "tooltip") canvas.DrawRect(rect.Grow(kind == "stage" ? -8 : -5), new Color(Gold, kind == "stage" ? .15f : .22f), false, 1);
+    }
+
+    // 详情CSS的32px模糊对应16px标准差；矩形遮罩分离卷积后缓存，不逐帧计算。
+    private static Texture2D TooltipShadow(Vector2I size)
+    {
+        if (TooltipShadows.TryGetValue(size, out var texture)) return texture;
+        const int radius = 48;
+        var prefix = new double[radius * 2 + 2];
+        for (var index = 0; index <= radius * 2; index++)
+        {
+            var distance = index - radius;
+            prefix[index + 1] = prefix[index] + Math.Exp(-distance * distance / (2d * 16 * 16));
+        }
+        var horizontal = Coverage(size.X); var vertical = Coverage(size.Y);
+        var data = new byte[horizontal.Length * vertical.Length * 4];
+        for (var y = 0; y < vertical.Length; y++)
+            for (var x = 0; x < horizontal.Length; x++)
+                data[(y * horizontal.Length + x) * 4 + 3] = (byte)Math.Round(255 * (2d / 3) * horizontal[x] * vertical[y]);
+        using var image = Image.CreateFromData(horizontal.Length, vertical.Length, false, Image.Format.Rgba8, data);
+        texture = ImageTexture.CreateFromImage(image); TooltipShadows.Add(size, texture); return texture;
+
+        double[] Coverage(int length)
+        {
+            var values = new double[length + radius * 2];
+            for (var index = 0; index < values.Length; index++)
+            {
+                var position = index - radius;
+                var first = Math.Clamp(position - length + 1 + radius, 0, radius * 2 + 1);
+                var end = Math.Clamp(position + radius + 1, 0, radius * 2 + 1);
+                values[index] = (prefix[end] - prefix[first]) / prefix[^1];
+            }
+            return values;
+        }
     }
 
     // 背景星图作为低对比纹理，不承载交互或玩法信息。
@@ -137,8 +175,10 @@ internal static class MatchTheme
         theme.SetFont("bold_font", "RichTextLabel", Font(bold: true));
         theme.SetFont("italics_font", "RichTextLabel", Font());
         theme.SetFont("bold_italics_font", "RichTextLabel", Font(bold: true));
+        foreach (var size in new[] { "normal_font_size", "bold_font_size", "italics_font_size", "bold_italics_font_size" })
+            theme.SetFontSize(size, "RichTextLabel", 18);
         theme.SetFont("font", "TooltipLabel", Font());
-        theme.SetFontSize("font_size", "TooltipLabel", 12);
+        theme.SetFontSize("font_size", "TooltipLabel", 14);
         theme.SetColor("font_color", "Label", Ink);
         theme.SetColor("default_color", "RichTextLabel", Ink);
         theme.SetConstant("separation", "VBoxContainer", Gap);
@@ -148,10 +188,10 @@ internal static class MatchTheme
         theme.SetStylebox("panel", "PanelContainer", Plate(BluePalette ? "blue-surface" : "surface"));
         theme.SetStylebox("panel", "TooltipPanel", Plate("tooltip"));
         theme.SetColor("font_color", "TooltipLabel", Ink);
-        theme.SetStylebox("normal", "Button", Surface(new Color("233a2d"), new Color("756847")));
-        theme.SetStylebox("hover", "Button", Surface(new Color("354c38"), Gold));
-        theme.SetStylebox("pressed", "Button", Surface(new Color("172b23"), Blue));
-        theme.SetStylebox("disabled", "Button", Surface(new Color("1c2b25"), new Color("434d3c")));
+        theme.SetStylebox("normal", "Button", Surface(new Color(BluePalette ? "233747" : "233a2d"), new Color(BluePalette ? "617d85" : "756847")));
+        theme.SetStylebox("hover", "Button", Surface(new Color(BluePalette ? "314c57" : "354c38"), Gold));
+        theme.SetStylebox("pressed", "Button", Surface(new Color(BluePalette ? "102432" : "172b23"), Blue));
+        theme.SetStylebox("disabled", "Button", Surface(new Color(BluePalette ? "1b2935" : "1c2b25"), new Color(BluePalette ? "43525d" : "434d3c")));
         theme.SetStylebox("focus", "Button", Outline(Blue));
         foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
             theme.SetColor(state, "Button", Ink);
@@ -159,12 +199,12 @@ internal static class MatchTheme
         theme.SetStylebox("panel", "PopupMenu", Surface(SurfaceColor, Gold));
         theme.SetColor("font_color", "PopupMenu", Ink);
         theme.SetColor("font_hover_color", "PopupMenu", Ink);
-        theme.SetStylebox("normal", "LineEdit", Surface(new Color("10211b"), new Color("756847")));
-        theme.SetStylebox("focus", "LineEdit", Outline(Blue));
+        theme.SetStylebox("normal", "LineEdit", Surface(new Color(BluePalette ? "102432" : "10211b"), new Color(BluePalette ? "617d85" : "756847")));
+        theme.SetStylebox("focus", "LineEdit", Surface(new Color(BluePalette ? "102432" : "10211b"), Blue));
         theme.SetColor("font_color", "LineEdit", Ink);
         theme.SetColor("font_placeholder_color", "LineEdit", Muted);
         theme.SetStylebox("normal", "OptionButton", Surface(SurfaceColor, Gold));
-        theme.SetStylebox("hover", "OptionButton", Surface(new Color("354c38"), Gold));
+        theme.SetStylebox("hover", "OptionButton", Surface(new Color(BluePalette ? "314c57" : "354c38"), Gold));
         theme.SetStylebox("pressed", "OptionButton", Surface(SurfaceColor, Blue));
         theme.SetColor("font_color", "OptionButton", Ink);
         theme.SetColor("font_hover_color", "OptionButton", Ink);
@@ -185,8 +225,10 @@ internal static class MatchTheme
     public static void Accent(Button button)
     {
         button.AddThemeStyleboxOverride("normal", Plate(BluePalette ? "blue-button" : "gold-button", 4));
-        button.AddThemeStyleboxOverride("hover", Plate(BluePalette ? "blue-button" : "gold-button", 4));
-        button.AddThemeStyleboxOverride("pressed", Plate(BluePalette ? "blue-button" : "gold-button", 4));
+        var hover = Plate(BluePalette ? "blue-button" : "gold-button", 4); hover.ModulateColor = new Color(1.2f, 1.2f, 1.2f);
+        var pressed = Plate(BluePalette ? "blue-button" : "gold-button", 4); pressed.ModulateColor = new Color(.75f, .75f, .75f);
+        button.AddThemeStyleboxOverride("hover", hover);
+        button.AddThemeStyleboxOverride("pressed", pressed);
         button.AddThemeFontSizeOverride("font_size", 12);
         button.AddThemeColorOverride("font_color", new Color("fff0c4"));
     }

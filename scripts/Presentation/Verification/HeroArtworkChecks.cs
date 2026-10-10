@@ -196,8 +196,11 @@ internal static class HeroArtworkChecks
                     || hero.CombatValues[GameAttributeKeys.ManaRegen] != 10 || hero.CombatValues[GameAttributeKeys.HealthRegen] != 0) return false;
                 panel.Render(hero);
                 var portrait = panel.GetNode<TextureRect>("Identity/Portrait");
-                if (!portrait.Visible || portrait.Texture?.ResourcePath != identity.Illustration.ToString()
-                    || portrait.Texture.GetWidth() < 512 || portrait.Texture.GetHeight() < 512) return false;
+                if (!portrait.Visible || portrait.Texture is not AtlasTexture cropped
+                    || cropped.Atlas.ResourcePath != identity.Illustration.ToString()
+                    || !Mathf.IsEqualApprox(cropped.Region.Size.X, cropped.Region.Size.Y)
+                    || cropped.Region.Size.X >= cropped.Atlas.GetWidth() / 2f
+                    || !new Rect2(Vector2.Zero, cropped.Atlas.GetSize()).Encloses(cropped.Region)) return false;
                 selection.Render("选角", [new KeyedAction(identity.Key, new UiAction(name))
                     { Illustration = hero.Illustration, Hero = HeroSelectionDetails.From(definition) }]);
                 if (selection.GetNode<TextureRect>("CurrentPortrait").Texture?.ResourcePath != identity.Illustration.ToString()) return false;

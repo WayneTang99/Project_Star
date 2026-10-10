@@ -17,15 +17,16 @@ internal static class AttributePalette
     internal static readonly StringName Slow = new("Slow");
     internal static readonly StringName Immobilize = new("Immobilize");
 
-    internal static Color? Find(StringName key) => key == GameAttributeKeys.AttackDamage ? new Color("ff9c83")
-        : key == GameAttributeKeys.Armor ? new Color("8ccbff")
-        : key == GameAttributeKeys.Poison ? new Color("b5dc65")
-        : key == GameAttributeKeys.Burn ? new Color("ffba66")
-        : key == GameAttributeKeys.HealingBonus ? new Color("7ad99b")
-        : key == Health || key == GameAttributeKeys.MaxHealth ? new Color("f38faa")
-        : key == GameAttributeKeys.Mana || key == GameAttributeKeys.MaxMana || key == GameAttributeKeys.ManaRegen ? new Color("b6a1f2")
-        : key == GameAttributeKeys.HealthRegen ? new Color("70d6b6")
-        : key == GameAttributeKeys.Value || key == GameAttributeKeys.Wealth || key == GameAttributeKeys.Income ? new Color("f4d56b")
+    internal static Color? Find(StringName key) => key == GameAttributeKeys.AttackDamage ? new Color("f58b73")
+        : key == GameAttributeKeys.Armor ? new Color("72b7ff")
+        : key == GameAttributeKeys.Poison ? new Color("b8db58")
+        : key == GameAttributeKeys.Burn ? new Color("ffa52f")
+        : key == GameAttributeKeys.HealingBonus ? new Color("55d6a5")
+        : key == Health || key == GameAttributeKeys.MaxHealth ? new Color("f276ad")
+        : key == GameAttributeKeys.Mana || key == GameAttributeKeys.MaxMana ? new Color("cc99ff")
+        : key == GameAttributeKeys.ManaRegen ? new Color("99a9ff")
+        : key == GameAttributeKeys.HealthRegen ? new Color("58cdd5")
+        : key == GameAttributeKeys.Value || key == GameAttributeKeys.Wealth || key == GameAttributeKeys.Income ? new Color("ebd45d")
         : key == Haste || key == GameAttributeKeys.HasteDurationBonus ? new Color("66d9e8")
         : key == Slow ? new Color("c0aaa0")
         : key == Immobilize ? new Color("e2b8e8") : null;
@@ -50,7 +51,8 @@ internal static class AttributePalette
         "治疗" or "治疗加成" => GameAttributeKeys.HealingBonus,
         "生命" or "生命值" or "最大生命" or "最大生命值" => Health,
         "魔法" or "魔法回复" => GameAttributeKeys.Mana,
-        "再生" => GameAttributeKeys.HealthRegen,
+        "再生" or "生命再生" => GameAttributeKeys.HealthRegen,
+        "魔法再生" => GameAttributeKeys.ManaRegen,
         "价值" or "金币" or "金钱" => GameAttributeKeys.Value,
         "疾速" or "疾速时长加成" or "Haste" => Haste,
         "迟缓" or "Slow" => Slow,

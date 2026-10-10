@@ -36,11 +36,11 @@ public sealed partial class CardItemView : Button
         _feedback.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color(1, .9f, .55f, .3f), MatchTheme.Gold));
         AddChild(_feedback); _feedback.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _outline = new Panel { Name = "SelectionOutline", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 3 };
-        AddChild(_outline); _outline.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(_outline); _outline.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
         _selectedMark = new Label { Text = "✓", MouseFilter = MouseFilterEnum.Ignore, Visible = false, ZIndex = 4 };
         _selectedMark.AddThemeFontSizeOverride("font_size", 13);
         _selectedMark.AddThemeColorOverride("font_color", MatchTheme.Ink); AddChild(_selectedMark);
-        FocusEntered += UpdateOutline; FocusExited += UpdateOutline;
+        FocusEntered += EnterFocus; FocusExited += ExitFocus;
         MouseEntered += EnterHover; MouseExited += ExitHover;
         Resized += LayoutFace;
     }
@@ -170,6 +170,7 @@ public sealed partial class CardItemView : Button
             : CardLevelGem.LevelColor(_card?.Level ?? 1);
         var style = MatchTheme.Outline(color);
         if (!_selected && !HasFocus()) style.SetBorderWidthAll(1);
+        if (_hovered || HasFocus()) { style.ShadowColor = new Color(color, .35f); style.ShadowSize = 12; }
         var outset = _selected || HasFocus() ? 3 : 1;
         style.ExpandMarginLeft = style.ExpandMarginRight = style.ExpandMarginTop = style.ExpandMarginBottom = outset;
         _outline.AddThemeStyleboxOverride("panel", style);
@@ -178,6 +179,7 @@ public sealed partial class CardItemView : Button
     private float _hoverOffset;
     private void EnterHover()
     {
+        ZIndex = 5;
         _hovered = true; UpdateOutline(); _hoverTween?.Kill();
         _hoverTween = CreateTween();
         _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, -6f, .2);
@@ -185,10 +187,25 @@ public sealed partial class CardItemView : Button
     }
     private void ExitHover()
     {
+        if (!HasFocus()) ZIndex = 0;
         _hovered = false; UpdateOutline(); _hoverTween?.Kill();
         _hoverTween = CreateTween();
-        _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, 0f, .2);
-        FindShell()?.HideHoverCard();
+        _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, HasFocus() ? -6f : 0f, .2);
+        if (!HasFocus()) FindShell()?.HideHoverCard();
+    }
+    private void EnterFocus()
+    {
+        ZIndex = 5;
+        UpdateOutline(); _hoverTween?.Kill(); _hoverTween = CreateTween();
+        _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, -6f, .2);
+        if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState);
+    }
+    private void ExitFocus()
+    {
+        if (!_hovered) ZIndex = 0;
+        UpdateOutline(); _hoverTween?.Kill(); _hoverTween = CreateTween();
+        _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, _hovered ? -6f : 0f, .2);
+        if (!_hovered) FindShell()?.HideHoverCard();
     }
     private MatchShell? FindShell()
     {
@@ -197,7 +214,7 @@ public sealed partial class CardItemView : Button
     }
 
     public override void _ExitTree()
-    { _hoverTween?.Kill(); ClearFeedback(); Resized -= LayoutFace; FocusEntered -= UpdateOutline; FocusExited -= UpdateOutline;
+    { _hoverTween?.Kill(); ClearFeedback(); Resized -= LayoutFace; FocusEntered -= EnterFocus; FocusExited -= ExitFocus;
         MouseEntered -= EnterHover; MouseExited -= ExitHover; }
 
     private void LayoutFace()
@@ -208,6 +225,7 @@ public sealed partial class CardItemView : Button
         var faceSize = GetParent() is BoardZoneView ? Size : new Vector2(height * ratio, height);
         _face.SetDisplaySize(faceSize);
         _face.Position = (Size.IsEqualApprox(faceSize) ? Vector2.Zero : (Size - faceSize) / 2) + new Vector2(0, _hoverOffset);
+        _outline.Position = _face.Position; _outline.Size = faceSize;
         _battleOverlay.Position = _face.Position; _battleOverlay.Size = faceSize;
         _selectedMark.Position = new Vector2(4, Mathf.Max(0, Size.Y - 25));
     }
