@@ -53,6 +53,7 @@ public abstract class SkillDefinition
             foreach (var effect in ability.Effects)
             {
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition
+                    or GrantSourceLevelCardEffectDefinition
                     or IncreaseSourceCardAttributeEffectDefinition
                     or ApplySourceAttributePercentStatusEffectDefinition
                     or SetSourceCardStateEffectDefinition

@@ -31,4 +31,12 @@ public static class CardValueCalculator
         ArgumentOutOfRangeException.ThrowIfNegative(initialValue);
         return initialValue / 2;
     }
+
+    // 合成只补新旧等级的标准获得价值差额，实例已有增值与Modifier另行保留。
+    public static int CalculateMergeCompensation(CardDefinition definition, int previousLevel, int nextLevel)
+    {
+        int StandardValue(int level) => checked(CalculateAcquiredValue(CalculateInitialValue(definition, level))
+            + (definition.GetLevel(level)?.AcquiredValueBonus ?? 0));
+        return checked(StandardValue(nextLevel) - StandardValue(previousLevel));
+    }
 }

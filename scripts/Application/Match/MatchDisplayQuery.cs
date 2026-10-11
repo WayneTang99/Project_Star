@@ -5,20 +5,31 @@ using Godot;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Domain.Common;
+using Project_Star.Application.Combat;
+using Project_Star.Domain.Combat;
 
 namespace Project_Star.Application.Match;
 
 /// <summary>Captures a shop card without creating an instance or advancing random state.</summary>
 public static class MatchDisplayQuery
 {
-    public static MatchSnapshot Capture(MatchSession session, IReadOnlyDictionary<StringName, CardSetDefinition> sets)
+    public static MatchSnapshot Capture(MatchSession session, IReadOnlyDictionary<StringName, CardSetDefinition> sets,
+        MatchSession? opponent = null)
     {
         var snapshot = MatchSnapshot.From(session);
         var active = new CardSetEvaluator().Evaluate(session, sets);
         var placed = snapshot.BoardPlacements.Where(item => item.Zone == BoardZone.Battlefield)
             .Select(item => item.CardId).ToHashSet();
+        var preview = session.Player.Hero is null ? null : new CombatSimulator().Preview(
+            new BattleSetupFactory(sets).CreatePreview(session, opponent), opponent is not null);
         return snapshot with
         {
+            Cards = Array.AsReadOnly(snapshot.Cards.Select(card =>
+            {
+                var state = preview?.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == SideId.Player);
+                return state is null || !placed.Contains(card.Id) ? card
+                    : card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts };
+            }).ToArray()),
             Sets = Array.AsReadOnly(sets.Values.OrderBy(set => set.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
                 .Select(set => new CardSetSnapshot(set.Attributes.Identity.Key, set.Attributes.Identity.DisplayName,
                     snapshot.Cards.Where(card => placed.Contains(card.Id) && card.SetKey == set.Attributes.Identity.Key)

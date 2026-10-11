@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -31,20 +32,37 @@ internal static class HeroArtworkChecks
             selection.Render("配音", choices);
             var player = selection.GetNode<AudioStreamPlayer>("SelectionVoice");
             var entries = selection.GetNode<VBoxContainer>("Roster/Entries");
+            var voiceRandom = (RandomNumberGenerator)typeof(HeroSelectionView).GetField("_selectionVoiceRandom",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(selection)!;
+            voiceRandom.Seed = 42;
             var submitted = 0; selection.Selected += (_, _) => submitted++;
             if (player.Playing) return false;
-            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
-            if (!player.Playing || player.Stream is not AudioStreamMP3 stream || stream.Loop
-                || stream.GetLength() is < 0.5 or > 10 || player.MaxPolyphony != 1) return false;
-            using var decoder = stream.InstantiatePlayback();
-            decoder.Start();
-            var samples = decoder.MixAudio(1f, (int)(AudioServer.GetMixRate() * stream.GetLength()));
-            decoder.Stop();
-            if (!samples.Any(sample => sample.LengthSquared() > .0001f)) return false;
-            GD.Print($"圣骑士选角配音：{stream.GetLength():F2}秒，解码{samples.Length}帧，包含有效语音。");
+            var expected = new HashSet<StringName>
+            {
+                new("res://audio/voices/heroes/paladin-selection.mp3"),
+                new("res://audio/voices/heroes/paladin-selection-glory.mp3"),
+            };
+            var heard = new HashSet<StringName>();
+            for (var attempt = 0; attempt < 16; attempt++)
+            {
+                entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+                if (!player.Playing || player.Stream is not AudioStreamMP3 stream || stream.Loop
+                    || stream.GetLength() is < 0.5 or > 10 || player.MaxPolyphony != 1) return false;
+                var path = new StringName(stream.ResourcePath);
+                if (!expected.Contains(path)) return false;
+                if (!heard.Add(path)) continue;
+                using var decoder = stream.InstantiatePlayback();
+                decoder.Start();
+                var samples = decoder.MixAudio(1f, (int)(AudioServer.GetMixRate() * stream.GetLength()));
+                decoder.Stop();
+                if (!samples.Any(sample => sample.LengthSquared() > .0001f)) return false;
+                GD.Print($"圣骑士选角配音 {path}：{stream.GetLength():F2}秒，解码{samples.Length}帧，包含有效语音。");
+            }
+            if (!heard.SetEquals(expected)) return false;
             var first = player.GetStreamPlayback();
+            var randomState = voiceRandom.State;
             selection.Render("刷新", choices, 9);
-            if (!player.Playing || player.GetStreamPlayback() != first) return false;
+            if (!player.Playing || player.GetStreamPlayback() != first || voiceRandom.State != randomState) return false;
             entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
             if (!player.Playing || player.GetStreamPlayback() == first) return false;
             selection._Input(new InputEventKey { Keycode = Key.Right, Pressed = true });

@@ -63,6 +63,10 @@ public sealed record CardDestroyedEvent(
     SideId Side,
     EntityId SourceCardId) : BattleEvent(Tick);
 
+// 冻结本场修复的卡牌及恢复位置，回放仅投影事实（领域战斗层）。
+public sealed record CardRepairedEvent(BattleTick Tick, EntityId SourceCardId, EntityId CardId,
+    SideId Side, int BoardStart, int OccupiedSlots) : BattleEvent(Tick);
+
 public enum DamageSourceKind
 {
     Card = 0,
@@ -87,5 +91,11 @@ public sealed record DamageDealtEvent(
 }
 
 public sealed record HeroDefeatedEvent(BattleTick Tick, SideId Side) : BattleEvent(Tick);
+
+// 英雄隐身施加与到期事实，供冻结回放使用（领域战斗层）。
+public sealed record HeroStealthChangedEvent(BattleTick Tick, SideId Side, int RemainingTicks) : BattleEvent(Tick);
+
+// 隐身阻挡直接攻击，不计为实际造成伤害（领域战斗层）。
+public sealed record AttackBlockedEvent(BattleTick Tick, EntityId SourceCardId, SideId TargetSide) : BattleEvent(Tick);
 
 public sealed record BattleEndedEvent(BattleTick Tick, BattleEndReason Reason) : BattleEvent(Tick);

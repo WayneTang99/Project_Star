@@ -35,6 +35,12 @@ public sealed class BattleSetupFactory
             eclipseTime ?? new BattleTick(300));
     }
 
+    // 展示预览复用同一冻结输入；尚未选择对手时仅用空对侧承载自身光环查询。
+    public BattleSetup CreatePreview(MatchSession session, MatchSession? opponent = null) => new(
+        CreateSide(session), opponent is null
+            ? new BattleSideSetup(new HeroBattleSetup(default, 1, 0, MaxMana: 0, ManaRegen: 0), [])
+            : CreateSide(opponent), 0, new BattleTick(0));
+
     private BattleSideSetup CreateSide(MatchSession session)
     {
         var hero = session.Player.Hero
@@ -97,16 +103,18 @@ public sealed class BattleSetupFactory
         {
             var card = session.Player.Inventory.Find(placement.CardId)
                 ?? throw new InvalidOperationException($"Bench card '{placement.CardId}' is not owned by the player.");
+            var damage = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage);
+            var cooldown = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks);
             var multicast = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast);
             var armorAmount = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Armor);
-            if (multicast < 0 || armorAmount < 0)
+            if (damage < 0 || cooldown < 0 || multicast < 0 || armorAmount < 0)
                 throw new InvalidOperationException($"Card '{placement.CardId}' has invalid battle attributes.");
             cards.Add(new CardBattleSetup(
                 card.Id,
                 placement.Start,
-                0,
-                1,
-                card.Abilities,
+                damage,
+                cooldown,
+                CardAbilityComposer.Compose(card),
                 IsOnBench: true,
                 UseLegacyAttack: false,
                 Tags: card.Tags,
@@ -114,6 +122,9 @@ public sealed class BattleSetupFactory
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount) { CooldownMultiplier = card.CooldownMultiplier,
+                    CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
+                        new Dictionary<StringName, int>(card.Attributes.BaseCombat.SnapshotFinalValues())
+                        { [GameAttributeKeys.Value] = card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) }),
                     Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), Quests = card.Quests,
                     QuestProgress = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
                         card.Quests.ToDictionary(quest => quest.Key, quest => card.GetQuestProgress(quest.Key))) });

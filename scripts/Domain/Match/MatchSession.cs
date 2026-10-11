@@ -47,6 +47,8 @@ public sealed class MatchSession
     public int PendingBattleMaxHealthBonus => _pendingBattleMaxHealthBonus;
 
     public MentorVisit? ActiveMentorVisit { get; internal set; }
+    public GemShopVisit? ActiveGemShopVisit { get; internal set; }
+    internal long GemShopRevision { get; set; }
 
     internal void AddPendingBattleMaxHealthBonus(int amount)
     {
@@ -62,6 +64,7 @@ public sealed class MatchSession
     }
 
     internal List<AppliedCardSetModifier> AppliedCardSetModifiers => _appliedCardSetModifiers;
+    internal HashSet<Project_Star.Domain.Combat.BattleResult> AppliedMatchRewards { get; } = [];
 
     internal List<AppliedCardQuestModifier> AppliedCardQuestModifiers => _appliedCardQuestModifiers;
 

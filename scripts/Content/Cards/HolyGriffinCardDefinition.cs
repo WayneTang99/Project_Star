@@ -17,7 +17,7 @@ public sealed class HolyGriffinCardDefinition : CardDefinition
                     "神圣狮鹫",
                     new StringName("paladin"),
                     CardSize.Large,
-                    [GameElements.Light],
+                    [GameElements.Wind, GameElements.Light],
                     illustration: new StringName("res://art/ui/card-face/artwork/holy_griffin-illustration-refresh.png"),
                     descriptionEntries:
                     [

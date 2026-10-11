@@ -38,6 +38,7 @@ public sealed record CardSnapshot(
     public IReadOnlyList<AbilityDefinition> Abilities { get; init; } = Array.Empty<AbilityDefinition>();
     public IReadOnlyList<CardQuestDefinition> QuestDefinitions { get; init; } = Array.Empty<CardQuestDefinition>();
     public bool IsFlying { get; init; }
+    public IReadOnlyList<int?> EffectAmounts { get; init; } = Array.Empty<int?>();
     public bool IsBerserk { get; init; }
     public decimal CooldownMultiplier { get; init; } = 1m;
     public IReadOnlyList<GemSnapshot?> GemSockets { get; init; } = Array.AsReadOnly(new GemSnapshot?[1]);
@@ -130,7 +131,7 @@ public sealed record MatchSnapshot(
                 QuestDefinitions = Array.AsReadOnly(card.Quests.ToArray()),
                 CooldownMultiplier = card.CooldownMultiplier,
                 GemSockets = Array.AsReadOnly(card.GemSockets.Select(gem => gem is null ? null
-                    : new GemSnapshot(gem.Key, gem.DisplayName, gem.Description)).ToArray()),
+                    : new GemSnapshot(gem.Attributes.Identity.Key, gem.Attributes.Identity.DisplayName, gem.Attributes.Identity.Description)).ToArray()),
             });
         }
         var placements = new List<BoardPlacementSnapshot>();
@@ -183,7 +184,8 @@ public sealed record MatchSnapshot(
                 { RequiredAnyTags = Array.AsReadOnly(value.RequiredAnyTags.ToArray()) },
                 _ => effect,
             }).ToArray()), ability.AllowsBench, ability.TriggerStateKey,
-            ability.TriggerCardTag, ability.TriggerCardElement, ability.TriggerCardSide)).ToArray());
+            ability.TriggerCardTag, ability.TriggerCardElement, ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus,
+            ability.TriggerHeroHealthPercent)).ToArray());
 
     private static void AddPlacements(
         BoardZoneState zoneState,

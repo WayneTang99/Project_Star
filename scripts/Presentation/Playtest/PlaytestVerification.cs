@@ -78,7 +78,7 @@ internal static class PlaytestVerification
             if (button.GetNode<TextureRect>("Illustration").Texture is null
                 || !button.TooltipText.Contains($"{choice.ShopLevel}级商店")) return false;
             button.EmitSignal(Button.SignalName.Pressed);
-            if (presenter.View.Page != MatchPage.Shop || presenter.View.ShopLevel != choice.ShopLevel
+            if (presenter.View.Page is not (MatchPage.Shop or MatchPage.GemShop) || presenter.View.ShopLevel != choice.ShopLevel
                 || !scene.GetNode<Panel>("MatchShell/ContextRow/Portrait/ContextPortrait/LevelBorder").Visible) return false;
             var turn = presenter.View.Player!.Turn;
             button.EmitSignal(Button.SignalName.Pressed);
@@ -121,7 +121,9 @@ internal static class PlaytestVerification
             var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
             var session = new CreateMatchService(new EntityFactory()).Create(42, 100, new PaladinHeroDefinition());
             var normal = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true);
-            if (normal.Generate(session).Value!.Any(choice => choice.Level == 4)) return false;
+            if (normal.Generate(session).Value!.Any(choice => choice.Level != (registry.Encounters[choice.Key] switch
+                { ShopEncounterDefinition shop => shop.Level, GemShopDefinition gems => gems.Level,
+                    ChoiceEncounterDefinition option => option.Level, MentorEncounterDefinition mentor => mentor.Level, _ => choice.Level }))) return false;
             session.Progress.Turn = 4;
             if (normal.Generate(session).Value!.Any(choice => choice.Level != registry.Monsters[choice.Key].Level)) return false;
             session.Progress.Turn = 8;
@@ -962,6 +964,18 @@ internal static class PlaytestVerification
         var nun = MatchDisplayQuery.FromOffer(ShopOffer.Create(new NunCardDefinition()));
         var hammer = MatchDisplayQuery.FromOffer(ShopOffer.Create(new JudgmentHammerCardDefinition()));
         var adapter = new CardDisplayAdapter();
+        foreach (var level in new[] { 3, 4 })
+        foreach (var attackBonus in new[] { 0, 37 })
+        foreach (var burnBonus in new[] { 0, 3 })
+        {
+            var dragon = MatchDisplayQuery.FromOffer(ShopOffer.Create(new RadiantDragonCardDefinition(), level));
+            var attack = (level == 3 ? 100 : 200) + attackBonus;
+            var enhanced = dragon with { CurrentValues = new System.Collections.Generic.Dictionary<StringName, int>
+                { [GameAttributeKeys.AttackDamage] = attack, [GameAttributeKeys.BurnBonus] = burnBonus } };
+            var face = CardDisplayAdapter.FaceEffects(enhanced);
+            if (!face.Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == attack.ToString())
+                || !face.Any(effect => effect.Kind == CardFaceEffectKind.Burn && effect.Value == (attack / 10 + burnBonus).ToString())) return false;
+        }
         return CardDisplayAdapter.FaceEffects(nun).Any(effect => effect.Kind == CardFaceEffectKind.Healing && effect.Value == "10")
             && CardDisplayAdapter.FaceEffects(hammer).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == "20%")
             && CardDisplayAdapter.Details(hammer).Contains("目标最大生命的 20%")
@@ -1057,9 +1071,11 @@ internal static class PlaytestVerification
                     if (texture.GetWidth() != 32 || texture.GetHeight() != 32) return false;
                 }
                 else if (texture.ResourcePath != expected.ToString()
-                    || texture.GetWidth() < 512 || texture.GetHeight() < 512) return false;
+                    || texture.GetWidth() < 512 || texture.GetHeight() < 512)
+                    return false;
             }
-            if (economy.AcquireCard(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure) return false;
+            if (economy.AcquireCard(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsFailure)
+                return false;
         }
         var snapshot = MatchSnapshot.From(session);
         return snapshot.Cards.Count == registry.Cards.Count && snapshot.Cards.All(card => card.Illustration == registry.Cards[card.Key].Attributes.Identity.Illustration);

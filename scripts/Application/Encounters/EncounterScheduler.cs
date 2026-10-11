@@ -36,9 +36,9 @@ public sealed class EncounterScheduler
         ArgumentNullException.ThrowIfNull(session);
         if (session.Player.Hero is not null)
         {
-            var income = new RoundIncomeService().SettleCurrentRound(session);
+            var income = new RoundIncomeService(_registry.Sets).SettleCurrentRound(session);
             if (income.IsFailure) return Fail(income.Failure!.Code, income.Failure.Message);
-            var experience = new TurnExperienceService().SettleCurrentTurn(session);
+            var experience = new TurnExperienceService(_registry.Sets).SettleCurrentTurn(session);
             if (experience.IsFailure) return Fail(experience.Failure!.Code, experience.Failure.Message);
         }
         var random = new SeededRandom(session.Random.State);
@@ -146,10 +146,11 @@ public sealed class EncounterScheduler
         {
             Illustration = definition.Attributes.Identity.Illustration,
             Summary = definition.Attributes.Identity.Summary,
-            ShopLevel = definition is ShopEncounterDefinition shop ? _encounterLevelOverride ?? shop.Level : 0,
+            ShopLevel = definition switch { ShopEncounterDefinition shop => _encounterLevelOverride ?? shop.Level, GemShopDefinition gems => gems.Level, _ => 0 },
             Level = _encounterLevelOverride ?? (definition switch
             {
                 ShopEncounterDefinition value => value.Level,
+                GemShopDefinition value => value.Level,
                 ChoiceEncounterDefinition value => value.Level,
                 MentorEncounterDefinition value => value.Level,
                 RegisteredMonsterEncounterDefinition value => value.Level,

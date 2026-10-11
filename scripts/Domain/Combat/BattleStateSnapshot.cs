@@ -7,7 +7,10 @@ namespace Project_Star.Domain.Combat;
 
 // 战斗层冻结的英雄数值，不从结算后的对局推算临时状态。
 public sealed record HeroBattleSnapshot(int Health, int MaxHealth, int Armor, int Mana, int MaxMana,
-    int Burn, int Poison, int HealthRegen, int ManaRegen);
+    int Burn, int Poison, int HealthRegen, int ManaRegen)
+{
+    public int StealthDurationTicks { get; init; }
+}
 
 // 召唤物在战前快照中不存在，额外冻结其身份、位置与初始配置供回放创建卡面。
 public sealed record SummonedCardSnapshot(CardIdentityAttributes Identity, int BoardStart,
@@ -19,6 +22,8 @@ public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed
     int Haste, int Slow, int Immobilize, IReadOnlyList<decimal> CooldownUnits,
     IReadOnlyDictionary<StringName, int> Values)
 {
+    // 按非持续能力及其效果顺序冻结当前施加量；未知目标或非数值效果为null。
+    public IReadOnlyList<int?> EffectAmounts { get; init; } = System.Array.Empty<int?>();
     public IReadOnlyList<CardQuestBattleSnapshot> Quests { get; init; } = System.Array.Empty<CardQuestBattleSnapshot>();
     public IReadOnlyList<CardQuestDefinition> QuestDefinitions { get; init; } = System.Array.Empty<CardQuestDefinition>();
     public IReadOnlyList<StringName> QuestElementKeys { get; init; } = System.Array.Empty<StringName>();

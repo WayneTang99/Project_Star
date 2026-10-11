@@ -13,7 +13,8 @@ public static class CardAbilityComposer
     public static IReadOnlyList<AbilityDefinition> Compose(CardInstance card, bool includePersistent = false)
     {
         var quests = card.Quests.Where(card.IsQuestUnlocked).ToArray();
-        var extraEffects = quests.SelectMany(quest => quest.AdditionalActiveEffects).ToArray();
+        var extraEffects = quests.SelectMany(quest => quest.AdditionalActiveEffects)
+            .Concat(card.GemSockets.Where(gem => gem is not null).SelectMany(gem => gem!.ActiveEffects)).ToArray();
         var cooldownDelta = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks)
             - card.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.CooldownTicks);
         return Array.AsReadOnly(card.Abilities.Concat(quests.SelectMany(quest => quest.Abilities))

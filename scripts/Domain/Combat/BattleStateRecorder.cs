@@ -16,11 +16,11 @@ internal static class BattleStateRecorder
         CaptureState(runtime);
         return new BattleResult(outcome, reason, runtime.Tick, runtime.PlayerHero.Health, runtime.OpponentHero.Health,
             runtime.Events.AsReadOnly(), runtime.PermanentChanges.AsReadOnly(), runtime.States.AsReadOnly(),
-            runtime.PermanentAttributeBonuses.AsReadOnly());
+            runtime.PermanentAttributeBonuses.AsReadOnly()) { MatchRewardSources = runtime.MatchRewardSources };
     }
 
     // 只记录战斗层已经计算出的结果，不推进冷却、随机数或任何玩法状态。
-    internal static void CaptureState(BattleRuntime runtime)
+    internal static void CaptureState(BattleRuntime runtime, bool hasOpponent = true)
     {
         var cards = runtime.Cards.Select(card => new CardBattleSnapshot(card.EntityId, card.Side, card.Destroyed,
             card.HasteDuration, card.SlowDuration, card.ImmobilizeDuration,
@@ -31,6 +31,10 @@ internal static class BattleStateRecorder
                 .ToDictionary(key => key, key => key == GameAttributeKeys.Multicast
                     ? BattleEffectResolver.GetEffectiveMulticast(runtime, card) : BattleEffectResolver.GetEffectiveCombatAttribute(runtime, card, key))))
             {
+                EffectAmounts = Array.AsReadOnly(card.Abilities
+                    .Where(ability => ability.Definition.Activation != AbilityActivation.PassiveWhileEnabled)
+                    .SelectMany(ability => ability.Definition.Effects.Select(effect =>
+                        BattleEffectResolver.PreviewEffectAmount(runtime, card, ability, effect, hasOpponent))).ToArray()),
                 CooldownDurationUnits = Array.AsReadOnly(card.Abilities
                     .Where(ability => ability.Definition.Activation == AbilityActivation.Active)
                     .Select(ability => Math.Max(0, ability.Definition.CooldownTicks + card.CooldownBonusTicks) * 2
@@ -55,7 +59,8 @@ internal static class BattleStateRecorder
             Array.AsReadOnly(cards)));
 
         static HeroBattleSnapshot Hero(HeroBattleState hero) => new(hero.Health, hero.MaxHealth, hero.Armor,
-            hero.Mana, hero.MaxMana, hero.Burn, hero.Poison, hero.HealthRegen, hero.ManaRegen);
+            hero.Mana, hero.MaxMana, hero.Burn, hero.Poison, hero.HealthRegen, hero.ManaRegen)
+            { StealthDurationTicks = hero.StealthDurationTicks };
     }
 
 

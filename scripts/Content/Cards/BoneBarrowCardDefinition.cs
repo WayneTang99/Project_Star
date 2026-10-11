@@ -16,7 +16,7 @@ public sealed class BoneBarrowCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/bone_barrow-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却3秒，魔法消耗0，此卡牌左侧紧邻空格可用时，召唤一张同级骷髅；左侧已有卡牌或超出战场边界时不召唤，召唤物仅本场战斗存在。"),
+                    new(CardKeywords.Activate, "冷却3秒，魔法消耗0，此卡牌左侧紧邻位置可用时，召唤一张同级骷髅；左侧已有存活卡牌或超出战场边界时不召唤，已摧毁卡牌的位置可再次召唤，召唤物仅本场战斗存在。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.CooldownTicks] = 30,

@@ -39,7 +39,14 @@ public sealed class CardSetBonusService
                 if (ability.Activation != AbilityActivation.PassiveWhileEnabled) continue;
                 for (var effectIndex = 0; effectIndex < ability.Effects.Count; effectIndex++)
                 {
-                    var effect = (ModifyAttributeEffectDefinition)ability.Effects[effectIndex];
+                    var effect = ability.Effects[effectIndex] switch
+                    {
+                        ModifyAttributeEffectDefinition modifier => modifier,
+                        ModifyHeroLevelScaledAttributeEffectDefinition scaled => new ModifyAttributeEffectDefinition(
+                            scaled.AttributeKey, checked((session.Player.Hero?.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level)
+                                ?? throw new InvalidOperationException("A hero is required for a scaled set bonus.")) * scaled.Multiplier)),
+                        _ => throw new InvalidOperationException("Unsupported persistent set effect."),
+                    };
                     if (ability.Target == AbilityTarget.AlliedHero)
                     {
                         var hero = session.Player.Hero

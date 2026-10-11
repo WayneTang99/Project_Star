@@ -260,8 +260,8 @@ internal static class EconomyChecks
         var session = new MatchSession(1);
 
         var purchased = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Purchase);
-        var dropped = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Drop);
-        var rewarded = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward);
+        var dropped = economy.AcquireCard(new MatchSession(2), definition, 1, CardAcquisitionSource.Drop);
+        var rewarded = economy.AcquireCard(new MatchSession(3), definition, 1, CardAcquisitionSource.Reward);
 
         return purchased.Value?.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 1
             && dropped.Value?.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) == 1
@@ -553,6 +553,65 @@ internal static class EconomyChecks
             && session.Player.Wealth == 10
             && session.Player.Inventory.Cards.Count == 0
             && secondSale.IsFailure;
+    }
+
+    internal static bool CheckMergeValueCompensation()
+    {
+        foreach (var size in new[] { CardSize.Small, CardSize.Medium, CardSize.Large })
+        {
+            var economy = new CardEconomyService(new EntityFactory());
+            var session = new MatchSession(42);
+            var definition = new EconomyCardDefinition(size);
+            var card = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward).Value!.Card;
+            var growth = new StatModifier(ModifierId.New(), card.Id, GameAttributeKeys.Value, 3);
+            card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, (int)size + 5);
+            card.Attributes.Persistent.ApplyModifier(growth);
+            var merged = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Drop);
+            if (merged.IsFailure || merged.Value!.Id != card.Id || merged.Value.CurrentLevel != 2
+                || card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) != 2 * (int)size + 8) return false;
+            card.Attributes.Persistent.RemoveModifier(growth.Id);
+            if (card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) != 2 * (int)size + 5) return false;
+            economy.AcquireCard(session, definition, 2, CardAcquisitionSource.Reward);
+            economy.AcquireCard(session, definition, 3, CardAcquisitionSource.Reward);
+            if (card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) != 8 * (int)size + 5) return false;
+        }
+        var hideDefinition = new BeastHideCardDefinition();
+        var hideEconomy = new CardEconomyService(new EntityFactory());
+        var hideSession = new MatchSession(43);
+        var hide = hideEconomy.AcquireCard(hideSession, hideDefinition, 1, CardAcquisitionSource.Reward).Value!.Card;
+        hide.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, 8);
+        hideEconomy.AcquireCard(hideSession, hideDefinition, 1, CardAcquisitionSource.Reward);
+        if (hide.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) != 11) return false;
+        var board = CreateBoardService();
+        var economyChain = new CardEconomyService(new EntityFactory(), board);
+        var chain = new MatchSession(44, 100);
+        var small = new EconomyCardDefinition(CardSize.Small);
+        var first = economyChain.AcquireCard(chain, small, 1, CardAcquisitionSource.Reward).Value!.Card;
+        var second = economyChain.AcquireCard(chain, small, 2, CardAcquisitionSource.Reward).Value!.Card;
+        var highest = economyChain.AcquireCard(chain, small, 3, CardAcquisitionSource.Reward).Value!.Card;
+        first.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, 100);
+        highest.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, 24);
+        board.PlaceCard(chain, highest.Id, BoardZone.Battlefield, 3);
+        var result = economyChain.AcquireCard(chain, small, 1, CardAcquisitionSource.Reward);
+        if (result.IsFailure || result.Value!.Id != highest.Id || result.Value.CurrentLevel != 4
+            || highest.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) != 28
+            || chain.Board.Locate(highest.Id)?.Placement.Start != 3 || chain.Player.Inventory.Cards.Count != 1) return false;
+        var sold = economyChain.SellFromBoard(chain, highest.Id);
+        if (sold.IsFailure || sold.Value != 28 || chain.Player.Wealth != 128) return false;
+        // 连续合并溢出在任何材料移除、扣费或升级之前拒绝。
+        var overflow = new MatchSession(45, 100);
+        var materials = new[] { 1, 2, 3 }.Select(level => economyChain.AcquireCard(overflow, small, level,
+            CardAcquisitionSource.Reward).Value!.Card).ToArray();
+        for (var index = 0; index < materials.Length; index++) board.PlaceCard(overflow, materials[index].Id, BoardZone.Battlefield, index);
+        materials[2].Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, int.MaxValue);
+        var offer = ShopOffer.Create(small, 1);
+        return economyChain.CheckPurchase(overflow, offer).IsFailure
+            && economyChain.BuyAndPlace(overflow, offer).IsFailure
+            && economyChain.BuyCard(overflow, offer).IsFailure
+            && economyChain.AcquireCard(overflow, small, 1, CardAcquisitionSource.Reward).IsFailure
+            && overflow.Player.Wealth == 100 && !offer.IsSold && overflow.Board.Battlefield.Count == 3
+            && overflow.Player.Inventory.Cards.Count == 3 && materials[2].Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 3
+            && materials[2].Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) == int.MaxValue;
     }
 
 

@@ -84,6 +84,18 @@ public abstract class CardDefinition
 
 public abstract record CardOnSellRewardDefinition;
 
+// 出售后给战场最左侧施加灼伤的卡牌累加永久施加量（领域定义层）。
+public sealed record IncreaseLeftmostBurnCardOnSellDefinition : CardOnSellRewardDefinition
+{
+    public IncreaseLeftmostBurnCardOnSellDefinition(int amount)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        Amount = amount;
+    }
+
+    public int Amount { get; }
+}
+
 // 出售后给战场最左侧施加疾速的卡牌累加永久时长贡献，以Tick配置。
 public sealed record IncreaseLeftmostHasteCardOnSellDefinition : CardOnSellRewardDefinition
 {

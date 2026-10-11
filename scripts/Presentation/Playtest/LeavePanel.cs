@@ -60,7 +60,7 @@ public sealed partial class LeavePanel : HFlowContainer
     {
         if (_view?.Player?.MatchId != view.Player?.MatchId) _expanded = false;
         _view = view;
-        _stageContinue.Visible = view.Page == MatchPage.Shop; _stageContinue.Disabled = !view.Continue.Enabled;
+        _stageContinue.Visible = view.Page is MatchPage.Shop or MatchPage.GemShop; _stageContinue.Disabled = !view.Continue.Enabled;
         Set(MatchAction.Refresh, view.Refresh); Set(MatchAction.Battle, view.Battle);
         Set(MatchAction.Continue, view.Continue); Set(MatchAction.Reward, view.Reward with { Text = $"战利品 ({view.Rewards.Count})" });
         Set(MatchAction.Pause, new UiAction(view.Playback?.Paused == true ? "继续播放" : "暂停", view.Playback is not null));

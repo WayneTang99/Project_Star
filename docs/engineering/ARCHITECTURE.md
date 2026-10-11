@@ -23,7 +23,7 @@
 
 定义、实例与运行态分开。Definition 不可变，EntityFactory 创建独立 EntityId 与属性集，实例之间不共享可变属性。身份在属性集只读分区，Persistent 保存对局内可变属性，BaseCombat 保存战斗基础值；战斗不直接写实例。
 
-宝石孔数位于卡牌只读身份，镶嵌结果由卡牌实例独立保存。渠道用例负责宝石获取、费用和当前阶段的操作授权，再通过 `SocketGemService` / `SocketGemCommand` 校验对局、卡牌归属及空孔并提交；当前没有独立宝石库存或获取渠道。合并保留原目标实例，材料实例移除时连同其宝石消失。UI读取 `CardSnapshot.GemSockets` 的冻结副本，不写孔位。
+宝石孔数位于卡牌只读身份，镶嵌结果由卡牌实例独立保存。`GemShopService` 渠道用例负责报价、费用和访问授权，`MatchSession.ActiveGemShopVisit` 保存当前砧板、版本、刷新及完成状态，再通过 `SocketGemService` / `SocketGemCommand` 校验对局、卡牌归属、发动及空孔并提交；没有独立宝石库存。合并保留原目标实例，材料实例移除时连同其宝石消失。`CardAbilityComposer` 将宝石效果附加到原发动，工厂冻结战斗输入；战斗层在原效果执行前冻结主值。UI读取 `CardSnapshot.GemSockets` 及砧板ViewModel副本，不写孔位；预览不扣费或消耗随机数，离店关闭访问，旧版本提交无效。
 
 ## 内容与扩展入口
 
@@ -52,6 +52,7 @@ Definition 的维护和行为验证见 [内容数据规范](../design/CONTENT_DA
 - BoardPlacementSolver 是纯函数，评估直接放置/左右推挤，返回完整计划。优先级为总距离短 → 影响卡牌少 → Right；评估前释放移动卡原位。
 - BoardService 验证归属，成功后一次提交同盘/跨区位移；预览不修改状态，提交重新计算。
 - MergeDecision 按同等级候选的稳定ID选择，CardEconomyService 构建连续合并链，每一步保留原有更高等级卡，最终提交最高等级目标的升级并删除低等级材料。BuyAndPlace / AcquireAndPlace 预检金额、售罄、合并与完整放置，成功后扣款/标记；SellFromBoard 预检价值、溢出与奖励依赖后统一出售。
+- 合成价值在应用经济用例补新旧等级标准获得价值差额，保留最终目标已有成长与Modifier，不吸收材料价值；获得、购买及棋盘交易入口在移除材料前检查最终价值与基础值溢出。
 - RoundIncomeService 在生成新轮遭遇前结算，并按轮次保证幂等；第一轮在创建对局后结算。
 - EncounterScheduler 稳定过滤/抽取候选，保存候选出现历史与随机状态。MonsterDefinition 自动投影为怪物遭遇；试玩允许内容不足三个，正式排程保持严格。
 - ResolveEncounterOptionService 创建本次固定/加权选项，一次性选择成功后提交通用效果。MonsterRewardClaimService 只在领取成功后移除奖励。
@@ -70,6 +71,8 @@ FinalValue = BaseValue + Sum(Modifiers)。Modifier 有唯一 ID、来源、目�
 
 CardSetEvaluator 只按战场不同 CardKey 计数，并稳定输出达到的全部阈值；阈值解锁通用能力。CardSetBonusService 在棋盘变化时精确重算持续 Modifier，战斗能力由 BattleSetupFactory 冻结。战斗内摧毁不重新求值套装快照。
 
+对局事件能力使用PassiveOnRoundStart／PassiveOnBattleVictory／PassiveOnMonsterVictory。RoundIncomeService沿用轮结算边界发放套装经验；BattleRuntime只冻结开战MatchRewardSource，BattleResult返回这些来源，不执行对局奖励。MatchAbilityService在应用结算读取冻结来源与等级，复用CardEconomyService获得卡牌和英雄经验；满盘奖励转待领取，同一结果的能力奖励保持幂等。按英雄等级提供的持续Modifier在棋盘与各经验结算入口重算，升级更新贡献，失效精确撤销。
+
 CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括备战区。CardQuestBonusService 只为战场已解锁卡牌施加持续属性能力；移区/移除时精确撤销。其他解锁能力加入来源卡的战斗快照，随该来源被摧毁失效。
 
 卡牌等级的 BattleVictoryBonuses 是可复用的对局结算配置。MatchResultService 根据 BattleResult 的开战快照筛选己方非备战区卡牌，获胜后给仍在库存的实例累加永久 Modifier；不读取战斗临时属性，不复用一次性任务解锁。EntityFactory 在升级时刷新增量并保留 Modifier。
@@ -77,6 +80,8 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 卡牌等级的 BattleValueBonus 复用同一参战筛选，不区分战斗胜负，将永久价值贡献累加到实例 Persistent 分区。BattleSetupFactory 复制实例实际价值到只读 CombatValues，供通用属性施毒读取；战斗与回放不读取结算后的价值，EntityFactory 升级只刷新后续成长增量。
 
 ## 战斗模块与固定顺序
+
+战斗内修复复用被摧毁的CardBattleState，不创建对局卡牌或新身份。BattleEffectResolver按标签、永久摧毁记录及完整占格筛选，用冻结随机顺序选择目标，恢复光环后重置主动冷却；AbilityQueue在摧毁时取消来源旧队列，避免同Tick修复复活旧发动。CardRepairedEvent携带位置事实，回放只读取事件与快照，按召唤／修复顺序替换可见占格，不写对局棋盘。
 
 | 协作者 | 职责 |
 |---|---|
@@ -94,11 +99,15 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 
 主动发动先验证来源和魔法，再扣魔法、重置冷却、发布发动事件并执行效果。多重从当前卡牌属性读取，额外发动不递归生成多重、不重复付魔法。光环按当前 Runtime 求值，来源离开战场或被摧毁即失效；技能来源不依赖棋盘。回响执行产生的事件不再次触发回响。每场首次己方卡牌发动触发由能力状态保证至多一次。
 
+来源卡牌持续状态获得回响由统一状态施加入口在正贡献实际累加后排队，按目标自身能力的TriggerStatus筛选；各次重复施加分别计数，排除备战、摧毁与回响施加，沿用FIFO及回响截断。能力复制与任务解锁保留状态筛选。
+
 Runtime 只修改卡牌实际支持的属性，修改效果不能凭写属性赋予新能力。每次真实变化点记录冻结状态；同 Tick 保持原记录顺序，EventCount 对应原日志前缀。BattleResult 包含永久变化与只读播放状态，GameCoordinator.ResolveBattleForPlayback 通过 MatchResultService.Apply 一次结算，不因播放方式重跑。UI 回放细节见 UI 规范。
 
 自身发动任务和永久成长只操作本场 Runtime。输入冻结已有任务进度，发动结束后推进并解锁，输出分别保存任务进度事件与精确永久属性贡献；应用结算写回真实己方实例并重算任务属性。任务身份奖励替换实例属性集中的只读身份对象，不更改共享定义；战斗快照独立保存身份变化和当前能力，回放不读取战后解锁结果推算旧画面。召唤和临时转变来源不会回写任务或成长。
 
 飞行／狂暴独立存为 Runtime 的布尔字段，不进入数值属性字典。通用来源卡牌状态设置效果发布 CardStateChangedEvent，CardBattleSnapshot 冻结两个布尔值，回放投影传给 CardSnapshot。飞行减时长在目标状态施加处统一处理；狂暴只在发动的伤害公式结果与中毒／灼伤施加量处增加20%，不修改基础属性或周期结算。
+
+战斗快照按非持续能力的效果顺序冻结当前数值施加量，包含公式、有效光环和狂暴，回放投影到CardSnapshot，UI只格式化数值。MatchDisplayQuery通过BattleSetupFactory与CombatSimulator.Preview复用同一只读光环求值，不发动能力、不推进随机、不执行开战效果、不回写实例；无已知对手时保留依赖对手的比例说明。备战区展示自身实例数值，不投影战场加成。
 
 ## 验证与审查
 

@@ -10,7 +10,9 @@ using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Playtest;
 
-public enum MatchPage { HeroSelection, EncounterChoice, Shop, Event, Preparation, BattleResult, MatchEnded, BattlePlayback }
+public enum MatchPage { HeroSelection, EncounterChoice, Shop, Event, Preparation, BattleResult, MatchEnded, BattlePlayback, GemShop }
+
+public sealed record GemAnvilViewModel(int Index, long Revision, StringName Key, string DisplayName, string Description, Color Color, int Price, bool Resolved);
 
 public sealed record UiAction(string Text, bool Visible = true, bool Enabled = true, string Reason = "");
 public sealed record KeyedAction(StringName Key, UiAction Action)
@@ -74,6 +76,7 @@ public sealed record MatchPageViewModel(
     public UiAction Sell { get; init; } = new("出售", false);
     public int ShopLevel { get; init; }
     public string BattleLog { get; init; } = "";
+    public IReadOnlyList<GemAnvilViewModel> GemOffers { get; init; } = Array.Empty<GemAnvilViewModel>();
     public StringName ContextIllustration { get; init; } = new("");
     public int EncounterLevel { get; init; }
     // 访问中的遭遇保持进入前的轮回合，领域进度可以已推进到下一回合。

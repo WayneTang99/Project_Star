@@ -17,7 +17,7 @@ public sealed class ArcaneShieldCardDefinition : CardDefinition
                     "魔能盾",
                     new StringName("paladin"),
                     CardSize.Medium,
-                    [GameElements.Light],
+                    [GameElements.General],
                     illustration: new StringName("res://art/ui/card-face/artwork/arcane_shield-illustration-refresh.png"),
                     descriptionEntries:
                     [

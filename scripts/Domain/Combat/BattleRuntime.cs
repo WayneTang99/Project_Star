@@ -28,6 +28,7 @@ internal sealed class HeroBattleState
     public int Poison { get; set; }
     public int HealthRegen { get; set; }
     public int ManaRegen { get; set; }
+    public int StealthDurationTicks { get; set; }
 }
 
 internal sealed class BattleAbilityState
@@ -78,7 +79,14 @@ internal sealed class CardBattleState : IBattleAbilitySource
                 ? [new AbilityDefinition(new StringName("ability.legacy_attack"), AbilityActivation.Active,
                     AbilityTarget.EnemyHero, 0, setup.CooldownTicks, [new DamageEffectDefinition(setup.AttackDamage)])]
                 : Array.Empty<AbilityDefinition>();
+        definitions = definitions.Where(definition => !MatchAbilityRules.IsMatchTrigger(definition.Activation)).ToArray();
         foreach (var definition in definitions) Abilities.Add(new BattleAbilityState(definition, CooldownMultiplier));
+        if (definitions.Any(definition => definition.Effects.Any(BurnEffectRules.AppliesBurn)))
+        {
+            SupportedCombatAttributes.Add(GameAttributeKeys.BurnBonus);
+            if (setup.CombatValues.TryGetValue(GameAttributeKeys.BurnBonus, out var burnBonus))
+                CombatAttributes[GameAttributeKeys.BurnBonus] = burnBonus;
+        }
         if (definitions.Any(definition => definition.Effects.Any(HasteEffectRules.AppliesHaste)))
         {
             SupportedCombatAttributes.Add(GameAttributeKeys.HasteDurationBonus);
@@ -100,6 +108,9 @@ internal sealed class CardBattleState : IBattleAbilitySource
                     break;
                 case AttributeDamageEffectDefinition attributeDamage:
                     SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
+                    break;
+                case DestroyAlliedCardsAndDamageEffectDefinition sacrifice:
+                    SupportedCombatAttributes.Add(sacrifice.DamageAttributeKey);
                     break;
                 case SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage:
                     SupportedCombatAttributes.Add(scaledDamage.AttributeKey);
@@ -128,6 +139,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public Dictionary<StringName, int> QuestProgress { get; } = [];
     public bool Destroyed { get; set; }
     public int ActivationCount { get; set; }
+    public int ActiveActivationCount { get; set; }
     public int CooldownBonusTicks { get; set; }
     public int HasteDuration { get; set; }
     public decimal CooldownMultiplier { get; }
@@ -204,7 +216,10 @@ internal sealed record PendingAbility(
     bool IsEcho,
     bool IsMulticast,
     BattleTick EnqueuedAt,
-    CardBattleState? EventCard = null);
+    CardBattleState? EventCard = null)
+{
+    public int PrimaryValue { get; init; }
+}
 
 internal sealed class AbilityQueue
 {
@@ -212,12 +227,29 @@ internal sealed class AbilityQueue
     public int Count => _items.Count;
     public void Enqueue(PendingAbility ability) => _items.Enqueue(ability);
     public PendingAbility Dequeue() => _items.Dequeue();
+    // 摧毁时取消该来源旧队列，防止同Tick修复后执行摧毁前的发动。
+    public void CancelSource(IBattleAbilitySource source)
+    {
+        for (var remaining = _items.Count; remaining > 0; remaining--)
+        {
+            var item = _items.Dequeue();
+            if (!ReferenceEquals(item.Source, source)) _items.Enqueue(item);
+        }
+    }
 }
 
 internal sealed class BattleRuntime
 {
     public BattleRuntime(BattleSetup setup)
     {
+        MatchRewardSources = Array.AsReadOnly(setup.Player.Cards.Where(card => !card.IsOnBench)
+            .OrderBy(card => card.BoardStart).Select(card => new MatchRewardSource(card.EntityId, card.Level, true,
+                Array.AsReadOnly((card.Abilities ?? []).Where(ability => MatchAbilityRules.IsMatchTrigger(ability.Activation)).ToArray())))
+            .Concat(setup.Player.Sets.Select(set => new MatchRewardSource(set.EntityId, 1, false,
+                Array.AsReadOnly(set.Abilities.Where(ability => MatchAbilityRules.IsMatchTrigger(ability.Activation)).ToArray()))))
+            .Concat(setup.Player.Skills.Select(skill => new MatchRewardSource(skill.EntityId, 1, false,
+                Array.AsReadOnly(skill.Abilities.Where(ability => MatchAbilityRules.IsMatchTrigger(ability.Activation)).ToArray()))))
+            .Where(source => source.Abilities.Count > 0).ToArray());
         PlayerBattlefieldCapacity = setup.Player.BattlefieldCapacity;
         OpponentBattlefieldCapacity = setup.Opponent.BattlefieldCapacity;
         EclipseTime = setup.EclipseTime;
@@ -228,6 +260,7 @@ internal sealed class BattleRuntime
         AddSets(setup.Player.Sets, SideId.Player); AddSets(setup.Opponent.Sets, SideId.Opponent);
     }
     public BattleTick Tick { get; set; } = BattleTick.Zero;
+    public IReadOnlyList<MatchRewardSource> MatchRewardSources { get; }
     public HeroBattleState PlayerHero { get; }
     public HeroBattleState OpponentHero { get; }
     public List<CardBattleState> Cards { get; } = [];

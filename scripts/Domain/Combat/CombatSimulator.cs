@@ -9,6 +9,16 @@ namespace Project_Star.Domain.Combat;
 // 确定性战斗入口：固定 Tick 顺序、FIFO 发动与终止判定（领域战斗层）。
 public sealed class CombatSimulator
 {
+    // 备战只读预览：仅计算当前光环，不发动能力、不推进随机或战斗进度。
+    public BattleStateSnapshot Preview(BattleSetup setup, bool hasOpponent = true)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        var runtime = new BattleRuntime(setup);
+        BattleStatusResolver.RefreshCooldownAuras(runtime);
+        BattleStateRecorder.CaptureState(runtime, hasOpponent);
+        return runtime.States[0];
+    }
+
     // 只计算一次战斗，结果包含原始日志和对应时间点的冻结状态。
     public BattleResult Simulate(BattleSetup setup)
     {
@@ -24,6 +34,7 @@ public sealed class CombatSimulator
         while (runtime.Tick.Value < setup.Timeout.Value)
         {
             runtime.Tick += new BattleTick(1);
+            BattleStatusResolver.AdvanceHeroStates(runtime);
             BattleStatusResolver.ApplyEclipse(runtime, setup);
             BattleStatusResolver.AdvanceCooldowns(runtime);
             EnqueueReadyActives(runtime);
@@ -112,6 +123,8 @@ public sealed class CombatSimulator
             if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
                 for (var repeat = 0; repeat < BattleEffectResolver.GetEffectiveMulticast(runtime, cardSource); repeat++)
                     Enqueue(runtime, cardSource, pending.Ability, false, true);
+            if (definition.Effects.Any(effect => effect is ApplyPrimaryEffectPercentStatusEffectDefinition))
+                pending = pending with { PrimaryValue = BattleEffectResolver.PrimaryValue(runtime, pending) };
             foreach (var effect in definition.Effects)
             {
                 BattleEffectResolver.ApplyEffect(runtime, pending, effect);
@@ -119,6 +132,14 @@ public sealed class CombatSimulator
                 BattleStateRecorder.CaptureState(runtime);
             }
             if (!pending.IsEcho) pending.Source.ActivationCount++;
+            if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
+                && pending.Source is CardBattleState activatedCard)
+            {
+                activatedCard.ActiveActivationCount++;
+                if (activatedCard.ActiveActivationCount == 1 && activatedCard.Abilities.Any(ability =>
+                    ability.Definition.Effects.Any(effect => effect is AttributeDamageEffectDefinition { FirstActivationMultiplier: > 1 })))
+                    BattleStateRecorder.CaptureState(runtime);
+            }
             if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
             if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
                 && pending.Source is CardBattleState questCard && questCard.Quests.Count > 0
@@ -135,11 +156,16 @@ public sealed class CombatSimulator
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
                 Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnEnemyCardActivated
+                && source.Side != origin.Source.Side
+                && origin.Source is CardBattleState { IsOnBench: false }
+                && origin.Ability.Definition.Activation == AbilityActivation.Active)
+                Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnAnyAttackCardActivated
                 && origin.Source is CardBattleState { IsOnBench: false } eventCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
                 && eventCard.Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
-                    DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
+                    DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
                     or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
                     or SourceHeroArmorDamageEffectDefinition)))
                 Enqueue(runtime, source, ability, true, eventCard: eventCard);
@@ -155,7 +181,7 @@ public sealed class CombatSimulator
                     || attackingCard.BoardStart + attackingCard.OccupiedSlots == adjacentSource.BoardStart)
                 && (ability.Definition.TriggerCardTag is not { } requiredTag || attackingCard.Tags.Contains(requiredTag))
                 && attackingCard.Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
-                    DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
+                    DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
                     or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
                     or SourceHeroArmorDamageEffectDefinition)))
                 Enqueue(runtime, source, ability, true);
@@ -172,7 +198,9 @@ public sealed class CombatSimulator
                 && source.Side == origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } originCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
-                && (ability.Definition.TriggerCardTag is { } tag && originCard.Tags.Contains(tag)
+                && (ability.Definition.TriggerCardSize is not { } size || originCard.OccupiedSlots == (int)size)
+                && (ability.Definition.TriggerCardTag is null && ability.Definition.TriggerCardElement is null
+                    || ability.Definition.TriggerCardTag is { } tag && originCard.Tags.Contains(tag)
                     || ability.Definition.TriggerCardElement is { } element && originCard.ElementKeys.Contains(element)))
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
@@ -184,6 +212,34 @@ public sealed class CombatSimulator
             {
                 ability.Triggered = true;
                 Enqueue(runtime, source, ability, true);
+            }
+        }
+    }
+
+    // 越过生命阈值后立即结算一次性回响，先于同Tick后续攻击。
+    internal static void ResolveHeroHealthTriggers(BattleRuntime runtime, SideId side, int previousHealth)
+    {
+        var hero = runtime.GetHero(side);
+        if (hero.Health <= 0) return;
+        var triggers = runtime.AbilitySources.Where(source => source.Side == side && !source.Destroyed && !source.IsOnBench)
+            .SelectMany(source => source.Abilities.Select(ability => (Source: source, Ability: ability)))
+            .Where(item => !item.Ability.Triggered && item.Ability.Definition.Activation == AbilityActivation.EchoOnSourceHeroHealthBelow
+                && (long)previousHealth * 100 >= (long)hero.MaxHealth * item.Ability.Definition.TriggerHeroHealthPercent!.Value
+                && (long)hero.Health * 100 < (long)hero.MaxHealth * item.Ability.Definition.TriggerHeroHealthPercent!.Value).ToArray();
+        foreach (var item in triggers) item.Ability.Triggered = true;
+        foreach (var item in triggers)
+        {
+            if (item.Source.Destroyed) continue;
+            var pending = new PendingAbility(item.Source, item.Ability, true, false, runtime.Tick);
+            pending = pending with { PrimaryValue = BattleEffectResolver.PrimaryValue(runtime, pending) };
+            runtime.Events.Add(new AbilityActivatedEvent(runtime.Tick, item.Source.EntityId, side, true,
+                BattleEffectResolver.GetAbilitySourceKind(item.Source)));
+            BattleStateRecorder.CaptureState(runtime);
+            foreach (var effect in item.Ability.Definition.Effects)
+            {
+                BattleEffectResolver.ApplyEffect(runtime, pending, effect);
+                BattleStatusResolver.RefreshCooldownAuras(runtime);
+                BattleStateRecorder.CaptureState(runtime);
             }
         }
     }
@@ -210,6 +266,16 @@ public sealed class CombatSimulator
             if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedSlowApplied)
                 Enqueue(runtime, source, ability, true);
         }
+    }
+
+    // 正时长状态实际累加后，仅排入目标卡牌自身的状态回响。
+    internal static void EnqueueSourceStatusGainedEchoes(BattleRuntime runtime, CardBattleState target, BattleStatus status)
+    {
+        if (target.Destroyed || target.IsOnBench) return;
+        foreach (var ability in target.Abilities)
+            if (ability.Definition.Activation == AbilityActivation.EchoOnSourceCardStatusGained
+                && ability.Definition.TriggerStatus == status)
+                Enqueue(runtime, target, ability, true);
     }
 
     // 真实进入布尔状态后，按稳定来源顺序排入己方回响并保存事件目标。

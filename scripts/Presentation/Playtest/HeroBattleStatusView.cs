@@ -11,6 +11,7 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
     private PanelContainer _armor = null!;
     private PanelContainer _burn = null!;
     private PanelContainer _poison = null!;
+    private PanelContainer _stealth = null!;
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
@@ -18,6 +19,11 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
         _armor = Chip("Armor", "armor", "668799", "22343d", AttributePalette.Find(GameAttributeKeys.Armor)!.Value, "护甲抵消普通伤害");
         _burn = Chip("Burn", "burn", "a58052", "322a20", AttributePalette.Find(GameAttributeKeys.Burn)!.Value, "灼伤：每0.6秒结算，先扣护甲，每次减少1");
         _poison = Chip("Poison", "poison", "68955d", "203325", AttributePalette.Find(GameAttributeKeys.Poison)!.Value, "中毒：每1秒结算，无视护甲，不衰减");
+        _stealth = new PanelContainer { Name = "Stealth", Visible = false,
+            TooltipText = "隐身：阻挡攻击伤害，不阻挡灼伤、中毒及日蚀", MouseFilter = MouseFilterEnum.Pass };
+        _stealth.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("292439"), new Color("9883bd")));
+        var duration = new Label { Name = "Duration", MouseFilter = MouseFilterEnum.Ignore };
+        MatchTheme.Text(duration, 14, new Color("c8b8e8"), true); _stealth.AddChild(duration); AddChild(_stealth);
     }
     // 状态从有到无时立即隐藏；暂停保持同一Tick的反馈。
     public void Render(HeroBattleSnapshot? hero, BattlePlaybackViewModel? playback = null, SideId side = SideId.Player)
@@ -26,6 +32,8 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
         Update(_armor, hero?.Armor ?? 0, "", null);
         Update(_burn, hero?.Burn ?? 0, "0.6s", BattleStatus.Burn);
         Update(_poison, hero?.Poison ?? 0, "1s", BattleStatus.Poison);
+        _stealth.Visible = hero?.StealthDurationTicks > 0;
+        _stealth.GetNode<Label>("Duration").Text = $"隐身 {(hero?.StealthDurationTicks ?? 0) / 10m:0.0}秒";
         void Update(PanelContainer chip, int amount, string period, BattleStatus? status)
         {
             chip.Visible = amount > 0;

@@ -107,29 +107,29 @@ internal static class JadeToadChecks
         _ = service.Apply(fixture.Session, first, MatchBattleKind.Pvp);
         var definition = new JadeToadCardDefinition();
         var merged = fixture.Economy.AcquireCard(fixture.Session, definition, 1, CardAcquisitionSource.Reward).Value!;
-        if (merged.Id != fixture.Card.Id || merged.CurrentLevel != 2 || Value(fixture.Card) != 5 || fixture.Card.BattleValueBonus != 5)
+        if (merged.Id != fixture.Card.Id || merged.CurrentLevel != 2 || Value(fixture.Card) != 7 || fixture.Card.BattleValueBonus != 5)
             return false;
         var before = MatchSnapshot.From(fixture.Session);
         var enemyBefore = MatchSnapshot.From(fixture.Opponent);
         var frozen = setups.Create(fixture.Session, fixture.Opponent, 1, new BattleTick(50), new BattleTick(300));
         var battle = new CombatSimulator().Simulate(frozen);
-        if (battle.Events.OfType<StatusChangedEvent>().Single().Amount != 5) return false;
+        if (battle.Events.OfType<StatusChangedEvent>().Single().Amount != 7) return false;
         _ = service.Apply(fixture.Session, battle, MatchBattleKind.Pvp);
         var after = MatchSnapshot.From(fixture.Session);
-        if (Value(fixture.Card) != 10 || after.Cards.Single().Value != 10
-            || CardDisplayAdapter.FaceEffects(after.Cards.Single()).Single(value => value.Kind == CardFaceEffectKind.Poison).Value != "10") return false;
+        if (Value(fixture.Card) != 12 || after.Cards.Single().Value != 12
+            || CardDisplayAdapter.FaceEffects(after.Cards.Single()).Single(value => value.Kind == CardFaceEffectKind.Poison).Value != "12") return false;
         var playback = new BattlePlaybackPresenter(new BattleResolution(before, enemyBefore, battle, after));
         playback.TogglePause(); playback.ToggleSpeed(); playback.Skip();
         var replayCard = playback.Project(SideId.Player).Cards.Single();
-        if (replayCard.Value != 5
-            || CardDisplayAdapter.FaceEffects(replayCard).Single(value => value.Kind == CardFaceEffectKind.Poison).Value != "5"
-            || Value(fixture.Card) != 10
-            || new CombatSimulator().Simulate(frozen).Events.OfType<StatusChangedEvent>().Single().Amount != 5) return false;
+        if (replayCard.Value != 7
+            || CardDisplayAdapter.FaceEffects(replayCard).Single(value => value.Kind == CardFaceEffectKind.Poison).Value != "7"
+            || Value(fixture.Card) != 12
+            || new CombatSimulator().Simulate(frozen).Events.OfType<StatusChangedEvent>().Single().Amount != 7) return false;
         var next = new CombatSimulator().Simulate(setups.Create(fixture.Session, fixture.Opponent, 1, new BattleTick(50), new BattleTick(300)));
-        if (next.Events.OfType<StatusChangedEvent>().Single().Amount != 10) return false;
+        if (next.Events.OfType<StatusChangedEvent>().Single().Amount != 12) return false;
         var wealth = fixture.Session.Player.Wealth;
-        return fixture.Economy.SellFromBoard(fixture.Session, fixture.Card.Id).Value == 10
-            && fixture.Session.Player.Wealth == wealth + 10 && fixture.Session.Player.Inventory.Find(fixture.Card.Id) is null;
+        return fixture.Economy.SellFromBoard(fixture.Session, fixture.Card.Id).Value == 12
+            && fixture.Session.Player.Wealth == wealth + 12 && fixture.Session.Player.Inventory.Find(fixture.Card.Id) is null;
     }
 
     private static int Value(CardInstance card) => card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value);

@@ -27,6 +27,8 @@ internal static class CombatTraceChecks
         for (var index = 0; index < setups.Length; index++)
         {
             var simulator = new CombatSimulator();
+            if (simulator.Simulate(setups[index]).States.Any(frame => frame.Player.StealthDurationTicks != 0
+                    || frame.Opponent.StealthDurationTicks != 0)) return false;
             if (simulator.Simulate(setups[index]).States.Any(frame => frame.Cards.Any(card => card.IsFlying || card.IsBerserk))) return false;
             var actual = Fingerprint(simulator.Simulate(setups[index]));
             if (actual != Fingerprint(simulator.Simulate(setups[index]))) return false;
@@ -81,7 +83,8 @@ internal static class CombatTraceChecks
         foreach (var item in result.PermanentChanges) text.AppendLine(item.ToString());
         foreach (var frame in result.States)
         {
-            text.AppendLine($"{frame.Tick.Value}|{frame.EventCount}|{frame.Eclipse}|{frame.Player}|{frame.Opponent}");
+            // 旧场景已断言没有隐身；新增快照字段不改变原字段指纹。
+            text.AppendLine($"{frame.Tick.Value}|{frame.EventCount}|{frame.Eclipse}|{frame.Player.ToString().Replace(", StealthDurationTicks = 0", "", StringComparison.Ordinal)}|{frame.Opponent.ToString().Replace(", StealthDurationTicks = 0", "", StringComparison.Ordinal)}");
             foreach (var card in frame.Cards)
             {
                 text.AppendLine($"{card.Id}|{card.Side}|{card.Destroyed}|{card.Haste}|{card.Slow}|{card.Immobilize}");

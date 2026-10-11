@@ -61,9 +61,12 @@ public sealed class MatchResultService
         if (kind == MatchBattleKind.Monster)
         {
             SettleMonsterBattle(session, opponent!, battle);
+            MatchAbilityService.ApplyVictory(session, battle, kind, _boardService);
+            _boardService.RefreshBonuses(session);
             return Result.Success();
         }
 
+        MatchAbilityService.ApplyVictory(session, battle, kind, _boardService);
         if (battle.Outcome == BattleOutcome.PlayerVictory) session.Progress.PvpWins++;
         else if (battle.Outcome == BattleOutcome.OpponentVictory)
             session.Player.LoseReputation(battleRound ?? session.Progress.Round);

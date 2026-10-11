@@ -43,7 +43,7 @@ public sealed class CardInstance
         ArgumentOutOfRangeException.ThrowIfNegative(battleValueBonus);
         BattleValueBonus = battleValueBonus;
         Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
-        _gemSockets = new GemIdentityAttributes?[attributes.Identity.GemSocketCount];
+        _gemSockets = new GemDefinition?[attributes.Identity.GemSocketCount];
         GemSockets = Array.AsReadOnly(_gemSockets);
     }
 
@@ -54,11 +54,11 @@ public sealed class CardInstance
 
     private TagSet _tags;
     public TagSet Tags => _tags;
-    private readonly GemIdentityAttributes?[] _gemSockets;
-    public IReadOnlyList<GemIdentityAttributes?> GemSockets { get; }
+    private readonly GemDefinition?[] _gemSockets;
+    public IReadOnlyList<GemDefinition?> GemSockets { get; }
 
     // 镶嵌只允许写入空孔，升级不重建宝石数组。
-    internal void SocketGem(int index, GemIdentityAttributes gem)
+    internal void SocketGem(int index, GemDefinition gem)
     {
         ArgumentNullException.ThrowIfNull(gem);
         if (index < 0 || index >= _gemSockets.Length || _gemSockets[index] is not null)

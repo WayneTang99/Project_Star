@@ -88,7 +88,12 @@ public sealed class BattlePlaybackPresenter
                     case DamageDealtEvent damage:
                         Add($"{Side(damage.TargetSide)}受伤 {damage.HealthDamage} · 护甲抵消 {damage.ArmorAbsorbed}"
                             + (damage.SourceKind == DamageSourceKind.Eclipse ? " · 日蚀" : "")); break;
+                    case AttackBlockedEvent blocked: Add($"{Side(blocked.TargetSide)}隐身避开攻击"); break;
+                    case HeroStealthChangedEvent stealth:
+                        Add(stealth.RemainingTicks > 0 ? $"{Side(stealth.Side)}隐身 {stealth.RemainingTicks / 10m:0.0}秒"
+                            : $"{Side(stealth.Side)}隐身结束"); break;
                     case CardDestroyedEvent destroyed: Add($"{Name(destroyed.CardId)}已摧毁"); break;
+                    case CardRepairedEvent repaired: Add($"{Name(repaired.CardId)}已修复"); break;
                     case CardSummonedEvent summoned:
                         Add($"{Name(summoned.SourceCardId)}召唤{next.Cards.First(card => card.Id == summoned.SummonedCardId).SummonedCard!.Identity.DisplayName}"); break;
                     case CardTransformedEvent transformed:
@@ -134,10 +139,25 @@ public sealed class BattlePlaybackPresenter
                 GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
             };
         });
-        var placements = before.BoardPlacements.Concat(summonedStates.Select(state =>
-            new BoardPlacementSnapshot(state.Id, BoardZone.Battlefield, state.SummonedCard!.BoardStart,
-                state.SummonedCard.BoardStart + state.SummonedCard.Identity.OccupiedSlots))).ToArray();
-        return before with { BoardPlacements = Array.AsReadOnly(placements), BattlefieldCount = before.BattlefieldCount + summonedStates.Length,
+        var placements = before.BoardPlacements.ToList();
+        foreach (var item in _source.Result.Events.Take(_state.EventCount))
+        {
+            BoardPlacementSnapshot? restored = null;
+            if (item is CardSummonedEvent summon && summon.Side == side)
+            {
+                var state = summonedStates.Single(card => card.Id == summon.SummonedCardId);
+                restored = new BoardPlacementSnapshot(state.Id, BoardZone.Battlefield, summon.BoardStart,
+                    summon.BoardStart + state.SummonedCard!.Identity.OccupiedSlots);
+            }
+            if (item is CardRepairedEvent repair && repair.Side == side)
+                restored = new BoardPlacementSnapshot(repair.CardId, BoardZone.Battlefield,
+                    repair.BoardStart, repair.BoardStart + repair.OccupiedSlots);
+            if (restored is null) continue;
+            placements.RemoveAll(placement => placement.Zone == BoardZone.Battlefield && placement.Start < restored.EndExclusive
+                && restored.Start < placement.EndExclusive);
+            placements.Add(restored);
+        }
+        return before with { BoardPlacements = placements.AsReadOnly(), BattlefieldCount = placements.Count(item => item.Zone == BoardZone.Battlefield),
             Cards = Array.AsReadOnly(before.Cards.Concat(summonedCards).Select(card =>
         {
             var state = _state.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == side);
@@ -155,7 +175,8 @@ public sealed class BattlePlaybackPresenter
                     GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
                 };
             if (state is null) return card;
-            var projected = card with { CurrentValues = state.Values, IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
+            var projected = card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
+                IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
             return state.Quests.Count == 0 ? projected : projected with
             {
                 ElementKeys = state.QuestElementKeys, Tags = state.QuestTags, Abilities = state.QuestAbilities,

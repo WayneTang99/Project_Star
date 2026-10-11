@@ -26,6 +26,7 @@ public sealed partial class HeroSelectionView : Control
         MouseFilter = MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart };
     private readonly Button _choose = new() { Name = "Choose", Text = "选择英雄" };
     private readonly AudioStreamPlayer _selectionVoice = new() { Name = "SelectionVoice", MaxPolyphony = 1, VolumeDb = -1f };
+    private readonly RandomNumberGenerator _selectionVoiceRandom = new();
     private readonly List<(Button Button, Action Handler)> _buttons = new();
     private readonly List<Label> _values = new();
     private IReadOnlyList<KeyedAction> _heroes = Array.Empty<KeyedAction>();
@@ -37,7 +38,11 @@ public sealed partial class HeroSelectionView : Control
     private double _portraitMotionSeconds;
     private static readonly StringName AnimatedHeroKey = new("hero.paladin");
     private static readonly StringName MotionTimeParameter = new("motion_time");
-    private static readonly StringName PaladinVoicePath = new("res://audio/voices/heroes/paladin-selection.mp3");
+    private static readonly StringName[] PaladinVoicePaths =
+    [
+        new("res://audio/voices/heroes/paladin-selection.mp3"),
+        new("res://audio/voices/heroes/paladin-selection-glory.mp3"),
+    ];
     private static readonly Dictionary<StringName, Texture2D> Thumbnails = new();
 
     // 建立控件与本地浏览事件，不创建对局。
@@ -46,6 +51,7 @@ public sealed partial class HeroSelectionView : Control
         foreach (var control in new Control[] { _heading, _rosterHeading, _roster, _center, _title, _name,
             _attributes, _stats, _otherAttributes, _hint, _message, _choose }) AddChild(control);
         AddChild(_selectionVoice);
+        _selectionVoiceRandom.Randomize();
         _roster.AddChild(_entries); _entries.AddThemeConstantOverride("separation", 6);
         _heading.AddThemeFontSizeOverride("font_size", 24); _name.AddThemeFontSizeOverride("font_size", 36);
         _title.AddThemeFontSizeOverride("font_size", 18); _title.AddThemeColorOverride("font_color", MatchTheme.Gold);
@@ -163,7 +169,8 @@ public sealed partial class HeroSelectionView : Control
         _selectionVoice.Stop();
         if (_heroes[index].Key == AnimatedHeroKey)
         {
-            _selectionVoice.Stream ??= GD.Load<AudioStream>(PaladinVoicePath.ToString());
+            var voicePath = PaladinVoicePaths[_selectionVoiceRandom.RandiRange(0, PaladinVoicePaths.Length - 1)];
+            _selectionVoice.Stream = GD.Load<AudioStream>(voicePath.ToString());
             if (_selectionVoice.Stream is not null) _selectionVoice.Play();
         }
         if (index == _index) return;

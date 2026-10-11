@@ -194,6 +194,16 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
             if (setKey is not null && !sets.ContainsKey(setKey))
                 throw new DefinitionValidationException(
                     $"Card '{card.Attributes.Identity.Key}' references unknown set '{setKey}'.");
+            foreach (var level in System.Linq.Enumerable.Range(1, 5))
+            {
+                if (!card.SupportsLevel(level)) continue;
+                foreach (var ability in card.GetLevel(level)?.Abilities ?? card.Abilities)
+                foreach (var effect in ability.Effects)
+                    if (effect is GrantSourceLevelCardEffectDefinition reward
+                        && (!cards.TryGetValue(reward.Card.Attributes.Identity.Key, out var target)
+                            || !target.SupportsLevel(level) || !reward.Card.SupportsLevel(level)))
+                        throw new DefinitionValidationException($"Card '{card.Attributes.Identity.Key}' has an invalid victory card reward at level {level}.");
+            }
         }
     }
 

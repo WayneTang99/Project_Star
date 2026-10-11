@@ -16,6 +16,8 @@ public sealed partial class MatchShell : Control
 {
     public event Action<MatchPage, StringName, long>? ChoiceSelected;
     public event Action<int, long>? BuyRequested;
+    public event Action<BoardDragData, int, long>? GemSocketRequested;
+    public event Func<BoardDragData, int, long, Result>? GemSocketPreviewRequested;
     public event Action<MatchAction>? ActionRequested;
     public event Action<BoardZone, int>? BoardSlotPressed;
     public event Action<BoardDragData, BoardZone, int>? MoveRequested;
@@ -41,6 +43,7 @@ public sealed partial class MatchShell : Control
     private EncounterSelectionView _encounters = null!;
     private KeyedActionView _events = null!;
     private ShopView _shop = null!;
+    private GemShopView _gemShop = null!;
     private ResultView _result = null!;
     private BoardZoneView _battlefield = null!;
     private BoardZoneView _bench = null!;
@@ -129,6 +132,9 @@ public sealed partial class MatchShell : Control
         _encounters = Add(host, new EncounterSelectionView { Name = "EncounterChoiceView" });
         _events = Add(host, new KeyedActionView { Name = "EventView" });
         _shop = Add(host, new ShopView { Name = "ShopView" });
+        _gemShop = Add(host, new GemShopView { Name = "GemShopView" });
+        _gemShop.PreviewRequested = PreviewGem;
+        _gemShop.DropRequested += DropGem;
         _result = Add(host, new ResultView { Name = "ResultView" });
         _enemy = Add(host, new BoardZoneView { Name = "EnemyBoard", ShowHeading = false });
         _battleStage = Add(host, new BattleStageView { Name = "BattleStage" });
@@ -183,8 +189,8 @@ public sealed partial class MatchShell : Control
             view.EncounterLevel, view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? view.Enemy?.Hero : null,
             view.Playback?.State.Opponent);
         _portrait.SetContext(view.ContextIllustration, view.Message);
-        _portrait.SetEyebrow($"第 {(view.DisplayTurn > 0 ? view.DisplayTurn : view.Player?.Turn ?? 0)} 回合 · {(view.Page == MatchPage.Shop ? $"{view.ShopLevel} 级商店" : view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? "怪物遭遇" : "旅途抉择")}");
-        var activeNavigation = view.Page == MatchPage.Shop ? 0
+        _portrait.SetEyebrow($"第 {(view.DisplayTurn > 0 ? view.DisplayTurn : view.Player?.Turn ?? 0)} 回合 · {(view.Page is MatchPage.Shop or MatchPage.GemShop ? $"{view.ShopLevel} 级商店" : view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? "怪物遭遇" : "旅途抉择")}");
+        var activeNavigation = view.Page is MatchPage.Shop or MatchPage.GemShop ? 0
             : view.Page is MatchPage.Preparation or MatchPage.BattlePlayback or MatchPage.BattleResult or MatchPage.MatchEnded ? 2 : 1;
         for (var index = 0; index < _navigation.GetChildCount(); index++)
             _navigation.GetChild<Label>(index).AddThemeColorOverride("font_color", index == activeNavigation ? MatchTheme.Gold : MatchTheme.Muted);
@@ -197,12 +203,14 @@ public sealed partial class MatchShell : Control
         _encounters.Render(view.Message, view.Choices);
         _events.Render(view.Message, view.EventOptions, view.EventRevision, view.ContextIllustration, view.EncounterLevel);
         _shop.Render(view.Message, view.Offers, view.ShopLevel);
+        _gemShop.Render(view.Player, view.GemOffers);
         if (view.Page is MatchPage.BattleResult or MatchPage.MatchEnded) _result.Render(view);
         var browsing = _catalog.Visible || _skillCatalog.Visible;
         _heroes.Visible = view.Page == MatchPage.HeroSelection && !browsing;
         _encounters.Visible = view.Page == MatchPage.EncounterChoice;
         _events.Visible = view.Page == MatchPage.Event;
         _shop.Visible = view.Page == MatchPage.Shop;
+        _gemShop.Visible = view.Page == MatchPage.GemShop;
         _result.Visible = view.Page is MatchPage.BattleResult or MatchPage.MatchEnded;
         var capacity = Math.Max(view.Player?.BattlefieldCapacity ?? 0,
             Math.Max(view.Player?.BenchCapacity ?? 0, view.Enemy?.BattlefieldCapacity ?? 0));
@@ -211,6 +219,8 @@ public sealed partial class MatchShell : Control
         _battlefield.SharedCapacity = _bench.SharedCapacity = _enemy.SharedCapacity = capacity;
         _battlefield.Render(view.Player, BoardZone.Battlefield, view.BoardEnabled, view.SelectedCardId, "战场");
         _bench.Render(view.Player, BoardZone.Bench, view.BoardEnabled, view.SelectedCardId, "备战");
+        if (view.Page == MatchPage.GemShop)
+            _battlefield.TooltipText = _bench.TooltipText = "右侧砧板镶嵌 · 左侧英雄区出售 · Escape取消拖拽";
         _enemy.Render(view.EnemyVisible && view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? view.Enemy : null,
             BoardZone.Battlefield, false, null, view.Playback is null ? "敌方战场"
                 : $"战斗 {view.Playback.Tick / 10m:0.0}s{(view.Playback.Paused ? " · 暂停" : "")}{(view.Playback.State.Eclipse ? " · 日蚀" : "")}");
@@ -248,6 +258,7 @@ public sealed partial class MatchShell : Control
 
     public override void _ExitTree()
     {
+        _gemShop.PreviewRequested = null; _gemShop.DropRequested -= DropGem;
         GetTree().NodeAdded -= AddButtonFeedback;
         _desktopScroll.ValueChanged -= ScrollChanged;
         _toastTween?.Kill();
@@ -329,6 +340,9 @@ public sealed partial class MatchShell : Control
     private void DropMove(BoardDragData data, BoardZone zone, int start) => MoveRequested?.Invoke(data, zone, start);
     private void DropSale(BoardDragData data, CardSnapshot card) =>
         DragSellRequested?.Invoke(data.MatchId, data.CardId, card.Level, card.Value);
+    private void DropGem(BoardDragData data, int index, long revision) => GemSocketRequested?.Invoke(data, index, revision);
+    private Result PreviewGem(BoardDragData data, int index, long revision) => GemSocketPreviewRequested?.Invoke(data, index, revision)
+        ?? Result.Fail(new Failure(new StringName("ui.gem_unavailable"), "镶嵌暂不可用。"));
     private Result<int> PreviewSale(BoardDragData data) => SellPreviewRequested?.Invoke(data)
         ?? Result<int>.Fail(new Failure(new StringName("ui.sale_unavailable"), "当前不可出售。"));
     private Result<BoardPlacementResult> PreviewMove(BoardDragData data, BoardZone zone, int start) =>
@@ -399,7 +413,7 @@ public sealed partial class MatchShell : Control
         Place("ContextRow/ContextHost", hostLeft, top, hostWidth, phaseHeight);
         Place("BattlefieldRow/Content", mainLeft, top + phaseHeight + 12, mainWidth, boardHeight);
         Place("BenchRow/Content", mainLeft, top + phaseHeight + boardHeight + 24, mainWidth, boardHeight);
-        foreach (var view in new Control[] { _heroes, _encounters, _events, _shop, _result })
+        foreach (var view in new Control[] { _heroes, _encounters, _events, _shop, _gemShop, _result })
         { view.Position = Vector2.Zero; view.Size = GetNode<Control>("ContextRow/ContextHost").Size; }
         _enemy.Position = Vector2.One; _enemy.Size = new Vector2(mainWidth - 2, enemyHeight);
         // 复用原怪物摘要，仅移至左上；敌方棋盘独立占据右上。
@@ -428,7 +442,9 @@ public sealed partial class MatchShell : Control
         _catalog.Position = new Vector2(margin, margin); _catalog.Size = Size - Vector2.One * margin * 2;
         _skillCatalog.Position = _catalog.Position; _skillCatalog.Size = _catalog.Size;
         _details.ClampTo(Size); _secondary.ClampTo(Size);
-        _sellDrop.Position = _stageRect.Position + Vector2.One * 8; _sellDrop.Size = _stageRect.Size - Vector2.One * 16;
+        // 宝石商店右侧砧板接收镶嵌，出售遮罩仅占左侧英雄区域。
+        var saleRect = _page == MatchPage.GemShop ? _heroRect : _stageRect;
+        _sellDrop.Position = saleRect.Position + Vector2.One * 8; _sellDrop.Size = saleRect.Size - Vector2.One * 16;
         _portrait.Visible = !choosing && !_battleStage.Visible;
         _layingOut = false; QueueRedraw();
     }

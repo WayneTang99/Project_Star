@@ -9,6 +9,9 @@ public sealed record PermanentChange(EntityId CardId, string ChangeType);
 // 战斗中已生效、结算时需保留到对局实例的属性贡献（领域战斗层）。
 public sealed record PermanentCardAttributeBonus(EntityId CardId, SideId Side, Godot.StringName AttributeKey, int Amount);
 
+// 开战时冻结的己方对局奖励来源，战斗不执行其效果（领域战斗输入输出）。
+public sealed record MatchRewardSource(EntityId SourceId, int Level, bool RequiresOwnedCard, IReadOnlyList<AbilityDefinition> Abilities);
+
 public enum BattleOutcome
 {
     PlayerVictory = 0,
@@ -65,4 +68,5 @@ public sealed class BattleResult
 
     public IReadOnlyList<BattleStateSnapshot> States { get; }
     public IReadOnlyList<PermanentCardAttributeBonus> PermanentAttributeBonuses { get; }
+    public IReadOnlyList<MatchRewardSource> MatchRewardSources { get; init; } = Array.Empty<MatchRewardSource>();
 }

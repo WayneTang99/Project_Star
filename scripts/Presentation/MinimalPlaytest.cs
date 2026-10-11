@@ -50,6 +50,8 @@ public sealed partial class MinimalPlaytest : Control
         _shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
         _shell.ChoiceSelected += Choose;
         _shell.BuyRequested += _presenter.BuyCard;
+        _shell.GemSocketRequested += SocketGem;
+        _shell.GemSocketPreviewRequested += PreviewGem;
         _shell.ActionRequested += Act;
         _shell.BoardSlotPressed += _presenter.OnBoardSlot;
         _shell.MoveRequested += Move;
@@ -70,6 +72,8 @@ public sealed partial class MinimalPlaytest : Control
         {
             _shell.ChoiceSelected -= Choose;
             _shell.BuyRequested -= _presenter.BuyCard;
+            _shell.GemSocketRequested -= SocketGem;
+            _shell.GemSocketPreviewRequested -= PreviewGem;
             _shell.ActionRequested -= Act;
             _shell.BoardSlotPressed -= _presenter.OnBoardSlot;
             _shell.MoveRequested -= Move;
@@ -83,6 +87,8 @@ public sealed partial class MinimalPlaytest : Control
         }
     }
     private void Render(MatchPageViewModel view) => _shell.Render(view);
+    private void SocketGem(BoardDragData data, int index, long revision) => _presenter.SocketShopGem(data.MatchId, data.CardId, index, revision);
+    private Project_Star.Application.Common.Result PreviewGem(BoardDragData data, int index, long revision) => _presenter.PreviewGemSocket(data.MatchId, data.CardId, index, revision);
     private Project_Star.Application.Common.Result<int> PreviewSale(BoardDragData data) =>
         _presenter.PreviewSale(data.MatchId, data.CardId);
     private void Move(BoardDragData data, BoardZone zone, int start) => _presenter.MoveCard(data.MatchId, data.CardId, zone, start);

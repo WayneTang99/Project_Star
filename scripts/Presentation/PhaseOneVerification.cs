@@ -65,6 +65,7 @@ public sealed partial class PhaseOneVerification : Control
             ("获得卡牌统一设置半价现值", EconomyChecks.CheckAcquisitionSources),
             ("半价出现小数时向下取整", EconomyChecks.CheckAcquiredValueRounding),
             ("等级变化不会重算当前价值", EconomyChecks.CheckLevelDoesNotRecalculateValue),
+            ("合成补等级价值差额并保留成长，连续合并与溢出事务正确", EconomyChecks.CheckMergeValueCompensation),
             ("同名同级卡牌连续合并且保留目标实例", EconomyChecks.CheckCardMergeUpgrade),
             ("卡牌可以限制等级并应用分级配置", EconomyChecks.CheckCardLevelDefinitions),
             ("无阵营无属性卡牌支持分级价值且没有能力", EconomyChecks.CheckBeastHideDefinition),
@@ -194,7 +195,40 @@ public sealed partial class PhaseOneVerification : Control
             ("磨刀石各等级出售强化最左侧攻击卡牌，实际伤害与冻结正确", WhetstoneChecks.LevelsAndDamage),
             ("磨刀石出售累加、合并更新、升级保留与溢出失败正确", WhetstoneChecks.StackingAndFailures),
             ("磨刀石目标涵盖全部直接伤害能力与零攻击卡牌", WhetstoneChecks.AttackClassification),
+            ("萤火吉丁虫各等级发动与出售最左侧灼伤成长、冻结正确", FireglowJewelBeetleChecks.LevelsAndSales),
+            ("萤火吉丁虫支持固定、属性、百分比灼伤及狂暴多重", FireglowJewelBeetleChecks.ClassificationAndPercent),
+            ("萤火吉丁虫永久累加、合并升级保留、空目标与溢出拒绝", FireglowJewelBeetleChecks.StackingAndFailures),
+            ("冒险者猎弓身份、四等级6秒攻击、原画及套装快照正确", AdventurerHuntingBowChecks.IdentityAndDamage),
+            ("猎弓怪物胜利同级兽皮，参战筛选、冻结、合并及满盘保留正确", AdventurerHuntingBowChecks.RewardsAndPlacement),
+            ("冒险者套装去重、每轮及胜利经验、阈值累积与冻结正确", AdventurerHuntingBowChecks.SetExperience),
+            ("冒险者5件生命随等级更新，移区出售撤销且重复刷新不叠加", AdventurerHuntingBowChecks.DynamicHealth),
+            ("冒险者背包身份、原画、三级光环和英雄等级乘算正确", AdventurerBackpackChecks.IdentityAndScaling),
+            ("背包光环叠加撤销、双方等级隔离、备战辅助筛选与召唤正确", AdventurerBackpackChecks.StackingAndRemoval),
+            ("背包与猎弓激活正式2件套，升级更新攻击且旧输入保持冻结", AdventurerBackpackChecks.HeroGrowthAndSet),
+            ("遗迹石像身份、两级伤害护甲与开战禁锢8秒首发正确", RuinStoneStatueChecks.LevelsAndTiming),
+            ("碎骨法师身份、分级伤害、摧毁筛选、多重及空目标正确", BonebreakerMageChecks.LevelsAndSacrifice),
+            ("捣蛋鬼蝙蝠身份、分级随机迟缓、2秒伤害与战场筛选正确", MischievousBatChecks.LevelsAndTargets),
+            ("捣蛋鬼蝙蝠迟缓累加、多重、飞行减时长及空目标正确", MischievousBatChecks.StackingAndEmptyTargets),
+            ("见习剑士身份、四档7秒伤害、原画及快照筛选正确", ApprenticeSwordsmanChecks.LevelsAndArtwork),
+            ("见习剑士中型人类回响、多重充能及即时发动筛选正确", ApprenticeSwordsmanChecks.MatchingAndImmediateCharge),
+            ("回响尺寸与标签元素筛选组合、去重及非法配置拒绝正确", ApprenticeSwordsmanChecks.SizeFilterComposition),
+            ("钢制扳手四档5秒伤害、原画与完整冷却修复正确", SteelWrenchChecks.LevelsAndRestart),
+            ("钢制扳手随机筛选、多重逐张修复、永久及备战排除正确", SteelWrenchChecks.SelectionAndMulticast),
+            ("修复取消旧队列、保留首次发动历史并恢复冷却光环正确", SteelWrenchChecks.QueueAndRepeatedRepair),
+            ("修复避开占位、位置恢复回放及跨战斗隔离正确", SteelWrenchChecks.OccupancyAndPlayback),
+            ("征服者堡垒身份、两级光环、零攻击人类成长与真实伤害正确", ConquerorFortressChecks.LevelsAndGrowth),
+            ("堡垒叠加、摧毁停触发保留增长与跨战斗隔离正确", ConquerorFortressChecks.StackingAndLifetime),
+            ("敌方发动排除失败备战技能回响，强化默认及非法配置正确", ConquerorFortressChecks.TriggerBoundaries),
+            ("原卡与召唤物摧毁后可再次召唤，回放占格及跨战斗隔离正确", BonebreakerMageChecks.RepeatedSummoningAndPlayback),
+            ("石像双方来源护甲、光环叠加、多重共用冷却与生命周期正确", RuinStoneStatueChecks.TargetsBonusesAndLifecycle),
             ("开锁器各等级出售强化最左侧疾速卡牌，实际时长与冻结正确", LockpickChecks.LevelsAndTiming),
+            ("刺客匕首身份原画、四档4秒伤害及首次翻倍正确", AssassinDaggerChecks.LevelsAndTiming),
+            ("暗影斗篷身份原画、半血严格阈值与分级隐身到期正确", ShadowCloakChecks.LevelsAndTiming),
+            ("暗影斗篷时长累加、备战摧毁排除、治疗后不重复与致命伤害正确", ShadowCloakChecks.StackingAndSourceFilters),
+            ("隐身保护生命与护甲、排除持续日蚀伤害且不触发受阻伤害回响", ShadowCloakChecks.DamageKindsAndEchoes),
+            ("英雄隐身徽章、暂停倍速跳过与非法配置校验正确", () => ShadowCloakChecks.PlaybackAndValidation(this)),
+            ("刺客匕首首次倍率兼容攻击加成、多重、开战狂暴、宝石与冻结预览", AssassinDaggerChecks.MulticastAndSnapshots),
+            ("刺客匕首实例双方隔离、魔法不足重试与配置边界正确", AssassinDaggerChecks.IsolationAndValidation),
             ("开锁器出售累加、合并升级、无目标及溢出失败正确", LockpickChecks.StackingAndFailures),
             ("开锁器覆盖相邻倍率、回响、随机及任务疾速，排除纯监听", LockpickChecks.ClassificationAndEcho),
             ("魔法坩埚各等级出售植物成长、区域筛选和7秒施毒正确", MagicCauldronChecks.LevelsAndGrowth),
@@ -288,6 +322,22 @@ public sealed partial class PhaseOneVerification : Control
             ("真实遭遇原画图卡选择、商店晶体与旧按钮解绑", () => PlaytestVerification.EncounterArtworkScene(this)),
             ("测试关卡各类遭遇默认4级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
+            ("宝石首效果取值、敌方状态、多重升级与冻结正确", GemShopChecks.ActivationAndPrimary),
+            ("机关重弩身份、原画、三级伤害与多重共用冷却正确", MechanismHeavyCrossbowChecks.LevelsAndMulticast),
+            ("机关重弩相邻机械筛选、双侧不重复与动态冷却正确", MechanismHeavyCrossbowChecks.AdjacencyAndTransitions),
+            ("短刃斥候身份、原画、三级疾速伤害与冷却正确", ShortbladeScoutChecks.LevelsAndCooldown),
+            ("短刃斥候外部疾速、多重、增益及来源失效正确", ShortbladeScoutChecks.StatusSourcesAndMulticast),
+            ("自身状态获得回响筛选、零时长及连锁截断正确", ShortbladeScoutChecks.FiltersAndChainCutoff),
+            ("连枷骑士身份、原画、三级伤害与多重共用冷却正确", FlailKnightChecks.LevelsAndMulticast),
+            ("连枷骑士增益、备战摧毁失效与跨战斗隔离正确", FlailKnightChecks.RuntimeIsolation),
+            ("精钢战斧身份、原画、四档10秒伤害与快照正确", FineSteelBattleAxeChecks.LevelsAndDamage),
+            ("精钢战斧相邻人类、双侧多重及攻击成长正确", FineSteelBattleAxeChecks.AdjacencyAndGrowth),
+            ("精钢战斧触发筛选、来源失效及跨战斗隔离正确", FineSteelBattleAxeChecks.FiltersAndIsolation),
+            ("备战卡面展示当前光环、英雄等级与移区后的最终值", CardFinalValueChecks.Preparation),
+            ("战斗卡面最终施加量、多重变化与旧回放快照正确", CardFinalValueChecks.Playback),
+            ("三种尺寸卡面多重标记、刷新和边界正确", () => CardFinalValueChecks.FaceScene(this)),
+            ("宝石商店两砧板、扣费刷新、一次选择与过期隔离正确", GemShopChecks.FeesAndRefresh),
+            ("宝石商店真实砧板拖放、预览只读及离店关闭正确", () => GemShopChecks.DragScene(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
             ("圣骑士动效时钟独立、刷新保留、隐藏暂停与英雄切换正确", () => HeroArtworkChecks.CheckMotion(this)),
             ("圣骑士选角配音支持鼠标键盘、重复重播、刷新保留与隐藏停播", () => HeroArtworkChecks.CheckVoice(this)),
@@ -318,6 +368,12 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-shadow-cloak"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ShadowCloakChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-card-interactions"))
             Callable.From((Action)(async () =>
             {
@@ -334,6 +390,36 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await CardCatalogChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-mechanism-heavy-crossbow"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MechanismHeavyCrossbowChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-shortblade-scout"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ShortbladeScoutChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-flail-knight"))
+            Callable.From((Action)(async () =>
+            {
+                try { await FlailKnightChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-fine-steel-battle-axe"))
+            Callable.From((Action)(async () =>
+            {
+                try { await FineSteelBattleAxeChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-card-final-values"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardFinalValueChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-skill-catalog"))
@@ -354,6 +440,12 @@ public sealed partial class PhaseOneVerification : Control
                 try { await MentorChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-gem-shop"))
+            Callable.From((Action)(async () =>
+            {
+                try { await GemShopChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--verify"))
             Callable.From(() =>
             {
@@ -366,7 +458,18 @@ public sealed partial class PhaseOneVerification : Control
             {
                 try
                 {
-                    var passed = await PlaytestVerification.NativeDrag(this) && await DragSaleChecks.Native(this);
+                    var passed = await PlaytestVerification.NativeDrag(this) && await DragSaleChecks.Native(this) && await GemShopChecks.NativeDrag(this);
+                    GD.Print($"原生拖拽输入验证：{(passed ? "通过" : "失败")}");
+                    GetTree().Quit(passed ? 0 : 1);
+                }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-gem-shop-drag"))
+            Callable.From((Action)(async () =>
+            {
+                try
+                {
+                    var passed = await GemShopChecks.NativeDrag(this);
                     GD.Print($"原生拖拽输入验证：{(passed ? "通过" : "失败")}");
                     GetTree().Quit(passed ? 0 : 1);
                 }

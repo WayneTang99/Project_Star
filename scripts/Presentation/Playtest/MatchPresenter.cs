@@ -21,6 +21,7 @@ public sealed class MatchPresenter
     private readonly BoardService _board;
     private readonly CardEconomyService _economy;
     private readonly ShopCardPoolService _shops;
+    private readonly GemShopService _gemShops;
     private readonly ResolveEncounterOptionService _events;
     private readonly MentorService _mentors;
     private readonly MonsterRewardClaimService _rewards;
@@ -56,18 +57,21 @@ public sealed class MatchPresenter
         _registry = registry; _board = board; _economy = economy;
         _shops = shops; _events = events; _rewards = rewards; _game = game;
         _mentors = mentors;
+        _gemShops = new GemShopService(registry);
         _opponents = opponents ?? throw new ArgumentNullException(nameof(opponents));
     }
 
     public event Action<MatchPageViewModel>? ViewChanged;
     public MatchPageViewModel View { get; private set; } = null!;
 
-    private MatchSnapshot Snapshot(MatchSession session) => MatchDisplayQuery.Capture(session, _registry.Sets);
+    private MatchSnapshot Snapshot(MatchSession session) => MatchDisplayQuery.Capture(session, _registry.Sets,
+        ReferenceEquals(session, _player) ? _enemy : _player);
 
     public void Reset() => Execute(ResetFlow);
 
     private void ResetFlow()
     {
+        if (_player is not null) _gemShops.Close(_player);
         _player = null; _enemy = null; _stock = null; _options = null; _selected = null;
         _mentorVisit = null;
         _playback = null;
@@ -99,6 +103,7 @@ public sealed class MatchPresenter
     private void GenerateChoices()
     {
         if (_player is null) return;
+        _gemShops.Close(_player);
         _enemy = null; _stock = null; _options = null; _selected = null;
         _mentorVisit = null;
         _playback = null;
@@ -128,6 +133,13 @@ public sealed class MatchPresenter
         switch (choice.Kind)
         {
             case EncounterKind.Shop:
+                if (_registry.Encounters[key] is GemShopDefinition gemShop)
+                {
+                    var opened = _gemShops.Open(_player, gemShop);
+                    _page = MatchPage.GemShop;
+                    _message = opened.IsFailure ? opened.Failure!.Message : "拖动发动卡牌到对应砧板 · 本次只能镶嵌一次";
+                    break;
+                }
                 _page = MatchPage.Shop;
                 _stock = _registry.Encounters[key] is ShopEncounterDefinition shop
                     ? _shops.CreateStock(_player, shop, _registry.Cards.Values, choice.ShopLevel) : null;
@@ -175,10 +187,29 @@ public sealed class MatchPresenter
 
     public void RefreshShop() => Execute(() =>
     {
+        if (_player is not null && _page == MatchPage.GemShop)
+        {
+            var refreshed = _gemShops.Refresh(_player);
+            _message = refreshed.IsFailure ? refreshed.Failure!.Message : $"宝石刷新成功，花费 {ShopCardPoolService.GetRefreshCost(_shopLevel)} 金币。";
+            return;
+        }
         if (_player is null || _page != MatchPage.Shop || _stock is null) return;
         var result = _shops.Refresh(_player, _stock);
         if (result.IsSuccess) _shopRevision++;
         _message = result.IsSuccess ? $"商店刷新成功，花费 {_stock.RefreshCost} 金钱。" : result.Failure!.Message;
+    });
+
+    public Project_Star.Application.Common.Result PreviewGemSocket(Guid matchId, EntityId cardId, int index, long revision) =>
+        _player is not null && _page == MatchPage.GemShop
+            ? _gemShops.CheckSocket(_player, new SocketShopGemCommand(matchId, cardId, index, revision))
+            : Project_Star.Application.Common.Result.Fail(new Project_Star.Application.Common.Failure(new StringName("ui.stale_gem_drag"), "本次镶嵌已失效。"));
+
+    public void SocketShopGem(Guid matchId, EntityId cardId, int index, long revision) => Execute(() =>
+    {
+        if (_player is null || _page != MatchPage.GemShop) return;
+        var result = _gemShops.Socket(_player, new SocketShopGemCommand(matchId, cardId, index, revision));
+        _message = result.IsFailure ? result.Failure!.Message : "镶嵌完成，宝石随卡牌永久保留。本次商店已完成镶嵌。";
+        if (result.IsSuccess) _selected = null;
     });
 
     public void ResolveEventOption(StringName key, long revision) => Execute(() =>
@@ -337,7 +368,7 @@ public sealed class MatchPresenter
         if (_page == MatchPage.MatchEnded) { Reset(); return; }
         Execute(() =>
         {
-            if (_page == MatchPage.Shop || _page == MatchPage.BattleResult
+            if (_page is MatchPage.Shop or MatchPage.GemShop or MatchPage.BattleResult
                 || _page == MatchPage.Event && _eventCompleted) GenerateChoices();
         });
     }
@@ -390,26 +421,32 @@ public sealed class MatchPresenter
                 return new KeyedAction(offer.SkillKey, new UiAction($"{offer.DisplayName} · {offer.Level}级"))
                     { Level = offer.Level, Subtitle = CardDisplayAdapter.AbilityDetails(skill.Abilities, skill.CurrentValues).Replace("\n", " · ") };
             }).ToArray();
-        var canContinue = _page is MatchPage.Shop or MatchPage.BattleResult or MatchPage.MatchEnded
+        var canContinue = _page is MatchPage.Shop or MatchPage.GemShop or MatchPage.BattleResult or MatchPage.MatchEnded
             || _page == MatchPage.Event && _eventCompleted;
         var refreshReason = _stock is null || _player is null ? "本次商店不可刷新"
             : _shops.CheckRefresh(_player, _stock).Failure?.Message ?? "";
+        if (_page == MatchPage.GemShop && _player is not null) refreshReason = _gemShops.CheckRefresh(_player).Failure?.Message ?? "";
+        var refreshCost = _page == MatchPage.GemShop ? ShopCardPoolService.GetRefreshCost(_shopLevel) : _stock?.RefreshCost ?? 0;
         View = new MatchPageViewModel(_page, playing ? "战斗回放" : _title,
             playing ? $"{_playback!.Tick / 10m:0.0}秒" : _message, player, enemy, _selected,
             player is not null && _page is not (MatchPage.MatchEnded or MatchPage.BattlePlayback),
             enemy is not null && _page is MatchPage.Preparation or MatchPage.BattleResult or MatchPage.MatchEnded or MatchPage.BattlePlayback,
             Array.AsReadOnly(heroes), Array.AsReadOnly(choices), offers.AsReadOnly(), Array.AsReadOnly(options), _eventRevision,
-            new UiAction($"刷新 · {_stock?.RefreshCost ?? 0} 金币", _page == MatchPage.Shop && _stock is not null,
+            new UiAction($"刷新 · {refreshCost} 金币", _page == MatchPage.GemShop || _page == MatchPage.Shop && _stock is not null,
                 refreshReason.Length == 0, refreshReason),
             new UiAction("开始战斗", _page == MatchPage.Preparation),
-            new UiAction(_page == MatchPage.Shop ? "离开商店" : _page == MatchPage.MatchEnded ? "返回英雄选择"
+            new UiAction(_page is MatchPage.Shop or MatchPage.GemShop ? "离开商店" : _page == MatchPage.MatchEnded ? "返回英雄选择"
                 : _page == MatchPage.Event ? "继续旅程" : "进入下一回合", canContinue),
             new UiAction(player?.PendingMonsterRewards.Count > 0
                 ? $"领取战利品：{player.PendingMonsterRewards[0].DisplayName}" : "领取战利品",
                 player?.PendingMonsterRewards.Count > 0 && !playing))
         {
             BattleLog = _battleLog,
-            ShopLevel = _page == MatchPage.Shop ? _shopLevel : 0,
+            ShopLevel = _page is MatchPage.Shop or MatchPage.GemShop ? _shopLevel : 0,
+            GemOffers = _page == MatchPage.GemShop && _player?.ActiveGemShopVisit is { } visit
+                ? Array.AsReadOnly(visit.Offers.Select((gem, index) => new GemAnvilViewModel(index, visit.Revision,
+                    gem.Attributes.Identity.Key, gem.Attributes.Identity.DisplayName, gem.Attributes.Identity.Description,
+                    gem.Color, visit.Definition.SocketCost, visit.IsResolved)).ToArray()) : Array.Empty<GemAnvilViewModel>(),
             ContextIllustration = _encounterIllustration,
             EncounterLevel = _encounterLevel,
             DisplayRound = player is null ? 0 : _page == MatchPage.EncounterChoice ? player.Round : _battleRound,

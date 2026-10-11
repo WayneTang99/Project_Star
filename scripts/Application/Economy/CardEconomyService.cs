@@ -76,6 +76,8 @@ public sealed class CardEconomyService
             return Result<CardAcquisitionResult>.Fail(new Failure(
                 MergeBoardUnavailable,
                 "Merging placed cards requires configured board operations."));
+        var valueCheck = CheckMergeValue(session, definition, plan);
+        if (valueCheck.IsFailure) return Result<CardAcquisitionResult>.Fail(valueCheck.Failure!);
         return Result<CardAcquisitionResult>.Success(AcquireOrMerge(session, definition, level, plan));
     }
 
@@ -100,6 +102,8 @@ public sealed class CardEconomyService
                 MergeBoardUnavailable,
                 "Merging placed cards requires configured board operations."));
 
+        var valueCheck = CheckMergeValue(session, offer.Definition, plan);
+        if (valueCheck.IsFailure) return Result<CardAcquisitionResult>.Fail(valueCheck.Failure!);
         if (!session.Player.TrySpendWealth(offer.Price))
         {
             return Result<CardAcquisitionResult>.Fail(new Failure(InsufficientWealth, "Not enough wealth to buy this card."));
@@ -153,6 +157,8 @@ public sealed class CardEconomyService
 
     private Result CheckPlacement(MatchSession session, CardDefinition definition, MergePlan plan)
     {
+        var valueCheck = CheckMergeValue(session, definition, plan);
+        if (valueCheck.IsFailure) return valueCheck;
         if (_boardService is null || !CanApplyMergePlan(session, plan))
             return Result.Fail(new Failure(MergeBoardUnavailable, "未配置棋盘操作，无法完成交易。"));
         if (plan.TargetId is { } id && session.Board.Contains(id)) return Result.Success();
@@ -206,6 +212,21 @@ public sealed class CardEconomyService
                 return Result<int>.Fail(new Failure(SaleRewardUnavailable, "A hero is required for this sale reward."));
             if ((long)hero.Attributes.BaseCombat.GetFinalValue(heroBonus.AttributeKey) + heroBonus.Amount > int.MaxValue)
                 return Result<int>.Fail(new Failure(InvalidValue, "Sale hero attribute bonus would overflow."));
+        }
+
+        if (card.OnSellReward is IncreaseLeftmostBurnCardOnSellDefinition burnBonus
+            && FindLeftmostBurnCard(session, cardId) is { } burnTarget)
+        {
+            var pending = burnTarget.SaleAttributeBonuses
+                .Where(bonus => bonus.AttributeKey == GameAttributeKeys.BurnBonus && card.Tags.Contains(bonus.RequiredTag))
+                .Sum(bonus => (long)bonus.Amount) + burnBonus.Amount;
+            var finalBonus = (long)burnTarget.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.BurnBonus) + pending;
+            long PendingValue(StringName key) => (long)burnTarget.Attributes.BaseCombat.GetFinalValue(key)
+                + burnTarget.SaleAttributeBonuses.Where(bonus => bonus.AttributeKey == key && card.Tags.Contains(bonus.RequiredTag))
+                    .Sum(bonus => (long)bonus.Amount);
+            if (finalBonus > int.MaxValue || CardAbilityComposer.Compose(burnTarget).SelectMany(ability => ability.Effects)
+                .Where(BurnEffectRules.AppliesBurn).Any(effect => BurnEffectRules.BaseAmount(effect, PendingValue) + finalBonus > int.MaxValue))
+                return Result<int>.Fail(new Failure(InvalidValue, "Sale burn amount bonus would overflow."));
         }
 
         if (card.OnSellReward is IncreaseLeftmostHasteCardOnSellDefinition hasteBonus
@@ -285,6 +306,13 @@ public sealed class CardEconomyService
         }
     }
 
+    private static CardInstance? FindLeftmostBurnCard(MatchSession session, EntityId excludedCardId) =>
+        session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
+            .Where(placement => placement.CardId != excludedCardId)
+            .Select(placement => session.Player.Inventory.Find(placement.CardId))
+            .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
+                .Any(ability => ability.Effects.Any(BurnEffectRules.AppliesBurn)));
+
     private static CardInstance? FindLeftmostHasteCard(MatchSession session, EntityId excludedCardId) =>
         session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
             .Where(placement => placement.CardId != excludedCardId)
@@ -298,7 +326,7 @@ public sealed class CardEconomyService
             .Select(placement => session.Player.Inventory.Find(placement.CardId))
             .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
                 .Any(ability => ability.Effects.Any(effect => effect is
-                    DamageEffectDefinition or AttributeDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
+                    DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
                     or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
                     or SourceHeroArmorDamageEffectDefinition)));
 
@@ -311,6 +339,12 @@ public sealed class CardEconomyService
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
     {
+        if (soldCard.OnSellReward is IncreaseLeftmostBurnCardOnSellDefinition burnBonus)
+        {
+            FindLeftmostBurnCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), soldCard.Id, GameAttributeKeys.BurnBonus, burnBonus.Amount));
+            return;
+        }
         if (soldCard.OnSellReward is IncreaseLeftmostHasteCardOnSellDefinition hasteBonus)
         {
             FindLeftmostHasteCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
@@ -403,7 +437,10 @@ public sealed class CardEconomyService
         var target = session.Player.Inventory.Find(plan.TargetId.Value)
             ?? throw new InvalidOperationException("Merge target is not owned by the player.");
         var previousLevel = target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
+        var value = checked(target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value)
+            + CardValueCalculator.CalculateMergeCompensation(definition, previousLevel, plan.FinalLevel));
         _entityFactory.ApplyCardLevel(target, definition, plan.FinalLevel);
+        target.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, value);
         new CardQuestService(_boardService).ProcessEvent(session,
             new CardAcquiredQuestEvent(definition.Attributes.Identity.ElementKeys));
         return new CardAcquisitionResult(target, false, previousLevel, plan.FinalLevel);
@@ -411,6 +448,25 @@ public sealed class CardEconomyService
 
     private bool CanApplyMergePlan(MatchSession session, MergePlan plan) =>
         _boardService is not null || plan.ConsumedIds.All(id => !session.Board.Contains(id));
+
+    private static Result CheckMergeValue(MatchSession session, CardDefinition definition, MergePlan plan)
+    {
+        if (plan.TargetId is not { } id) return Result.Success();
+        var target = session.Player.Inventory.Find(id)!;
+        try
+        {
+            var delta = CardValueCalculator.CalculateMergeCompensation(definition,
+                target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), plan.FinalLevel);
+            if (checked(target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) + delta) < 0
+                || checked(target.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) + delta) < 0)
+                return Result.Fail(new Failure(InvalidValue, "合成后的卡牌价值不能为负。"));
+        }
+        catch (OverflowException)
+        {
+            return Result.Fail(new Failure(InvalidValue, "合成后的卡牌价值超出范围。"));
+        }
+        return Result.Success();
+    }
 
     private MergePlan BuildMergePlan(MatchSession session, CardDefinition definition, int level)
     {

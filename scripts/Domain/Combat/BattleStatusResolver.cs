@@ -9,6 +9,19 @@ namespace Project_Star.Domain.Combat;
 // 冷却、持续状态、相邻状态反应与周期结算（领域战斗层内部）。
 internal static class BattleStatusResolver
 {
+    // 英雄隐身按逻辑Tick自然衰减，到期在本Tick攻击结算前失效。
+    internal static void AdvanceHeroStates(BattleRuntime runtime)
+    {
+        foreach (var side in new[] { SideId.Player, SideId.Opponent })
+        {
+            var hero = runtime.GetHero(side);
+            if (hero.StealthDurationTicks <= 0) continue;
+            hero.StealthDurationTicks--;
+            if (hero.StealthDurationTicks == 0)
+                runtime.Events.Add(new HeroStealthChangedEvent(runtime.Tick, side, 0));
+        }
+    }
+
     // 每 Tick 递减卡牌冷却和状态时长，先按现行疾速/迟缓倍率计算。
     internal static void AdvanceCooldowns(BattleRuntime runtime)
     {
@@ -114,6 +127,8 @@ internal static class BattleStatusResolver
         var applied = ApplyStatus(target, runtime.GetHero(target.Side), new ApplyStatusEffectDefinition(status, amount));
         runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status, applied));
         if (applied > 0) ApplyAdjacentStatusReactions(runtime, target, status);
+        if (applied > 0 && !pending.IsEcho)
+            CombatSimulator.EnqueueSourceStatusGainedEchoes(runtime, target, status);
         if (applied > 0 && status == BattleStatus.SlowDuration && !pending.IsEcho)
             CombatSimulator.EnqueueSlowAppliedEchoes(runtime, pending.Source.Side);
     }
@@ -135,6 +150,13 @@ internal static class BattleStatusResolver
                     if (effect is ReduceSourceCooldownWhileInStateEffectDefinition stateAura
                         && (stateAura.StateKey == GameAttributeKeys.Flying ? source.IsFlying : source.IsBerserk))
                         bonus = checked(bonus - stateAura.AmountTicks);
+                    if (effect is ReduceSourceCooldownWhileAdjacentTaggedCardEffectDefinition adjacentAura
+                        && runtime.Cards.Any(card => card.EntityId != source.EntityId && card.Side == source.Side
+                            && !card.Destroyed && !card.IsOnBench
+                            && BattleEffectResolver.HasEffectiveTag(runtime, card, adjacentAura.RequiredTag)
+                            && (card.BoardStart + card.OccupiedSlots == source.BoardStart
+                                || source.BoardStart + source.OccupiedSlots == card.BoardStart)))
+                        bonus = checked(bonus - adjacentAura.AmountTicks);
                 }
             var reduction = source.Destroyed || source.IsOnBench ? 0 : Math.Min(100, runtime.AbilitySources
                 .Where(provider => !provider.Destroyed && !provider.IsOnBench && provider.Side == source.Side)

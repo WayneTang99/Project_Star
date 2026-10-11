@@ -130,6 +130,7 @@ internal static class AscendantChecks
                 || context.Match.Board.Locate(context.Card.Id) != originalLocation) return false;
             var after = MatchSnapshot.From(context.Match).Cards.Single();
             if (!after.Quests.SequenceEqual(before.Quests) || after.Value != before.Value
+                    + CardValueCalculator.CalculateMergeCompensation(context.Definition, level, level + 1)
                 || !after.ElementKeys.SequenceEqual(before.ElementKeys) || !after.Tags.SequenceEqual(before.Tags)
                 || after.CurrentValues[GameAttributeKeys.AttackDamage] != before.CurrentValues[GameAttributeKeys.AttackDamage]
                 || after.CurrentValues.GetValueOrDefault(GameAttributeKeys.Multicast) != before.CurrentValues.GetValueOrDefault(GameAttributeKeys.Multicast)

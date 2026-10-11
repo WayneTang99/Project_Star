@@ -37,7 +37,7 @@ internal static class GemSocketChecks
         var filled = MatchSnapshot.From(session).Cards.Single();
         if (before.Cards.Single().GemSockets[0] is not null || filled.GemSockets[0]?.DisplayName != "测试红宝石"
             || service.Execute(session, command with { Gem = new TestGem("blue", "测试蓝宝石") }).IsSuccess
-            || card.GemSockets[0]?.Key != gem.Attributes.Identity.Key) return false;
+            || card.GemSockets[0]?.Attributes.Identity.Key != gem.Attributes.Identity.Key) return false;
         var material = factory.CreateCard(definition, 2);
         session.Player.Inventory.Add(material);
         if (service.Execute(session, command with { CardId = material.Id, Gem = new TestGem("blue", "测试蓝宝石") }).IsFailure) return false;
@@ -45,7 +45,7 @@ internal static class GemSocketChecks
         var merged = economy.AcquireCard(session, definition, 1, CardAcquisitionSource.Reward);
         if (merged.IsFailure || merged.Value!.Card.Id != material.Id || session.Player.Inventory.Cards.Count != 1
             || material.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != 3
-            || material.GemSockets[0]?.Key != new StringName("verification.gem.blue")
+            || material.GemSockets[0]?.Attributes.Identity.Key != new StringName("verification.gem.blue")
             || session.Player.Inventory.Find(card.Id) is not null) return false;
         if (economy.SellCard(session, material.Id).IsFailure || session.Player.Inventory.Cards.Count != 0
             || service.Execute(session, command).IsSuccess || filled.GemSockets[0]?.DisplayName != "测试红宝石") return false;

@@ -5,6 +5,7 @@ using Project_Star.Application.Common;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
+using Project_Star.Domain.Combat;
 
 namespace Project_Star.Application.Match;
 
@@ -16,6 +17,14 @@ public sealed class SocketGemService
 {
     // 将渠道提供的宝石写入己方卡牌实例；失败不改变任何宝石孔。
     public Result Execute(MatchSession session, SocketGemCommand command)
+    {
+        var check = Check(session, command);
+        if (check.IsFailure) return check;
+        session.Player.Inventory.Cards.Single(card => card.Id == command.CardId).SocketGem(command.SocketIndex, command.Gem);
+        return Result.Success();
+    }
+
+    public Result Check(MatchSession session, SocketGemCommand command)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(command);
@@ -30,7 +39,8 @@ public sealed class SocketGemService
             return Fail("gem.invalid_socket", "宝石孔不存在。");
         if (card.GemSockets[command.SocketIndex] is not null)
             return Fail("gem.socket_occupied", "该宝石孔已镶嵌，不能替换。");
-        card.SocketGem(command.SocketIndex, command.Gem.Attributes.Identity);
+        if (command.Gem.ActiveEffects.Count > 0 && !CardAbilityComposer.Compose(card).Any(ability => ability.Activation == AbilityActivation.Active))
+            return Fail("gem.requires_active", "只能镶嵌在发动卡牌上。");
         return Result.Success();
     }
 

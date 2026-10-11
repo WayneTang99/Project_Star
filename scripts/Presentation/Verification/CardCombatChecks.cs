@@ -336,7 +336,7 @@ internal static class CardCombatChecks
             || definition.Attributes.Identity.FactionKey != new StringName("paladin")
             || definition.Attributes.Identity.Size != CardSize.Medium
             || definition.Attributes.Identity.ElementKeys.Count != 1
-            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
             || !definition.Tags.Contains(GameTags.Equipment)
             || levelTwo.Abilities[0].CooldownTicks != 80
             || levelThree.Abilities[0].CooldownTicks != 70
@@ -499,8 +499,9 @@ internal static class CardCombatChecks
             || definition.SupportsLevel(5)
             || definition.Attributes.Identity.FactionKey != new StringName("paladin")
             || definition.Attributes.Identity.Size != CardSize.Large
-            || definition.Attributes.Identity.ElementKeys.Count != 1
-            || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
+            || definition.Attributes.Identity.ElementKeys.Count != 2
+            || !definition.Attributes.Identity.ElementKeys.Contains(GameElements.Wind)
+            || !definition.Attributes.Identity.ElementKeys.Contains(GameElements.Light)
             || !definition.Tags.Contains(GameTags.Beast)
             || !definition.Tags.Contains(GameTags.Mount)
             || levelTwo.Abilities[0].Activation != AbilityActivation.Active

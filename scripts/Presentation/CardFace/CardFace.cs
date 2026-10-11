@@ -19,6 +19,7 @@ public sealed partial class CardFace : Control
     private Panel _artInnerRim = null!;
     private TextureRect _artwork = null!;
     private Control _effects = null!;
+    private Label _multicast = null!;
     private CardValueBadge _valueBadge = null!;
     private NinePatchRect _ornament = null!;
     private Polygon2D _valuePlate = null!;
@@ -41,6 +42,11 @@ public sealed partial class CardFace : Control
         _artInnerRim = GetNode<Panel>("ArtFrame/InnerRim");
         MoveChild(_artFrame, 1);
         _effects = GetNode<Control>("Effects"); _effects.ClipContents = false;
+        _multicast = new Label { Name = "Multicast", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 2,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        _multicast.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("293140e8"), new Color("d2b3ff")));
+        MatchTheme.Text(_multicast, 11, new Color("eadbff"), true, true);
+        AddChild(_multicast);
         _valueBadge = GetNode<CardValueBadge>("ValueBadge");
         _effects.ZIndex = _valueBadge.ZIndex = 1;
         _ornament = GetNode<NinePatchRect>("Ornament");
@@ -141,6 +147,11 @@ public sealed partial class CardFace : Control
         _elementLayer.Size = Size;
         var count = _elementLayer.GetChildCount();
         const float diameter = 23;
+        var multicastWidth = Math.Min(width - 14,
+            MatchTheme.Font(true, true).GetStringSize(_multicast.Text, fontSize: 11).X + 10);
+        var multicastFitsTop = multicastWidth <= width - 14 - count * diameter - Math.Max(0, count - 1) * 4 - 4;
+        _multicast.Position = new Vector2(7, multicastFitsTop ? 7 : 34);
+        _multicast.Size = new Vector2(multicastWidth, 22);
         for (var index = 0; index < count; index++)
         {
             var badge = _elementLayer.GetChild<Control>(index);
@@ -214,6 +225,8 @@ public sealed partial class CardFace : Control
 
     private void RebuildEffects(CardFaceViewModel viewModel)
     {
+        _multicast.Visible = viewModel.Multicast > 0;
+        _multicast.Text = $"多重 {viewModel.Multicast}";
         foreach (var child in _effects.GetChildren())
         {
             _effects.RemoveChild(child);
