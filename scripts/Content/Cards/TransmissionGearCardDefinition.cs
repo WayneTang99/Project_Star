@@ -12,7 +12,7 @@ public sealed class TransmissionGearCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.transmission_gear"), "传动齿轮", new StringName("harla"),
                 CardSize.Small, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/transmission_gear-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/transmission_gear-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [new(CardKeywords.Echo, "当左侧直接相邻的己方战场卡牌发动后，右侧直接相邻的己方战场卡牌获得1/2/3/4秒疾速。")])),
             new TagSet([GameTags.Mechanical]), initialLevel: 1,

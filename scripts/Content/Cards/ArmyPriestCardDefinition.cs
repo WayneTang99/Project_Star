@@ -13,7 +13,7 @@ public sealed class ArmyPriestCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.army_priest"), "随军牧师", new StringName("paladin"),
                 CardSize.Small, [GameElements.Light],
-                illustration: new StringName("res://art/ui/card-face/artwork/army_priest-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/army_priest-illustration-rework-20261011-goldwhite.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却7秒，魔法消耗10，治疗己方英雄40/80/140生命，并恢复10/20/40魔法。"),

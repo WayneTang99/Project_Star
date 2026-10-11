@@ -162,6 +162,10 @@ public sealed record ApplyStatusToRandomAlliedCardEffectDefinition(BattleStatus 
 public sealed record IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition(
     StringName ElementKey, int AmountTicks) : EffectDefinition;
 
+// 来源卡牌处于指定布尔状态时，动态缩短自身冷却（领域战斗层）。
+public sealed record ReduceSourceCooldownWhileInStateEffectDefinition(
+    StringName StateKey, int AmountTicks) : EffectDefinition;
+
 // 从来源战斗属性读取施加量，使状态可随实例永久加成成长（领域战斗层）。
 public sealed record ApplyAttributeStatusEffectDefinition(BattleStatus Status, StringName AttributeKey) : EffectDefinition;
 
@@ -324,8 +328,9 @@ public sealed class AbilityDefinition
             }
             if (effect is SummonAdjacentCardEffectDefinition summon
                 && (summon.Card is null || !Enum.IsDefined(summon.Side)
-                    || activation != AbilityActivation.PassiveOnBattleStart || target != AbilityTarget.SelfCard || allowsBench))
-                throw new ArgumentException("Adjacent summon requires a card, side and battlefield start self ability.", nameof(effects));
+                    || activation is not AbilityActivation.Active and not AbilityActivation.PassiveOnBattleStart
+                    || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Adjacent summon requires a card, side and battlefield active or start self ability.", nameof(effects));
             if (effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition armorMultiplier
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard
                     || allowsBench || armorMultiplier.AttributeKey.IsEmpty || armorMultiplier.Multiplier < 1))
@@ -377,6 +382,11 @@ public sealed class AbilityDefinition
                 && (activation != AbilityActivation.PassiveAura || cooldownAura.ElementKey.IsEmpty
                     || cooldownAura.AmountTicks < 1))
                 throw new ArgumentException("Element cooldown aura requires a known element and positive duration.", nameof(effects));
+            if (effect is ReduceSourceCooldownWhileInStateEffectDefinition stateCooldown
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || stateCooldown.StateKey != GameAttributeKeys.Flying && stateCooldown.StateKey != GameAttributeKeys.Berserk
+                    || stateCooldown.AmountTicks < 1))
+                throw new ArgumentException("State cooldown reduction requires a battlefield self aura, known state and positive duration.", nameof(effects));
             if (effect is ApplyStatusToRandomEnemyCardEffectDefinition { TargetCount: < 1 })
                 throw new ArgumentException("Random status target count must be positive.", nameof(effects));
             if (effect is ChargeSourceCardEffectDefinition sourceCharge

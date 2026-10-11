@@ -13,7 +13,7 @@ public sealed class SilverNeedleGrassCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.silver_needle_grass"), "银针草", new StringName("mona"),
                 CardSize.Small, [GameElements.Wood],
-                illustration: new StringName("res://art/ui/card-face/artwork/silver_needle_grass-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/silver_needle_grass-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [new(CardKeywords.Sell, "出售此卡牌时，己方战场最左侧治疗卡牌永久增加5/10/15/20治疗。")]),
             baseCombat: new ModifiableAttributeSet()),

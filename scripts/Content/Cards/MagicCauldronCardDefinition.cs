@@ -13,7 +13,7 @@ public sealed class MagicCauldronCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.magic_cauldron"), "魔法坩埚", new StringName("mona"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/magic_cauldron-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/magic_cauldron-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却7秒，魔法消耗0，对敌方英雄施加3中毒（随此卡牌施毒加成提高）。"),

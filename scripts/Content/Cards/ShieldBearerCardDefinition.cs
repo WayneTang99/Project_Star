@@ -13,7 +13,7 @@ public sealed class ShieldBearerCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.shield_bearer"), "盾甲士", new StringName("paladin"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/shield_bearer-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/shield_bearer-illustration-rework-20261011-goldwhite.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却5秒，魔法消耗0，己方英雄获得40护甲（随此卡牌护甲加成提高）。"),

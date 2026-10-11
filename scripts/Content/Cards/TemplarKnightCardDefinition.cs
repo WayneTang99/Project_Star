@@ -13,7 +13,7 @@ public sealed class TemplarKnightCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.templar_knight"), "圣殿骑士", new StringName("paladin"),
                 CardSize.Medium, [GameElements.Light],
-                illustration: new StringName("res://art/ui/card-face/artwork/templar_knight-illustration.png"), descriptionEntries:
+                illustration: new StringName("res://art/ui/card-face/artwork/templar_knight-illustration-rework-20261011.png"), descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却4秒，魔法消耗0，对敌方英雄造成60/120伤害（随此卡牌攻击加成提高）。"),
                     new(CardKeywords.Summon, "战斗开始时，分别在左右紧邻的空格召唤一张同级骑佩短剑；该侧无空间或已有卡牌时不召唤，召唤物仅本场战斗存在。"),

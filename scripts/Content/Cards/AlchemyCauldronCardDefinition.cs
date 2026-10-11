@@ -13,7 +13,7 @@ public sealed class AlchemyCauldronCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.alchemy_cauldron"), "炼金釜", new StringName("mona"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/alchemy_cauldron-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/alchemy_cauldron-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却6秒，魔法消耗0，对敌方英雄施加10中毒和10灼伤。"),

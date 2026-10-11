@@ -12,7 +12,7 @@ public sealed class TransmissionGearAssemblyCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.transmission_gear_assembly"), "传动齿轮组", new StringName("harla"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/transmission_gear_assembly-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/transmission_gear_assembly-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [new(CardKeywords.Echo, "当左侧直接相邻的己方战场卡牌发动后，右侧直接相邻的己方战场卡牌获得1/2秒充能。")])),
             new TagSet([GameTags.Mechanical]), initialLevel: 3,

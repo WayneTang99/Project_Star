@@ -13,7 +13,7 @@ public sealed class LockpickCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.lockpick"), "开锁器", new StringName("valos"),
                 CardSize.Small, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/lockpick-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/lockpick-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [new(CardKeywords.Sell, "出售此卡牌时，己方战场最左侧疾速卡牌每次施加的疾速时长永久增加0.5/1/1.5秒。")]),
             baseCombat: new ModifiableAttributeSet()),

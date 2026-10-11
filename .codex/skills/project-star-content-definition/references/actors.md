@@ -19,5 +19,6 @@
 - 新英雄生成 `scripts/Content/Heroes/<Name>HeroDefinition.cs` 及对应 `.cs.uid`，身份与初始属性只在 Definition 中维护；字段或规则变化时更新 `CONTENT_DATA.md`。
 - 新增英雄默认同时生成并接入独立原画，只有用户明确要求不生成时才跳过；“参数默认”不表示省略原画。使用 imagegen Skill 与内置 image_gen，每位英雄单独生成，不拼成图集。
 - 生成前查看 `art/ui/heroes/` 中现有英雄原画，沿用其画风与方形（1:1）构图；用户指定风格优先。面部清晰且适合小头像，不生成文字、卡框、UI或水印。卡牌尺寸比例规则不适用于英雄。
+- 主体突出、构图张力、同职业风格一致及跨职业色调区分遵循 [UI_SYSTEM.md](../../../../docs/design/UI_SYSTEM.md) 的原画规则；不要因跨职业参考而复制同一主色调。
 - 生成后查看主体、构图、解剖与装备，并读取实际宽高。正式图片保存为 `art/ui/heroes/<name>-illustration.png`，在对应 `HeroIdentityAttributes.Illustration` 配置只读 `StringName` 的 `res://` 路径；不能只留在生成目录。由Godot生成导入文件；提示词与来源记录可放在忽略目录 `output/`。
 - 验证身份、默认资源、战斗初值、定义注册和新对局创建；扩展已有 `HeroArtworkChecks`，检查原画纹理加载、身份到快照传递、选角预览和英雄面板显示。交付报告生成数量、实际尺寸、保存路径及验证结果。

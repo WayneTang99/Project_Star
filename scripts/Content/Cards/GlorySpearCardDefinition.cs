@@ -13,7 +13,7 @@ public sealed class GlorySpearCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.glory_spear"), "荣耀战矛", new StringName("paladin"),
                 CardSize.Medium, [GameElements.Light],
-                illustration: new StringName("res://art/ui/card-face/artwork/glory_spear-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/glory_spear-illustration-rework-20261011-full.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却9秒，魔法消耗0，对敌方英雄造成40伤害（随此卡牌攻击加成提高）。"),

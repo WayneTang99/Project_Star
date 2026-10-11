@@ -100,7 +100,7 @@ public sealed class CombatSimulator
             if (definition.ManaCost > 0 && paysMana)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
             if (!pending.IsEcho && !pending.IsMulticast)
-                pending.Ability.RemainingCooldownUnits = (definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2
+                pending.Ability.RemainingCooldownUnits = Math.Max(0, definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2
                     * (pending.Source is CardBattleState cooldownCard ? cooldownCard.EffectiveCooldownMultiplier : 1m);
             runtime.Events.Add(new AbilityActivatedEvent(
                 runtime.Tick,

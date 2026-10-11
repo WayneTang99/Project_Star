@@ -208,6 +208,8 @@ public sealed class CardDisplayAdapter
             $"施加当前{AttributeName(value.AttributeKey)}的{value.Percent}%{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}（向下取整）",
         SetSourceCardStateEffectDefinition value =>
             $"{(value.Enabled ? "施加" : "移除")}此卡牌{AttributeName(value.StateKey)}状态",
+        ReduceSourceCooldownWhileInStateEffectDefinition value =>
+            $"此卡牌{AttributeName(value.StateKey)}时，冷却缩短{value.AmountTicks / 10m:0.##}秒",
         ApplyStatusToAdjacentAlliedCardsEffectDefinition value => $"相邻己方卡牌获得 {value.Status} {value.Amount / 10m:0.##}秒，{TagDisplayNames.Get(value.BonusTag)} ×{value.BonusMultiplier}",
         ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => $"相邻 {TagDisplayNames.Get(value.RequiredTag)} 获得 {value.Status} 时，{value.AttributeKey} +{value.Amount}",
         DestroyCardEffectDefinition value => value.Permanent ? "永久摧毁卡牌" : "本场摧毁卡牌",

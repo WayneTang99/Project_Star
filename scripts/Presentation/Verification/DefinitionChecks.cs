@@ -133,8 +133,8 @@ internal static class DefinitionChecks
 
     internal static bool CheckUnknownTagDisplay()
     {
-        var unknown = new StringName("Dragon");
-        return TagDisplayNames.Get(unknown) == "Dragon";
+        var unknown = new StringName("verification.unknown_tag");
+        return TagDisplayNames.Get(unknown) == unknown.ToString();
     }
 
     internal static bool CheckCardDefinition()
