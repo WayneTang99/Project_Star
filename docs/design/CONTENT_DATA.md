@@ -50,6 +50,8 @@
 
 ### 按卡牌分类触发的充能回响
 
+`ChargeRandomOtherAlliedCardsEffectDefinition` 按配置数量无重复抽选己方其他存活战场卡牌并提供固定充能；候选必须有尚在冷却的主动能力，排除来源自身、敌方、备战及已摧毁卡牌。候选不足时影响全部候选，沿用确定性随机与充能到零的即时发动队列。
+
 `ChargeTaggedAlliedCardsEffectDefinition` 为匹配标签的己方存活战场卡牌逐张提供固定秒数充能，包含满足条件的来源自身，排除敌方、备战与已摧毁卡牌。充能只扣减当前主动能力的剩余冷却；由正值降至0时立即排队发动，已就绪能力不会重复排队。不改变基础冷却，产生的正常主动发动可触发既有回响。
 
 `EchoOnMatchingAlliedCardActivated` 配置 `TriggerCardTag` / `TriggerCardElement`，匹配己方战场卡牌的主动发动；任一条件成立即触发一次，两项同时满足不重复触发。可配置 `TriggerCardSize`，尺寸条件必须同时满足；也可仅按尺寸筛选。包含满足条件的来源自身及多重额外发动，排除敌方、技能、备战区与回响产生的被动发动。筛选随能力冻结传入快照。`ChargeSourceCardEffectDefinition` 缩短来源主动能力剩余冷却，到零时立即排队发动；不改变基础冷却，不触发被动能力的冷却。

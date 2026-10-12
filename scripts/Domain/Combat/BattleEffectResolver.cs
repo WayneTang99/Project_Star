@@ -250,6 +250,20 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Source card charge requires a card source.");
                 ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks);
                 break;
+            case ChargeRandomOtherAlliedCardsEffectDefinition randomCharge:
+                if (pending.Source is not CardBattleState randomChargeSource)
+                    throw new InvalidOperationException("Random card charge requires a card source.");
+                var chargeCandidates = runtime.Cards.Where(card => card.Side == randomChargeSource.Side
+                    && card.EntityId != randomChargeSource.EntityId && !card.Destroyed && !card.IsOnBench
+                    && card.Abilities.Any(ability => ability.Definition.Activation == AbilityActivation.Active
+                        && ability.RemainingCooldownUnits > 0)).ToList();
+                for (var i = 0; i < randomCharge.TargetCount && chargeCandidates.Count > 0; i++)
+                {
+                    var index = runtime.NextRandomIndex(chargeCandidates.Count);
+                    ChargeCard(runtime, randomChargeSource, chargeCandidates[index], randomCharge.AmountTicks);
+                    chargeCandidates.RemoveAt(index);
+                }
+                break;
             case ChargeCardEffectDefinition cardCharge:
                 if (pending.Source is not CardBattleState cardChargeSource)
                     throw new InvalidOperationException("Card charge requires a card source.");

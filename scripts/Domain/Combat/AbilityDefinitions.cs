@@ -165,6 +165,9 @@ public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
 // 缩短来源卡牌主动能力的剩余冷却（领域战斗层）。
 public sealed record ChargeSourceCardEffectDefinition(int AmountTicks) : EffectDefinition;
 
+// 无重复随机充能己方其他存活战场卡牌（领域战斗层）。
+public sealed record ChargeRandomOtherAlliedCardsEffectDefinition(int AmountTicks, int TargetCount) : EffectDefinition;
+
 // 缩短能力所选卡牌的主动冷却，支持自身及单侧相邻目标（领域战斗层）。
 public sealed record ChargeCardEffectDefinition(int AmountTicks) : EffectDefinition;
 
@@ -615,6 +618,9 @@ public sealed class AbilityDefinition
             {
                 throw new ArgumentException("Random card charge configuration is invalid.", nameof(effects));
             }
+            if (effect is ChargeRandomOtherAlliedCardsEffectDefinition randomCharge
+                && (randomCharge.AmountTicks < 1 || randomCharge.TargetCount < 1))
+                throw new ArgumentException("Random allied cards charge configuration is invalid.", nameof(effects));
             if (effect is GrantTagToEnemySizeCardsEffectDefinition tagAura
                 && (!Enum.IsDefined(tagAura.Size) || tagAura.Tag.IsEmpty))
             {

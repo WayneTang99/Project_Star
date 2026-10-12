@@ -403,6 +403,7 @@ public sealed class CardDisplayAdapter
         GainArmorEqualToManaSpentEffectDefinition => "获得等同于本场累计魔法消耗的护甲",
         GrantMulticastToAlliedElementCardsEffectDefinition value => $"己方{ElementName(value.ElementKey)}属性卡牌多重 +{value.Amount}",
         ChargeRandomOtherAlliedElementCardEffectDefinition value => $"随机另一张己方{ElementName(value.ElementKey)}属性卡牌充能 {value.AmountTicks / 10m:0.##}秒",
+        ChargeRandomOtherAlliedCardsEffectDefinition value => $"随机{value.TargetCount}张己方其他卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         ChargeSourceCardEffectDefinition value => $"此卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         ReduceSourceCooldownWhileAdjacentTaggedCardEffectDefinition value =>
             $"与己方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌直接相邻时，冷却缩短 {value.AmountTicks / 10m:0.##}秒（仅一次）",

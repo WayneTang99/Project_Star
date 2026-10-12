@@ -65,6 +65,7 @@ public abstract class SkillDefinition
                     or IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition
                     or ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition
                     or ChargeRandomOtherAlliedElementCardEffectDefinition
+                    or ChargeRandomOtherAlliedCardsEffectDefinition
                     or ChargeSourceCardEffectDefinition
                     or ChargeCardEffectDefinition
                     || effect is ApplyStatusEffectDefinition status

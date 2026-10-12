@@ -226,6 +226,7 @@ public sealed partial class PhaseOneVerification : Control
             ("宝石手套三级攻击、身份及升级文案正确", GemGloveChecks.DefinitionAndAttack),
             ("英雄升级随机宝石覆盖战场备战、连续升级、合并与冻结正确", GemGloveChecks.UpgradeAndSockets),
             ("猛犸近卫两级护甲、敌方发动充能与筛选正确", MammothGuardChecks.ArmorAndCharge),
+            ("魔源发电机分级、无重复充能、魔法支付与双方筛选正确", ManaSourceGeneratorChecks.LevelsAndCharge),
             ("征服者堡垒身份、两级光环、零攻击人类成长与真实伤害正确", ConquerorFortressChecks.LevelsAndGrowth),
             ("冰剑鱼身份、三级伤害、自身冰回响与多重正确", IceSwordfishChecks.LevelsAndDamage),
             ("冰剑鱼随机攻击卡筛选、零攻击成长与确定性隔离正确", IceSwordfishChecks.RandomTargetsAndIsolation),
@@ -528,6 +529,12 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await MammothGuardChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-mana-source-generator"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ManaSourceGeneratorChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-adventurer-journal"))
