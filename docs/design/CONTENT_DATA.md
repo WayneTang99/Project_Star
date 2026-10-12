@@ -332,3 +332,7 @@
 - 套装：卡牌最多一个归属；计数、目标、阈值叠加和生命周期遵循游戏规则。`PassiveOnRoundStart`配合`GrantExperienceEffectDefinition`在轮收入尚未结算时授予经验；`PassiveOnBattleVictory`读取开战冻结的已激活阈值，胜利后授予经验。`ModifyHeroLevelScaledAttributeEffectDefinition`在持续己方英雄能力中按当前等级乘系数提供Modifier，棋盘变化、回合经验、轮经验或战后经验升级后重算，失效撤销精确贡献。套装阈值描述从能力投影，正式数值只维护在`scripts/Content/Sets/`。
 
 内容注册与实例创建均直接使用 Definition；具体数值、词条说明和能力组合只在对应内容文件维护。
+
+英雄升级词条使用`keyword.upgrade`与`PassiveOnHeroLevelUp`。各应用层经验渠道统一调用`HeroExperienceService.Grant`；一次经验连续升多级时逐级结算冻结来源。`SocketRandomSourceGemEffectDefinition`为来源第一个空孔随机镶嵌宝石，允许备战时由`AllowsBench`指定；从创建对局时注入的正式宝石池按key稳定排序等概率选择，允许重复，空池／孔满／无可镶嵌目标不消耗随机数。既有孔位不替换，卡牌合并不触发英雄升级；旧战斗输入与快照保持冻结。
+
+`GrantValuePercentExperienceOnSellDefinition`配置出售经验占最终价值的百分比（1～100），由出售用例向下取整后交给统一英雄经验结算；与常规金币回补同时执行，不从基础价值计算。提交前使用只读经验预检，校验升级等级、最大生命和最大魔法的溢出；英雄升级后的持续属性通过现有棋盘刷新重算。该奖励可在Definition或等级配置中复用，UI读取同一奖励定义生成出售说明。

@@ -6,6 +6,7 @@ namespace Project_Star.Domain.Definitions;
 // 描述词条只组织展示文本，能力与触发规则仍由能力定义提供。
 public static class CardKeywords
 {
+    public static readonly StringName Upgrade = new("keyword.upgrade");
     public static readonly StringName Activate = new("keyword.activate");
     public static readonly StringName Echo = new("keyword.echo");
     public static readonly StringName Aura = new("keyword.aura");
@@ -24,7 +25,7 @@ public static class CardKeywords
     public static string DisplayName(StringName key) => key == Activate ? "发动"
         : key == Echo ? "回响" : key == Aura ? "光环" : key == Quest ? "任务"
         : key == Pickup ? "拾取" : key == Sell ? "出售" : key == Consume ? "消耗" : key == Passive ? "被动"
-        : key == Summon ? "召唤" : key == RoundStart ? "轮初"
+        : key == Upgrade ? "升级" : key == Summon ? "召唤" : key == RoundStart ? "轮初"
         : key == Opening ? "开战" : key == Trade ? "交易" : key == AfterBattle ? "历战" : key == Victory ? "凯旋"
         : throw new ArgumentException($"Unknown description keyword: {key}", nameof(key));
 }

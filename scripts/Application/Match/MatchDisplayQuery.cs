@@ -28,7 +28,8 @@ public static class MatchDisplayQuery
             {
                 var state = preview?.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == SideId.Player);
                 return state is null || !placed.Contains(card.Id) ? card
-                    : card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts };
+                    : card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
+                        CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null };
             }).ToArray()),
             Sets = Array.AsReadOnly(sets.Values.OrderBy(set => set.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
                 .Select(set => new CardSetSnapshot(set.Attributes.Identity.Key, set.Attributes.Identity.DisplayName,

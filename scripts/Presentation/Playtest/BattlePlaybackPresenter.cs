@@ -176,6 +176,7 @@ public sealed class BattlePlaybackPresenter
                 };
             if (state is null) return card;
             var projected = card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
+                CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null,
                 IsFlying = state.IsFlying, IsBerserk = state.IsBerserk };
             return state.Quests.Count == 0 ? projected : projected with
             {

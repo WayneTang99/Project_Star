@@ -31,6 +31,7 @@ public enum AbilityActivation
     EchoOnEnemyCardActivated = 19,
     EchoOnSourceHeroFirstLethalDamage = 20,
     PassiveOnPickup = 22,
+    PassiveOnHeroLevelUp = 23,
     PassiveOnEclipseStart = 21,
 }
 
@@ -380,6 +381,13 @@ public sealed class AbilityDefinition
                 && (primary.Percent < 0 || primary.Status is not (BattleStatus.Burn or BattleStatus.Poison)
                     || activation != AbilityActivation.Active))
                 throw new ArgumentException("Primary value status requires an active ability, burn or poison, and a nonnegative percentage.", nameof(effects));
+            if (activation == AbilityActivation.PassiveOnHeroLevelUp || effect is SocketRandomSourceGemEffectDefinition)
+            {
+                if (activation != AbilityActivation.PassiveOnHeroLevelUp || target != AbilityTarget.SelfCard
+                    || cooldownTicks != 0 || effect is not SocketRandomSourceGemEffectDefinition)
+                    throw new ArgumentException("Hero level up requires a source-card socket effect.", nameof(effects));
+                continue;
+            }
             if (MatchAbilityRules.IsMatchTrigger(activation)
                 ? target != AbilityTarget.AlliedHero || allowsBench || cooldownTicks != 0
                     || effect is not GrantExperienceEffectDefinition and not GrantSourceLevelCardEffectDefinition

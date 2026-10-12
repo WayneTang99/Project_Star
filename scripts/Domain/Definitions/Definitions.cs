@@ -84,6 +84,18 @@ public abstract class CardDefinition
 
 public abstract record CardOnSellRewardDefinition;
 
+// 出售时按卡牌最终价值的一定比例发放英雄经验，向下取整（领域定义层）。
+public sealed record GrantValuePercentExperienceOnSellDefinition : CardOnSellRewardDefinition
+{
+    public GrantValuePercentExperienceOnSellDefinition(int percent)
+    {
+        if (percent is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(percent));
+        Percent = percent;
+    }
+
+    public int Percent { get; }
+}
+
 // 出售后给战场最左侧施加灼伤的卡牌累加永久施加量（领域定义层）。
 public sealed record IncreaseLeftmostBurnCardOnSellDefinition : CardOnSellRewardDefinition
 {

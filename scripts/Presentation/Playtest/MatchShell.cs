@@ -351,7 +351,11 @@ public sealed partial class MatchShell : Control
     public void ShowHoverCard(CardSnapshot card, Rect2 rect, CardBattleSnapshot? battle = null)
     { if (!_pinnedDetails && !_cardPreview.Visible && !_menu.Visible && !_settings.Visible && !_skillCatalog.Visible && !GetViewport().GuiIsDragging()) { _details.SetPinned(false); _details.ShowNear(DescribeCard(card), new Rect2(rect.Position - GlobalPosition, rect.Size), Size, _catalog.Visible ? null : battle ?? BattleState(card)); } }
     // 固定详情不随卡牌离开而关闭。
-    public void HideHoverCard() { if (!_pinnedDetails) _details.Hide(); }
+    public void HideHoverCard(bool dragging = false)
+    {
+        if (dragging) { _pinnedDetails = false; _details.SetPinned(false); }
+        if (!_pinnedDetails) _details.Hide();
+    }
     private void DropMove(BoardDragData data, BoardZone zone, int start) => MoveRequested?.Invoke(data, zone, start);
     private void DropSale(BoardDragData data, CardSnapshot card) =>
         DragSellRequested?.Invoke(data.MatchId, data.CardId, card.Level, card.Value);

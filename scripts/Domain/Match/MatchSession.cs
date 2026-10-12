@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Project_Star.Domain.Common;
+using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Domain.Match;
 
@@ -13,13 +14,14 @@ public sealed class MatchSession
     private readonly List<AppliedCardQuestModifier> _appliedCardQuestModifiers = [];
     private int _pendingBattleMaxHealthBonus;
 
-    public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10)
+    public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10, IEnumerable<GemDefinition>? gems = null)
     {
         if (startingWealth < 0 || startingReputation < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(startingWealth));
         }
 
+        GemDefinitions = gems is null ? Array.Empty<GemDefinition>() : new List<GemDefinition>(gems).AsReadOnly();
         Id = Guid.NewGuid();
         Progress = new MatchProgress();
         Player = new PlayerState(startingWealth, startingReputation);
@@ -27,6 +29,8 @@ public sealed class MatchSession
         EncounterSchedule = new EncounterScheduleState();
         Random = new MatchRandomState(seed);
     }
+
+    public IReadOnlyList<GemDefinition> GemDefinitions { get; }
 
     public Guid Id { get; }
 
@@ -140,6 +144,22 @@ public sealed class PlayerState
 
     internal void AddExperience(int amount)
     {
+        var (experience, level, growth) = PreviewExperienceGain(amount);
+        if (Hero is not null)
+        {
+            if (growth > 0)
+            {
+                Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), Hero.Id, GameAttributeKeys.MaxHealth, growth));
+                Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), Hero.Id, GameAttributeKeys.MaxMana, growth));
+            }
+            Hero.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
+        }
+        Resources.SetBaseValue(GameAttributeKeys.Experience, experience);
+    }
+
+    // 提交出售等事务前校验经验和升级贡献，不写入资源或英雄属性。
+    internal (int Experience, int HeroLevel, int HeroGrowth) PreviewExperienceGain(int amount)
+    {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
         var experience = checked(Experience + amount);
         if (Hero is not null)
@@ -151,15 +171,9 @@ public sealed class PlayerState
             var growth = checked((int)(((long)previousLevel + 1 + level) * levelsGained * 10));
             _ = checked(Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxHealth) + growth);
             _ = checked(Hero.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.MaxMana) + growth);
-            if (growth > 0)
-            {
-                Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), Hero.Id, GameAttributeKeys.MaxHealth, growth));
-                Hero.Attributes.BaseCombat.ApplyModifier(new StatModifier(ModifierId.New(), Hero.Id, GameAttributeKeys.MaxMana, growth));
-            }
-            Hero.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Level, level);
-            experience %= 10;
+            return (experience % 10, level, growth);
         }
-        Resources.SetBaseValue(GameAttributeKeys.Experience, experience);
+        return (experience, 0, 0);
     }
 
     internal void LoseReputation(int amount)

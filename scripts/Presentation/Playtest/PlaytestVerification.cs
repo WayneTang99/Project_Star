@@ -273,7 +273,7 @@ internal static class PlaytestVerification
             scene.GetNode<Button>($"MatchShell/{zone}/Content/Board/Card_{card.Id.Value:N}").EmitSignal(Button.SignalName.Pressed);
             var details = scene.GetNode<CardDetailsView>("MatchShell/CardDetails");
             var sale = details.GetNode<Button>("Content/Sell");
-            if (!details.Visible || sale.Disabled || !sale.Text.Contains($"回补 {card.Value}")) return false;
+            if (!details.Visible || sale.Disabled || !sale.Text.Contains($"获得 {card.Value} 金币")) return false;
             var wealth = presenter.View.Player.Wealth;
             sale.EmitSignal(Button.SignalName.Pressed); sale.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Player!.Cards.Count != 0 || presenter.View.Player.Wealth != wealth + card.Value || details.Visible) return false;

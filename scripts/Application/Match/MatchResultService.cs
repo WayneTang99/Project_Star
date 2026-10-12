@@ -105,7 +105,7 @@ public sealed class MatchResultService
         var lostHealth = maxHealth - Math.Clamp(battle.OpponentRemainingHealth, 0, maxHealth);
         var level = monster.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level);
         session.Player.AddWealth(checked((int)(((long)level + 2) * lostHealth / maxHealth)));
-        session.Player.AddExperience(checked((int)(((long)level + 1) * lostHealth / maxHealth)));
+        HeroExperienceService.Grant(session, checked((int)(((long)level + 1) * lostHealth / maxHealth)));
         if (battle.Outcome != BattleOutcome.PlayerVictory) return;
 
         var candidates = new System.Collections.Generic.List<PendingMonsterReward>();

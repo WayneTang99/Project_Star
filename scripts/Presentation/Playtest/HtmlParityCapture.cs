@@ -240,6 +240,25 @@ internal static class HtmlParityCapture
             Id = EntityId.New(), Value = 24,
             DescriptionEntries = Array.AsReadOnly(new[] { new CardDescriptionEntry(CardKeywords.Activate, "对敌方英雄造成其最大生命 20% 的普通伤害。") }),
         };
+        var setDetails = OS.GetCmdlineUserArgs().Contains("--set-details");
+        var cooldownDetails = OS.GetCmdlineUserArgs().Contains("--cooldown-details");
+        if (cooldownDetails)
+        {
+            var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+            var source = MatchDisplayQuery.FromOffer(ShopOffer.Create(new FrankentCardDefinition(), 3));
+            card = new CardPreviewQuery(registry).Preview(source, 4, new StringName?[source.GemSockets.Count]);
+        }
+        if (setDetails)
+        {
+            var set = new Project_Star.Content.Sets.AdventurerSetDefinition();
+            card = MatchDisplayQuery.FromOffer(ShopOffer.Create(new AdventurerHuntingBowCardDefinition(), 1)) with
+            {
+                Id = EntityId.New(), HeroLevel = 4,
+                Set = new CardSetSnapshot(set.Attributes.Identity.Key, set.Attributes.Identity.DisplayName, 2,
+                    Array.AsReadOnly(set.Thresholds.Select(threshold => new CardSetThresholdSnapshot(threshold.RequiredDistinctCards,
+                        threshold.RequiredDistinctCards <= 2, threshold.Abilities)).ToArray())),
+            };
+        }
         var scale = owner.GetViewport().GetStretchTransform().Scale.X;
         details.ShowCard(card, new Vector2(184, 150) / scale, owner.Size);
         details.GetNode<Button>("Content/CardContent/InstanceToggle").Hide();
@@ -250,7 +269,7 @@ internal static class HtmlParityCapture
         using var image = owner.GetViewport().GetTexture().GetImage();
         var window = owner.GetWindow().Size;
         var windowSuffix = window == new Vector2I(image.GetWidth(), image.GetHeight()) ? "" : $"-window-{window.X}x{window.Y}";
-        var suffix = $"{image.GetWidth()}x{image.GetHeight()}{windowSuffix}{(blue ? "-blue" : "")}";
+        var suffix = $"{image.GetWidth()}x{image.GetHeight()}{windowSuffix}{(blue ? "-blue" : "")}{(setDetails ? "-set" : "")}{(cooldownDetails ? "-cooldown" : "")}";
         GD.Print($"详情组件：窗口{window}，图像{image.GetWidth()}x{image.GetHeight()}，内容坐标(200,150)，主题{(blue ? "星辉蓝" : "森林金")}。");
         if (image.SavePng($"res://output/ui-html-parity/details-component/native-{suffix}.png") != Error.Ok) throw new InvalidOperationException("详情组件截图保存失败。");
         var measurements = new Dictionary<string, object>();
@@ -265,6 +284,22 @@ internal static class HtmlParityCapture
         Measure("rule", Find<Control>(details, "Rule"));
         Measure("footer", Find<Control>(details, "Footer"));
         Measure("close", Find<Control>(details, "Close"));
+        if (setDetails)
+        {
+            var section = Find<Control>(details, "SetDetails");
+            foreach (var threshold in card.Set!.Thresholds)
+            {
+                var row = section.GetNode<HBoxContainer>($"Threshold{threshold.RequiredCount}");
+                var effect = row.GetNode<RichTextLabel>("Effect");
+                var state = row.GetNode<Label>("State");
+                if (effect.Size.X <= 0 || state.GetGlobalRect().End.X > section.GetGlobalRect().End.X + 1
+                    || state.Text != (threshold.Active ? "已生效" : "未达成"))
+                    throw new InvalidOperationException("套装三列布局溢出或状态错误。");
+            }
+            if (!section.GetNode<RichTextLabel>("Threshold5/Effect").GetParsedText().Contains("+40"))
+                throw new InvalidOperationException("套装数值未读取冻结英雄等级。");
+            GD.Print("套装详情：三列无溢出、2件生效、3/5件未达成、英雄4级最大生命+40。");
+        }
         var tags = Find<Control>(details, "Tags");
         for (var index = 0; index < tags.GetChildCount(); index++) Measure($"tag{index}", tags.GetChild<Control>(index));
         var rule = Find<RichTextLabel>(details, "Rule");

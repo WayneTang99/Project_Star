@@ -23,6 +23,12 @@ internal static class UiPrototypeSyncChecks
         var query = new CardPreviewQuery(registry);
         foreach (var level in catalog.SelectMany(entry => entry.Levels))
         {
+            var rules = CardDisplayAdapter.Rules(level.Card);
+            var described = query.Describe(level.Card, null);
+            if (described.Set?.Key == new StringName("set.apocalypse")
+                && !CardDisplayAdapter.SetDetails(described).Contains("敌方英雄：日蚀时间内，受到的日蚀伤害 ×2")) return false;
+            if (rules.Count(rule => rule.StartsWith("交易　", StringComparison.Ordinal)) != level.Card.SaleAttributeBonuses.Count
+                || rules.Count(rule => rule.StartsWith("出售　", StringComparison.Ordinal)) != (level.Card.OnSellReward is null ? 0 : 1)) return false;
             var text = string.Join("\n", CardDisplayAdapter.Rules(level.Card)) + "\n" + CardDisplayAdapter.CurrentDetails(level.Card)
                 + "\n" + CardDisplayAdapter.SetDetails(query.Describe(level.Card, null));
             if (text.Contains("基础 ") || System.Text.RegularExpressions.Regex.IsMatch(text, @"\d+/\d+/\d+|MaxHealth|HealthRegen|MaxMana|ManaRegen|Small型|Medium型|Large型")) return false;
@@ -55,6 +61,47 @@ internal static class UiPrototypeSyncChecks
             && new CardDisplayAdapter().Build(crossbow).Effects.Any(effect => effect.Kind == CardFaceEffectKind.Multicast);
     }
 
+    // 全卡等级与宝石预览必须保留护甲基值和实例加成，再由战斗层计算光环。
+    internal static bool PreviewArmor()
+    {
+        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var query = new CardPreviewQuery(registry);
+        foreach (var entry in CardCatalogQuery.Capture(registry))
+        foreach (var sourceLevel in entry.Levels)
+        foreach (var targetLevel in entry.Levels)
+        {
+            var source = sourceLevel.Card;
+            var target = targetLevel.Card;
+            if (!target.Abilities.SelectMany(a => a.Effects).OfType<Project_Star.Domain.Combat.GainSourceHeroArmorFromAttributeEffectDefinition>().Any()) continue;
+            var originalArmor = source.CurrentValues.GetValueOrDefault(GameAttributeKeys.Armor);
+            var own = new Dictionary<StringName, int>(source.CurrentValues);
+            own[GameAttributeKeys.Armor] = own.GetValueOrDefault(GameAttributeKeys.Armor) + 7;
+            var grown = source with { OwnValues = own, CurrentValues = own };
+            var sockets = new StringName?[source.GemSockets.Count];
+            // 同等级仍切换宝石，确保进入实际战斗预览计算。
+            sockets[0] = query.Gems[0].Key;
+            var preview = query.Preview(grown, target.Level, sockets);
+            var expected = target.CurrentValues.GetValueOrDefault(GameAttributeKeys.Armor) + 7;
+            var setup = new Project_Star.Domain.Combat.CardBattleSetup(EntityId.New(), 0,
+                target.CurrentValues.GetValueOrDefault(GameAttributeKeys.AttackDamage),
+                target.CurrentValues.GetValueOrDefault(GameAttributeKeys.CooldownTicks), target.Abilities,
+                UseLegacyAttack: false, Tags: new TagSet(target.Tags), OccupiedSlots: (int)target.Size,
+                ElementKeys: target.ElementKeys, ArmorAmount: expected)
+                { Level = target.Level, CombatValues = target.CurrentValues };
+            var state = new Project_Star.Domain.Combat.CombatSimulator().Preview(new(
+                new(new(EntityId.New(), 200, 0), [setup]), new(new(EntityId.New(), 200, 0), []), 1,
+                new BattleTick(1)), false).Cards.Single();
+            if (preview.CurrentValues.GetValueOrDefault(GameAttributeKeys.Armor)
+                != state.Values.GetValueOrDefault(GameAttributeKeys.Armor))
+            {
+                GD.Print($"护甲预览丢失：{source.DisplayName} {source.Level}→{target.Level}，实际{preview.CurrentValues.GetValueOrDefault(GameAttributeKeys.Armor)}，预期{state.Values.GetValueOrDefault(GameAttributeKeys.Armor)}");
+                return false;
+            }
+            if (source.CurrentValues.GetValueOrDefault(GameAttributeKeys.Armor) != originalArmor) return false;
+        }
+        return true;
+    }
+
     internal static bool Scene(Control owner)
     {
         var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
@@ -80,6 +127,40 @@ internal static class UiPrototypeSyncChecks
             return !preview.Visible && owner.GetViewport().GuiGetFocusOwner() == origin;
         }
         finally { owner.RemoveChild(origin); origin.Free(); owner.RemoveChild(label); label.Free(); owner.RemoveChild(preview); preview.Free(); }
+    }
+
+    // 真实战場投影与等级预览保留冷却；100%缩减仍显示0秒，被动卡不显示圆徽。
+    internal static bool CooldownDetails(Control owner)
+    {
+        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var factory = new Project_Star.Application.Factories.EntityFactory();
+        var board = new Project_Star.Application.Board.BoardService(new Project_Star.Domain.Match.BoardPlacementSolver(), registry.Sets);
+        var session = new Project_Star.Domain.Match.MatchSession(42, 100);
+        session.Player.SelectHero(factory.CreateHero(registry.Heroes[new StringName("hero.paladin")]));
+        var economy = new Project_Star.Application.Economy.CardEconomyService(factory);
+        var instance = economy.AcquireCard(session, registry.Cards[new StringName("card.frankent")], 3,
+            Project_Star.Application.Economy.CardAcquisitionSource.Reward).Value!.Card;
+        board.PlaceCard(session, instance.Id, Project_Star.Domain.Match.BoardZone.Battlefield, 0);
+        var capture = MatchDisplayQuery.Capture(session, registry.Sets);
+        var live = capture.Cards.Single();
+        if (live.CurrentCooldownSeconds != 6m) return false;
+        var query = new CardPreviewQuery(registry);
+        var content = new CardDetailsContent(); owner.AddChild(content);
+        try
+        {
+            foreach (var card in CardCatalogQuery.Capture(registry).SelectMany(entry => entry.Levels).Select(level => level.Card)
+                .Append(live).Append(query.Preview(live, 4, live.GemSockets.Select(gem => (StringName?)gem?.Key).ToArray(), capture))
+                .Append(live with { CurrentCooldownSeconds = 0m }))
+            {
+                content.Render(card, 396, 420);
+                var active = card.Abilities.Any(ability => ability.Activation == Project_Star.Domain.Combat.AbilityActivation.Active);
+                var badge = content.GetNode<Control>("HeaderMargin/Header/Cooldown");
+                var seconds = badge.FindChild("Seconds", true, false) as Label;
+                if (badge.Visible != active || seconds?.Text != $"{CardDisplayAdapter.CooldownSeconds(card):0.0}") return false;
+            }
+            return true;
+        }
+        finally { owner.RemoveChild(content); content.Free(); }
     }
 
     internal static async Task Capture(Control owner)

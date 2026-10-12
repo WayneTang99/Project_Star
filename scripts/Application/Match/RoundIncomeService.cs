@@ -37,7 +37,7 @@ public sealed class RoundIncomeService
         {
             MatchAbilityService.ApplyRoundSetCooldowns(session, _sets);
             var experience = MatchAbilityService.RoundExperience(session, _sets);
-            if (experience > 0) session.Player.AddExperience(experience);
+            if (experience > 0) HeroExperienceService.Grant(session, experience);
             new CardSetBonusService(_sets).Recalculate(session);
         }
         session.Progress.IncomeSettledThroughRound = session.Progress.Round;

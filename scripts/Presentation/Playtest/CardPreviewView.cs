@@ -107,8 +107,8 @@ public sealed partial class CardPreviewView : Control
         if (_source is null) return;
         DisplayedCard = _query?.Preview(_source, _level, _sockets, _context, _enemy) ?? _source;
         _name.Text = DisplayedCard.DisplayName; _face.SetCard(_adapter.Build(DisplayedCard));
-        var seconds = DisplayedCard.CurrentValues.GetValueOrDefault(Project_Star.Domain.Common.GameAttributeKeys.CooldownTicks) / 10m * DisplayedCard.CooldownMultiplier;
-        _meta.Text = $"{DisplayedCard.Level}级 · 价值 {DisplayedCard.Value}" + (seconds > 0 ? $" · 冷却 {seconds:0.##}秒" : "");
+        var seconds = CardDisplayAdapter.CooldownSeconds(DisplayedCard);
+        _meta.Text = $"{DisplayedCard.Level}级 · 价值 {DisplayedCard.Value}" + (DisplayedCard.Abilities.Any(ability => ability.Activation == Project_Star.Domain.Combat.AbilityActivation.Active) ? $" · 冷却 {seconds:0.##}秒" : "");
         foreach (var button in _levels.GetChildren().OfType<Button>()) button.SetPressedNoSignal(button.Text == _level + "级");
         _details.Render(DisplayedCard, Math.Max(1, _right.CustomMinimumSize.X), Math.Max(80, _panel.Size.Y - 530));
         _details.GetNode<Control>("HeaderMargin").Hide(); _details.GetNode<Control>("Footer").Hide(); LayoutArt();

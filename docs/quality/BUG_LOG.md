@@ -296,3 +296,23 @@
 | BUG-276 | 2026-10-12 | AdventurerHuntingBowChecks / AdventurerBackpackChecks | 新增第二个正式套装后，冒险者验证对套装快照调用无条件Single抛异常。 | 验证错误假定全目录只有一个套装；快照原本就包含全部正式套装。 | 按set.adventurer key选择目标，保留阈值、冷却及旧输入断言。 | Fixed |
 
 | BUG-277 | 2026-10-12 | MatchShell.ShowHoverCard / 图鉴 | 图鉴打开时卡牌悬停被屏蔽；移除固定详情栏后无法查看提示。 | 悬停门控排除了整个卡牌图鉴，详情绘制层也低于图鉴。 | 放开图鉴悬停并提高详情层级，图鉴预览使用无对局上下文；复用局内右键详情，Escape优先关闭浮层。 | Fixed |
+| BUG-278 | 2026-10-12 | CardDetailsContent.Render / HTML detail-set | 用户对比截图发现原生卡牌详情的套装区域与HTML原型不一致：原生为连续段落，HTML为独立分区、件数／效果／状态同行。 | 原生仅以AddParagraph输出套装标题和阈值，未同步HTML detail-set的分隔线、标题层级及三列结构；HTML冒险者5件说明另固定为+40，正式定义按英雄等级×10计算。 | 按当前HTML同步套装独立分区、三列阈值、名称标签和出售文案；HTML固定值改等级公式，原生继续读取正式能力及冻结英雄等级。两档原生截图检查与328/328回归通过，构建0警告0错误；HTML仅源码语法检查，浏览器本地文件预览被策略拦截。 | Fixed |
+| BUG-279 | 2026-10-12 | HtmlParityCapture / 套装截图夹具 | 新增夹具首次构建失败，误用RequiredCount读取正式阈值。 | 混淆Definition.RequiredDistinctCards和Snapshot.RequiredCount。 | 夹具从RequiredDistinctCards构建快照；构建0警告0错误，两档原生截图及三列状态／英雄等级数值检查通过。 | Fixed |
+| BUG-280 | 2026-10-12 | PlaytestVerification / 出售确认文案 | 套装同步首次全量327/328，真实卡面交易检查失败。 | 检查仍期待旧“回补”按钮文案，与同步后的“获得 N 金币”不一致。 | 仅更新文案断言，保留真实出售与奖励交易断言，重新运行全量回归。 | Fixed |
+| BUG-281 | 2026-10-12 | CardPreviewQuery.Side / 等级与宝石预览 | 用户截图中猛犸近卫4级护甲显示0而非360；同入口影响臂铠、斗笠、秩序板甲、遗迹石像、盾甲士、荆棘甲及魔能盾护甲加成。斗笠40+7预览实际0可复现。 | 预览组装CardBattleSetup只传CombatValues，没有传独立ArmorAmount；BattleCardState以ArmorAmount初始化护甲，默认0覆盖预期值。实际战斗BattleSetupFactory已正确传入护甲。原验证只覆盖初始卡面和战斗，未覆盖护甲等级切换。 | 共享入口从OwnValues传入ArmorAmount，保持只读；全卡池中护甲能力卡逐级交叉验证等级／宝石预览、+7成长及自身光环。329/329回归通过，构建0警告0错误；猛犸近卫3→4级原生截图护甲和文案均360。证据output/preview-armor/。 | Fixed |
+| BUG-282 | 2026-10-12 | scripts/Presentation/Playtest/MatchTheme.cs / CreateBackground | 用户反馈原生全屏背景缺少HTML的渐变纹理。HTML使用两层径向渐变与115°重复细纹；原生转为SVG radialGradient和pattern，视觉未保持一致。 | 待实际原生渲染验证；疑似SVG pattern／渐变转换兼容性，不能仅凭实现存在认定已同步。 | 对照当前HTML检查生成纹理与实际背景，验证SVG支持及渐变范围，按结果修正表现层。 | Open |
+| BUG-283 | 2026-10-12 | CardDisplayAdapter.Rules / 卡牌详情交易词条 | 炼金釜等响应出售其他卡牌的永久成长在详情显示为“出售”。 | SaleAttributeBonuses生成文案硬编码了出售标签，未使用已有交易分类；关键词高亮遗漏交易。 | 将其他卡牌出售成长标为交易，补齐高亮与购买／出售其他卡牌的术语边界；全卡池逐级检查交易与自身出售分类。 | Fixed |
+
+| BUG-284 | 2026-10-12 | CardKeywordText / AttributePalette / HTML 描述配色 | 卡牌描述中的修复、摧毁、转变、召唤未高亮，飞行、狂暴缺少专属色；隐身未识别。 | 动作词未加入关键词匹配，飞行和狂暴未映射语义色而回退通用青色；HTML 也缺少对应描述匹配。 | 补齐动作词的青色高亮，飞行浅蓝、狂暴橙红、隐身紫色同步 HTML 与原生描述渲染；不改变内容定义与战斗机制。 | Fixed |
+
+| BUG-285 | 2026-10-12 | HtmlParityCapture.Run / 固定详情缩放截图 | 通用截图在窗口缩放步骤提前退出：详情宽660、邻接间距24、Visible=false，未继续捕获状态页。 | 待定位；截图夹具的1280→1920窗口切换结果未满足440px屏幕宽度与16px间距约定，与此次纯关键词着色无关。 | 后续专项复查窗口伸缩与固定详情可见性；本次保留截图失败日志output/description-colors-capture.log，不改动布局。 | Open |
+| BUG-284 | 2026-10-12 | MatchDisplayQuery / CardPreviewQuery / CardDetailsContent | 用户截图中弗兰肯特发动卡牌不显示CD；战场和等级／宝石预览均可能漏显。 | 战斗预览的Values不包含冷却属性，投影直接替换CurrentValues后，详情读取默认0并隐藏圆徽；计算后的CooldownDurationUnits未传给卡牌显示快照。 | 新增只读CurrentCooldownSeconds传递战斗层冻结时长，详情、预览和当前属性共用；回放读取同一冻结时长，100%缩减显示0秒，被动卡隐藏。 | Fixed |
+| BUG-285 | 2026-10-12 | CardItemView.DragPreview / MatchShell.HideHoverCard | 选中卡牌后反复拖放，拖拽开始但松手不能移动；用户反馈棋盘拖不动。 | 拖拽只隐藏悬停详情，固定详情保留在棋盘上并拦截目标区域的原生GUI输入。 | 拖拽开始时关闭固定／悬停详情并解除固定标记；真实页面补测小中大型卡牌、选中后拖放、空格／占用格推挤、跨区、重复移动、出售及Escape取消。修复前真实页面复现失败，修复后原生输入通过。 | Fixed |
+| BUG-286 | 2026-10-12 | CardDisplayAdapter.Rules / 天启4件套详情 | 日蚀伤害倍率省略敌方英雄目标，易误读为双方受伤翻倍。 | 原生生成器统一省略EnemyHero目标；日蚀受伤倍率效果需要明确受影响方。正式定义、战斗及HTML已仅指向敌方。 | 对日蚀受伤倍率保留目标文案，增加天启全卡各等级套装说明断言；保留双方视角的己方2／敌方4日蚀伤害回归。 | Fixed |
+| BUG-287 | 2026-10-12 | 全量验证 / 插画与冒险者日志 | 日蚀目标文案修复后的全量验证330/333，插画传递、冒险者日志身份成长及套装计数三项失败。 | 新插画导入尚未齐备；日志夹具漏传套装注册表、以不支持的1级创建冒险者大剑，并误按三张合并编排。早期夹具还误用BattleResult字段。 | 完成正式原画导入；夹具使用BattleResult.EndedAt、完整套装注册表、大剑正式支持的3级及两张同级合并。日志三项专项均通过，证据output/adventurer-journal/verify-complete.log；天启内容不变。 | Fixed |
+| BUG-288 | 2026-10-12 | GemGloveChecks.UpgradeAndSockets / 全量验证 | 全量334/335，满孔不替换检查失败。 | 原断言把五孔数组existing再Append第五孔，期望数组长度变成6，与实际五孔永远不相等。 | 发放经验前冻结完整五孔数组，再比较发放后全部孔位与随机状态；保持真实满孔不替换、不消耗随机数的检查语义。 | Fixed |
+| BUG-289 | 2026-10-12 | CardDisplayAdapter.Rules / 升级词条重复分支 | 内容构建时报CS8510不可达switch模式。 | 工作区新增英雄升级能力时重复添加PassiveOnHeroLevelUp文案分支。 | 移除重复项，保留唯一升级与拾取分类；构建0警告0错误，全量336/336通过。 | Fixed |
+
+| BUG-290 | 2026-10-12 | 宝石手套初稿 / CardDisplayAdapter 与 GemGloveChecks | 首次构建出现重复升级switch分支和验证引用不存在的AbilityKey；定义初稿也遗漏冷却属性。 | 文案分支插入位置重复匹配，验证混淆事件字段；冷却只写入能力未写入属性。 | 去重升级分支，按来源发动次数验证战斗排除；各级属性补齐CooldownTicks=60。最终构建0警告0错误，336/336回归通过，原生预览显示6秒与五孔。 | Fixed |
+
+| BUG-291 | 2026-10-12 | HTML / 宝石手套样例按钮 | 点击新卡示例后详情内容生成但浮层立即隐藏。 | 点击冒泡至document通用关闭监听器，刚打开的浮层被关闭。 | 示例按钮停止冒泡，沿用卡牌点击的已有处理方式；不改变其他入口。 | Fixed |

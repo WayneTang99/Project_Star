@@ -68,7 +68,9 @@ public sealed partial class CardDetailsContent : VBoxContainer
         _name.Text = card.DisplayName;
         foreach (var child in _tags.GetChildren()) { _tags.RemoveChild(child); child.QueueFree(); }
         var tags = new[] { GameTags.FromSize(card.Size) }.Concat(card.Tags.Where(tag => tag != GameTags.FromSize(card.Size)))
-            .Select(TagDisplayNames.Get).Concat(card.ElementKeys.Select(element => element == GameElements.General ? "无" : CardDisplayAdapter.ElementName(element)));
+            .Select(TagDisplayNames.Get).Concat(card.Set is { } cardSet ? new[] { cardSet.DisplayName + "套装" } : Array.Empty<string>())
+            .Concat(card.ElementKeys.Where(element => card.Set is null || element != GameElements.General)
+                .Select(element => element == GameElements.General ? "无" : CardDisplayAdapter.ElementName(element)));
         foreach (var tag in tags)
         {
             var badge = new Label { Text = tag }; MatchTheme.Text(badge, 13, new Color("9aaa91"), spacing: 1);
@@ -76,9 +78,9 @@ public sealed partial class CardDetailsContent : VBoxContainer
             plate.SetCornerRadiusAll(0);
             badge.AddThemeStyleboxOverride("normal", plate); _tags.AddChild(badge);
         }
-        var ticks = card.CurrentValues.GetValueOrDefault(GameAttributeKeys.CooldownTicks);
-        _cooldown.Visible = ticks > 0 && card.Abilities.Any(ability => ability.Activation == AbilityActivation.Active);
-        _seconds.Text = $"{ticks / 10m * card.CooldownMultiplier:0.0}";
+        var seconds = battle?.CooldownDurationUnits.Count > 0 ? battle.CooldownDurationUnits.Max() / 20m : CardDisplayAdapter.CooldownSeconds(card);
+        _cooldown.Visible = card.Abilities.Any(ability => ability.Activation == AbilityActivation.Active);
+        _seconds.Text = $"{seconds:0.0}";
         // 先给换行控件明确正文宽度，避免延迟容器排版把标签和标题误算成多行。
         var titleWidth = Mathf.Max(1, width - 5 - (_cooldown.Visible ? _cooldown.GetCombinedMinimumSize().X + 10 : 0));
         _tags.Size = new Vector2(titleWidth, _tags.Size.Y);
@@ -95,16 +97,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         }
         if (card.Set is { } set)
         {
-            AddParagraph("SetName", $"套装 · {set.DisplayName} · 当前 {set.DistinctCardCount} 件", width);
-            foreach (var threshold in set.Thresholds)
-            {
-                var template = new CardSnapshot(default, set.Key, set.DisplayName, card.Level, 0, card.Size,
-                    card.FactionKey, card.ElementKeys, Array.Empty<QuestProgressSnapshot>())
-                    { HeroLevel = card.HeroLevel, Abilities = threshold.Abilities };
-                AddParagraph("SetThreshold", $"{threshold.RequiredCount}件 · {(threshold.Active ? "已生效" : "未达成")}\n"
-                    + string.Join("\n", CardDisplayAdapter.Rules(template)), width,
-                    threshold.Active ? new Color("d9dbc3") : new Color("acb59f"));
-            }
+            RenderSet(card, set, width);
         }
         if (battle is not null)
         {
@@ -143,6 +136,35 @@ public sealed partial class CardDetailsContent : VBoxContainer
         if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height)) _scroll.CustomMinimumSize = new Vector2(0, height);
     }
     private void ToggleAttributes() { _attributes.Visible = !_attributes.Visible; UpdateBodyHeight(); }
+    private void RenderSet(CardSnapshot card, CardSetSnapshot set, float width)
+    {
+        var section = new VBoxContainer { Name = "SetDetails", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        section.AddThemeConstantOverride("separation", 8); _paragraphs.AddChild(section);
+        section.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8), MouseFilter = MouseFilterEnum.Ignore });
+        section.AddChild(Line());
+        section.AddChild(new Control { CustomMinimumSize = new Vector2(0, 6), MouseFilter = MouseFilterEnum.Ignore });
+        var heading = new HBoxContainer { Name = "Heading" }; section.AddChild(heading);
+        var title = new Label { Name = "SetName", Text = set.DisplayName + "套装", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        MatchTheme.Text(title, 21, new Color("f0deb5"), bold: true); heading.AddChild(title);
+        var count = new Label { Name = "Count", Text = $"当前 {set.DistinctCardCount} 件", SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        MatchTheme.Text(count, 16, new Color("acb59f")); heading.AddChild(count);
+        foreach (var threshold in set.Thresholds)
+        {
+            var row = new HBoxContainer { Name = $"Threshold{threshold.RequiredCount}" }; row.AddThemeConstantOverride("separation", 15); section.AddChild(row);
+            var needed = new Label { Name = "RequiredCount", Text = $"{threshold.RequiredCount}件", CustomMinimumSize = new Vector2(42, 0) };
+            MatchTheme.Text(needed, 18, new Color("d9b777"), bold: true); row.AddChild(needed);
+            var template = new CardSnapshot(default, set.Key, set.DisplayName, card.Level, 0, card.Size,
+                card.FactionKey, card.ElementKeys, Array.Empty<QuestProgressSnapshot>())
+                { HeroLevel = card.HeroLevel, Abilities = threshold.Abilities };
+            var text = new RichTextLabel { Name = "Effect", FitContent = true, ScrollActive = false,
+                Size = new Vector2(Mathf.Max(1, width - 126), 0), SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore };
+            text.AddThemeFontSizeOverride("normal_font_size", 18);
+            text.AddThemeColorOverride("default_color", new Color(threshold.Active ? "a4dfbc" : "acb59f")); row.AddChild(text);
+            CardKeywordText.RenderRule(text, string.Join("\n", CardDisplayAdapter.Rules(template, setContext: true)));
+            var state = new Label { Name = "State", Text = threshold.Active ? "已生效" : "未达成", CustomMinimumSize = new Vector2(54, 0) };
+            MatchTheme.Text(state, 15, new Color(threshold.Active ? "a4dfbc" : "acb59f")); row.AddChild(state);
+        }
+    }
     private void RenderQuests(IReadOnlyList<CardQuestViewModel> quests, float width)
     {
         var section = new VBoxContainer { Name = "Quests", SizeFlagsHorizontal = SizeFlags.ExpandFill };

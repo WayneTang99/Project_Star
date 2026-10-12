@@ -53,6 +53,7 @@ public sealed record CardSnapshot(
     public IReadOnlyList<int?> EffectAmounts { get; init; } = Array.Empty<int?>();
     public bool IsBerserk { get; init; }
     public decimal CooldownMultiplier { get; init; } = 1m;
+    public decimal? CurrentCooldownSeconds { get; init; }
     public IReadOnlyList<GemSnapshot?> GemSockets { get; init; } = Array.AsReadOnly(new GemSnapshot?[1]);
 }
 

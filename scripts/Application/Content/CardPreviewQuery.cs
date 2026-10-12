@@ -85,7 +85,8 @@ public sealed class CardPreviewQuery
         var opponent = Side(enemy, null, 3);
         var state = new CombatSimulator().Preview(new BattleSetup(player, opponent, 1, new BattleTick(1)), enemy is not null)
             .Cards.FirstOrDefault(card => card.Id == id && card.Side == SideId.Player);
-        return state is null ? preview : preview with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts };
+        return state is null ? preview : preview with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
+            CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null };
     }
 
     private static BattleSideSetup Side(MatchSnapshot? context, CardSnapshot? replacement, int heroId)
@@ -106,7 +107,8 @@ public sealed class CardPreviewQuery
                 own.GetValueOrDefault(GameAttributeKeys.CooldownTicks), card.Abilities,
                 IsOnBench: context is not null && (placement is null || placement.Zone == BoardZone.Bench), UseLegacyAttack: false,
                 Tags: new TagSet(card.Tags), Multicast: own.GetValueOrDefault(GameAttributeKeys.Multicast),
-                OccupiedSlots: (int)card.Size, ElementKeys: card.ElementKeys)
+                OccupiedSlots: (int)card.Size, ElementKeys: card.ElementKeys,
+                ArmorAmount: own.GetValueOrDefault(GameAttributeKeys.Armor))
                 { Level = card.Level, CombatValues = own, CooldownMultiplier = card.CooldownMultiplier };
         }).ToArray();
         return new BattleSideSetup(new HeroBattleSetup(hero?.Id ?? new EntityId(new Guid($"00000000-0000-0000-0000-{heroId:000000000000}")),

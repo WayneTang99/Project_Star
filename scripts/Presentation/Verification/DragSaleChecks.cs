@@ -120,11 +120,36 @@ internal static class DragSaleChecks
             var (presenter, session, economy, board) = Setup(scene);
             var boar = economy.AcquireAndPlace(session, new BoarCardDefinition(), 1, CardAcquisitionSource.Reward).Value!.Card;
             var armor = economy.AcquireAndPlace(session, new ArmguardCardDefinition(), 1, CardAcquisitionSource.Reward).Value!.Card;
+            var large = economy.AcquireAndPlace(session, new FrankentCardDefinition(), 3, CardAcquisitionSource.Reward).Value!.Card;
             board.PlaceCard(session, armor.Id, BoardZone.Bench, 0);
             presenter.RefreshView(); viewport.NotifyMouseEntered();
             await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
             var drop = scene.GetNode<SellDropZone>("MatchShell/SellDropZone");
-            foreach (var (card, path) in new[] { (boar, "MatchShell/BattlefieldRow/Content/Board"), (armor, "MatchShell/BenchRow/Content/Board") })
+            // 真实页面同时覆盖空格、已有卡牌、反复拖放和选中后的拖放。
+            var selectedItem = scene.GetNode<CardItemView>("MatchShell/BattlefieldRow/Content/Board/Card_" + boar.Id.Value.ToString("N"));
+            var selectedPoint = selectedItem.GetGlobalRect().GetCenter();
+            await Send(Motion(selectedPoint, Vector2.Zero, false)); await Send(Button(selectedPoint, true)); await Send(Button(selectedPoint, false));
+            foreach (var (moving, zone, start) in new[] { (boar, BoardZone.Bench, 2), (boar, BoardZone.Battlefield, 3), (boar, BoardZone.Bench, 2),
+                (armor, BoardZone.Bench, 2), (boar, BoardZone.Battlefield, 0), (armor, BoardZone.Bench, 0),
+                (large, BoardZone.Bench, 5), (large, BoardZone.Battlefield, 6), (large, BoardZone.Battlefield, 5) })
+            {
+                var placement = session.Board.Battlefield.Find(moving.Id);
+                var originPath = placement is null ? "MatchShell/BenchRow/Content/Board" : "MatchShell/BattlefieldRow/Content/Board";
+                var item = scene.GetNode<CardItemView>(originPath + "/Card_" + moving.Id.Value.ToString("N"));
+                var origin = item.GetGlobalRect().GetCenter();
+                var targetBoard = scene.GetNode<BoardZoneView>(zone == BoardZone.Bench ? "MatchShell/BenchRow/Content/Board" : "MatchShell/BattlefieldRow/Content/Board");
+                var offset = Mathf.FloorToInt(item.Size.X / 2 / ((BoardZoneView)item.GetParent()).SlotPitch);
+                var destination = targetBoard.GetNode<Button>("Slot" + (start + offset)).GetGlobalRect().GetCenter();
+                await Send(Motion(origin, Vector2.Zero, false)); await Send(Button(origin, true));
+                await Send(Motion(destination, destination - origin, true));
+                var started = viewport.GuiIsDragging();
+                await Send(Motion(destination + Vector2.Right, Vector2.Right, true));
+                await Send(Button(destination, false));
+                if (session.Board.GetZone(zone).Find(moving.Id)?.Start != start)
+                { GD.Print($"真实棋盘拖放失败：{moving.Attributes.Identity.DisplayName}→{zone}/{start}，开始{started}，实际{session.Board.GetZone(zone).Find(moving.Id)?.Start}，消息{presenter.View.Message}"); return false; }
+            }
+            foreach (var (card, path) in new[] { (boar, "MatchShell/BattlefieldRow/Content/Board"), (armor, "MatchShell/BenchRow/Content/Board"),
+                (large, "MatchShell/BattlefieldRow/Content/Board") })
             {
                 var item = scene.GetNode<CardItemView>(path + "/Card_" + card.Id.Value.ToString("N"));
                 var press = item.GlobalPosition + item.Size / 2;

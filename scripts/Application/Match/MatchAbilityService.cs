@@ -46,7 +46,7 @@ public static class MatchAbilityService
                 session.Random.State = random.State;
             }
             else if (effect is GrantSourceLevelCardEffectDefinition fixedReward) reward = fixedReward.Card;
-            else if (effect is GrantExperienceEffectDefinition experience) session.Player.AddExperience(experience.Amount);
+            else if (effect is GrantExperienceEffectDefinition experience) HeroExperienceService.Grant(session, experience.Amount);
             if (reward is not null
                 && economy.AcquireAndPlace(session, reward, source.Level, CardAcquisitionSource.Reward).IsFailure)
                 session.AddPendingMonsterReward(new PendingMonsterReward(MonsterRewardKind.Card,
@@ -93,7 +93,7 @@ public static class MatchAbilityService
                     switch (effect)
                     {
                         case GrantExperienceEffectDefinition experience:
-                            session.Player.AddExperience(experience.Amount);
+                            HeroExperienceService.Grant(session, experience.Amount);
                             break;
                         case GrantSourceLevelCardEffectDefinition reward:
                             if (economy.AcquireAndPlace(session, reward.Card, source.Level, CardAcquisitionSource.Reward).IsFailure)

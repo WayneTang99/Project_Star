@@ -12,6 +12,9 @@ internal static class AttributePalette
     {
         Shader = new Shader { Code = "shader_type canvas_item; varying vec4 tint; void vertex(){ tint = COLOR; } void fragment(){ COLOR = vec4(tint.rgb, texture(TEXTURE, UV).a * tint.a); }" }
     };
+    internal static readonly StringName Flight = new("Flight");
+    internal static readonly StringName Rage = new("Rage");
+    internal static readonly StringName Stealth = new("Stealth");
     internal static readonly StringName Health = new("Health");
     internal static readonly StringName Haste = new("Haste");
     internal static readonly StringName Slow = new("Slow");
@@ -29,7 +32,10 @@ internal static class AttributePalette
         : key == GameAttributeKeys.Value || key == GameAttributeKeys.Wealth || key == GameAttributeKeys.Income ? new Color("ebd45d")
         : key == Haste || key == GameAttributeKeys.HasteDurationBonus ? new Color("66d9e8")
         : key == Slow ? new Color("c0aaa0")
-        : key == Immobilize ? new Color("c0aaa0") : null;
+        : key == Immobilize ? new Color("c0aaa0")
+        : key == Flight ? new Color("b7e2ef")
+        : key == Rage ? new Color("f2b092")
+        : key == Stealth ? new Color("bda9e8") : null;
 
     internal static Color Effect(CardFaceEffectKind kind) => kind == CardFaceEffectKind.Multicast ? new Color("83cec6") : Find(kind switch
     {
@@ -56,6 +62,9 @@ internal static class AttributePalette
         "价值" or "金币" or "金钱" => GameAttributeKeys.Value,
         "疾速" or "疾速时长加成" or "充能" or "冷却减少" or "减少冷却" or "缩短冷却" or "降低冷却" or "Haste" => Haste,
         "迟缓" or "冷却增加" or "增加冷却" or "延长冷却" or "提高冷却" or "Slow" => Slow,
+        "飞行" => Flight,
+        "狂暴" => Rage,
+        "隐身" => Stealth,
         "禁锢" or "Immobilize" => Immobilize,
         _ => new StringName("")
     };

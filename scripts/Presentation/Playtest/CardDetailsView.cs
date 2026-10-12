@@ -88,7 +88,7 @@ public sealed partial class CardDetailsView : PanelContainer
         if (Visible && CurrentCardId == card.Id) RefreshCard(card, bounds, battle);
         else ShowCard(card, position, bounds, battle);
         _selling = card; _matchId = matchId;
-        _sell.Text = $"确认出售 {card.DisplayName}（{card.Level}级）· 回补 {card.Value}";
+        _sell.Text = $"确认出售 · 获得 {card.Value} 金币";
         _sell.Visible = sell.Visible; _sell.Disabled = !sell.Enabled; _sell.TooltipText = _sell.Text + "\n" + sell.Reason;
     }
 

@@ -6,6 +6,9 @@ namespace Project_Star.Domain.Combat;
 // 轮开始永久缩减能力来源套装内战场卡牌的冷却倍率。
 public sealed record ReduceSetCardCooldownEffectDefinition(int Percent) : EffectDefinition;
 
+// 英雄每升一级随机为来源卡牌的第一个空孔镶嵌宝石（领域能力定义）。
+public sealed record SocketRandomSourceGemEffectDefinition : EffectDefinition;
+
 // 对局事件授予经验，应用层结算（领域能力定义）。
 public sealed record GrantExperienceEffectDefinition(int Amount) : EffectDefinition;
 
@@ -24,5 +27,5 @@ public static class MatchAbilityRules
     // 对局事件不加入战斗发动和回响队列。
     public static bool IsMatchTrigger(AbilityActivation activation) => activation is
         AbilityActivation.PassiveOnRoundStart or AbilityActivation.PassiveOnBattleVictory or AbilityActivation.PassiveOnMonsterVictory
-        or AbilityActivation.PassiveOnPickup;
+        or AbilityActivation.PassiveOnPickup or AbilityActivation.PassiveOnHeroLevelUp;
 }

@@ -241,6 +241,15 @@ public sealed class CardEconomyService
                 return Result<int>.Fail(new Failure(InvalidValue, "Sale hero attribute bonus would overflow."));
         }
 
+        if (card.OnSellReward is GrantValuePercentExperienceOnSellDefinition experienceReward)
+        {
+            if (session.Player.Hero is null)
+                return Result<int>.Fail(new Failure(SaleRewardUnavailable, "A hero is required for this sale reward."));
+            try { _ = session.Player.PreviewExperienceGain(checked((int)((long)currentValue * experienceReward.Percent / 100))); }
+            catch (OverflowException)
+            { return Result<int>.Fail(new Failure(InvalidValue, "Sale experience or hero level growth would overflow.")); }
+        }
+
         if (card.OnSellReward is IncreaseLeftmostBurnCardOnSellDefinition burnBonus
             && FindLeftmostBurnCard(session, cardId) is { } burnTarget)
         {
@@ -366,6 +375,13 @@ public sealed class CardEconomyService
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
     {
+        if (soldCard.OnSellReward is GrantValuePercentExperienceOnSellDefinition experienceReward)
+        {
+            var value = soldCard.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value);
+            HeroExperienceService.Grant(session, checked((int)((long)value * experienceReward.Percent / 100)));
+            _boardService?.RefreshBonuses(session);
+            return;
+        }
         if (soldCard.OnSellReward is IncreaseLeftmostBurnCardOnSellDefinition burnBonus)
         {
             FindLeftmostBurnCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(

@@ -165,7 +165,7 @@ public sealed class CardDisplayAdapter
     }
 
     // 详情主体按通用能力及冻结数值生成简短规则，不展示各等级文案数组。
-    public static IReadOnlyList<string> Rules(CardSnapshot card)
+    public static IReadOnlyList<string> Rules(CardSnapshot card, bool setContext = false)
     {
         var lines = new List<string>();
         var index = 0;
@@ -215,9 +215,11 @@ public sealed class CardDisplayAdapter
                 AbilityActivation.Active => "发动", AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled => "光环",
                 AbilityActivation.PassiveOnBattleStart => "开战", AbilityActivation.PassiveOnRoundStart => "轮初",
                 AbilityActivation.PassiveOnPickup => "拾取",
+                AbilityActivation.PassiveOnHeroLevelUp => "升级",
                 AbilityActivation.PassiveOnBattleVictory or AbilityActivation.PassiveOnMonsterVictory => "凯旋", _ => "回响",
             };
             var condition = ability.Activation == AbilityActivation.Active ? (ability.ManaCost > 0 ? $"消耗 {ability.ManaCost} 魔法，" : "")
+                : ability.Activation == AbilityActivation.PassiveOnHeroLevelUp ? "己方英雄每升一级" + (ability.AllowsBench ? "（战场区与备战区均生效），" : "，")
                 : ability.Activation == AbilityActivation.PassiveOnPickup ? "获得或合并后，"
                 : keyword == "回响" ? Activation(ability.Activation).Replace("回响", "") + "，" : "";
             if (ability.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
@@ -232,12 +234,16 @@ public sealed class CardDisplayAdapter
             if (ability.TriggerStateKey is { } stateKey) condition += $"进入{AttributeName(stateKey)}状态，";
             if (ability.TriggerStatus is { } triggerStatus) condition += $"获得{DurationStatusName(triggerStatus)}，";
             if (ability.TriggerHeroHealthPercent is { } percent) condition = $"己方英雄生命首次低于 {percent}% 时，";
-            var target = ability.Target is AbilityTarget.EnemyHero or AbilityTarget.SelfCard ? "" : Target(ability.Target) + "：";
-            lines.Add($"{keyword}　{condition}{target}{string.Join("；", effects)}。");
+            var target = ability.Target == AbilityTarget.SelfCard
+                || (ability.Target == AbilityTarget.EnemyHero && !ability.Effects.OfType<MultiplyReceivedEclipseDamageEffectDefinition>().Any())
+                ? "" : Target(ability.Target) + "：";
+            if (setContext && ability.Target == AbilityTarget.AlliedHero) target = "";
+            var prefix = setContext && ability.Activation == AbilityActivation.PassiveWhileEnabled ? "" : keyword + "　";
+            lines.Add($"{prefix}{condition}{target}{string.Join("；", effects)}。");
         }
         if (Value(card, GameAttributeKeys.Multicast) > 0) lines.Add($"多重　{Value(card, GameAttributeKeys.Multicast)}。");
         foreach (var bonus in card.SaleAttributeBonuses)
-            lines.Add($"出售　出售{TagDisplayNames.Get(bonus.RequiredTag)}卡牌后，此卡牌{AttributeName(bonus.AttributeKey)}永久 +{bonus.Amount}。");
+            lines.Add($"交易　出售{TagDisplayNames.Get(bonus.RequiredTag)}卡牌后，此卡牌{AttributeName(bonus.AttributeKey)}永久 +{bonus.Amount}。");
         foreach (var bonus in card.BattleVictoryBonuses)
             lines.Add($"凯旋　参战获胜后，此卡牌{AttributeName(bonus.AttributeKey)}永久 +{bonus.Amount}。");
         if (card.BattleValueBonus > 0) lines.Add($"历战　参战后价值永久 +{card.BattleValueBonus}。");
@@ -248,6 +254,7 @@ public sealed class CardDisplayAdapter
             IncreaseLeftmostAttackCardOnSellDefinition value => $"己方最左侧攻击卡牌的攻击永久 +{value.Amount}",
             IncreaseLeftmostHealingCardOnSellDefinition value => $"己方最左侧治疗卡牌的治疗永久 +{value.Amount}",
             IncreaseHeroCombatAttributeOnSellDefinition value => $"己方英雄{AttributeName(value.AttributeKey)}永久 +{value.Amount}",
+            GrantValuePercentExperienceOnSellDefinition value => $"己方英雄获得此卡牌当前价值{value.Percent}%的经验，向下取整",
             ReduceLeftmostElementCardCooldownOnSellDefinition value => $"己方最左侧{ElementName(value.ElementKey)}属性卡牌冷却减少 {value.Percent}%",
             RandomTaggedCardOnSellDefinition value => $"获得 {value.Count} 张{(value.SameLevel ? "同级" : "")}随机{(value.RequiredSize is { } size ? TagDisplayNames.Get(GameTags.FromSize(size)) : "")}{TagDisplayNames.Get(value.RequiredTag)}卡牌",
             _ => "",
@@ -256,8 +263,14 @@ public sealed class CardDisplayAdapter
         return lines.AsReadOnly();
     }
 
+    // 冷却优先读取战斗层计算的冻结时长，定义预览使用当前属性与倍率。
+    public static decimal CooldownSeconds(CardSnapshot card) => card.CurrentCooldownSeconds
+        ?? card.CurrentValues.GetValueOrDefault(GameAttributeKeys.CooldownTicks) / 10m * card.CooldownMultiplier;
+
     // 当前属性另行展开；不列初始值和其他等级数值。
-    public static string CurrentDetails(CardSnapshot card) => string.Join("\n", card.CurrentValues
+    public static string CurrentDetails(CardSnapshot card) => string.Join("\n", card.CurrentValues.Concat(
+        card.CurrentCooldownSeconds is not null && !card.CurrentValues.ContainsKey(GameAttributeKeys.CooldownTicks)
+            ? new[] { new KeyValuePair<StringName, int>(GameAttributeKeys.CooldownTicks, 0) } : Array.Empty<KeyValuePair<StringName, int>>())
         .Where(item => item.Key != GameAttributeKeys.CooldownTicks || card.Abilities.Any(ability => ability.Activation == AbilityActivation.Active))
         .Where(item => item.Key != GameAttributeKeys.AttackDamage || card.Abilities.SelectMany(ability => ability.Effects).Any(effect => effect switch
         {
@@ -267,7 +280,7 @@ public sealed class CardDisplayAdapter
             SourceHeroArmorDamageEffectDefinition damage => damage.BonusAttributeKey == item.Key,
             _ => false,
         }))
-        .Select(item => item.Key == GameAttributeKeys.CooldownTicks ? $"冷却：{item.Value / 10m * card.CooldownMultiplier:0.##}秒"
+        .Select(item => item.Key == GameAttributeKeys.CooldownTicks ? $"冷却：{CooldownSeconds(card):0.##}秒"
             : item.Key == GameAttributeKeys.HasteDurationBonus ? $"疾速时长加成：{item.Value / 10m:0.##}秒" : $"{AttributeName(item.Key)}：{item.Value}"));
 
     // 图鉴与浮层使用同一套装阈值和当前英雄等级。
@@ -362,6 +375,7 @@ public sealed class CardDisplayAdapter
         SetRandomAdjacentAlliedTaggedCardStateEffectDefinition value => $"随机一张相邻己方{TagDisplayNames.Get(value.RequiredTag)}卡牌{(value.Enabled ? "获得" : "失去")}{AttributeName(value.StateKey)}",
         MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition value => $"敌方英雄有护甲时，此卡牌{AttributeName(value.AttributeKey)} ×{value.Multiplier}",
         ApplyPrimaryEffectPercentStatusEffectDefinition value => $"发动时额外向敌方施加主属性值{value.Percent}%的{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}",
+        SocketRandomSourceGemEffectDefinition => "为此卡牌随机镶嵌一颗宝石，孔满时跳过",
         GrantExperienceEffectDefinition value => $"获得{value.Amount}经验",
         ReduceOtherHeroCardCooldownAuraEffectDefinition value => $"己方当前英雄以外的卡牌（含无阵营）冷却缩减{value.Percent}%",
         GrantSourceLevelCardEffectDefinition value => $"获得一张与来源卡牌同等级的{value.Card.Attributes.Identity.DisplayName}",
@@ -446,6 +460,7 @@ public sealed class CardDisplayAdapter
         AbilityActivation.PassiveOnBattleStart => "开战", AbilityActivation.PassiveWhileEnabled => "持续加成",
         AbilityActivation.PassiveOnRoundStart => "轮初",
         AbilityActivation.PassiveOnPickup => "拾取",
+        AbilityActivation.PassiveOnHeroLevelUp => "升级",
         AbilityActivation.PassiveOnEclipseStart => "进入日蚀时间时回响",
         AbilityActivation.PassiveOnBattleVictory => "战斗胜利后",
         AbilityActivation.PassiveOnMonsterVictory => "击败怪物后",

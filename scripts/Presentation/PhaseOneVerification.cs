@@ -18,6 +18,7 @@ public sealed partial class PhaseOneVerification : Control
     private readonly List<VerificationGroup> _groups =
     [
         new("UI 数据与流程", [
+            ("全卡护甲等级与宝石预览保留基值、成长及光环", UiPrototypeSyncChecks.PreviewArmor),
             ("图鉴包含全部正式卡牌及支持等级，不创建实体或触发获取", CardCatalogChecks.Definitions),
             ("战斗快照覆盖治疗、状态、冷却、充能、多重与摧毁", BattlePlaybackVerification.CapturedStates),
             ("回放暂停、倍速与跳过结果一致且冻结旧画面", BattlePlaybackVerification.ControlsAndIsolation),
@@ -188,6 +189,9 @@ public sealed partial class PhaseOneVerification : Control
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
             ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
+            ("冒险者日志四级身份、套装与参战价值成长正确", AdventurerJournalChecks.Growth),
+            ("冒险者日志最终价值经验、升级与失败出售原子性正确", AdventurerJournalChecks.SaleAndFailures),
+            ("冒险者日志套装计数、合并成长和出售撤销正确", AdventurerJournalChecks.SetAndUpgrade),
             ("浆果各等级出售永久增加英雄最大生命，区域与快照正确", BerriesChecks.LevelsAndSales),
             ("浆果出售加成叠加、合并等级更新且失败无残留", BerriesChecks.StackingMergeAndFailures),
             ("树根精粹分级出售永久增加再生、合并叠加与实际战斗恢复正确", RootEssenceChecks.SalesAndRegeneration),
@@ -218,6 +222,10 @@ public sealed partial class PhaseOneVerification : Control
             ("钢制扳手随机筛选、多重逐张修复、永久及备战排除正确", SteelWrenchChecks.SelectionAndMulticast),
             ("修复取消旧队列、保留首次发动历史并恢复冷却光环正确", SteelWrenchChecks.QueueAndRepeatedRepair),
             ("修复避开占位、位置恢复回放及跨战斗隔离正确", SteelWrenchChecks.OccupancyAndPlayback),
+            ("英雄升级宝石覆盖轮初、胜利、怪物、出售经验及真实发动", GemGloveChecks.ExperienceChannels),
+            ("宝石手套三级攻击、身份及升级文案正确", GemGloveChecks.DefinitionAndAttack),
+            ("英雄升级随机宝石覆盖战场备战、连续升级、合并与冻结正确", GemGloveChecks.UpgradeAndSockets),
+            ("猛犸近卫两级护甲、敌方发动充能与筛选正确", MammothGuardChecks.ArmorAndCharge),
             ("征服者堡垒身份、两级光环、零攻击人类成长与真实伤害正确", ConquerorFortressChecks.LevelsAndGrowth),
             ("冰剑鱼身份、三级伤害、自身冰回响与多重正确", IceSwordfishChecks.LevelsAndDamage),
             ("冰剑鱼随机攻击卡筛选、零攻击成长与确定性隔离正确", IceSwordfishChecks.RandomTargetsAndIsolation),
@@ -362,6 +370,7 @@ public sealed partial class PhaseOneVerification : Control
             ("HTML同步全卡当前值描述与统一资源、冷却配色", UiPrototypeSyncChecks.Definitions),
             ("等级宝石预览保留成长与实例且不修改原快照", UiPrototypeSyncChecks.Preview),
             ("放大预览等级、宝石、还原、描述方括号及Escape正确", () => UiPrototypeSyncChecks.Scene(this)),
+            ("战场、全卡等级预览与零冷却显示正确", () => UiPrototypeSyncChecks.CooldownDetails(this)),
             ("宝石商店两砧板、扣费刷新、一次选择与过期隔离正确", GemShopChecks.FeesAndRefresh),
             ("宝石商店真实砧板拖放、预览只读及离店关闭正确", () => GemShopChecks.DragScene(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
@@ -507,6 +516,24 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await IceSwordfishChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-gem-glove"))
+            Callable.From((Action)(async () =>
+            {
+                try { await GemGloveChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-mammoth-guard"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MammothGuardChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-adventurer-journal"))
+            Callable.From((Action)(async () =>
+            {
+                try { await AdventurerJournalChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-flame-goblet"))

@@ -23,7 +23,7 @@ public sealed class TurnExperienceService
             return Result<int>.Fail(new Failure(new StringName("experience.missing_hero"), "A hero is required to settle turn experience."));
         var turn = checked((session.Progress.Round - 1) * 8 + session.Progress.Turn);
         if (session.Progress.ExperienceSettledThroughTurn >= turn) return Result<int>.Success(0);
-        session.Player.AddExperience(1);
+        HeroExperienceService.Grant(session, 1);
         if (_sets is not null) new CardSetBonusService(_sets).Recalculate(session);
         session.Progress.ExperienceSettledThroughTurn = turn;
         return Result<int>.Success(1);

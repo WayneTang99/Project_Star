@@ -121,7 +121,7 @@ public sealed partial class CardItemView : Button
             face.SetCard(model); face.SetDisplaySize(size); face.Position = offset;
             IgnoreDecoration(preview);
         };
-        FindShell()?.HideHoverCard();
+        FindShell()?.HideHoverCard(dragging: true);
         return preview;
     }
 

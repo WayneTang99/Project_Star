@@ -57,8 +57,9 @@ Project_Star 术语表。统一术语定义，避免歧义；**新增/变更需�
 | 出售 | Sell | 出售此卡牌时结算的对局效果；词条 key 为 `keyword.sell` |
 | 消耗 | Consume | 使用后摧毁此卡牌；默认仅本场战斗生效，下场战斗恢复，不永久移出卡池；词条 key 为 `keyword.consume` |
 | 开战 | Opening | 战斗开始时触发一次的效果；词条 key 为 `keyword.opening`。发动时机、来源及目标遵循能力定义 |
+| 升级 | HeroLevelUp | 己方英雄每升一级触发一次的对局词条，key为 `keyword.upgrade`；不指卡牌合并升级，是否在备战区生效由能力定义指定。 |
 | 轮初 | RoundStart | 每轮开始边界触发一次的对局效果；词条 key 为 `keyword.round_start`。默认来源须位于战场区，轮中获得不补发本轮效果 |
-| 交易 | Trade | 响应出售其他卡牌等交易事件的效果；词条 key 为 `keyword.trade`，不等于出售自身的“出售”，不属于战斗回响 |
+| 交易 | Trade | 响应购买或出售其他卡牌的交易事件的效果；具体条件由卡牌说明限定。词条 key 为 `keyword.trade`；只有出售此卡牌自身的效果归为“出售”，不属于战斗回响 |
 | 历战 | AfterBattle | 战斗结算后生效的效果；词条 key 为 `keyword.after_battle`，是否要求参战及胜负条件由定义限定 |
 | 凯旋 | Victory | 参战获胜后生效的效果；词条 key 为 `keyword.victory`，只在来源满足参战及获胜条件时结算 |
 | 被动 | Passive | 非主动发动能力的底层总称；正式描述按开战、回响、光环、交易、历战、凯旋归类，不改变既有能力与事件规则。`keyword.passive`保留供通用内部夹具使用 |

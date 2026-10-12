@@ -37,7 +37,7 @@ public sealed partial class MinimalPlaytest : Control
         var economy = new CardEconomyService(factory, board, registry.Cards.Values);
         var rewards = new MonsterRewardClaimService(registry, economy, new SkillAcquisitionService(factory), board);
         var events = new ResolveEncounterOptionService(factory, board, registry.Cards.Values, registry.Monsters.Values);
-        var game = new GameCoordinator(new CreateMatchService(factory),
+        var game = new GameCoordinator(new CreateMatchService(factory, registry.Gems.Values),
             new EncounterScheduler(registry, allowIncompleteMonsterChoices: true, encounterLevelOverride: 4),
             new StartBattleService(new BattleSetupFactory(registry.Sets), new CombatSimulator()),
             new MatchResultService(board, registry.Cards.Values));
