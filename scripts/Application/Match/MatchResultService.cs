@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Project_Star.Application.Board;
 using Project_Star.Application.Common;
 using Project_Star.Domain.Combat;
@@ -20,11 +21,13 @@ public sealed class MatchResultService
 {
     private readonly BoardService _boardService;
     private readonly CardQuestService _quests;
+    private readonly IEnumerable<CardDefinition>? _cards;
 
-    public MatchResultService(BoardService boardService)
+    public MatchResultService(BoardService boardService, IEnumerable<CardDefinition>? cards = null)
     {
         _boardService = boardService ?? throw new ArgumentNullException(nameof(boardService));
         _quests = new CardQuestService(boardService);
+        _cards = cards;
     }
 
     public Result Apply(
@@ -61,12 +64,12 @@ public sealed class MatchResultService
         if (kind == MatchBattleKind.Monster)
         {
             SettleMonsterBattle(session, opponent!, battle);
-            MatchAbilityService.ApplyVictory(session, battle, kind, _boardService);
+            MatchAbilityService.ApplyVictory(session, battle, kind, _boardService, _cards);
             _boardService.RefreshBonuses(session);
             return Result.Success();
         }
 
-        MatchAbilityService.ApplyVictory(session, battle, kind, _boardService);
+        MatchAbilityService.ApplyVictory(session, battle, kind, _boardService, _cards);
         if (battle.Outcome == BattleOutcome.PlayerVictory) session.Progress.PvpWins++;
         else if (battle.Outcome == BattleOutcome.OpponentVictory)
             session.Player.LoseReputation(battleRound ?? session.Progress.Round);

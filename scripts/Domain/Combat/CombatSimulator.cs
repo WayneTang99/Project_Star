@@ -61,6 +61,30 @@ public sealed class CombatSimulator
         }
     }
 
+    // 日蚀状态先冻结，再按稳定来源顺序即时执行一次进入效果，早于日蚀伤害。
+    internal static void EnterEclipse(BattleRuntime runtime)
+    {
+        if (runtime.EclipseEntered) return;
+        runtime.EclipseEntered = true;
+        if (runtime.Tick.Value < runtime.EclipseTime.Value) runtime.EclipseTime = runtime.Tick;
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
+        {
+            if (source.Destroyed || source.IsOnBench || ability.Triggered
+                || ability.Definition.Activation != AbilityActivation.PassiveOnEclipseStart) continue;
+            ability.Triggered = true;
+            var pending = new PendingAbility(source, ability, true, false, runtime.Tick);
+            runtime.Events.Add(new AbilityActivatedEvent(runtime.Tick, source.EntityId, source.Side, true,
+                BattleEffectResolver.GetAbilitySourceKind(source)));
+            foreach (var effect in ability.Definition.Effects)
+            {
+                BattleEffectResolver.ApplyEffect(runtime, pending, effect);
+                BattleStatusResolver.RefreshCooldownAuras(runtime);
+                BattleStateRecorder.CaptureState(runtime);
+            }
+        }
+    }
+
     private static void EnqueueReadyActives(BattleRuntime runtime)
     {
         foreach (var card in runtime.Cards)
@@ -164,10 +188,7 @@ public sealed class CombatSimulator
             if (ability.Definition.Activation == AbilityActivation.EchoOnAnyAttackCardActivated
                 && origin.Source is CardBattleState { IsOnBench: false } eventCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
-                && eventCard.Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
-                    DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
-                    or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
-                    or SourceHeroArmorDamageEffectDefinition)))
+                && eventCard.IsAttackCard)
                 Enqueue(runtime, source, ability, true, eventCard: eventCard);
             if (ability.Definition.Activation == AbilityActivation.EchoOnSourceCardActivated
                 && ReferenceEquals(source, origin.Source) && source is CardBattleState
@@ -180,10 +201,7 @@ public sealed class CombatSimulator
                 && (adjacentSource.BoardStart + adjacentSource.OccupiedSlots == attackingCard.BoardStart
                     || attackingCard.BoardStart + attackingCard.OccupiedSlots == adjacentSource.BoardStart)
                 && (ability.Definition.TriggerCardTag is not { } requiredTag || attackingCard.Tags.Contains(requiredTag))
-                && attackingCard.Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
-                    DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
-                    or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
-                    or SourceHeroArmorDamageEffectDefinition)))
+                && attackingCard.IsAttackCard)
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnAdjacentAlliedCardActivated
                 && source is CardBattleState directionalSource && source.Side == origin.Source.Side
@@ -216,16 +234,20 @@ public sealed class CombatSimulator
         }
     }
 
-    // 越过生命阈值后立即结算一次性回响，先于同Tick后续攻击。
+    // 首次致命伤害或越过生命阈值后立即结算一次性回响，早于死亡判定和后续攻击。
     internal static void ResolveHeroHealthTriggers(BattleRuntime runtime, SideId side, int previousHealth)
     {
         var hero = runtime.GetHero(side);
-        if (hero.Health <= 0) return;
+        var firstLethal = previousHealth > 0 && hero.Health == 0 && !hero.FirstLethalDamageReceived;
+        if (hero.Health <= 0 && !firstLethal) return;
+        if (firstLethal) hero.FirstLethalDamageReceived = true;
         var triggers = runtime.AbilitySources.Where(source => source.Side == side && !source.Destroyed && !source.IsOnBench)
             .SelectMany(source => source.Abilities.Select(ability => (Source: source, Ability: ability)))
-            .Where(item => !item.Ability.Triggered && item.Ability.Definition.Activation == AbilityActivation.EchoOnSourceHeroHealthBelow
-                && (long)previousHealth * 100 >= (long)hero.MaxHealth * item.Ability.Definition.TriggerHeroHealthPercent!.Value
-                && (long)hero.Health * 100 < (long)hero.MaxHealth * item.Ability.Definition.TriggerHeroHealthPercent!.Value).ToArray();
+            .Where(item => !item.Ability.Triggered && (firstLethal
+                ? item.Ability.Definition.Activation == AbilityActivation.EchoOnSourceHeroFirstLethalDamage
+                : item.Ability.Definition.Activation == AbilityActivation.EchoOnSourceHeroHealthBelow
+                    && (long)previousHealth * 100 >= (long)hero.MaxHealth * item.Ability.Definition.TriggerHeroHealthPercent!.Value
+                    && (long)hero.Health * 100 < (long)hero.MaxHealth * item.Ability.Definition.TriggerHeroHealthPercent!.Value)).ToArray();
         foreach (var item in triggers) item.Ability.Triggered = true;
         foreach (var item in triggers)
         {

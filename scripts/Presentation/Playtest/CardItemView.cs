@@ -48,6 +48,7 @@ public sealed partial class CardItemView : Button
     // 使用当前捕获的卡牌更新装饰，保留卡牌节点身份。
     public void Render(CardSnapshot card, CardDisplayAdapter adapter, Guid matchId = default)
     {
+        card = FindShell()?.DescribeCard(card) ?? card;
         _card = card;
         _matchId = matchId;
         _faceModel = adapter.Build(card);
@@ -83,9 +84,12 @@ public sealed partial class CardItemView : Button
             var payload = CreateDragData();
             if (payload is not null) { ForceDrag(payload, DragPreview()); AcceptEvent(); }
         }
-        if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } && _card is not null)
+        if ((input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }
+            || input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F10, ShiftPressed: true }) && _card is not null)
         {
-            DetailsRequested?.Invoke(_card, GetGlobalRect());
+            GrabFocus();
+            if (DetailsRequested is null) FindShell()?.ShowCardPreview(_card, GetGlobalRect());
+            else DetailsRequested.Invoke(_card, GetGlobalRect());
             AcceptEvent();
         }
     }

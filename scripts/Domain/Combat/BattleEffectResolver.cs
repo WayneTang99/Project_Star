@@ -41,6 +41,14 @@ internal static class BattleEffectResolver
         var hero = runtime.GetHero(targetSide);
         switch (effect)
         {
+            case EnterEclipseEffectDefinition:
+                CombatSimulator.EnterEclipse(runtime);
+                break;
+            case IncreaseHeroMaxHealthPercentEffectDefinition healthGrowth:
+                var healthIncrease = checked((int)((long)hero.MaxHealth * healthGrowth.Percent / 100));
+                hero.MaxHealth = checked(hero.MaxHealth + healthIncrease);
+                hero.Health = checked(hero.Health + healthIncrease);
+                break;
             case ApplyPrimaryEffectPercentStatusEffectDefinition primaryStatus:
                 var extraAmount = checked((int)((long)pending.PrimaryValue * primaryStatus.Percent / 100));
                 if (primaryStatus.Status == BattleStatus.Burn)
@@ -74,6 +82,15 @@ internal static class BattleEffectResolver
                 if (increase.Permanent && attributeSource.SummonedCard is null && attributeSource.TransformedIdentity is null)
                     runtime.PermanentAttributeBonuses.Add(new PermanentCardAttributeBonus(
                         attributeSource.EntityId, attributeSource.Side, increase.AttributeKey, increase.Amount));
+                break;
+            case MultiplySourceCardAttributeEffectDefinition multiplier:
+                if (pending.Source is not CardBattleState multipliedSource)
+                    throw new InvalidOperationException("Source attribute multiplier requires a card source.");
+                if (!multipliedSource.SupportsCombatAttribute(multiplier.AttributeKey)) break;
+                var contribution = checked(multipliedSource.GetCombatAttribute(multiplier.AttributeKey) * (multiplier.Multiplier - 1));
+                var multipliedValue = multipliedSource.AddCombatAttribute(multiplier.AttributeKey, contribution);
+                runtime.Events.Add(new CardAttributeChangedEvent(runtime.Tick, multipliedSource.EntityId,
+                    multiplier.AttributeKey, contribution, multipliedValue));
                 break;
             case TransformRandomEnemyCardEffectDefinition transform:
                 TransformRandomEnemyCard(runtime, pending.Source, transform);
@@ -129,6 +146,11 @@ internal static class BattleEffectResolver
                 var healing = checked(heal.Amount + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.HealingBonus));
                 var healingHero = heal.TargetsSourceHero ? runtime.GetHero(pending.Source.Side) : hero;
                 healingHero.Health = (int)Math.Min(healingHero.MaxHealth, (long)healingHero.Health + healing);
+                break;
+            case HealMaxHealthPercentEffectDefinition percentHeal:
+                var percentHealing = checked((int)((long)hero.MaxHealth * percentHeal.Percent / 100)
+                    + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.HealingBonus));
+                hero.Health = (int)Math.Min(hero.MaxHealth, (long)hero.Health + percentHealing);
                 break;
             case GainSourceHeroStealthEffectDefinition stealth:
                 var stealthHero = runtime.GetHero(pending.Source.Side);
@@ -297,6 +319,17 @@ internal static class BattleEffectResolver
                         currentValue));
                 }
                 break;
+            case ModifyRandomAlliedAttackCardAttributeEffectDefinition randomModifier:
+                var attackers = runtime.Cards.Where(card => card.Side == pending.Source.Side
+                    && !card.Destroyed && !card.IsOnBench && card.IsAttackCard).ToArray();
+                if (attackers.Length > 0)
+                {
+                    var card = attackers[runtime.NextRandomIndex(attackers.Length)];
+                    var currentValue = card.AddCombatAttribute(randomModifier.AttributeKey, randomModifier.Amount);
+                    runtime.Events.Add(new CardAttributeChangedEvent(runtime.Tick, card.EntityId,
+                        randomModifier.AttributeKey, randomModifier.Amount, currentValue));
+                }
+                break;
         }
     }
 
@@ -345,6 +378,8 @@ internal static class BattleEffectResolver
             ApplyStatusEffectDefinition value => value.Amount + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus) : 0),
             DamageEffectDefinition value => value.Amount,
             HealEffectDefinition value => checked(value.Amount + Value(GameAttributeKeys.HealingBonus)),
+            HealMaxHealthPercentEffectDefinition value => checked((int)((long)target.MaxHealth * value.Percent / 100)
+                + Value(GameAttributeKeys.HealingBonus)),
             ArmorEffectDefinition value => value.Amount,
             GainSourceHeroArmorEffectDefinition value => value.Amount,
             GainSourceHeroLevelScaledArmorEffectDefinition value => checked(own.Level * value.Multiplier),
@@ -530,7 +565,7 @@ internal static class BattleEffectResolver
             level?.Abilities ?? definition.Abilities, UseLegacyAttack: false, Tags: definition.Tags,
             Multicast: values.GetFinalValue(GameAttributeKeys.Multicast), OccupiedSlots: identity.OccupiedSlots,
             ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Level = target.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+            { Identity = identity, Level = target.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var transformed = new CardBattleState(replacement, target.Side)
             { TransformedIdentity = identity, SummonedCard = target.SummonedCard };
         foreach (var entry in replacement.CombatValues) transformed.CombatAttributes[entry.Key] = entry.Value;
@@ -566,7 +601,7 @@ internal static class BattleEffectResolver
             values.GetFinalValue(GameAttributeKeys.CooldownTicks), level?.Abilities ?? definition.Abilities,
             UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
             OccupiedSlots: size, ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+            { Identity = identity, Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var summoned = new CardBattleState(setup, source.Side)
         {
             SummonedCard = new SummonedCardSnapshot(identity, start, Array.AsReadOnly(definition.Tags.ToArray()),

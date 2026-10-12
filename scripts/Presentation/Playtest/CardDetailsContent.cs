@@ -68,7 +68,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         _name.Text = card.DisplayName;
         foreach (var child in _tags.GetChildren()) { _tags.RemoveChild(child); child.QueueFree(); }
         var tags = new[] { GameTags.FromSize(card.Size) }.Concat(card.Tags.Where(tag => tag != GameTags.FromSize(card.Size)))
-            .Select(TagDisplayNames.Get).Concat(card.ElementKeys.Select(element => element == GameElements.General ? "无属性" : CardDisplayAdapter.ElementName(element)));
+            .Select(TagDisplayNames.Get).Concat(card.ElementKeys.Select(element => element == GameElements.General ? "无" : CardDisplayAdapter.ElementName(element)));
         foreach (var tag in tags)
         {
             var badge = new Label { Text = tag }; MatchTheme.Text(badge, 13, new Color("9aaa91"), spacing: 1);
@@ -86,18 +86,25 @@ public sealed partial class CardDetailsContent : VBoxContainer
         _name.Size = new Vector2(titleWidth, _name.Size.Y);
         _name.GetLineCount();
         foreach (var child in _paragraphs.GetChildren()) { _paragraphs.RemoveChild(child); child.QueueFree(); }
-        var details = CardDisplayAdapter.Details(card, includeQuestProgress: false).Split('\n');
-        var count = card.DescriptionEntries.Count > 0 ? card.DescriptionEntries.Count : card.Abilities.Sum(ability => 1 + ability.Effects.Count);
-        var offset = 3 + card.GemSockets.Count;
         var height = 0f;
-        var rules = card.DescriptionEntries.Count > 0
-            ? card.DescriptionEntries.Where(entry => entry.KeywordKey != CardKeywords.Quest)
-                .Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}　{entry.Text}")
-            : details.Skip(offset).Take(count);
+        var rules = CardDisplayAdapter.Rules(card);
         foreach (var paragraph in rules)
         {
             AddParagraph("Rule", paragraph, width);
             height += Math.Max(28, MatchTheme.Font().GetMultilineStringSize(paragraph, width: width, fontSize: 18).Y * 1.3f) + 8;
+        }
+        if (card.Set is { } set)
+        {
+            AddParagraph("SetName", $"套装 · {set.DisplayName} · 当前 {set.DistinctCardCount} 件", width);
+            foreach (var threshold in set.Thresholds)
+            {
+                var template = new CardSnapshot(default, set.Key, set.DisplayName, card.Level, 0, card.Size,
+                    card.FactionKey, card.ElementKeys, Array.Empty<QuestProgressSnapshot>())
+                    { HeroLevel = card.HeroLevel, Abilities = threshold.Abilities };
+                AddParagraph("SetThreshold", $"{threshold.RequiredCount}件 · {(threshold.Active ? "已生效" : "未达成")}\n"
+                    + string.Join("\n", CardDisplayAdapter.Rules(template)), width,
+                    threshold.Active ? new Color("d9dbc3") : new Color("acb59f"));
+            }
         }
         if (battle is not null)
         {
@@ -120,7 +127,8 @@ public sealed partial class CardDetailsContent : VBoxContainer
         if (quests.Count > 0) RenderQuests(quests, width);
         if (!preserveExpansion) _scroll.CustomMinimumSize = new Vector2(0, Mathf.Min(maximumBodyHeight, Mathf.Max(22, height - 8)));
         _identity.Text = $"{card.Level}级 · {string.Join(" / ", card.ElementKeys.Select(element => element == GameElements.General ? "无属性" : CardDisplayAdapter.ElementName(element) + "属性"))}"; _value.Text = card.Value.ToString();
-        CardKeywordText.Render(_attributes, string.Join("\n", details.Skip(2).Take(1 + card.GemSockets.Count).Concat(details.Skip(offset + count))));
+        CardKeywordText.RenderRule(_attributes, CardDisplayAdapter.CurrentDetails(card) + "\n" + string.Join("\n",
+            card.GemSockets.Select((gem, index) => $"孔{index + 1}：{gem?.DisplayName ?? "空孔"}{(gem is null ? "" : " · " + gem.Description)}")));
         _attributes.CustomMinimumSize = new Vector2(0, Mathf.Min(160, maximumBodyHeight / 2));
         if (!preserveExpansion) { _attributes.Hide(); _scroll.ScrollVertical = 0; _attributes.GetVScrollBar().Value = 0; }
         UpdateBodyHeight();
@@ -155,9 +163,10 @@ public sealed partial class CardDetailsContent : VBoxContainer
             plate.SetBorderWidthAll(1); plate.BorderWidthLeft = 3; panel.AddThemeStyleboxOverride("panel", plate); section.AddChild(panel);
             var column = new VBoxContainer { Name = "Column" }; column.AddThemeConstantOverride("separation", 9); panel.AddChild(column);
             var row = new HBoxContainer { Name = "Heading" }; column.AddChild(row);
-            var condition = new Label { Name = "Condition", Text = quest.Condition, AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            var condition = new RichTextLabel { Name = "Condition", FitContent = true, ScrollActive = false, Size = new Vector2(Math.Max(1, width - 110), 0),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill };
-            MatchTheme.Text(condition, 16, new Color("eee1c0")); row.AddChild(condition);
+            condition.AddThemeFontSizeOverride("normal_font_size", 16); condition.AddThemeColorOverride("default_color", new Color("eee1c0")); row.AddChild(condition);
+            CardKeywordText.RenderRule(condition, quest.Condition);
             var state = new Label { Name = "State", Text = quest.Unlocked ? "✓ 已解锁" : "进行中" };
             MatchTheme.Text(state, 13, new Color(quest.Unlocked ? "a4dfbc" : "dac78f")); row.AddChild(state);
             var meter = new HBoxContainer { Name = "Meter" }; meter.AddThemeConstantOverride("separation", 12); column.AddChild(meter);

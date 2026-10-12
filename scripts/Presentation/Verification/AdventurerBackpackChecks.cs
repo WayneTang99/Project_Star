@@ -52,7 +52,7 @@ internal static class AdventurerBackpackChecks
             var factory = new EntityFactory(); var session = new CreateMatchService(factory).Create(1, 0, new RobinHeroDefinition());
             session.Player.Inventory.Add(factory.CreateCard(definition, level));
             var face = CardDisplayAdapter.FaceEffects(MatchSnapshot.From(session).Cards.Single()).Single();
-            if (face.Kind != CardFaceEffectKind.Damage || face.Value != $"等级×{multiplier}"
+            if (face.Kind != CardFaceEffectKind.Damage || face.Value != $"+{multiplier}"
                 || !CardDisplayAdapter.AbilityDetails([ability]).Contains($"英雄当前等级×{multiplier}")) return false;
         }
         return true;
@@ -105,7 +105,7 @@ internal static class AdventurerBackpackChecks
         match.Player.Inventory.Add(bow); match.Player.Inventory.Add(backpack);
         if (board.PlaceCard(match, bow.Id, BoardZone.Battlefield, 0).IsFailure
             || board.PlaceCard(match, backpack.Id, BoardZone.Battlefield, 2).IsFailure) return false;
-        var set = MatchDisplayQuery.Capture(match, registry.Sets).Sets.Single();
+        var set = MatchDisplayQuery.Capture(match, registry.Sets).Sets.Single(item => item.Key == new StringName("set.adventurer"));
         match.Progress.Round = 2;
         if (set.DistinctCardCount != 2 || set.Thresholds.Count(threshold => threshold.Active) != 1
             || new RoundIncomeService(registry.Sets).SettleCurrentRound(match).IsFailure || match.Player.Experience != 2) return false;
@@ -115,7 +115,7 @@ internal static class AdventurerBackpackChecks
             || Damage(frozen) != 50 || Damage(setups.Create(match, enemy, 4, new BattleTick(60))) != 60) return false;
         if (board.PlaceCard(match, backpack.Id, BoardZone.Bench, 0).IsFailure
             || Damage(setups.Create(match, enemy, 4, new BattleTick(60))) != 40) return false;
-        set = MatchDisplayQuery.Capture(match, registry.Sets).Sets.Single();
+        set = MatchDisplayQuery.Capture(match, registry.Sets).Sets.Single(item => item.Key == new StringName("set.adventurer"));
         return set.DistinctCardCount == 1 && set.Thresholds.All(threshold => !threshold.Active)
             && bow.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) == 40;
 

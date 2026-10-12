@@ -72,6 +72,40 @@ internal static class AscendantChecks
         return true;
     }
 
+    internal static bool UnlockedOpeningFlight()
+    {
+        for (var level = 1; level <= 4; level++)
+        {
+            var context = new Context(level);
+            var before = context.Run(570);
+            if (FlightEntries(before, context.Card.Id) != 0 || !context.Apply(before)) return false;
+            var crossing = context.Run(30);
+            if (FlightEntries(crossing, context.Card.Id) != 0 || !context.Apply(crossing)
+                || !context.Card.IsQuestUnlocked(context.Card.Quests[0]) || context.Attack != 81 + 20 * level) return false;
+            // 新解锁的开战能力从下一场开始执行，每场恰好一次。
+            foreach (var ticks in new[] { 30, 60 })
+            {
+                var next = context.Run(ticks);
+                var entries = next.Events.OfType<CardStateChangedEvent>()
+                    .Where(item => item.CardId == context.Card.Id && item.StateKey == GameAttributeKeys.Flying).ToArray();
+                if (entries.Length != 1 || entries[0].Tick.Value != 0 || !entries[0].Enabled
+                    || !context.Apply(next)) return false;
+            }
+            if (level < 4) context.Factory.ApplyCardLevel(context.Card, context.Definition, level + 1);
+            if (FlightEntries(context.Run(30), context.Card.Id) != 1) return false;
+            context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Bench, 0);
+            if (FlightEntries(context.Run(30), context.Card.Id) != 0) return false;
+            context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Battlefield, 0);
+            var fresh = new Context(level);
+            if (FlightEntries(context.Run(30), context.Card.Id) != 1
+                || FlightEntries(fresh.Run(30), fresh.Card.Id) != 0) return false;
+        }
+        return true;
+    }
+
+    private static int FlightEntries(BattleResult result, EntityId id) => result.Events.OfType<CardStateChangedEvent>()
+        .Count(item => item.CardId == id && item.StateKey == GameAttributeKeys.Flying && item.Enabled);
+
     internal static bool CrossBattleAndUpgrade()
     {
         var context = new Context(1);
@@ -138,7 +172,8 @@ internal static class AscendantChecks
             if (context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Battlefield, 0).IsFailure) return false;
             var attack = context.Attack;
             var result = context.Run(30);
-            var activations = result.Events.OfType<AbilityActivatedEvent>().Count(e => e.SourceCardId == context.Card.Id && !e.IsEcho);
+            // 登神者每次主动发动产生一次直接伤害；开战能力不计入永久成长次数。
+            var activations = result.Events.OfType<DamageDealtEvent>().Count(e => e.SourceCardId == context.Card.Id);
             if (!context.Apply(result) || context.Attack != attack + activations * (level + 1)
                 + (before.Quests[0].Progress == 19 ? 80 : 0)) return false;
             if (before.Quests[2].Progress < 120 && context.Card.GetQuestProgress(context.Card.Quests[2].Key)

@@ -49,6 +49,8 @@ public sealed partial class MatchShell : Control
     private BoardZoneView _bench = null!;
     private BoardZoneView _enemy = null!;
     private CardDetailsView _details = null!;
+    private CardPreviewView _cardPreview = null!;
+    private CardPreviewQuery? _previewQuery;
     private HeroDetailsView _secondary = null!;
     private SellDropZone _sellDrop = null!;
     private MatchPage? _page;
@@ -141,7 +143,8 @@ public sealed partial class MatchShell : Control
         _battleStage.Requested += RequestAction;
         _battlefield = Add(GetNode<Control>("BattlefieldRow/Content"), new BoardZoneView { Name = "Board" });
         _bench = Add(GetNode<Control>("BenchRow/Content"), new BoardZoneView { Name = "Board" });
-        _details = Add(this, new CardDetailsView { Name = "CardDetails", ZIndex = 10 });
+        _details = Add(this, new CardDetailsView { Name = "CardDetails", ZIndex = 40 });
+        _cardPreview = Add(this, new CardPreviewView { Name = "CardPreview", ZIndex = 55 });
         _secondary = Add(this, new HeroDetailsView { Name = "HeroDetails", ZIndex = 9 });
         _toast = Add(this, new PanelContainer { Name = "Toast", ZIndex = 40, MouseFilter = MouseFilterEnum.Ignore, Visible = false });
         var toastPlate = MatchTheme.Surface(new Color("243a2f"), MatchTheme.Gold);
@@ -169,6 +172,7 @@ public sealed partial class MatchShell : Control
     public void Render(MatchPageViewModel view)
     {
         var previousMessage = _view?.Message;
+        if (_cardPreview.Visible && (_page != view.Page || _view?.Player?.MatchId != view.Player?.MatchId)) _cardPreview.Close();
         if (_view?.Player?.MatchId != view.Player?.MatchId) { _menu.Close(); _settings.Hide(); _catalog.Hide(); _skillCatalog.Hide(); }
         _view = view;
         if (view.Message != previousMessage && System.Text.RegularExpressions.Regex.IsMatch(view.Message, "成功|失败|不足|无法|不能|已购买|已出售|已领取|已售罄|已满"))
@@ -238,7 +242,7 @@ public sealed partial class MatchShell : Control
         if (selected is not null)
         {
             _secondary.Hide();
-            _details.ShowSelected(selected, view.Player!.MatchId, view.Sell, GetLocalMousePosition(), Size, BattleState(selected));
+            _details.ShowSelected(DescribeCard(selected), view.Player!.MatchId, view.Sell, GetLocalMousePosition(), Size, BattleState(selected));
         }
         else if (preserveDetail && previousDetailId is { } detailId)
         {
@@ -247,7 +251,7 @@ public sealed partial class MatchShell : Control
                 ?? view.Offers.Select(offer => offer.Card).Concat(view.Rewards.Where(reward => reward.Card is not null).Select(reward => reward.Card!))
                     .FirstOrDefault(card => card.Id == detailId && card.Key == _details.CurrentCardKey);
             if (refreshed is not null)
-                _details.RefreshCard(refreshed, Size, view.Playback?.State.Cards.FirstOrDefault(state => state.Id == detailId));
+                _details.RefreshCard(DescribeCard(refreshed), Size, view.Playback?.State.Cards.FirstOrDefault(state => state.Id == detailId));
             else
             {
                 _details.Hide();
@@ -300,6 +304,11 @@ public sealed partial class MatchShell : Control
     public void LoadDisplaySettings() => _settings.LoadSaved();
     // 图鉴内容由入口的应用查询注入，不读取对局状态。
     public void SetCatalog(IReadOnlyList<CardCatalogEntry> entries) => _catalog.SetEntries(entries);
+
+    // 原生视图共享只读等级／宝石查询，卡面补充当前套装展示信息。
+    public void SetCardPreview(CardPreviewQuery query) { _previewQuery = query; _cardPreview.SetQuery(query); }
+    public CardSnapshot DescribeCard(CardSnapshot card) => _catalog?.Visible == true ? card : _previewQuery?.Describe(card,
+        _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true ? _view.Enemy : _view?.Player) ?? card;
     // 技能图鉴同样只接收应用查询的冻结条目。
     public void SetSkillCatalog(IReadOnlyList<SkillCatalogEntry> entries) => _skillCatalog.SetEntries(entries);
     private void OpenCatalog()
@@ -330,11 +339,17 @@ public sealed partial class MatchShell : Control
     private void BenchSlot(int slot) => BoardSlotPressed?.Invoke(BoardZone.Bench, slot);
     private CardBattleSnapshot? BattleState(CardSnapshot card) => _view?.Playback?.State.Cards.FirstOrDefault(state => state.Id == card.Id);
     private void ShowDetails(CardSnapshot card, Rect2 rect)
-    { _pinnedDetails = true; _details.SetPinned(true); _details.ShowNear(card, new Rect2(rect.Position - GlobalPosition, rect.Size), Size, BattleState(card)); }
+    {
+        _details.Hide();
+        var opponent = _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true;
+        _cardPreview.Open(_catalog.Visible ? card : DescribeCard(card), _catalog.Visible ? null : opponent ? _view?.Enemy : _view?.Player, _catalog.Visible ? null : opponent ? _view?.Player : _view?.Enemy);
+    }
+    // 图鉴卡牌与棋盘共用右键预览入口。
+    public void ShowCardPreview(CardSnapshot card, Rect2 rect) => ShowDetails(card, rect);
     private void CloseDetails() { _pinnedDetails = false; CancelRequested?.Invoke(); }
     // 卡牌悬停立即复用固定详情的内容组件，定位依据卡牌可见边界。
     public void ShowHoverCard(CardSnapshot card, Rect2 rect, CardBattleSnapshot? battle = null)
-    { if (!_pinnedDetails && !_menu.Visible && !_settings.Visible && !_catalog.Visible && !_skillCatalog.Visible && !GetViewport().GuiIsDragging()) { _details.SetPinned(false); _details.ShowNear(card, new Rect2(rect.Position - GlobalPosition, rect.Size), Size, battle ?? BattleState(card)); } }
+    { if (!_pinnedDetails && !_cardPreview.Visible && !_menu.Visible && !_settings.Visible && !_skillCatalog.Visible && !GetViewport().GuiIsDragging()) { _details.SetPinned(false); _details.ShowNear(DescribeCard(card), new Rect2(rect.Position - GlobalPosition, rect.Size), Size, _catalog.Visible ? null : battle ?? BattleState(card)); } }
     // 固定详情不随卡牌离开而关闭。
     public void HideHoverCard() { if (!_pinnedDetails) _details.Hide(); }
     private void DropMove(BoardDragData data, BoardZone zone, int start) => MoveRequested?.Invoke(data, zone, start);
@@ -440,6 +455,7 @@ public sealed partial class MatchShell : Control
         _economy.Position = new Vector2(margin, Size.Y - 14 - 68); _economy.Size = new Vector2(side, 68);
         _settings.Position = Vector2.Zero; _settings.Size = Size;
         _catalog.Position = new Vector2(margin, margin); _catalog.Size = Size - Vector2.One * margin * 2;
+        _cardPreview.Position = Vector2.Zero; _cardPreview.Size = Size;
         _skillCatalog.Position = _catalog.Position; _skillCatalog.Size = _catalog.Size;
         _details.ClampTo(Size); _secondary.ClampTo(Size);
         // 宝石商店右侧砧板接收镶嵌，出售遮罩仅占左侧英雄区域。
@@ -453,6 +469,7 @@ public sealed partial class MatchShell : Control
     // 固定16:9画布隐藏整页滚动；浮层和图鉴自行消费滚轮。
     public override void _Input(InputEvent input)
     {
+        if (_cardPreview.Visible) return;
         if (!_desktopScroll.Visible || _catalog.Visible || _skillCatalog.Visible || _secondary.Visible
             || _details.Visible && _details.GetGlobalRect().HasPoint(GetGlobalMousePosition())) return;
         if (input is InputEventMouseButton { Pressed: true } mouse && mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)

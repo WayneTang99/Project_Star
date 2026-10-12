@@ -184,6 +184,7 @@ public sealed partial class PhaseOneVerification : Control
             ("小型生命药水分级治疗后仅本场摧毁并在下场恢复", SmallRedPotionChecks.HealingAndConsumption),
             ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
+            ("弗兰肯特材料出售成长、多重完整发动、升级保留和原画正确", FrankentChecks.SaleGrowthAndBattle),
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
             ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
@@ -205,6 +206,7 @@ public sealed partial class PhaseOneVerification : Control
             ("冒险者背包身份、原画、三级光环和英雄等级乘算正确", AdventurerBackpackChecks.IdentityAndScaling),
             ("背包光环叠加撤销、双方等级隔离、备战辅助筛选与召唤正确", AdventurerBackpackChecks.StackingAndRemoval),
             ("背包与猎弓激活正式2件套，升级更新攻击且旧输入保持冻结", AdventurerBackpackChecks.HeroGrowthAndSet),
+            ("冒险者大剑身份、原画、两级英雄等级伤害与8秒冷却正确", AdventurerGreatswordChecks.IdentityAndDamage),
             ("遗迹石像身份、两级伤害护甲与开战禁锢8秒首发正确", RuinStoneStatueChecks.LevelsAndTiming),
             ("碎骨法师身份、分级伤害、摧毁筛选、多重及空目标正确", BonebreakerMageChecks.LevelsAndSacrifice),
             ("捣蛋鬼蝙蝠身份、分级随机迟缓、2秒伤害与战场筛选正确", MischievousBatChecks.LevelsAndTargets),
@@ -217,11 +219,30 @@ public sealed partial class PhaseOneVerification : Control
             ("修复取消旧队列、保留首次发动历史并恢复冷却光环正确", SteelWrenchChecks.QueueAndRepeatedRepair),
             ("修复避开占位、位置恢复回放及跨战斗隔离正确", SteelWrenchChecks.OccupancyAndPlayback),
             ("征服者堡垒身份、两级光环、零攻击人类成长与真实伤害正确", ConquerorFortressChecks.LevelsAndGrowth),
+            ("冰剑鱼身份、三级伤害、自身冰回响与多重正确", IceSwordfishChecks.LevelsAndDamage),
+            ("冰剑鱼随机攻击卡筛选、零攻击成长与确定性隔离正确", IceSwordfishChecks.RandomTargetsAndIsolation),
+            ("冰剑鱼冰发动筛选、失效来源与回响不递归正确", IceSwordfishChecks.TriggerBoundaries),
+            ("燃爆弹三级7秒伤害、灼伤、消耗顺序、战斗间恢复与原画正确", IncendiaryBombChecks.LevelsAndConsumption),
+            ("火焰杯三级灼伤、自身回响、多重与方形原画正确", FlameGobletChecks.LevelsAndBurn),
+            ("火焰杯火属性发动筛选、回响不递归与下场重置正确", FlameGobletChecks.TriggersAndReset),
+            ("菲尼克斯4级灼伤、首次致命救援、翻倍及下场重置正确", PhoenixChecks.DefinitionAndBattle),
+            ("天启四骑士身份、等级及自然日蚀一次性翻倍正确", ApocalypseChecks.LevelsAndNaturalEntry),
+            ("提前日蚀、双方同Tick进入、套装生命及日蚀伤害正确", ApocalypseChecks.EarlyEntryAndSetBattle),
+            ("日蚀一次性、奇数生命、护甲、备战与摧毁边界正确", ApocalypseChecks.EntryBoundaries),
+            ("天启轮开始冷却永久缩减、去重、幂等及升级正确", ApocalypseChecks.RoundSetCooldowns),
+            ("菲尼克斯各类致命伤害、敌我、护甲、失效与寂灭边界正确", PhoenixChecks.DamageKindsAndBoundaries),
             ("堡垒叠加、摧毁停触发保留增长与跨战斗隔离正确", ConquerorFortressChecks.StackingAndLifetime),
             ("敌方发动排除失败备战技能回响，强化默认及非法配置正确", ConquerorFortressChecks.TriggerBoundaries),
             ("原卡与召唤物摧毁后可再次召唤，回放占格及跨战斗隔离正确", BonebreakerMageChecks.RepeatedSummoningAndPlayback),
             ("石像双方来源护甲、光环叠加、多重共用冷却与生命周期正确", RuinStoneStatueChecks.TargetsBonusesAndLifecycle),
             ("开锁器各等级出售强化最左侧疾速卡牌，实际时长与冻结正确", LockpickChecks.LevelsAndTiming),
+            ("夜盗行衣四级4秒随机疾速、自身目标、敌我筛选与轮初词条正确", NightThiefGarbChecks.LevelsAndHaste),
+            ("伪装面具三级跨英雄光环、无阵营及敌我备战筛选正确", DisguiseMaskChecks.LevelsAndAura),
+            ("伪装面具光环叠加、撤销、倍率、上限与归属冻结正确", DisguiseMaskChecks.AuraLifetimeAndFrozenIdentity),
+            ("伪装面具拾取同级小中型奖励、重复交易与合并等级正确", DisguiseMaskChecks.PickupLevelsAndTransactions),
+            ("伪装面具满盘待领、失败无副作用、空池与随机状态正确", DisguiseMaskChecks.PickupFullEmptyAndSharedRandom),
+            ("夜盗行衣轮开始幂等、备战排除、当前英雄及同级随机奖励正确", NightThiefGarbChecks.RoundBoundariesAndPool),
+            ("夜盗行衣奖励合并、满盘待领、空池及不支持等级筛选正确", NightThiefGarbChecks.MergeFullAndEmpty),
             ("刺客匕首身份原画、四档4秒伤害及首次翻倍正确", AssassinDaggerChecks.LevelsAndTiming),
             ("暗影斗篷身份原画、半血严格阈值与分级隐身到期正确", ShadowCloakChecks.LevelsAndTiming),
             ("暗影斗篷时长累加、备战摧毁排除、治疗后不重复与致命伤害正确", ShadowCloakChecks.StackingAndSourceFilters),
@@ -239,6 +260,7 @@ public sealed partial class PhaseOneVerification : Control
             ("骷髅及骨冢身份、等级、原画与骷髅3秒分级伤害正确", MonaUndeadChecks.LevelsAndDamage),
             ("骨冢3秒同级召唤、骷髅独立冷却、左侧阻挡与确定性正确", MonaUndeadChecks.SummonTimingAndPositions),
             ("破誓者分级随机不重复迟缓、双方光牌动态冷却及倍率正确", OathbreakerChecks.TargetsAndAura),
+            ("战锤要塞3/4级伤害、装备计数动态冷却与原画正确", WarhammerFortressChecks.DamageAndCooldown),
             ("辉耀巨龙身份、分级伤害、灼伤加成与累加正确", RadiantDragonChecks.IdentityAndDamage),
             ("辉耀巨龙进入及退出飞行调整冷却进度，状态不跨战斗保留", RadiantDragonChecks.FlyingTransitions),
             ("状态冷却光环叠加倍率、来源失效、零冷却与配置边界正确", RadiantDragonChecks.AuraCompositionAndLimits),
@@ -283,6 +305,7 @@ public sealed partial class PhaseOneVerification : Control
             ("禅光寺双方攻击分类、事件目标、禁锢叠加及衰减", JiyunControlChecks.TempleTargetsAndDuration),
             ("极云通用迟缓和事件卡牌机制拒绝无效配置", JiyunControlChecks.ConfigurationBoundaries),
             ("登神者分级、3秒发动及20/60/120次任务即时解锁", AscendantChecks.LevelsAndThresholds),
+            ("登神者20次解锁开战飞行，下一场生效且升级移区保留", AscendantChecks.UnlockedOpeningFlight),
             ("登神者跨战斗永久成长、升级及备战身份保留", AscendantChecks.CrossBattleAndUpgrade),
             ("登神者购买及连续合并保留最高等级实例、任务和永久成长", AscendantChecks.MergePreservesProgress),
             ("登神者自身发动筛选、实例隔离及失败战斗成长", AscendantChecks.FiltersAndLoss),
@@ -336,6 +359,9 @@ public sealed partial class PhaseOneVerification : Control
             ("备战卡面展示当前光环、英雄等级与移区后的最终值", CardFinalValueChecks.Preparation),
             ("战斗卡面最终施加量、多重变化与旧回放快照正确", CardFinalValueChecks.Playback),
             ("三种尺寸卡面多重标记、刷新和边界正确", () => CardFinalValueChecks.FaceScene(this)),
+            ("HTML同步全卡当前值描述与统一资源、冷却配色", UiPrototypeSyncChecks.Definitions),
+            ("等级宝石预览保留成长与实例且不修改原快照", UiPrototypeSyncChecks.Preview),
+            ("放大预览等级、宝石、还原、描述方括号及Escape正确", () => UiPrototypeSyncChecks.Scene(this)),
             ("宝石商店两砧板、扣费刷新、一次选择与过期隔离正确", GemShopChecks.FeesAndRefresh),
             ("宝石商店真实砧板拖放、预览只读及离店关闭正确", () => GemShopChecks.DragScene(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
@@ -372,6 +398,18 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await ShadowCloakChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-night-thief-garb"))
+            Callable.From((Action)(async () =>
+            {
+                try { await NightThiefGarbChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-disguise-mask"))
+            Callable.From((Action)(async () =>
+            {
+                try { await DisguiseMaskChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-card-interactions"))
@@ -453,6 +491,48 @@ public sealed partial class PhaseOneVerification : Control
                 var output = GetNode<Label>("Margin/Panel/Margin/Content/Results/Output").Text;
                 GetTree().Quit(output.Contains("✗") ? 1 : 0);
             }).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-ui-sync"))
+            Callable.From((Action)(async () =>
+            {
+                try { await UiPrototypeSyncChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-incendiary-bomb"))
+            Callable.From((Action)(async () =>
+            {
+                try { await IncendiaryBombChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-ice-swordfish"))
+            Callable.From((Action)(async () =>
+            {
+                try { await IceSwordfishChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-flame-goblet"))
+            Callable.From((Action)(async () =>
+            {
+                try { await FlameGobletChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-phoenix"))
+            Callable.From((Action)(async () =>
+            {
+                try { await PhoenixChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-warhammer-fortress"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WarhammerFortressChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-apocalypse"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ApocalypseChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--verify-native-drag"))
             Callable.From((Action)(async () =>
             {

@@ -75,9 +75,11 @@ internal static class SkillCatalogChecks
             var catalog = shell.GetNode<SkillCatalogView>("SkillCatalog");
             var search = catalog.GetNode<LineEdit>("Content/Filters/Search");
             var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills");
-            var name = catalog.GetNode<Label>("Content/Body/DetailPanel/Details/SkillName");
-            var level = catalog.GetNode<OptionButton>("Content/Body/DetailPanel/Details/Level");
-            var text = catalog.GetNode<RichTextLabel>("Content/Body/DetailPanel/Details/Effects");
+            var name = catalog.GetNode<Label>("DetailOverlay/DetailPanel/Details/SkillName");
+            var level = catalog.GetNode<OptionButton>("DetailOverlay/DetailPanel/Details/Level");
+            var text = catalog.GetNode<RichTextLabel>("DetailOverlay/DetailPanel/Details/Effects");
+            void OpenDetail() => grid.GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill")._GuiInput(
+                new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
             var choices = 0; shell.ChoiceSelected += (_, _, _) => choices++;
             var menu = shell.GetNode<Button>("OpenGameMenu"); menu.EmitSignal(Button.SignalName.Pressed);
             if (!open.IsVisibleInTree() || catalog.Visible || grid.GetChildCount() == 0) return Fail("初始列表");
@@ -85,17 +87,17 @@ internal static class SkillCatalogChecks
             if (!catalog.Visible || open.IsVisibleInTree() || shell.GetNode<Control>("CardCatalog").Visible
                 || shell.GetNode<Control>("ContextRow/ContextHost/HeroSelectionView").Visible) return Fail("页面互斥");
             var old = grid.GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill");
-            Search("突袭");
+            Search("突袭"); OpenDetail();
             if (grid.GetChildCount() != 1 || !name.Text.Contains("突袭") || level.ItemCount != 4) return Fail("搜索");
             level.Select(3); level.EmitSignal(OptionButton.SignalName.ItemSelected, 3);
             if (!text.GetParsedText().Contains("20%") || !text.GetParsedText().Contains("4级")) return Fail("等级效果");
             old.EmitSignal(Button.SignalName.Pressed);
             if (!name.Text.Contains("突袭")) return Fail("旧按钮解绑");
-            Search("放逐");
+            Search("放逐"); OpenDetail();
             if (level.ItemCount != 3 || level.GetItemId(0) != 2 || !text.GetParsedText().Contains("禁锢 1秒")) return Fail("受限等级");
-            Search("至圣斩");
+            Search("至圣斩"); OpenDetail();
             if (level.ItemCount != 1 || level.GetItemId(0) != 4) return Fail("固定等级");
-            Search("护甲");
+            Search("护甲"); OpenDetail();
             if (grid.GetChildCount() != 1 || !name.Text.Contains("捍卫")) return Fail("效果搜索");
             Search(""); var faction = catalog.GetNode<OptionButton>("Content/Filters/Faction");
             for (var index = 1; index < faction.ItemCount; index++)
@@ -106,9 +108,10 @@ internal static class SkillCatalogChecks
             }
             Pick(faction, 0); var initial = catalog.GetNode<OptionButton>("Content/Filters/InitialLevel");
             Pick(initial, initial.ItemCount - 1);
+            OpenDetail();
             if (grid.GetChildCount() != 1 || !name.Text.Contains("至圣斩")) return Fail("初始等级筛选");
             Pick(initial, 0); Search("没有这个技能");
-            if (grid.GetChildCount() != 0 || catalog.GetNode<Control>("Content/Body/DetailPanel/Details").Visible) return Fail("空结果");
+            if (grid.GetChildCount() != 0 || catalog.GetNode<Control>("DetailOverlay").Visible) return Fail("空结果");
             catalog.Close();
             if (catalog.Visible || !menu.HasFocus() || choices != 0) return Fail("关闭与只读");
             shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenCardCatalog").EmitSignal(Button.SignalName.Pressed);
@@ -142,18 +145,23 @@ internal static class SkillCatalogChecks
                 if (!catalog.Visible || !search.HasFocus()) throw new InvalidOperationException("技能图鉴键盘入口失败。");
                 foreach (var character in "放逐") KeyInput(Key.None, character);
                 await Frame(); await Frame();
-                if (!catalog.GetNode<Label>("Content/Body/DetailPanel/Details/SkillName").Text.Contains("放逐"))
+                if (catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills").GetChildCount() != 1)
                     throw new InvalidOperationException("技能图鉴中文键盘搜索失败。");
                 foreach (var (query, label) in new[] { ("", "all"), ("突袭", "assault"), ("放逐", "banish"), ("至圣斩", "divine-smite"), ("没有这个技能", "empty") })
                 {
                     search.Text = query; search.EmitSignal(LineEdit.SignalName.TextChanged, query); await Frame(); await Frame();
-                    var effects = catalog.GetNode<Control>("Content/Body/DetailPanel/Details/Effects");
-                    if (effects.Size.Y < 100 || effects.GetGlobalRect().End.Y > size.Y || effects.GetGlobalRect().End.X > size.X)
+                    var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills");
+                    if (query.Length > 0 && grid.GetChildCount() > 0)
+                        grid.GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill")._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
+                    await Frame(); await Frame();
+                    var effects = catalog.GetNode<Control>("DetailOverlay/DetailPanel/Details/Effects");
+                    if (catalog.GetNode<Control>("DetailOverlay").Visible && (effects.Size.Y < 100 || effects.GetGlobalRect().End.Y > size.Y || effects.GetGlobalRect().End.X > size.X))
                         throw new InvalidOperationException("技能详情溢出窗口。");
                     await Save(label);
                 }
                 search.Text = "至圣斩"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Frame();
-                var level = catalog.GetNode<OptionButton>("Content/Body/DetailPanel/Details/Level");
+                catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills").GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill")._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
+                var level = catalog.GetNode<OptionButton>("DetailOverlay/DetailPanel/Details/Level");
                 level.Select(level.ItemCount - 1); level.EmitSignal(OptionButton.SignalName.ItemSelected, level.Selected);
                 var selectedLevel = level.GetItemId(level.Selected); search.GrabFocus();
                 var selected = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills").FindChildren("*", "Button", true, false).OfType<SkillItemView>().Single();

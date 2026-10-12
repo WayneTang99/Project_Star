@@ -11,9 +11,10 @@ namespace Project_Star.Application.Content;
 // 单个正式卡牌等级的基础展示快照（应用层），不持有对局或可变定义。
 public sealed record CardCatalogLevel(CardSnapshot Card, int InitialValue);
 
-// 图鉴条目只保存归属展示名、初始等级和全部支持等级（应用层）。
+// 图鉴条目只保存归属与套装展示名、初始等级和全部支持等级（应用层）。
 public sealed record CardCatalogEntry(string FactionName, int InitialLevel, IReadOnlyList<CardCatalogLevel> Levels)
 {
+    public string SetName { get; init; } = "";
     public CardSnapshot InitialCard => Levels.First(level => level.Card.Level == InitialLevel).Card;
 }
 
@@ -30,7 +31,11 @@ public static class CardCatalogQuery
                     {
                         var offer = ShopOffer.Create(definition, level);
                         return new CardCatalogLevel(MatchDisplayQuery.FromOffer(offer), offer.Price);
-                    }).ToArray()))).ToArray());
+                    }).ToArray()))
+            {
+                SetName = definition.Attributes.Identity.SetKey is { } setKey
+                    ? catalog.Sets[setKey].Attributes.Identity.DisplayName : "",
+            }).ToArray());
 
     private static string FactionName(IDefinitionCatalog catalog, StringName faction) => faction == GameFactions.Neutral
         ? "无阵营" : catalog.Heroes.Values.FirstOrDefault(hero => hero.Attributes.Identity.FactionKey == faction)

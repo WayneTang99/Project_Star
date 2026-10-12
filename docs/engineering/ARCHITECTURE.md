@@ -91,6 +91,8 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 | BattleQuestResolver | 自身发动任务进度、阈值即时解锁与通用属性/能力/身份奖励；只操作 Runtime |
 | BattleStateRecorder | 冻结事件前缀对应的状态，生成结算结果；不推进随机或规则 |
 
+Runtime 独立保存全场日蚀进入状态及实际起点；自然边界和提前进入效果共用一次性入口，在伤害前按稳定来源顺序执行进入增益。播放状态冻结日蚀布尔值与增长后的英雄生命上限，不根据原始Setup的预定时间猜测日蚀。轮开始套装冷却缩减由MatchAbilityService按当前已激活阈值结算，RoundIncomeService保持轮边界幂等。
+
 入口只接受 BattleSetup。所有协作者在 Domain/Combat 内部，不向 UI 暴露战斗写入口。卡牌/技能/套装共用 IBattleAbilitySource、PendingAbility 和效果解析，不复制独立模拟器。
 
 初始化记录状态和 BattleStarted，然后结算 0 Tick 战斗开始被动并检查死亡。循环在 Tick 小于 Timeout 时进入下一 Tick，依次执行：日蚀 → 冷却/卡牌时长递减 → 主动入队 → 双方英雄状态 → 状态记录 → FIFO 能力结算 → 死亡检查。循环到期后双方生命置零并按寂灭规则生成结果。整数 Tick 与稳定来源顺序、FIFO、显式 seed 共同保证复算一致；不使用渲染帧决定结果。

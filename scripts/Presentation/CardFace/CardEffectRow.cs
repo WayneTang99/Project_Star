@@ -21,7 +21,7 @@ public sealed partial class CardEffectRow : HBoxContainer
     // 按效果语义选择图标与显示值。
     public void Configure(CardFaceEffect effect)
     {
-        _kind = effect.Kind.ToString().ToLowerInvariant();
+        _kind = effect.Kind == CardFaceEffectKind.ManaCost ? "mana" : effect.Kind.ToString().ToLowerInvariant();
         _icon.Texture = MatchTheme.Icon(new StringName(_kind));
         _value.Text = effect.Value;
         _icon.Modulate = AttributePalette.Effect(effect.Kind);

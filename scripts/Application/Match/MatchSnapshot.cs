@@ -14,7 +14,11 @@ namespace Project_Star.Application.Match;
 public sealed record QuestProgressSnapshot(StringName Key, int Progress, int RequiredCount, bool Unlocked);
 
 // 镶嵌宝石的冻结展示数据；空孔在卡牌快照中以null保留位置。
-public sealed record GemSnapshot(StringName Key, string DisplayName, string Description);
+public sealed record GemSnapshot(StringName Key, string DisplayName, string Description)
+{
+    public IReadOnlyList<EffectDefinition> ActiveEffects { get; init; } = Array.Empty<EffectDefinition>();
+    public Color Color { get; init; } = new("d8b86d");
+}
 
 public sealed record CardSnapshot(
     EntityId Id,
@@ -28,6 +32,14 @@ public sealed record CardSnapshot(
     IReadOnlyList<QuestProgressSnapshot> Quests)
 {
     public StringName? SetKey { get; init; }
+    public CardSetSnapshot? Set { get; init; }
+    public int HeroLevel { get; init; } = 1;
+    public CardOnSellRewardDefinition? OnSellReward { get; init; }
+    public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; init; } = Array.Empty<TaggedCardSaleAttributeBonus>();
+    public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; init; } = Array.Empty<BattleVictoryAttributeBonus>();
+    public int BattleValueBonus { get; init; }
+    public IReadOnlyDictionary<StringName, int> OwnValues { get; init; } =
+        new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
     public StringName Illustration { get; init; } = new("");
     public IReadOnlyList<CardDescriptionEntry> DescriptionEntries { get; init; } = Array.Empty<CardDescriptionEntry>();
     public IReadOnlyList<StringName> Tags { get; init; } = Array.Empty<StringName>();
@@ -122,6 +134,12 @@ public sealed record MatchSnapshot(
                 quests.AsReadOnly())
             {
                 SetKey = identity.SetKey,
+                HeroLevel = session.Player.Hero?.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Level) ?? 1,
+                OnSellReward = card.OnSellReward,
+                SaleAttributeBonuses = Array.AsReadOnly(card.SaleAttributeBonuses.ToArray()),
+                BattleVictoryBonuses = Array.AsReadOnly(card.BattleVictoryBonuses.ToArray()),
+                BattleValueBonus = card.BattleValueBonus,
+                OwnValues = card.Attributes.BaseCombat.SnapshotFinalValues(),
                 Illustration = identity.Illustration,
                 DescriptionEntries = Array.AsReadOnly(identity.DescriptionEntries.ToArray()),
                 Tags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
@@ -131,7 +149,8 @@ public sealed record MatchSnapshot(
                 QuestDefinitions = Array.AsReadOnly(card.Quests.ToArray()),
                 CooldownMultiplier = card.CooldownMultiplier,
                 GemSockets = Array.AsReadOnly(card.GemSockets.Select(gem => gem is null ? null
-                    : new GemSnapshot(gem.Attributes.Identity.Key, gem.Attributes.Identity.DisplayName, gem.Attributes.Identity.Description)).ToArray()),
+                    : new GemSnapshot(gem.Attributes.Identity.Key, gem.Attributes.Identity.DisplayName, gem.Attributes.Identity.Description)
+                    { ActiveEffects = Array.AsReadOnly(gem.ActiveEffects.ToArray()), Color = gem.Color }).ToArray()),
             });
         }
         var placements = new List<BoardPlacementSnapshot>();

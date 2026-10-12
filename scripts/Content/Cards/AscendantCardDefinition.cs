@@ -16,7 +16,7 @@ public sealed class AscendantCardDefinition : CardDefinition
             [
                 new(CardKeywords.Activate, "冷却3秒，魔法消耗0，造成此卡牌攻击力的伤害（初始攻击力1）。"),
                 new(CardKeywords.Echo, "当此卡牌发动后，攻击力永久增加1/2/3/4；包含多重的额外发动。"),
-                new(CardKeywords.Quest, "累计发动20次，攻击力+80。"),
+                new(CardKeywords.Quest, "累计发动20次，攻击力+80，并解锁：战斗开始时，此卡牌进入飞行。"),
                 new(CardKeywords.Quest, "累计发动60次，获得多重1，此卡牌改为光属性。"),
                 new(CardKeywords.Quest, "累计发动120次，发动时额外施加此卡牌当前攻击力的10%灼伤（向下取整），并获得神明标签。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
@@ -26,7 +26,12 @@ public sealed class AscendantCardDefinition : CardDefinition
             [
                 new CardQuestDefinition(new StringName("quest.ascendant.attack"),
                     new SourceCardActivationQuestConditionDefinition(), 20,
-                    [AttributeReward(new StringName("ability.quest_attack_bonus"), GameAttributeKeys.AttackDamage, 80)]),
+                    [
+                        AttributeReward(new StringName("ability.quest_attack_bonus"), GameAttributeKeys.AttackDamage, 80),
+                        new AbilityDefinition(new StringName("ability.enter_flying_on_battle_start"),
+                            AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard, 0, 0,
+                            [new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true)]),
+                    ]),
                 new CardQuestDefinition(new StringName("quest.ascendant.multicast"),
                     new SourceCardActivationQuestConditionDefinition(), 60,
                     [AttributeReward(new StringName("ability.quest_multicast_bonus"), GameAttributeKeys.Multicast, 1)],

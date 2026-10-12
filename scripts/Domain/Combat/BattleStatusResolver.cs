@@ -147,6 +147,10 @@ internal static class BattleStatusResolver
                     if (effect is IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition aura)
                         bonus = checked(bonus + runtime.Cards.Count(card => !card.Destroyed && !card.IsOnBench
                             && card.ElementKeys.Contains(aura.ElementKey)) * aura.AmountTicks);
+                    if (effect is ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition taggedAura)
+                        bonus = checked(bonus - runtime.Cards.Count(card => card.Side == source.Side
+                            && !card.Destroyed && !card.IsOnBench
+                            && BattleEffectResolver.HasEffectiveTag(runtime, card, taggedAura.RequiredTag)) * taggedAura.AmountTicks);
                     if (effect is ReduceSourceCooldownWhileInStateEffectDefinition stateAura
                         && (stateAura.StateKey == GameAttributeKeys.Flying ? source.IsFlying : source.IsBerserk))
                         bonus = checked(bonus - stateAura.AmountTicks);
@@ -163,8 +167,14 @@ internal static class BattleStatusResolver
                 .SelectMany(provider => provider.Abilities)
                 .Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
                 .SelectMany(ability => ability.Definition.Effects)
-                .OfType<ReduceAlliedElementCardCooldownAuraEffectDefinition>()
-                .Where(aura => source.ElementKeys.Contains(aura.ElementKey)).Sum(aura => aura.Percent));
+                .Sum(effect => effect switch
+                {
+                    ReduceAlliedElementCardCooldownAuraEffectDefinition aura when source.ElementKeys.Contains(aura.ElementKey) => aura.Percent,
+                    ReduceOtherHeroCardCooldownAuraEffectDefinition aura when source.Identity is { } identity
+                        && runtime.GetHero(source.Side).Identity is { } heroIdentity
+                        && identity.FactionKey != heroIdentity.FactionKey => aura.Percent,
+                    _ => 0,
+                }));
             var delta = bonus - source.CooldownAuraBonusTicks;
             if (delta == 0 && reduction == source.CooldownAuraReductionPercent) continue;
             var oldMultiplier = source.EffectiveCooldownMultiplier;
@@ -245,11 +255,31 @@ internal static class BattleStatusResolver
     // 达到日蚀时间时对双方按原曲线结算伤害，优先扣护甲。
     internal static void ApplyEclipse(BattleRuntime runtime, BattleSetup setup)
     {
-        if (runtime.Tick.Value < setup.EclipseTime.Value || runtime.Tick.Value % 10 != 0) return;
-        var seconds = (runtime.Tick.Value - setup.EclipseTime.Value) / 10;
+        if (!runtime.EclipseEntered && runtime.Tick.Value >= setup.EclipseTime.Value)
+            CombatSimulator.EnterEclipse(runtime);
+        if (!runtime.EclipseEntered || runtime.Tick.Value % 10 != 0) return;
+        var seconds = (runtime.Tick.Value - runtime.EclipseTime.Value) / 10;
         var damage = 1 << (int)Math.Min(seconds, 30);
-        BattleEffectResolver.ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero, damage, false, DamageSourceKind.Eclipse);
-        BattleEffectResolver.ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero, damage, false, DamageSourceKind.Eclipse);
+        BattleEffectResolver.ApplyDamage(runtime, runtime.PlayerHero.EntityId, SideId.Player, runtime.PlayerHero,
+            ReceivedDamage(SideId.Player), false, DamageSourceKind.Eclipse);
+        BattleEffectResolver.ApplyDamage(runtime, runtime.OpponentHero.EntityId, SideId.Opponent, runtime.OpponentHero,
+            ReceivedDamage(SideId.Opponent), false, DamageSourceKind.Eclipse);
+
+        int ReceivedDamage(SideId target)
+        {
+            var amount = damage;
+            foreach (var source in runtime.AbilitySources)
+            foreach (var ability in source.Abilities)
+            {
+                if (source.Destroyed || source.IsOnBench || ability.Definition.Activation != AbilityActivation.PassiveAura) continue;
+                var side = ability.Definition.Target == AbilityTarget.EnemyHero
+                    ? (source.Side == SideId.Player ? SideId.Opponent : SideId.Player) : source.Side;
+                if (side != target) continue;
+                foreach (var effect in ability.Definition.Effects.OfType<MultiplyReceivedEclipseDamageEffectDefinition>())
+                    amount = checked(amount * effect.Multiplier);
+            }
+            return amount;
+        }
     }
 
 

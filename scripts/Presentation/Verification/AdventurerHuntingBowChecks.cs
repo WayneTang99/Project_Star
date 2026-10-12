@@ -49,7 +49,7 @@ internal static class AdventurerHuntingBowChecks
                 || result.Events.OfType<ManaChangedEvent>().Any() || reward?.Card.Attributes.Identity.Key != new StringName("card.beast_hide")
                 || result.MatchRewardSources.Single().Level != level || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)
                 || CardDisplayAdapter.FaceEffects(MatchSnapshot.From(session).Cards.Single()).Single().Value != damage.ToString()) return false;
-            var sets = MatchDisplayQuery.Capture(session, registry.Sets).Sets.Single();
+            var sets = MatchDisplayQuery.Capture(session, registry.Sets).Sets.Single(item => item.Key == new StringName("set.adventurer"));
             if (sets.DisplayName != "冒险者" || sets.DistinctCardCount != 1 || sets.Thresholds.Any(threshold => threshold.Active)
                 || !sets.Thresholds.Select(threshold => threshold.RequiredCount).SequenceEqual(new[] { 2, 3, 5 })) return false;
         }
@@ -138,7 +138,7 @@ internal static class AdventurerHuntingBowChecks
         if (match.Player.Experience != prior + 1) return false;
         var snapshot = MatchDisplayQuery.Capture(match, sets).Sets.Single();
         return snapshot.DistinctCardCount == 2 && snapshot.Thresholds.Count(threshold => threshold.Active) == 1
-            && CardDisplayAdapter.AbilityDetails(snapshot.Thresholds[0].Abilities).Contains("每轮开始时");
+            && CardDisplayAdapter.AbilityDetails(snapshot.Thresholds[0].Abilities).Contains("轮初");
 
         CardInstance Add(int index, int start)
         {

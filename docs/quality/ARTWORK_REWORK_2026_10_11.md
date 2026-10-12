@@ -1,6 +1,6 @@
 # 2026-10-11原画重绘验收
 
-已完成25张卡牌原画重绘并更新正式Definition的Illustration引用。范围包含[初次视觉检查](ARTWORK_REVIEW_2026_10_11.md)中的13张优先卡牌，另加7张非英雄人物卡牌及5张圣骑士配色调整。旧图和中间稿保留；本次重绘只更新插画引用，不改变这些卡牌的身份、数值或能力。英雄及技能原画未替换。
+已完成25张卡牌原画重绘并更新正式Definition的Illustration引用。范围包含[初次视觉检查](ARTWORK_REVIEW_2026_10_11.md)中的13张优先卡牌，另加7张非英雄人物卡牌及5张圣骑士配色调整。旧图和中间稿已于2026-10-12按用户要求清理，现用原画保留；本次重绘只更新插画引用，不改变这些卡牌的身份、数值或能力。英雄及技能原画未替换。
 
 ## 本次采用的规则
 
@@ -18,31 +18,31 @@
 
 | 卡牌 | 归属 | 尺寸 | 本次引用 | 保留版本 |
 |---|---|---|---|---|
-| 随军牧师 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/army_priest-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/army_priest-illustration.png) |
-| 登神者 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/ascendant-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/ascendant-illustration.png) |
-| 轻骑兵 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/light_cavalry-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/light_cavalry-illustration-v2.png) |
-| 军团旗帜手 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/legion_standard_bearer-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/legion_standard_bearer-illustration-v2.png) |
-| 修女 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/nun-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/nun-illustration-refresh.png) |
-| 破誓者 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/oathbreaker-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/oathbreaker-illustration.png) |
-| 盾甲士 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/shield_bearer-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/shield_bearer-illustration.png) |
-| 圣殿骑士 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/templar_knight-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/templar_knight-illustration.png) |
-| 荣耀战矛 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/glory_spear-illustration-rework-20261011-full.png) | [原图](../../art/ui/card-face/artwork/glory_spear-illustration.png) |
-| 原木法杖 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/log_staff-illustration-rework-20261011-full.png) | [原图](../../art/ui/card-face/artwork/log_staff-illustration.png) |
-| 飞天扫帚 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/flying_broom-illustration-rework-20261011-full.png) | [原图](../../art/ui/card-face/artwork/flying_broom-illustration.png) |
-| 黑犀金龟 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/black_rhinoceros_beetle-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/black_rhinoceros_beetle-illustration-v2.png) |
-| 炼金釜 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/alchemy_cauldron-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/alchemy_cauldron-illustration.png) |
-| 魔法坩埚 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/magic_cauldron-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/magic_cauldron-illustration.png) |
-| 银针草 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/silver_needle_grass-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/silver_needle_grass-illustration.png) |
-| 小型魔法药水 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/small_mana_potion-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/small_mana_potion-illustration-v2.png) |
-| 小型生命药水 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/small_red_potion-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/small_red_potion-illustration-v2.png) |
-| 传动齿轮 | 机械师 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/transmission_gear-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/transmission_gear-illustration.png) |
-| 传动齿轮组 | 机械师 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/transmission_gear_assembly-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/transmission_gear_assembly-illustration.png) |
-| 开锁器 | 潜行者 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/lockpick-illustration-rework-20261011.png) | [原图](../../art/ui/card-face/artwork/lockpick-illustration.png) |
-| 教团远征军 | 圣骑士 | 大型／1536×1024 | [现用原画](../../art/ui/card-face/artwork/order_crusader-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/order_crusader-illustration-refresh.png) |
-| 辉耀巨龙 | 圣骑士 | 大型／1536×1024 | [现用原画](../../art/ui/card-face/artwork/radiant_dragon-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/radiant_dragon-illustration.png) |
-| 黎明之剑 | 圣骑士 | 大型／1536×1024 | [现用原画](../../art/ui/card-face/artwork/holy_slashing_blade-illustration-rework-20261011-goldwhite.png) | [原图](../../art/ui/card-face/artwork/holy_slashing_blade-illustration-refresh.png) |
-| 战意旗帜 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/battle_standard-illustration-rework-20261011-goldwhite-accent.png) | [原图](../../art/ui/card-face/artwork/battle_standard-illustration.png) |
-| 守护旗帜 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/guardian_standard-illustration-rework-20261011-goldwhite-accent.png) | [原图](../../art/ui/card-face/artwork/guardian_standard-illustration.png) |
+| 随军牧师 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/army_priest-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 登神者 | 圣骑士 | 中型／1254×1254 | 现用原画（旧版已删除） | 原图（旧版已删除） |
+| 轻骑兵 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/light_cavalry-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 军团旗帜手 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/legion_standard_bearer-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 修女 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/nun-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 破誓者 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/oathbreaker-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 盾甲士 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/shield_bearer-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 圣殿骑士 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/templar_knight-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 荣耀战矛 | 圣骑士 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/glory_spear-illustration-rework-20261011-full.png) | 原图（旧版已删除） |
+| 原木法杖 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/log_staff-illustration-rework-20261011-full.png) | 原图（旧版已删除） |
+| 飞天扫帚 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/flying_broom-illustration-rework-20261011-full.png) | 原图（旧版已删除） |
+| 黑犀金龟 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/black_rhinoceros_beetle-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 炼金釜 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/alchemy_cauldron-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 魔法坩埚 | 小魔女 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/magic_cauldron-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 银针草 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/silver_needle_grass-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 小型魔法药水 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/small_mana_potion-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 小型生命药水 | 小魔女 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/small_red_potion-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 传动齿轮 | 机械师 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/transmission_gear-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 传动齿轮组 | 机械师 | 中型／1254×1254 | [现用原画](../../art/ui/card-face/artwork/transmission_gear_assembly-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 开锁器 | 潜行者 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/lockpick-illustration-rework-20261011.png) | 原图（旧版已删除） |
+| 教团远征军 | 圣骑士 | 大型／1536×1024 | [现用原画](../../art/ui/card-face/artwork/order_crusader-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 辉耀巨龙 | 圣骑士 | 大型／1536×1024 | [现用原画](../../art/ui/card-face/artwork/radiant_dragon-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 黎明之剑 | 圣骑士 | 大型／1536×1024 | [现用原画](../../art/ui/card-face/artwork/holy_slashing_blade-illustration-rework-20261011-goldwhite.png) | 原图（旧版已删除） |
+| 战意旗帜 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/battle_standard-illustration-rework-20261011-goldwhite-accent.png) | 原图（旧版已删除） |
+| 守护旗帜 | 圣骑士 | 小型／887×1774 | [现用原画](../../art/ui/card-face/artwork/guardian_standard-illustration-rework-20261011-goldwhite-accent.png) | 原图（旧版已删除） |
 
 ## 验证结果
 

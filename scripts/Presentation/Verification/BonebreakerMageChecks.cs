@@ -38,6 +38,7 @@ internal static class BonebreakerMageChecks
         {
             var attack = (level == 3 ? 80 : 160) + bonus;
             var mage = Mage(level) with { AttackDamage = attack, Multicast = 1 };
+            if (mage.Abilities!.Single().ManaCost != 40) return false;
             var one = Block(2, 1, GameElements.Dark);
             var two = Block(3, 1, GameElements.Dark) with { ElementKeys = [GameElements.Dark, GameElements.Light] };
             var medium = Block(4, 2, GameElements.Dark);
@@ -52,20 +53,30 @@ internal static class BonebreakerMageChecks
             var result = new CombatSimulator().Simulate(setup);
             var destroyed = result.Events.OfType<CardDestroyedEvent>().Where(item => item.SourceCardId == mage.EntityId).ToArray();
             var hits = result.Events.OfType<DamageDealtEvent>().Where(item => item.SourceCardId == mage.EntityId).ToArray();
+            var payments = result.Events.OfType<ManaChangedEvent>().Where(item => item.Side == side).ToArray();
             if (destroyed.Length != 2 || !destroyed.Select(item => item.CardId).SequenceEqual(new[] { one.EntityId, two.EntityId })
                 || hits.Length != 2 || hits.Any(item => item.Tick.Value != 90 || item.RawDamage != attack
                     || item.TargetSide == side) || hits.Sum(item => item.ArmorAbsorbed) != 80
                 || hits.Sum(item => item.HealthDamage) != attack * 2 - 80
                 || result.States[^1].Cards.Any(item => new[] { medium.EntityId, otherElement.EntityId, bench.EntityId, enemy.EntityId }
                     .Contains(item.Id) && item.Destroyed)
+                || payments.Length != 2 || payments.Any(item => item.Amount != -40)
                 || result.PermanentChanges.Any() || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
             if (!CardDisplayAdapter.FaceEffects(offer).Any(effect => effect.Kind == CardFaceEffectKind.Damage
                     && effect.Value == (level == 3 ? "80" : "160"))
+                || !new CardDisplayAdapter().Build(offer).Effects.Any(effect => effect.Kind == CardFaceEffectKind.ManaCost && effect.Value == "−40")
                 || !CardDisplayAdapter.Details(offer).Contains("攻击：")) return false;
         }
         var empty = new CombatSimulator().Simulate(Battle([Mage(3)], [], 180));
         if (empty.Events.OfType<DamageDealtEvent>().Any() || empty.Events.OfType<CardDestroyedEvent>().Any()) return false;
+        var unpaidMage = Mage(3); var sacrifice = Block(2, 1, GameElements.Dark);
+        var unpaid = new CombatSimulator().Simulate(Battle([unpaidMage, sacrifice], [], 90, 39));
+        if (unpaid.Events.OfType<AbilityActivatedEvent>().Any(item => item.SourceCardId == unpaidMage.EntityId)
+            || unpaid.Events.OfType<CardDestroyedEvent>().Any() || unpaid.Events.OfType<DamageDealtEvent>().Any()) return false;
+        var paid = new CombatSimulator().Simulate(Battle([unpaidMage, sacrifice], [], 90, 40));
+        if (paid.Events.OfType<CardDestroyedEvent>().Count() != 1
+            || paid.Events.OfType<ManaChangedEvent>().Single().Amount != -40) return false;
         try
         {
             _ = new AbilityDefinition(new StringName("verification.sacrifice.invalid"), AbilityActivation.Active,
@@ -127,8 +138,8 @@ internal static class BonebreakerMageChecks
     }
     private static CardBattleSetup Block(int start, int size, StringName element) =>
         new(EntityId.New(), start, 0, 0, [], UseLegacyAttack: false, OccupiedSlots: size, ElementKeys: [element]);
-    private static BattleSetup Battle(CardBattleSetup[] player, CardBattleSetup[] opponent, int timeout) =>
-        new(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 80, ManaRegen: 0), player),
-            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 80, ManaRegen: 0), opponent),
+    private static BattleSetup Battle(CardBattleSetup[] player, CardBattleSetup[] opponent, int timeout, int mana = 80) =>
+        new(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 80, InitialMana: mana, ManaRegen: 0), player),
+            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 80, InitialMana: mana, ManaRegen: 0), opponent),
             42, new BattleTick(timeout), new BattleTick(timeout + 1));
 }

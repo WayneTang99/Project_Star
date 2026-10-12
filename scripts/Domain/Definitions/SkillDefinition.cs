@@ -54,13 +54,16 @@ public abstract class SkillDefinition
             {
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition
                     or GrantSourceLevelCardEffectDefinition
+                    or GrantRandomOtherHeroSourceLevelCardEffectDefinition
                     or IncreaseSourceCardAttributeEffectDefinition
+                    or MultiplySourceCardAttributeEffectDefinition
                     or ApplySourceAttributePercentStatusEffectDefinition
                     or SetSourceCardStateEffectDefinition
                     or SetRandomAdjacentAlliedTaggedCardStateEffectDefinition
                     or DestroyCardEffectDefinition
                     or IncreaseSourceCooldownEffectDefinition
                     or IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition
+                    or ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition
                     or ChargeRandomOtherAlliedElementCardEffectDefinition
                     or ChargeSourceCardEffectDefinition
                     or ChargeCardEffectDefinition

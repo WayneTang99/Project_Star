@@ -78,7 +78,9 @@ public sealed class CardEconomyService
                 "Merging placed cards requires configured board operations."));
         var valueCheck = CheckMergeValue(session, definition, plan);
         if (valueCheck.IsFailure) return Result<CardAcquisitionResult>.Fail(valueCheck.Failure!);
-        return Result<CardAcquisitionResult>.Success(AcquireOrMerge(session, definition, level, plan));
+        var acquired = AcquireOrMerge(session, definition, level, plan);
+        ApplyPickup(session, acquired.Card);
+        return Result<CardAcquisitionResult>.Success(acquired);
     }
 
     public Result<CardAcquisitionResult> BuyCard(MatchSession session, ShopOffer offer)
@@ -111,6 +113,7 @@ public sealed class CardEconomyService
 
         var result = AcquireOrMerge(session, offer.Definition, offer.Level, plan);
         offer.MarkSold();
+        ApplyPickup(session, result.Card);
         return Result<CardAcquisitionResult>.Success(result);
     }
 
@@ -137,7 +140,7 @@ public sealed class CardEconomyService
 
     // 获得奖励与购买共用合并、空间预检和自动放置，不留游离库存。
     public Result<CardAcquisitionResult> AcquireAndPlace(MatchSession session, CardDefinition definition,
-        int level, CardAcquisitionSource source)
+        int level, CardAcquisitionSource source, SeededRandom? random = null)
     {
         var plan = BuildMergePlan(session, definition, level);
         var check = CheckPlacement(session, definition, plan);
@@ -152,7 +155,31 @@ public sealed class CardEconomyService
             if (placed.IsFailure) throw new InvalidOperationException(placed.Failure!.Message);
         }
         else _boardService!.RefreshBonuses(session);
+        ApplyPickup(session, acquired.Card, random);
         return Result<CardAcquisitionResult>.Success(acquired);
+    }
+
+    // 获得与合并提交后，以最终等级执行拾取；链式奖励复用同一随机状态。
+    private void ApplyPickup(MatchSession session, CardInstance card, SeededRandom? random = null)
+    {
+        var effects = card.Abilities.Where(ability => ability.Activation == AbilityActivation.PassiveOnPickup)
+            .SelectMany(ability => ability.Effects).OfType<GrantRandomOtherHeroSourceLevelCardEffectDefinition>().ToArray();
+        if (effects.Length == 0 || session.Player.Hero is null) return;
+        var level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
+        var faction = session.Player.Hero.Attributes.Identity.FactionKey;
+        random ??= new SeededRandom(session.Random.State);
+        foreach (var effect in effects)
+        {
+            var candidates = _cardDefinitions.Where(definition => definition.Attributes.Identity.FactionKey != faction
+                && (definition.Attributes.Identity.Size == effect.Size || definition.Attributes.Identity.Size == effect.AdditionalSize)
+                && definition.SupportsLevel(level)).ToArray();
+            if (candidates.Length == 0) continue;
+            var reward = candidates[random.NextInt(0, candidates.Length)];
+            session.Random.State = random.State;
+            if (_boardService is null || AcquireAndPlace(session, reward, level, CardAcquisitionSource.Reward, random).IsFailure)
+                session.AddPendingMonsterReward(new PendingMonsterReward(MonsterRewardKind.Card,
+                    reward.Attributes.Identity.Key, reward.Attributes.Identity.DisplayName, level));
+        }
     }
 
     private Result CheckPlacement(MatchSession session, CardDefinition definition, MergePlan plan)
@@ -335,7 +362,7 @@ public sealed class CardEconomyService
             .Where(placement => placement.CardId != excludedCardId)
             .Select(placement => session.Player.Inventory.Find(placement.CardId))
             .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
-                .Any(ability => ability.Effects.Any(effect => effect is HealEffectDefinition)));
+                .Any(ability => ability.Effects.Any(effect => effect is HealEffectDefinition or HealMaxHealthPercentEffectDefinition)));
 
     private void ApplyOnSellReward(MatchSession session, CardInstance soldCard)
     {

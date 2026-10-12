@@ -54,5 +54,7 @@ public sealed class CardFaceViewModel
     public IReadOnlyList<StringName> ElementKeys { get; }
     public IReadOnlyList<CardFaceEffect> Effects { get; }
     public int Multicast { get; init; }
+    public string SetName { get; init; } = "";
     public IReadOnlyList<string?> GemNames { get; init; } = Array.AsReadOnly(new string?[1]);
+    public IReadOnlyList<Color?> GemColors { get; init; } = Array.AsReadOnly(new Color?[1]);
 }

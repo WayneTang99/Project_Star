@@ -13,11 +13,13 @@ internal sealed class HeroBattleState
     {
         EntityId = setup.EntityId; MaxHealth = setup.MaxHealth; Health = setup.MaxHealth; Armor = setup.Armor;
         Level = setup.Level;
+        Identity = setup.Identity;
         MaxMana = setup.MaxMana; Mana = setup.InitialMana; ManaRegen = setup.ManaRegen;
         HealthRegen = setup.HealthRegen; Burn = setup.Burn; Poison = setup.Poison;
     }
     public EntityId EntityId { get; }
-    public int MaxHealth { get; }
+    public HeroIdentityAttributes? Identity { get; }
+    public int MaxHealth { get; set; }
     public int Level { get; }
     public int Health { get; set; }
     public int Armor { get; set; }
@@ -29,6 +31,7 @@ internal sealed class HeroBattleState
     public int HealthRegen { get; set; }
     public int ManaRegen { get; set; }
     public int StealthDurationTicks { get; set; }
+    public bool FirstLethalDamageReceived { get; set; }
 }
 
 internal sealed class BattleAbilityState
@@ -61,6 +64,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
         if (setup.CooldownMultiplier is < 0m or > 1m)
             throw new ArgumentOutOfRangeException(nameof(setup), "Cooldown multiplier must be between zero and one.");
         CooldownMultiplier = setup.CooldownMultiplier;
+        Identity = setup.Identity;
         Level = setup.Level;
         Quests = Array.AsReadOnly(System.Linq.Enumerable.ToArray(setup.Quests));
         foreach (var quest in Quests)
@@ -98,6 +102,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
             switch (effect)
             {
                 case HealEffectDefinition:
+                case HealMaxHealthPercentEffectDefinition:
                     SupportedCombatAttributes.Add(GameAttributeKeys.HealingBonus);
                     if (setup.CombatValues.TryGetValue(GameAttributeKeys.HealingBonus, out var healingBonus))
                         CombatAttributes[GameAttributeKeys.HealingBonus] = healingBonus;
@@ -129,6 +134,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public int BoardStart { get; }
     public int Level { get; }
     public CardIdentityAttributes? TransformedIdentity { get; init; }
+    public CardIdentityAttributes? Identity { get; }
     public SummonedCardSnapshot? SummonedCard { get; init; }
     public int OccupiedSlots { get; }
     public bool IsOnBench { get; }
@@ -155,6 +161,12 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public HashSet<StringName> SupportedCombatAttributes { get; } = [];
 
     public bool SupportsCombatAttribute(StringName key) => SupportedCombatAttributes.Contains(key);
+
+    // 攻击卡牌按伤害能力分类，零攻击数值不改变分类。
+    public bool IsAttackCard => Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
+        DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition
+        or MaxHealthPercentDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition
+        or SourceHeroHealthScaledAttributeDamageEffectDefinition or SourceHeroArmorDamageEffectDefinition));
 
     public int GetCombatAttribute(StringName key) => CombatAttributes.TryGetValue(key, out var value) ? value : 0;
 
@@ -302,7 +314,8 @@ internal sealed class BattleRuntime
     }
     public AbilityQueue Queue { get; } = new();
     public List<BattleEvent> Events { get; } = [];
-    public BattleTick EclipseTime { get; }
+    public BattleTick EclipseTime { get; set; }
+    public bool EclipseEntered { get; set; }
     public List<BattleStateSnapshot> States { get; } = [];
     public List<PermanentChange> PermanentChanges { get; } = [];
     private ulong RandomState { get; set; }

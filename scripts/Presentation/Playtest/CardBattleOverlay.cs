@@ -28,7 +28,7 @@ public sealed partial class CardBattleOverlay : Control
         _clock = Text("Remaining", 11, new Color("ead5ae"), true);
         foreach (var name in new[] { "Haste", "Slow", "Immobilize", "Flying", "Berserk" })
             _pills.Add(Text(name, 10, Colors.White));
-        _charge = Text("Charge", 11, new Color("baf8ef"));
+        _charge = Text("Charge", 11, AttributePalette.Find(AttributePalette.Haste)!.Value);
         _charge.HorizontalAlignment = HorizontalAlignment.Center;
         _destroyed = Text("Destroyed", 12, new Color("d7dcd2"));
         _destroyed.Text = "已摧毁"; _destroyed.HorizontalAlignment = HorizontalAlignment.Center;
@@ -65,7 +65,7 @@ public sealed partial class CardBattleOverlay : Control
         {
             Pill(0, state.Haste > 0, $"↑ {state.Haste / 10m:0.0}s", "66d9e8");
             Pill(1, state.Slow > 0, $"↓ {state.Slow / 10m:0.0}s", "c0aaa0");
-            Pill(2, state.Immobilize > 0, $"Ⅱ {state.Immobilize / 10m:0.0}s", "e2b8e8");
+            Pill(2, state.Immobilize > 0, $"Ⅱ {state.Immobilize / 10m:0.0}s", "c0aaa0");
             Pill(3, state.IsFlying, "飞行", "c4e9dc");
             Pill(4, state.IsBerserk, "狂暴", "f0b996");
             if (activated) _flash = 1;
@@ -159,7 +159,7 @@ public sealed partial class CardBattleOverlay : Control
         }
         if (_state.Immobilize > 0 && !_state.Destroyed)
         {
-            var color = new Color("b0d6eb99"); var y = Size.Y * .5f;
+            var color = new Color(AttributePalette.Find(AttributePalette.Immobilize)!.Value, .6f); var y = Size.Y * .5f;
             DrawLine(new Vector2(Size.X * .09f, y + 10), new Vector2(Size.X * .91f, y - 10), color, 3);
             DrawLine(new Vector2(Size.X * .09f, y + 16), new Vector2(Size.X * .91f, y - 4), color, 3);
             for (var x = Size.X * .09f; x < Size.X * .91f; x += 12)

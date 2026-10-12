@@ -55,7 +55,8 @@ internal static class BattleStateRecorder
                     : Array.AsReadOnly(card.Abilities.Select(ability => ability.Definition).ToArray())
             }).ToArray();
         runtime.States.Add(new BattleStateSnapshot(runtime.Tick, runtime.Events.Count,
-            runtime.Tick.Value >= runtime.EclipseTime.Value, Hero(runtime.PlayerHero), Hero(runtime.OpponentHero),
+            runtime.EclipseEntered || runtime.Tick.Value >= runtime.EclipseTime.Value,
+            Hero(runtime.PlayerHero), Hero(runtime.OpponentHero),
             Array.AsReadOnly(cards)));
 
         static HeroBattleSnapshot Hero(HeroBattleState hero) => new(hero.Health, hero.MaxHealth, hero.Armor,

@@ -36,7 +36,7 @@ public sealed class EncounterScheduler
         ArgumentNullException.ThrowIfNull(session);
         if (session.Player.Hero is not null)
         {
-            var income = new RoundIncomeService(_registry.Sets).SettleCurrentRound(session);
+            var income = new RoundIncomeService(_registry.Sets, _registry).SettleCurrentRound(session);
             if (income.IsFailure) return Fail(income.Failure!.Code, income.Failure.Message);
             var experience = new TurnExperienceService(_registry.Sets).SettleCurrentTurn(session);
             if (experience.IsFailure) return Fail(experience.Failure!.Code, experience.Failure.Message);

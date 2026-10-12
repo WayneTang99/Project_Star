@@ -16,7 +16,10 @@ public sealed record HeroBattleSetup(
     int HealthRegen = 0,
     int Burn = 0,
     int Poison = 0,
-    int Level = 1);
+    int Level = 1)
+{
+    public HeroIdentityAttributes? Identity { get; init; }
+}
 
 public sealed record CardBattleSetup(
     EntityId EntityId,
@@ -32,6 +35,7 @@ public sealed record CardBattleSetup(
     IReadOnlyList<StringName>? ElementKeys = null,
     int ArmorAmount = 0)
 {
+    public CardIdentityAttributes? Identity { get; init; }
     public int Level { get; init; } = 1;
     public IReadOnlyList<CardQuestDefinition> Quests { get; init; } = Array.Empty<CardQuestDefinition>();
     public IReadOnlyDictionary<StringName, int> QuestProgress { get; init; } =

@@ -15,6 +15,7 @@ public static class TagDisplayNames
         [GameTags.Consumable] = "消耗品",
         [GameTags.Human] = "人类",
         [GameTags.Beast] = "野兽",
+        [GameTags.Aquatic] = "水生物",
         [GameTags.Insect] = "虫族",
         [GameTags.Mount] = "坐骑",
         [GameTags.Dragon] = "龙族",

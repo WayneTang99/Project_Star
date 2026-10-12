@@ -16,7 +16,7 @@ public sealed class BonebreakerMageCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/bonebreaker_mage-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却9秒，魔法消耗0，摧毁己方所有存活战场小型暗属性卡牌，每实际摧毁一张，对敌方英雄造成80/160伤害；摧毁仅本场战斗生效。"),
+                    new(CardKeywords.Activate, "冷却9秒，魔法消耗40，摧毁己方所有存活战场小型暗属性卡牌，每实际摧毁一张，对敌方英雄造成80/160伤害；摧毁仅本场战斗生效。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.AttackDamage] = 80, [GameAttributeKeys.CooldownTicks] = 90 })),
             new TagSet([GameTags.Human]), initialLevel: 3,
@@ -25,6 +25,6 @@ public sealed class BonebreakerMageCardDefinition : CardDefinition
     private static CardLevelDefinition CreateLevel(int level, int damage) => new(level,
         new Dictionary<StringName, int> { [GameAttributeKeys.AttackDamage] = damage },
         [new AbilityDefinition(new StringName("ability.destroy_allied_cards_and_damage"), AbilityActivation.Active,
-            AbilityTarget.EnemyHero, 0, 90,
+            AbilityTarget.EnemyHero, 40, 90,
             [new DestroyAlliedCardsAndDamageEffectDefinition(CardSize.Small, GameElements.Dark, GameAttributeKeys.AttackDamage)])]);
 }

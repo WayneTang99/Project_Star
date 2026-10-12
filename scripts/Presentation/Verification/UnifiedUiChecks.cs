@@ -79,7 +79,7 @@ internal static class UnifiedUiChecks
             foreach (var blue in new[] { false, true })
             {
                 MatchTheme.SetPalette(blue); CardKeywordText.RenderRule(label, text);
-                if (label.GetParsedText() != text || AttributePalette.Find(GameAttributeKeys.Armor) != new Color("72b7ff")
+                if (label.GetParsedText() != text.Replace("植物", "[植物]") || AttributePalette.Find(GameAttributeKeys.Armor) != new Color("72b7ff")
                     || AttributePalette.Find(GameAttributeKeys.HealingBonus) != new Color("55d6a5")) return false;
                 var tokens = new System.Text.RegularExpressions.Regex("护甲|普通伤害|治疗|最大生命|疾速|(?<number>[0-9]+(?:\\.[0-9]+)?)").Matches(text)
                     .Cast<System.Text.RegularExpressions.Match>().ToArray();

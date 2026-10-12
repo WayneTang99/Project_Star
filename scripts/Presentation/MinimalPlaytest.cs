@@ -40,12 +40,13 @@ public sealed partial class MinimalPlaytest : Control
         var game = new GameCoordinator(new CreateMatchService(factory),
             new EncounterScheduler(registry, allowIncompleteMonsterChoices: true, encounterLevelOverride: 4),
             new StartBattleService(new BattleSetupFactory(registry.Sets), new CombatSimulator()),
-            new MatchResultService(board));
+            new MatchResultService(board, registry.Cards.Values));
         _presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(), events,
             new MentorService(registry, new SkillAcquisitionService(factory)), rewards, game, new LocalTestOpponentProvider(registry));
         _shell = GetNode<MatchShell>("MatchShell");
         if (!OS.GetCmdlineUserArgs().Any(argument => argument.StartsWith("--verify") || argument.StartsWith("--capture")))
             _shell.LoadDisplaySettings();
+        _shell.SetCardPreview(new CardPreviewQuery(registry));
         _shell.SetCatalog(CardCatalogQuery.Capture(registry));
         _shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
         _shell.ChoiceSelected += Choose;

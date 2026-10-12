@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using Project_Star.Application.Match;
 using Project_Star.Presentation.CardFace;
@@ -7,6 +8,7 @@ namespace Project_Star.Presentation.Playtest;
 // 方形技能图标组件，图鉴与已获得技能共用只读快照（表现层）。
 public sealed partial class SkillItemView : Button
 {
+    public event Action? DetailsRequested;
     private readonly TextureRect _artwork = new() { Name = "Artwork", MouseFilter = MouseFilterEnum.Ignore,
         ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
 
@@ -28,6 +30,13 @@ public sealed partial class SkillItemView : Button
     public void SetSelected(bool selected) => AddThemeStyleboxOverride("normal",
         MatchTheme.Surface(selected ? new Color(MatchTheme.BluePalette ? "314c57" : "354c38") : MatchTheme.SurfaceColor,
             selected ? MatchTheme.Gold : new Color("a5bcc9")));
+
+    public override void _GuiInput(InputEvent input)
+    {
+        if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }
+            || input is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F10, ShiftPressed: true })
+        { GrabFocus(); DetailsRequested?.Invoke(); AcceptEvent(); }
+    }
 
     public override GodotObject _MakeCustomTooltip(string forText)
     {

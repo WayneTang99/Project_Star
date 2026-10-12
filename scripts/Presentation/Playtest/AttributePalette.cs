@@ -22,23 +22,23 @@ internal static class AttributePalette
         : key == GameAttributeKeys.Poison ? new Color("b8db58")
         : key == GameAttributeKeys.Burn ? new Color("ffa52f")
         : key == GameAttributeKeys.HealingBonus ? new Color("55d6a5")
-        : key == Health || key == GameAttributeKeys.MaxHealth ? new Color("f276ad")
+        : key == Health || key == GameAttributeKeys.MaxHealth ? new Color("55d6a5")
         : key == GameAttributeKeys.Mana || key == GameAttributeKeys.MaxMana ? new Color("cc99ff")
-        : key == GameAttributeKeys.ManaRegen ? new Color("99a9ff")
-        : key == GameAttributeKeys.HealthRegen ? new Color("58cdd5")
+        : key == GameAttributeKeys.ManaRegen ? new Color("cc99ff")
+        : key == GameAttributeKeys.HealthRegen ? new Color("55d6a5")
         : key == GameAttributeKeys.Value || key == GameAttributeKeys.Wealth || key == GameAttributeKeys.Income ? new Color("ebd45d")
         : key == Haste || key == GameAttributeKeys.HasteDurationBonus ? new Color("66d9e8")
         : key == Slow ? new Color("c0aaa0")
-        : key == Immobilize ? new Color("e2b8e8") : null;
+        : key == Immobilize ? new Color("c0aaa0") : null;
 
-    internal static Color Effect(CardFaceEffectKind kind) => Find(kind switch
+    internal static Color Effect(CardFaceEffectKind kind) => kind == CardFaceEffectKind.Multicast ? new Color("83cec6") : Find(kind switch
     {
         CardFaceEffectKind.Damage => GameAttributeKeys.AttackDamage,
         CardFaceEffectKind.Armor => GameAttributeKeys.Armor,
         CardFaceEffectKind.Healing => GameAttributeKeys.HealingBonus,
         CardFaceEffectKind.Poison => GameAttributeKeys.Poison,
         CardFaceEffectKind.Burn => GameAttributeKeys.Burn,
-        CardFaceEffectKind.Mana => GameAttributeKeys.Mana,
+        CardFaceEffectKind.Mana or CardFaceEffectKind.ManaCost => GameAttributeKeys.Mana,
         _ => new StringName("")
     }) ?? MatchTheme.Ink;
 
@@ -50,12 +50,12 @@ internal static class AttributePalette
         "灼伤" or "Burn" => GameAttributeKeys.Burn,
         "治疗" or "治疗加成" => GameAttributeKeys.HealingBonus,
         "生命" or "生命值" or "最大生命" or "最大生命值" => Health,
-        "魔法" or "魔法回复" => GameAttributeKeys.Mana,
+        "魔法" or "最大魔法" or "最大魔法值" or "恢复魔法" or "回复魔法" or "魔法回复" => GameAttributeKeys.Mana,
         "再生" or "生命再生" => GameAttributeKeys.HealthRegen,
         "魔法再生" => GameAttributeKeys.ManaRegen,
         "价值" or "金币" or "金钱" => GameAttributeKeys.Value,
-        "疾速" or "疾速时长加成" or "Haste" => Haste,
-        "迟缓" or "Slow" => Slow,
+        "疾速" or "疾速时长加成" or "充能" or "冷却减少" or "减少冷却" or "缩短冷却" or "降低冷却" or "Haste" => Haste,
+        "迟缓" or "冷却增加" or "增加冷却" or "延长冷却" or "提高冷却" or "Slow" => Slow,
         "禁锢" or "Immobilize" => Immobilize,
         _ => new StringName("")
     };

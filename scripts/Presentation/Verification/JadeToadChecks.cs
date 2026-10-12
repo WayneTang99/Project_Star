@@ -23,11 +23,13 @@ internal static class JadeToadChecks
     internal static bool LevelsAndPoison()
     {
         var definition = new JadeToadCardDefinition();
+        if (CardKeywords.DisplayName(CardKeywords.AfterBattle) != "历战") return false;
         if (definition.InitialLevel != 1 || definition.SupportsLevel(5)
             || definition.Attributes.Identity.FactionKey != new StringName("jiyun")
             || definition.Attributes.Identity.Size != CardSize.Medium
-            || !definition.Attributes.Identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
-            || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Medium) || !definition.Tags.Contains(GameTags.Beast)) return false;
+            || !definition.Attributes.Identity.ElementKeys.SequenceEqual(new[] { GameElements.Water })
+            || definition.Tags.Count != 3 || !definition.Tags.Contains(GameTags.Medium) || !definition.Tags.Contains(GameTags.Beast)
+            || !definition.Tags.Contains(GameTags.Aquatic) || TagDisplayNames.Get(GameTags.Aquatic) != "水生物") return false;
         foreach (var level in Enumerable.Range(1, 4))
         {
             var (session, opponent, card, board, economy) = Fixture(level);
@@ -36,6 +38,7 @@ internal static class JadeToadChecks
             currentValue += 7;
             var setup = new BattleSetupFactory().Create(session, opponent, 42, new BattleTick(100), new BattleTick(300));
             var before = MatchSnapshot.From(session).Cards.Single(value => value.Id == card.Id);
+            if (!CardDisplayAdapter.Rules(before).Any(line => line.StartsWith("历战　", StringComparison.Ordinal))) return false;
             var displayed = CardDisplayAdapter.FaceEffects(before).Single(value => value.Kind == CardFaceEffectKind.Poison);
             if (displayed.Value != currentValue.ToString()) return false;
             card.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, 100);

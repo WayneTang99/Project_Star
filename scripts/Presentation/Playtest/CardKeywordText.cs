@@ -8,7 +8,7 @@ namespace Project_Star.Presentation.Playtest;
 // 表现层为卡牌文本中的效果关键词着色，保留原始描述及字面文本。
 internal static class CardKeywordText
 {
-    private static readonly Regex RuleTokens = new("生命再生|魔法再生|最大生命值|最大生命|生命值|生命|普通伤害|治疗加成|疾速时长加成|魔法回复|魔法|再生|价值|金币|金钱|发动|回响|任务|光环|拾取|开战|战后|凯旋|被动|消耗|出售|攻击|伤害|护甲|治疗|中毒|灼伤|疾速|迟缓|飞行|狂暴|充能|禁锢|Poison|Burn|Haste|Slow|Immobilize|(?<number>[0-9]+(?:\\.[0-9]+)?%?)");
+    private static readonly Regex RuleTokens = new(@"(?<identity>\[?(?:无属性|[火水风土雷木冰光暗]属性|[火水风土雷木冰光暗](?=卡牌|攻击)|小型|中型|大型|装备|材料|消耗品|人类|野兽|水生物|虫族|坐骑|龙族|机械|恶魔|亡灵|地域|植物|神明)\]?)|(?<cooldown>冷却(?:时间)?\s*[−－+＋-]\s*[0-9]+(?:\.[0-9]+)?(?:%|秒)?)|冷却减少|减少冷却|缩短冷却|降低冷却|冷却增加|增加冷却|延长冷却|提高冷却|生命再生|魔法再生|最大生命值|最大生命|生命值|生命|最大魔法值|最大魔法|恢复魔法|回复魔法|普通伤害|治疗加成|疾速时长加成|魔法回复|魔法|再生|价值|金币|金钱|发动|回响|任务|光环|拾取|轮初|开战|历战|凯旋|被动|消耗|出售|攻击|伤害|护甲|治疗|中毒|灼伤|疾速|迟缓|飞行|狂暴|充能|禁锢|多重|Poison|Burn|Haste|Slow|Immobilize|(?<number>[0-9]+(?:\.[0-9]+)?%?)");
 
     // 用富文本颜色栈显示纯文本，避免将内容中的括号解释为BBCode。
     public static void Render(RichTextLabel label, string text)
@@ -43,12 +43,14 @@ internal static class CardKeywordText
         {
             label.AddText(text.Substring(offset, match.Index - offset));
             var number = match.Groups["number"].Success;
-            var color = number ? NumberColor(text, match, tokens) : AttributePalette.Find(AttributePalette.TextKey(match.Value));
-            if (!number && color is null) color = new Color("83cec6");
+            var identity = match.Groups["identity"].Success;
+            var color = identity ? (emphasizeNumbers ? new Color("d9b777") : (Color?)null)
+                : number ? NumberColor(text, match, tokens) : TokenColor(match);
+            if (!number && !identity && color is null) color = new Color("83cec6");
             if (color is not null) label.PushColor(color.Value);
-            var bold = !number || emphasizeNumbers;
+            var bold = identity ? emphasizeNumbers : !number || emphasizeNumbers;
             if (bold) label.PushFont(label.GetThemeFont("bold_font"));
-            label.AddText(match.Value);
+            label.AddText(identity && emphasizeNumbers ? "[" + match.Value.Trim('[', ']') + "]" : match.Value);
             if (bold) label.Pop();
             if (color is not null) label.Pop();
             offset = match.Index + match.Length;
@@ -56,13 +58,17 @@ internal static class CardKeywordText
         label.AddText(text.Substring(offset));
     }
 
+    private static Color? TokenColor(Match token) => token.Groups["cooldown"].Success
+        ? AttributePalette.Find(Regex.IsMatch(token.Value, "[−－-]") ? AttributePalette.Haste : AttributePalette.Slow)
+        : AttributePalette.Find(AttributePalette.TextKey(token.Value));
+
     // 只给同一短语中有明确属性关联的数值着色；等级、数量和任务次数保持正文色。
     internal static Color? NumberColor(string text, Match number, Match[] tokens)
     {
         var tail = text[(number.Index + number.Length)..];
         if (Regex.IsMatch(tail, @"^\s*(级|次|张|件|个|回合|轮)")) return null;
         return tokens.Where(token => !token.Groups["number"].Success)
-            .Select(token => new { Token = token, Color = AttributePalette.Find(AttributePalette.TextKey(token.Value)),
+            .Select(token => new { Token = token, Color = TokenColor(token),
                 Distance = token.Index < number.Index ? number.Index - token.Index - token.Length : token.Index - number.Index - number.Length })
             .Where(candidate => candidate.Color is not null && candidate.Distance <= 16
                 && !Regex.IsMatch(text.Substring(Math.Min(candidate.Token.Index + candidate.Token.Length, number.Index + number.Length),

@@ -29,6 +29,9 @@ public enum AbilityActivation
     EchoOnSourceCardStatusGained = 17,
     EchoOnSourceHeroHealthBelow = 18,
     EchoOnEnemyCardActivated = 19,
+    EchoOnSourceHeroFirstLethalDamage = 20,
+    PassiveOnPickup = 22,
+    PassiveOnEclipseStart = 21,
 }
 
 public enum AbilityTarget
@@ -57,6 +60,15 @@ public enum BattleStatus
 
 public abstract record EffectDefinition;
 
+// 提前进入全场唯一一次日蚀；已进入时无额外效果。
+public sealed record EnterEclipseEffectDefinition : EffectDefinition;
+
+// 增加目标英雄本场生命上限，同时增加等量当前生命。
+public sealed record IncreaseHeroMaxHealthPercentEffectDefinition(int Percent) : EffectDefinition;
+
+// 仅在日蚀期间倍增目标英雄受到的日蚀伤害。
+public sealed record MultiplyReceivedEclipseDamageEffectDefinition(int Multiplier) : EffectDefinition;
+
 // 每次发动前冻结第一个效果的数值，按比例向敌方英雄额外施加状态。
 public sealed record ApplyPrimaryEffectPercentStatusEffectDefinition(BattleStatus Status, int Percent) : EffectDefinition;
 
@@ -67,6 +79,9 @@ public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, Adj
 
 // 为己方匹配元素的战场卡牌提供可撤销的冷却百分比缩减。
 public sealed record ReduceAlliedElementCardCooldownAuraEffectDefinition(StringName ElementKey, int Percent) : EffectDefinition;
+
+// 为当前英雄归属以外（含无阵营）的己方战场卡牌缩减冷却（领域战斗层）。
+public sealed record ReduceOtherHeroCardCooldownAuraEffectDefinition(int Percent) : EffectDefinition;
 
 // 从指定相邻空位可容纳的模板中随机召唤同级卡牌。
 public sealed record SummonRandomAdjacentCardEffectDefinition(
@@ -91,6 +106,9 @@ public sealed record MultiplyAlliedElementCardAttributeAuraEffectDefinition(
 // 累加来源卡牌已支持的战斗属性（领域战斗层）。
 public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName AttributeKey, int Amount, bool Permanent = false) : EffectDefinition;
 
+// 按倍率增加来源卡牌已有的本场属性，不回写对局（领域战斗层）。
+public sealed record MultiplySourceCardAttributeEffectDefinition(StringName AttributeKey, int Multiplier) : EffectDefinition;
+
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
 
 // 按来源方英雄等级与固定系数造成伤害（领域战斗层）。
@@ -113,6 +131,9 @@ public sealed record SourceHeroArmorDamageEffectDefinition(
     StringName? BonusAttributeKey = null) : EffectDefinition;
 
 public sealed record HealEffectDefinition(int Amount, bool TargetsSourceHero = false) : EffectDefinition;
+
+// 按目标英雄最大生命百分比治疗，向下取整后累加治疗加成（领域战斗层）。
+public sealed record HealMaxHealthPercentEffectDefinition(int Percent) : EffectDefinition;
 
 // 恢复目标英雄魔法，实际恢复受魔法上限限制（领域战斗层）。
 public sealed record RestoreManaEffectDefinition(int Amount) : EffectDefinition;
@@ -180,6 +201,10 @@ public sealed record ApplyStatusToRandomAlliedCardEffectDefinition(BattleStatus 
 public sealed record IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition(
     StringName ElementKey, int AmountTicks) : EffectDefinition;
 
+// 按己方存活战场指定有效标签卡牌数量动态缩短来源冷却。
+public sealed record ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition(
+    StringName RequiredTag, int AmountTicks) : EffectDefinition;
+
 // 来源卡牌处于指定布尔状态时，动态缩短自身冷却（领域战斗层）。
 public sealed record ReduceSourceCooldownWhileInStateEffectDefinition(
     StringName StateKey, int AmountTicks) : EffectDefinition;
@@ -246,6 +271,9 @@ public sealed record ModifyTaggedAlliedCardsAttributeEffectDefinition(
     StringName AttributeKey,
     int Amount, bool RandomSingleTarget = false, bool RequiresAttributeSupport = true) : EffectDefinition;
 
+// 从己方存活战场攻击卡牌中随机选择一张，累加指定战斗属性。
+public sealed record ModifyRandomAlliedAttackCardAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
+
 public sealed class AbilityDefinition
 {
     public AbilityDefinition(
@@ -271,6 +299,8 @@ public sealed class AbilityDefinition
             ? triggerHeroHealthPercent is null or <= 0 or >= 100 || allowsBench || cooldownTicks != 0
             : triggerHeroHealthPercent is not null)
             throw new ArgumentException("Hero health trigger requires a percentage between zero and 100, a battlefield source and no cooldown.", nameof(triggerHeroHealthPercent));
+        if (activation == AbilityActivation.EchoOnSourceHeroFirstLethalDamage && (allowsBench || cooldownTicks != 0))
+            throw new ArgumentException("First lethal damage trigger requires a battlefield source and no cooldown.", nameof(activation));
         if (activation == AbilityActivation.EchoOnSourceCardStatusGained
             ? triggerStatus is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration and not BattleStatus.ImmobilizeDuration
                 || allowsBench || cooldownTicks != 0
@@ -353,11 +383,34 @@ public sealed class AbilityDefinition
             if (MatchAbilityRules.IsMatchTrigger(activation)
                 ? target != AbilityTarget.AlliedHero || allowsBench || cooldownTicks != 0
                     || effect is not GrantExperienceEffectDefinition and not GrantSourceLevelCardEffectDefinition
-                : effect is GrantExperienceEffectDefinition or GrantSourceLevelCardEffectDefinition)
+                        and not GrantRandomOtherHeroSourceLevelCardEffectDefinition and not ReduceSetCardCooldownEffectDefinition
+                : effect is GrantExperienceEffectDefinition or GrantSourceLevelCardEffectDefinition
+                    or GrantRandomOtherHeroSourceLevelCardEffectDefinition or ReduceSetCardCooldownEffectDefinition)
                 throw new ArgumentException("Match rewards require a match event and an allied hero target.", nameof(effects));
+            if (effect is ReduceSetCardCooldownEffectDefinition reductionOnRound
+                && (activation != AbilityActivation.PassiveOnRoundStart || reductionOnRound.Percent is < 1 or > 100))
+                throw new ArgumentException("Set cooldown reduction requires a round start and a valid percentage.", nameof(effects));
+            if (effect is EnterEclipseEffectDefinition
+                && (activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled || allowsBench))
+                throw new ArgumentException("Eclipse entry requires an executed battlefield ability.", nameof(effects));
+            if (effect is IncreaseHeroMaxHealthPercentEffectDefinition healthGrowth
+                && (healthGrowth.Percent < 1 || target != AbilityTarget.AlliedHero
+                    || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
+                throw new ArgumentException("Max health growth requires a positive executed allied hero effect.", nameof(effects));
+            if (effect is MultiplyReceivedEclipseDamageEffectDefinition eclipseDamage
+                && (eclipseDamage.Multiplier < 1 || activation != AbilityActivation.PassiveAura
+                    || target is not AbilityTarget.EnemyHero and not AbilityTarget.AlliedHero || allowsBench))
+                throw new ArgumentException("Eclipse damage multiplier requires a battlefield hero aura.", nameof(effects));
             if (effect is GrantExperienceEffectDefinition { Amount: < 1 }
                 || effect is GrantSourceLevelCardEffectDefinition { Card: null })
                 throw new ArgumentException("Match reward configuration is invalid.", nameof(effects));
+            if (effect is GrantRandomOtherHeroSourceLevelCardEffectDefinition randomReward
+                && (activation is not (AbilityActivation.PassiveOnRoundStart or AbilityActivation.PassiveOnPickup)
+                    || !Enum.IsDefined(randomReward.Size)
+                    || randomReward.AdditionalSize is { } additionalSize && !Enum.IsDefined(additionalSize)))
+                throw new ArgumentException("Random other-hero rewards require a round start or pickup and valid sizes.", nameof(effects));
+            if (activation == AbilityActivation.PassiveOnPickup && effect is not GrantRandomOtherHeroSourceLevelCardEffectDefinition)
+                throw new ArgumentException("Pickup abilities require a random other-hero card reward.", nameof(effects));
             if (effect is ModifyHeroLevelScaledAttributeEffectDefinition scaled
                 && (activation != AbilityActivation.PassiveWhileEnabled || target != AbilityTarget.AlliedHero
                     || scaled.AttributeKey.IsEmpty || scaled.Multiplier < 1))
@@ -374,6 +427,10 @@ public sealed class AbilityDefinition
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
                     || reduction.ElementKey.IsEmpty || reduction.Percent is < 1 or > 100))
                 throw new ArgumentException("Element cooldown reduction requires a battlefield self aura and a percentage from 1 to 100.", nameof(effects));
+            if (effect is ReduceOtherHeroCardCooldownAuraEffectDefinition otherHeroReduction
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || otherHeroReduction.Percent is < 1 or > 100))
+                throw new ArgumentException("Other-hero cooldown reduction requires a battlefield self aura and a valid percentage.", nameof(effects));
             if (effect is SummonRandomAdjacentCardEffectDefinition randomSummon
                 && (randomSummon.Cards is null || randomSummon.Cards.Count == 0
                     || randomSummon.Cards.Any(card => card is null) || !Enum.IsDefined(randomSummon.Side)
@@ -406,6 +463,13 @@ public sealed class AbilityDefinition
             if (effect is IncreaseSourceCardAttributeEffectDefinition increase
                 && (increase.AttributeKey.IsEmpty || increase.Amount < 1 || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Source attribute increase requires a key, positive amount and executed ability.", nameof(effects));
+            if (effect is MultiplySourceCardAttributeEffectDefinition sourceMultiplier
+                && (sourceMultiplier.AttributeKey.IsEmpty || sourceMultiplier.Multiplier < 2
+                    || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Source attribute multiplier requires a key, multiplier of at least two and executed ability.", nameof(effects));
+            if (effect is HealMaxHealthPercentEffectDefinition percentHeal
+                && (percentHeal.Percent is < 1 or > 100 || activation == AbilityActivation.PassiveAura))
+                throw new ArgumentException("Percent healing requires a percentage from 1 to 100 and executed ability.", nameof(effects));
             if (effect is TransformRandomEnemyCardEffectDefinition transform
                 && (transform.Replacement is null || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Card transformation requires a replacement and an executed ability.", nameof(effects));
@@ -428,6 +492,7 @@ public sealed class AbilityDefinition
                 MaxHealthPercentDamageEffectDefinition value => value.Percent,
                 IncreaseSourceCooldownEffectDefinition value => value.AmountTicks,
                 ModifyTaggedAlliedCardsAttributeEffectDefinition value => value.Amount,
+                ModifyRandomAlliedAttackCardAttributeEffectDefinition value => value.Amount,
                 HealEffectDefinition value => value.Amount,
                 RestoreManaEffectDefinition value => value.Amount,
                 ArmorEffectDefinition value => value.Amount,
@@ -454,6 +519,10 @@ public sealed class AbilityDefinition
                 && (activation != AbilityActivation.PassiveAura || cooldownAura.ElementKey.IsEmpty
                     || cooldownAura.AmountTicks < 1))
                 throw new ArgumentException("Element cooldown aura requires a known element and positive duration.", nameof(effects));
+            if (effect is ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition taggedCooldown
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || taggedCooldown.RequiredTag.IsEmpty || taggedCooldown.AmountTicks < 1))
+                throw new ArgumentException("Tagged cooldown reduction requires a battlefield self aura, tag and positive duration.", nameof(effects));
             if (effect is ReduceSourceCooldownWhileInStateEffectDefinition stateCooldown
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
                     || stateCooldown.StateKey != GameAttributeKeys.Flying && stateCooldown.StateKey != GameAttributeKeys.Berserk
@@ -506,6 +575,8 @@ public sealed class AbilityDefinition
             if (effect is ModifyTaggedAlliedCardsAttributeEffectDefinition modifier
                 && (modifier.RequiredTag.IsEmpty || modifier.AttributeKey.IsEmpty))
                 throw new ArgumentException("Tagged card attribute modifier keys cannot be empty.", nameof(effects));
+            if (effect is ModifyRandomAlliedAttackCardAttributeEffectDefinition randomModifier && randomModifier.AttributeKey.IsEmpty)
+                throw new ArgumentException("Random attack card attribute key cannot be empty.", nameof(effects));
             if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent
                 && (adjacent.Status is not BattleStatus.HasteDuration
                     and not BattleStatus.SlowDuration

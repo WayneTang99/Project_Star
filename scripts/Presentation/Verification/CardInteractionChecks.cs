@@ -92,10 +92,12 @@ internal static class CardInteractionChecks
             if (!ReferenceEquals(item, Item()) || presenter.View.Player.Wealth != wealth) return false;
             item._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
             var details = shell.GetNode<CardDetailsView>("CardDetails");
-            if (!details.Visible || details.CurrentCardKey != offer.Card.Key || presenter.View.Player.Wealth != wealth
+            var preview = shell.GetNode<CardPreviewView>("CardPreview");
+            if (!preview.Visible || preview.DisplayedCard?.Key != offer.Card.Key || presenter.View.Player.Wealth != wealth
                 || item.TooltipText.Length != 0 || item._GetTooltip(Vector2.Zero).Length != 0) return false;
             presenter.RefreshView();
-            if (!details.Visible || details.CurrentCardKey != offer.Card.Key) return false;
+            if (!preview.Visible || preview.DisplayedCard?.Key != offer.Card.Key) return false;
+            preview.Close();
             item.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Player.Wealth != wealth) return false;
             item = Item(); item.EmitSignal(Button.SignalName.Pressed); item.EmitSignal(Button.SignalName.Pressed);
@@ -114,7 +116,8 @@ internal static class CardInteractionChecks
             var reward = rewards.GetNode<CardItemView>("Content/Scroll/Items/RewardCard0");
             var count = presenter.View.Rewards.Count;
             reward._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
-            if (presenter.View.Rewards.Count != count || details.CurrentCardKey != new StringName("card.boar")) return false;
+            if (presenter.View.Rewards.Count != count || !preview.Visible || preview.DisplayedCard?.Key != new StringName("card.boar")) return false;
+            preview.Close();
             var previousWealth = presenter.View.Player!.Wealth;
             reward.EmitSignal(Button.SignalName.Pressed); reward.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Rewards.Count != 0 || presenter.View.Player!.Wealth != previousWealth
@@ -185,6 +188,7 @@ internal static class CardInteractionChecks
             var presenter = Presenter(scene);
             var shell = scene.GetNode<MatchShell>("MatchShell");
             var details = shell.GetNode<CardDetailsView>("CardDetails");
+            var preview = shell.GetNode<CardPreviewView>("CardPreview");
             await Frames();
             owner.GetViewport().NotifyMouseEntered();
             var roster = shell.GetNode<Button>("ContextRow/ContextHost/HeroSelectionView/Roster/Entries/Hero0");
@@ -225,7 +229,8 @@ internal static class CardInteractionChecks
             var item = shell.GetNode<CardItemView>($"ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer{offer.Index}/Card");
             Mouse(item, MouseButton.Right); await Frames();
             var wealth = presenter.View.Player!.Wealth;
-            if (!details.Visible || presenter.View.Player.Wealth != wealth) throw new InvalidOperationException("右键查看发生交易或未显示详情。");
+            if (!preview.Visible || preview.DisplayedCard?.Key != offer.Card.Key || presenter.View.Player.Wealth != wealth)
+                throw new InvalidOperationException("右键查看发生交易或未显示放大预览。");
             KeyInput(Key.Escape); await Frames();
             item = shell.GetNode<CardItemView>($"ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer{offer.Index}/Card");
             Mouse(item, MouseButton.Left); await Frames();
@@ -306,11 +311,11 @@ internal static class CardInteractionChecks
                     throw new InvalidOperationException($"悬停详情未显示当前商品或阻挡商品点击：窗口{size}，页面{shell.Size}/{captured.Page}，详情{details.Visible}/{details.CurrentCardKey}/{details.MouseFilter}，卡牌{item.GetGlobalRect()}/{item.IsVisibleInTree()}，滚动{shopScroll.ScrollHorizontal}/{shopScroll.GetHScrollBar().MaxValue}/{shopScroll.GetHScrollBar().Page}，区域{shopScroll.GetGlobalRect()}，内容{shopScroll.GetNode<Control>("Offers").Size}/{shopScroll.GetNode<Control>("Offers").GetCombinedMinimumSize()}，焦点{item.HasFocus()}。");
                 await Save("shop-hover");
                 Mouse(item, MouseButton.Right); await Frames();
-                owner.GetViewport().PushInput(new InputEventMouseMotion { Position = details.GetGlobalRect().GetCenter() }, true); await Frames();
-                if (!details.Visible || details.MouseFilter != Control.MouseFilterEnum.Stop || details.CurrentCardKey != offer.Card.Key)
-                    throw new InvalidOperationException("右键固定后移入详情使面板丢失。");
-                Mouse(details.GetNode<Button>("Close"), MouseButton.Left); await Frames();
-                if (details.Visible) throw new InvalidOperationException("实际点击关闭按钮没有关闭详情。");
+                owner.GetViewport().PushInput(new InputEventMouseMotion { Position = preview.GetGlobalRect().GetCenter() }, true); await Frames();
+                if (!preview.Visible || preview.DisplayedCard?.Key != offer.Card.Key)
+                    throw new InvalidOperationException("右键放大后移入预览使面板丢失。");
+                Mouse(preview.FindChildren("Close", "Button", true, false).OfType<Button>().Single(), MouseButton.Left); await Frames();
+                if (preview.Visible) throw new InvalidOperationException("实际点击关闭按钮没有关闭预览。");
                 item = shell.GetNode<CardItemView>($"ContextRow/ContextHost/ShopView/OfferScroll/Offers/Offer{offer.Index}/Card");
                 item.GrabFocus(); await Frames();
                 owner.GetViewport().PushInput(new InputEventMouseMotion { Position = Vector2.One }, true); await Frames();

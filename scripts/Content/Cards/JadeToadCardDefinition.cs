@@ -12,7 +12,7 @@ public sealed class JadeToadCardDefinition : CardDefinition
     public JadeToadCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.jade_toad"), "碧玉蟾", new StringName("jiyun"),
-                CardSize.Medium, [GameElements.General],
+                CardSize.Medium, [GameElements.Water],
                 illustration: new StringName("res://art/ui/card-face/artwork/jade_toad-illustration.png"),
                 descriptionEntries:
                 [
@@ -21,7 +21,7 @@ public sealed class JadeToadCardDefinition : CardDefinition
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             { [GameAttributeKeys.CooldownTicks] = 50 })),
-            new TagSet([GameTags.Beast]), initialLevel: 1,
+            new TagSet([GameTags.Beast, GameTags.Aquatic]), initialLevel: 1,
             levels: [CreateLevel(1, 3), CreateLevel(2, 5), CreateLevel(3, 8), CreateLevel(4, 12)])
     {
     }

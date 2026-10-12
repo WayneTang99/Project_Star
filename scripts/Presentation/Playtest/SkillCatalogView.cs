@@ -30,6 +30,9 @@ public sealed partial class SkillCatalogView : PanelContainer
     private IReadOnlyList<StringName> _factions = Array.Empty<StringName>();
     private SkillCatalogEntry? _selected;
     private PanelContainer _detailPanel = null!;
+    private readonly Control _overlay = new() { Name = "DetailOverlay", Visible = false, MouseFilter = MouseFilterEnum.Stop, ZIndex = 1 };
+    private readonly Button _closeDetail = new() { Name = "Close", Text = "关闭 ×" };
+    private Control? _returnFocus;
 
     public override void _Ready()
     {
@@ -43,13 +46,16 @@ public sealed partial class SkillCatalogView : PanelContainer
         var body = new HBoxContainer { Name = "Body", SizeFlagsVertical = SizeFlags.ExpandFill }; column.AddChild(body);
         var browser = new VBoxContainer { Name = "Browser", SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddChild(browser);
         browser.AddChild(_empty); browser.AddChild(_scroll); _scroll.AddChild(_grid);
-        _detailPanel = new PanelContainer { Name = "DetailPanel" }; body.AddChild(_detailPanel); _detailPanel.AddChild(_detail);
-        foreach (var control in new Control[] { _name, _preview, _level, _text }) _detail.AddChild(control);
+        AddChild(_overlay); _overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var shade = new ColorRect { Color = new Color("06110fe8"), MouseFilter = MouseFilterEnum.Stop };
+        _overlay.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _detailPanel = new PanelContainer { Name = "DetailPanel" }; _overlay.AddChild(_detailPanel); _detailPanel.AddChild(_detail);
+        foreach (var control in new Control[] { _closeDetail, _name, _preview, _level, _text }) _detail.AddChild(control);
         _name.AddThemeFontSizeOverride("font_size", 20);
         _search.AddThemeColorOverride("font_color", MatchTheme.Ink);
         _search.AddThemeColorOverride("font_placeholder_color", MatchTheme.Muted);
         _search.AddThemeColorOverride("caret_color", MatchTheme.Ink);
-        _back.Pressed += Close; _search.TextChanged += SearchChanged;
+        _closeDetail.Pressed += CloseDetail; _back.Pressed += Close; _search.TextChanged += SearchChanged;
         _faction.ItemSelected += FilterChanged; _initialLevel.ItemSelected += FilterChanged; _level.ItemSelected += LevelChanged;
         Resized += LayoutColumns; _scroll.Resized += LayoutColumns; Hide();
     }
@@ -68,7 +74,7 @@ public sealed partial class SkillCatalogView : PanelContainer
     // 打开时保留浏览状态，将键盘焦点移入搜索。
     public void Open() { Show(); LayoutColumns(); _search.GrabFocus(); }
     // 返回只改变局外展示，不执行对局用例。
-    public void Close() { Hide(); Closed?.Invoke(); }
+    public void Close() { CloseDetail(); Hide(); Closed?.Invoke(); }
     // 配色只刷新现有条目的选中样式，保留筛选、等级和键盘焦点。
     public void RefreshPalette()
     {
@@ -92,16 +98,17 @@ public sealed partial class SkillCatalogView : PanelContainer
             var cell = new VBoxContainer { CustomMinimumSize = new Vector2(172, 0) }; _grid.AddChild(cell);
             var button = new SkillItemView { Name = "Skill", CustomMinimumSize = new Vector2(172, 172) }; cell.AddChild(button);
             button.Render(entry.InitialSkill, _adapter);
-            Action select = () => Select(entry); button.Pressed += select; _buttons.Add((button, select, entry.InitialSkill.Key));
+            Action select = () => Select(entry); button.DetailsRequested += select; _buttons.Add((button, select, entry.InitialSkill.Key));
             cell.AddChild(new Label { Text = entry.InitialSkill.DisplayName, HorizontalAlignment = HorizontalAlignment.Center });
             cell.AddChild(new Label { Text = $"{entry.FactionName} · 初始{entry.InitialLevel}级", HorizontalAlignment = HorizontalAlignment.Center });
         }
-        Select(filtered.FirstOrDefault(entry => entry.InitialSkill.Key == _selected?.InitialSkill.Key) ?? filtered.FirstOrDefault());
+        CloseDetail();
         LayoutColumns();
     }
 
     private void Select(SkillCatalogEntry? entry)
     {
+        _returnFocus = GetViewport().GuiGetFocusOwner();
         var previousLevel = _selected == entry && _level.Selected >= 0 ? _level.GetItemId(_level.Selected) : entry?.InitialLevel;
         _selected = entry; _detail.Visible = entry is not null; _level.Clear();
         foreach (var (button, _, key) in _buttons) button.SetSelected(key == entry?.InitialSkill.Key);
@@ -109,7 +116,7 @@ public sealed partial class SkillCatalogView : PanelContainer
         _name.Text = $"{entry.InitialSkill.DisplayName} · {entry.FactionName}";
         foreach (var skill in entry.Levels) _level.AddItem($"{skill.Level}级{(skill.Level == entry.InitialLevel ? " · 初始等级" : "")}", skill.Level);
         var index = Math.Max(0, entry.Levels.ToList().FindIndex(skill => skill.Level == previousLevel));
-        _level.Select(index); ShowLevel(index);
+        _level.Select(index); ShowLevel(index); _overlay.Show(); LayoutColumns(); _closeDetail.GrabFocus();
     }
 
     private void ShowLevel(int index)
@@ -123,23 +130,30 @@ public sealed partial class SkillCatalogView : PanelContainer
     private void LayoutColumns()
     {
         if (_detailPanel is null) return;
-        _detailPanel.CustomMinimumSize = new Vector2(Mathf.Clamp(Size.X * .34f, 380, 540), 0);
+        _detailPanel.Size = new Vector2(Mathf.Min(600, Size.X - 48), Mathf.Min(650, Size.Y - 48));
+        _detailPanel.Position = (Size - _detailPanel.Size) / 2;
         _grid.Columns = Math.Max(1, (int)((_scroll.Size.X - 16) / 180));
+    }
+    private void CloseDetail()
+    {
+        _overlay.Hide();
+        if (_returnFocus is not null && GodotObject.IsInstanceValid(_returnFocus) && _returnFocus.IsVisibleInTree()) _returnFocus.GrabFocus();
+        _returnFocus = null;
     }
     private void ClearButtons()
     {
-        foreach (var (button, select, _) in _buttons) button.Pressed -= select; _buttons.Clear();
+        foreach (var (button, select, _) in _buttons) button.DetailsRequested -= select; _buttons.Clear();
         foreach (var child in _grid.GetChildren()) { _grid.RemoveChild(child); child.QueueFree(); }
     }
     public override void _Input(InputEvent input)
     {
-        if (IsVisibleInTree() && input is InputEventKey { Pressed: true, Keycode: Key.Tab } tab) MatchMenuView.TrapTab(this, tab);
+        if (IsVisibleInTree() && input is InputEventKey { Pressed: true, Keycode: Key.Tab } tab) MatchMenuView.TrapTab(_overlay.Visible ? _overlay : this, tab);
         if (IsVisibleInTree() && input is InputEventKey { Pressed: true, Keycode: Key.Escape })
-        { Close(); GetViewport().SetInputAsHandled(); }
+        { if (_overlay.Visible) CloseDetail(); else Close(); GetViewport().SetInputAsHandled(); }
     }
     public override void _ExitTree()
     {
-        _back.Pressed -= Close; _search.TextChanged -= SearchChanged;
+        _closeDetail.Pressed -= CloseDetail; _back.Pressed -= Close; _search.TextChanged -= SearchChanged;
         _faction.ItemSelected -= FilterChanged; _initialLevel.ItemSelected -= FilterChanged; _level.ItemSelected -= LevelChanged;
         Resized -= LayoutColumns; _scroll.Resized -= LayoutColumns; ClearButtons();
     }

@@ -55,6 +55,16 @@ internal static class CardFinalValueChecks
         Require(board.PlaceCard(session, backpack.Id, BoardZone.Battlefield, 0).IsSuccess, "backpack placement");
         var bag = MatchDisplayQuery.Capture(session, NoSets).Cards.Single(card => card.Id == backpack.Id);
         Require(Values(bag).Single() == "+10", "hero level aura numeric");
+        var shield = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ArcaneShieldCardDefinition()));
+        Require(Values(shield).SequenceEqual(new[] { "累计魔法" }), "zero armor bonus merged");
+        var enhanced = shield with { CurrentValues = new Dictionary<StringName, int>(shield.CurrentValues)
+            { [GameAttributeKeys.Armor] = 7 } };
+        Require(Values(enhanced).SequenceEqual(new[] { "累计魔法+7" }), "nonzero armor bonus merged");
+        var ability = shield.Abilities.Single();
+        var replay = enhanced with { Abilities = new[] { new AbilityDefinition(ability.Key, ability.Activation,
+            ability.Target, ability.ManaCost, ability.CooldownTicks,
+            [.. ability.Effects, new RestoreManaEffectDefinition(3)]) }, EffectAmounts = new int?[] { 30, 9, 3 } };
+        Require(Values(replay).SequenceEqual(new[] { "39", "3" }), "frozen armor sum and subsequent effect index");
         return true;
     }
 
@@ -126,10 +136,12 @@ internal static class CardFinalValueChecks
                     CurrentValues = new Dictionary<StringName, int> { [GameAttributeKeys.AttackDamage] = 37,
                         [GameAttributeKeys.Armor] = 18, [GameAttributeKeys.Multicast] = 3 } };
                 face.SetDisplaySize(new Vector2(76 * (int)size, 152)); face.SetCard(adapter.Build(sample));
-                var badge = face.GetNode<Label>("Multicast");
-                Require(badge.Visible && badge.Text == "多重 3" && face.GetGlobalRect().Encloses(badge.GetGlobalRect()), "multicast badge bounds");
+                var rows = face.GetNode<Control>("Effects");
+                var multicast = rows.GetChildren().OfType<CardEffectRow>().Last();
+                Require(multicast.Visible && multicast.GetNode<Label>("Value").Text == "3"
+                    && face.GetGlobalRect().Encloses(multicast.GetGlobalRect()), "multicast effect bounds");
                 face.SetCard(adapter.Build(sample with { CurrentValues = new Dictionary<StringName, int>() }));
-                Require(!badge.Visible, "zero multicast hidden after refresh");
+                Require(rows.GetChildren().OfType<CardEffectRow>().All(row => row.GetNode<Label>("Value").Text != "3"), "zero multicast removed after refresh");
             }
             finally { owner.RemoveChild(face); face.Free(); }
         }

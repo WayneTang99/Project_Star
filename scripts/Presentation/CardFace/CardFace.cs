@@ -19,7 +19,7 @@ public sealed partial class CardFace : Control
     private Panel _artInnerRim = null!;
     private TextureRect _artwork = null!;
     private Control _effects = null!;
-    private Label _multicast = null!;
+    private Label _setBadge = null!;
     private CardValueBadge _valueBadge = null!;
     private NinePatchRect _ornament = null!;
     private Polygon2D _valuePlate = null!;
@@ -42,11 +42,13 @@ public sealed partial class CardFace : Control
         _artInnerRim = GetNode<Panel>("ArtFrame/InnerRim");
         MoveChild(_artFrame, 1);
         _effects = GetNode<Control>("Effects"); _effects.ClipContents = false;
-        _multicast = new Label { Name = "Multicast", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 2,
+        _setBadge = new Label { Name = "Set", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 2,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        _multicast.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("293140e8"), new Color("d2b3ff")));
-        MatchTheme.Text(_multicast, 11, new Color("eadbff"), true, true);
-        AddChild(_multicast);
+        var setPlate = MatchTheme.Surface(new Color("15261fe8"), new Color("c9ab76"));
+        setPlate.ContentMarginLeft = setPlate.ContentMarginRight = 4;
+        _setBadge.AddThemeStyleboxOverride("normal", setPlate);
+        MatchTheme.Text(_setBadge, 11, new Color("e6d2a1"), true, true);
+        AddChild(_setBadge);
         _valueBadge = GetNode<CardValueBadge>("ValueBadge");
         _effects.ZIndex = _valueBadge.ZIndex = 1;
         _ornament = GetNode<NinePatchRect>("Ornament");
@@ -147,11 +149,11 @@ public sealed partial class CardFace : Control
         _elementLayer.Size = Size;
         var count = _elementLayer.GetChildCount();
         const float diameter = 23;
-        var multicastWidth = Math.Min(width - 14,
-            MatchTheme.Font(true, true).GetStringSize(_multicast.Text, fontSize: 11).X + 10);
-        var multicastFitsTop = multicastWidth <= width - 14 - count * diameter - Math.Max(0, count - 1) * 4 - 4;
-        _multicast.Position = new Vector2(7, multicastFitsTop ? 7 : 34);
-        _multicast.Size = new Vector2(multicastWidth, 22);
+        var setWidth = Math.Min(Math.Max(1, width - 14 - count * diameter - Math.Max(0, count - 1) * 4 - 4),
+            MatchTheme.Font(true, true).GetStringSize(_setBadge.Text, fontSize: 11).X + 10);
+        _setBadge.Position = new Vector2(7, 7);
+        _setBadge.ClipText = true; _setBadge.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _setBadge.Size = new Vector2(setWidth, 22);
         for (var index = 0; index < count; index++)
         {
             var badge = _elementLayer.GetChild<Control>(index);
@@ -212,10 +214,15 @@ public sealed partial class CardFace : Control
             _sockets.RemoveChild(child);
             child.QueueFree();
         }
-        foreach (var name in viewModel.GemNames)
+        for (var index = 0; index < viewModel.GemNames.Count; index++)
         {
+            var name = viewModel.GemNames[index];
             var socket = new Panel { MouseFilter = MouseFilterEnum.Ignore };
             var style = MatchTheme.Plate(name is null ? "gem-socket-empty" : "gem-socket-filled", 0);
+            if (name is not null && index < viewModel.GemColors.Count && viewModel.GemColors[index] is { } color)
+                style.Texture = new GradientTexture2D { Width = 32, Height = 32,
+                    FillFrom = Vector2.Zero, FillTo = Vector2.One,
+                    Gradient = new Gradient { Colors = new[] { color.Lightened(.35f), color.Darkened(.4f) } } };
             style.ExpandMarginLeft = style.ExpandMarginRight = style.ExpandMarginTop = style.ExpandMarginBottom = 2;
             socket.AddThemeStyleboxOverride("panel", style);
             _sockets.AddChild(socket);
@@ -225,8 +232,8 @@ public sealed partial class CardFace : Control
 
     private void RebuildEffects(CardFaceViewModel viewModel)
     {
-        _multicast.Visible = viewModel.Multicast > 0;
-        _multicast.Text = $"多重 {viewModel.Multicast}";
+        _setBadge.Visible = viewModel.SetName.Length > 0;
+        _setBadge.Text = viewModel.SetName;
         foreach (var child in _effects.GetChildren())
         {
             _effects.RemoveChild(child);

@@ -264,7 +264,7 @@ public sealed class ResolveEncounterOptionService
             return Result<CardInstance>.Fail(new Failure(RewardUnavailable, "No other-faction card matches this encounter purchase."));
 
         var selected = candidates[random.NextInt(0, candidates.Length)];
-        var economy = new CardEconomyService(_factory, _board);
+        var economy = new CardEconomyService(_factory, _board, _cards);
         var mergeTarget = economy.FindMergeTarget(session, selected, purchase.Level);
         var target = mergeTarget is null
             ? _board.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
@@ -275,14 +275,9 @@ public sealed class ResolveEncounterOptionService
             return Result<CardInstance>.Fail(new Failure(
                 new StringName("economy.insufficient_wealth"), "Not enough wealth to buy this card."));
 
-        var acquired = economy.AcquireCard(session, selected, purchase.Level, CardAcquisitionSource.Purchase);
+        var acquired = economy.AcquireAndPlace(session, selected, purchase.Level, CardAcquisitionSource.Purchase, random);
         if (acquired.IsFailure) throw new InvalidOperationException(acquired.Failure!.Message);
-        if (acquired.Value!.WasCreated)
-        {
-            var placement = _board.PlaceCard(session, acquired.Value.Card.Id, target!.Zone, target.Start);
-            if (placement.IsFailure) throw new InvalidOperationException(placement.Failure!.Message);
-        }
-        return Result<CardInstance>.Success(acquired.Value.Card);
+        return Result<CardInstance>.Success(acquired.Value!.Card);
     }
 
     private Result<CardInstance?> GrantRandomCard(
@@ -294,23 +289,18 @@ public sealed class ResolveEncounterOptionService
         if (candidates.Count == 0)
             return Result<CardInstance?>.Fail(new Failure(RewardUnavailable, "No card matches this encounter reward."));
         var selected = candidates[random.NextInt(0, candidates.Count)];
-        var economy = new CardEconomyService(_factory, _board);
+        var economy = new CardEconomyService(_factory, _board, _cards);
         var mergeTarget = economy.FindMergeTarget(session, selected, level);
         var target = mergeTarget is null
             ? _board.FindFirstAvailableTarget(session, selected.Attributes.Identity.OccupiedSlots)
             : null;
         if (mergeTarget is null && target is null) return Result<CardInstance?>.Success(null);
-        var acquired = economy.AcquireCard(
+        var acquired = economy.AcquireAndPlace(
             session,
             selected,
             level,
-            CardAcquisitionSource.Reward);
+            CardAcquisitionSource.Reward, random);
         if (acquired.IsFailure) return Result<CardInstance?>.Fail(acquired.Failure!);
-        if (acquired.Value!.WasCreated)
-        {
-            var placement = _board.PlaceCard(session, acquired.Value.Card.Id, target!.Zone, target.Start);
-            if (placement.IsFailure) throw new InvalidOperationException(placement.Failure!.Message);
-        }
-        return Result<CardInstance?>.Success(acquired.Value.Card);
+        return Result<CardInstance?>.Success(acquired.Value!.Card);
     }
 }

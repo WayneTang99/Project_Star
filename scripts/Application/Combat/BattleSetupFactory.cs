@@ -93,7 +93,7 @@ public sealed class BattleSetupFactory
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount)
-                { CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(combatValues), CooldownMultiplier = card.CooldownMultiplier,
+                { Identity = card.Attributes.Identity, CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(combatValues), CooldownMultiplier = card.CooldownMultiplier,
                     Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), Quests = card.Quests,
                     QuestProgress = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
                         card.Quests.ToDictionary(quest => quest.Key, quest => card.GetQuestProgress(quest.Key))) });
@@ -121,7 +121,7 @@ public sealed class BattleSetupFactory
                 Multicast: multicast,
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
-                ArmorAmount: armorAmount) { CooldownMultiplier = card.CooldownMultiplier,
+                ArmorAmount: armorAmount) { Identity = card.Attributes.Identity, CooldownMultiplier = card.CooldownMultiplier,
                     CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
                         new Dictionary<StringName, int>(card.Attributes.BaseCombat.SnapshotFinalValues())
                         { [GameAttributeKeys.Value] = card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) }),
@@ -151,7 +151,8 @@ public sealed class BattleSetupFactory
         }
 
         return new BattleSideSetup(
-            new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison, level),
+            new HeroBattleSetup(hero.Id, maxHealth, armor, maxMana, mana, manaRegen, healthRegen, burn, poison, level)
+                { Identity = hero.Attributes.Identity },
             cards.AsReadOnly(),
             skills.AsReadOnly(),
             sets.AsReadOnly()) { BattlefieldCapacity = session.Board.Battlefield.Capacity };

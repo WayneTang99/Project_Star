@@ -79,6 +79,11 @@ public static class MatchDisplayQuery
             Array.AsReadOnly(identity.ElementKeys.ToArray()), Array.Empty<QuestProgressSnapshot>())
         {
             SetKey = identity.SetKey,
+            OnSellReward = level?.OnSellReward ?? definition.OnSellReward,
+            SaleAttributeBonuses = level?.SaleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>(),
+            BattleVictoryBonuses = level?.BattleVictoryBonuses ?? Array.Empty<BattleVictoryAttributeBonus>(),
+            BattleValueBonus = level?.BattleValueBonus ?? 0,
+            OwnValues = values.SnapshotFinalValues(),
             Illustration = identity.Illustration,
             GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
             DescriptionEntries = Array.AsReadOnly(identity.DescriptionEntries.ToArray()),
