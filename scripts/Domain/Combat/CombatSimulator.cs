@@ -127,6 +127,9 @@ public sealed class CombatSimulator
             var definition = pending.Ability.Definition;
             var paysMana = definition.Activation == AbilityActivation.Active && !pending.IsMulticast;
             if (paysMana && hero.Mana < definition.ManaCost) continue;
+            var activatesLeftmostCard = pending.Source is CardBattleState { IsOnBench: false } activatingCard
+                && !runtime.Cards.Any(card => card.Side == activatingCard.Side && !card.Destroyed && !card.IsOnBench
+                    && card.BoardStart < activatingCard.BoardStart);
             if (paysMana)
             {
                 hero.Mana -= definition.ManaCost;
@@ -164,7 +167,7 @@ public sealed class CombatSimulator
                     ability.Definition.Effects.Any(effect => effect is AttributeDamageEffectDefinition { FirstActivationMultiplier: > 1 })))
                     BattleStateRecorder.CaptureState(runtime);
             }
-            if (!pending.IsEcho) EnqueueEchoes(runtime, pending);
+            if (!pending.IsEcho) EnqueueEchoes(runtime, pending, activatesLeftmostCard);
             if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
                 && pending.Source is CardBattleState questCard && questCard.Quests.Count > 0
                 && runtime.Cards.Contains(questCard))
@@ -172,7 +175,7 @@ public sealed class CombatSimulator
         }
     }
 
-    private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin)
+    private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin, bool activatesLeftmostCard)
     {
         foreach (var source in runtime.AbilitySources)
         foreach (var ability in source.Abilities)
@@ -194,6 +197,11 @@ public sealed class CombatSimulator
                 && ReferenceEquals(source, origin.Source) && source is CardBattleState
                 && origin.Ability.Definition.Activation == AbilityActivation.Active)
                 Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnLeftmostAlliedCardActivated
+                && source.Side == origin.Source.Side
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && activatesLeftmostCard)
+                Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
                 && source is CardBattleState adjacentSource && source.Side == origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } attackingCard
@@ -208,6 +216,7 @@ public sealed class CombatSimulator
                 && origin.Source is CardBattleState { IsOnBench: false } activatedCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
                 && (ability.Definition.TriggerCardTag is not { } adjacentTag || activatedCard.Tags.Contains(adjacentTag))
+                && (ability.Definition.TriggerCardSize is not { } adjacentSize || activatedCard.OccupiedSlots == (int)adjacentSize)
                 && (ability.Definition.TriggerCardSide == AdjacentCardSide.Left
                     ? activatedCard.BoardStart + activatedCard.OccupiedSlots == directionalSource.BoardStart
                     : activatedCard.BoardStart == directionalSource.BoardStart + directionalSource.OccupiedSlots))
@@ -224,12 +233,13 @@ public sealed class CombatSimulator
             if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
                 && !ability.Triggered
                 && source.Side == origin.Source.Side
-                && origin.Source is CardBattleState
+                && origin.Source is CardBattleState { IsOnBench: false } firstCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && (ability.Definition.TriggerCardTag is not { } firstTag || firstCard.Tags.Contains(firstTag))
                 && !origin.IsMulticast)
             {
                 ability.Triggered = true;
-                Enqueue(runtime, source, ability, true);
+                Enqueue(runtime, source, ability, true, eventCard: firstCard);
             }
         }
     }
@@ -290,7 +300,7 @@ public sealed class CombatSimulator
         }
     }
 
-    // 正时长状态实际累加后，仅排入目标卡牌自身的状态回响。
+    // 正时长状态实际累加后，排入自身及同方来源的状态获得回响。
     internal static void EnqueueSourceStatusGainedEchoes(BattleRuntime runtime, CardBattleState target, BattleStatus status)
     {
         if (target.Destroyed || target.IsOnBench) return;
@@ -298,6 +308,14 @@ public sealed class CombatSimulator
             if (ability.Definition.Activation == AbilityActivation.EchoOnSourceCardStatusGained
                 && ability.Definition.TriggerStatus == status)
                 Enqueue(runtime, target, ability, true);
+        foreach (var source in runtime.AbilitySources)
+        foreach (var ability in source.Abilities)
+        {
+            if (source.Side != target.Side || source.Destroyed || source.IsOnBench) continue;
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardStatusGained
+                && ability.Definition.TriggerStatus == status)
+                Enqueue(runtime, source, ability, true, eventCard: target);
+        }
     }
 
     // 真实进入布尔状态后，按稳定来源顺序排入己方回响并保存事件目标。

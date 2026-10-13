@@ -6,14 +6,14 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 天启套装圣骑士卡牌，组合通用发动与日蚀进入能力。
+// 天启套装无阵营卡牌，组合通用发动与日蚀进入能力。
 public sealed class IgnisCardDefinition : CardDefinition
 {
     public IgnisCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
-            new StringName("card.ignis"), "战争之手伊格尼斯", new StringName("paladin"),
+            new StringName("card.ignis"), "战争之手伊格尼斯", new StringName("neutral"),
             CardSize.Medium, [GameElements.Fire], setKey: new StringName("set.apocalypse"),
-            illustration: new StringName("res://art/ui/card-face/artwork/ignis-illustration.png"),
+            illustration: new StringName("res://art/ui/card-face/artwork/ignis-illustration-neutral-v2.png"),
             descriptionEntries:
             [
                 new(CardKeywords.Activate, "冷却5秒，对敌方英雄施加12/24/48点灼伤。"),

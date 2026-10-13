@@ -84,6 +84,8 @@ internal static class BattleStatusResolver
         {
             if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench)
                 continue;
+            if (effect.RequiredTag is { IsEmpty: false } && !card.Tags.Contains(effect.RequiredTag))
+                continue;
             var cardEnd = card.BoardStart + card.OccupiedSlots;
             if (cardEnd != source.BoardStart && card.BoardStart != sourceEnd)
                 continue;
@@ -151,6 +153,12 @@ internal static class BattleStatusResolver
                         bonus = checked(bonus - runtime.Cards.Count(card => card.Side == source.Side
                             && !card.Destroyed && !card.IsOnBench
                             && BattleEffectResolver.HasEffectiveTag(runtime, card, taggedAura.RequiredTag)) * taggedAura.AmountTicks);
+                    if (effect is IncreaseSourceCooldownPerAdjacentAlliedTaggedCardEffectDefinition adjacentIncrease)
+                        bonus = checked(bonus + runtime.Cards.Count(card => card.EntityId != source.EntityId
+                            && card.Side == source.Side && !card.Destroyed && !card.IsOnBench
+                            && BattleEffectResolver.HasEffectiveTag(runtime, card, adjacentIncrease.RequiredTag)
+                            && (card.BoardStart + card.OccupiedSlots == source.BoardStart
+                                || source.BoardStart + source.OccupiedSlots == card.BoardStart)) * adjacentIncrease.AmountTicks);
                     if (effect is ReduceSourceCooldownWhileInStateEffectDefinition stateAura
                         && (stateAura.StateKey == GameAttributeKeys.Flying ? source.IsFlying : source.IsBerserk))
                         bonus = checked(bonus - stateAura.AmountTicks);

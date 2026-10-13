@@ -33,7 +33,13 @@ internal static class EncounterChecks
             new ChargeSkillDefinition()]);
         var session = new MatchSession(1);
         session.Progress.Turn = 4;
+        var scheduler = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true);
+        if (scheduler.Generate(session).IsSuccess) return false;
+        session.Progress.Round = 2;
+        if (scheduler.Generate(session).IsSuccess) return false;
+        session.Progress.Round = 3;
         var choices = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true).Generate(session).Value!;
+        var encounter = new MonsterEncounterDefinition(definition);
         var opponent = new LocalTestOpponentProvider(registry).CreateMonsterOpponent(2, definition);
         return registry.Monsters.ContainsKey(new StringName("monster.boar"))
             && definition.Attributes.Identity.DisplayName == "野猪"
@@ -43,7 +49,13 @@ internal static class EncounterChecks
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.Mana) == 0
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.ManaRegen) == 10
             && definition.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.HealthRegen) == 0
-            && definition.Level == 1
+            && definition.Level == 2
+            && encounter.Level == 2
+            && encounter.Kind == EncounterKind.Monster
+            && encounter.Attributes.Identity.Key == definition.Attributes.Identity.Key
+            && encounter.Attributes.Identity.DisplayName == definition.Attributes.Identity.DisplayName
+            && encounter.Attributes.Identity.Illustration == definition.Attributes.Identity.Illustration
+            && encounter.MinimumRound == definition.MinimumRound && encounter.MaximumRound == definition.MaximumRound
             && definition.Skills.Count == 1
             && definition.Skills[0].SkillKey == new StringName("skill.charge")
             && definition.Skills[0].Level == 1
@@ -61,7 +73,7 @@ internal static class EncounterChecks
             && choices[0].Key == new StringName("monster.boar")
             && choices[0].Kind == EncounterKind.Monster
             && opponent.Player.Hero!.Attributes.Identity.DisplayName == "野猪"
-            && opponent.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1
+            && opponent.Player.Hero.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 2
             && opponent.Player.Inventory.Cards.Count == 3
             && opponent.Player.Skills.Items.Count == 1
             && opponent.Player.Skills.Items[0].Attributes.Identity.Key == new StringName("skill.charge")
@@ -114,7 +126,7 @@ internal static class EncounterChecks
             && definition.Kind == EncounterKind.Other
             && definition.Attributes.Identity.DisplayName == "校场"
             && definition.MinimumRound == 1
-            && definition.MaximumRound == 99
+            && definition.MaximumRound == 3
             && definition.Options.Count == 2
             && definition.Options[0].Key == new StringName("encounter.training_ground.body_training")
             && definition.Options[0].DisplayName == "体能训练"
@@ -180,6 +192,8 @@ internal static class EncounterChecks
         var fullResult = resolver.Resolve(fullSession, fullCardOptions, materialKey);
 
         return registry.Encounters.ContainsKey(new StringName("encounter.landfill"))
+            && definition.MinimumRound == 1
+            && definition.MaximumRound == 3
             && definition.Attributes.Identity.DisplayName == "垃圾场"
             && definition.Level == 1
             && definition.Options.Count == 2
@@ -275,13 +289,104 @@ internal static class EncounterChecks
         return result.IsSuccess && result.Value!.Count == 3 && hasShop && keys.Count == 3;
     }
 
+    internal static bool CheckEncounterLevelUnlocks()
+    {
+        var unlockRounds = new[] { 1, 3, 5, 8, 10 };
+        for (var level = 1; level <= 5; level++)
+        {
+            var target = new LevelVerificationShop(level);
+            var registry = DefinitionRegistry.Create([new SmallShopEncounterDefinition(), target]);
+            foreach (var round in Enumerable.Range(1, 11))
+            {
+                var session = new MatchSession(77); session.Progress.Round = round;
+                var result = new EncounterScheduler(registry).Generate(session);
+                if (result.IsFailure || result.Value!.Any(choice => choice.Key == target.Attributes.Identity.Key)
+                    != (round >= unlockRounds[level - 1])) return false;
+            }
+        }
+        var limited = new LevelVerificationShop(2, minimumRound: 4, maximumRound: 6);
+        var limitedRegistry = DefinitionRegistry.Create([new SmallShopEncounterDefinition(), limited]);
+        foreach (var round in new[] { 3, 4, 6, 7 })
+        {
+            var session = new MatchSession(77); session.Progress.Round = round;
+            var choices = new EncounterScheduler(limitedRegistry).Generate(session).Value!;
+            if (choices.Any(choice => choice.Key == limited.Attributes.Identity.Key) != (round is 4 or 6)) return false;
+        }
+        return true;
+    }
+
+    internal static bool CheckEncounterVisitLevelLimits()
+    {
+        var special = new LevelVerificationShop(5);
+        var registry = DefinitionRegistry.Create([new SmallShopEncounterDefinition(), special]);
+        foreach (var levelOverride in new[] { 1, 4, 5 })
+        {
+            var scheduler = new EncounterScheduler(registry, encounterLevelOverride: levelOverride);
+            var session = new MatchSession(77);
+            var early = scheduler.Generate(session).Value!;
+            var expected = Math.Min(levelOverride, 4);
+            if (early.Count != 1 || early[0].Level != expected || early[0].ShopLevel != expected) return false;
+            session.Progress.Round = 10;
+            var choices = scheduler.Generate(session).Value!;
+            var choice = choices.Single(value => value.Key == special.Attributes.Identity.Key);
+            if (choice.Level != 5 || choice.ShopLevel != 5) return false;
+        }
+        var gems = new GemShopEncounterDefinition();
+        var gemRegistry = DefinitionRegistry.Create([new SmallShopEncounterDefinition(), gems]);
+        var gemSession = new MatchSession(77); gemSession.Progress.Round = 8;
+        var gemChoice = new EncounterScheduler(gemRegistry, encounterLevelOverride: 1).Generate(gemSession).Value!
+            .Single(value => value.Key == gems.Attributes.Identity.Key);
+        return gems is ShopEncounterDefinition && gems.Kind == EncounterKind.Shop
+            && new SmallShopEncounterDefinition() is CardShopEncounterDefinition
+            && gemChoice.Level == 4 && gemChoice.ShopLevel == 4;
+    }
+
+    // 内部商店夹具验证初始等级及轮次范围，不进入正式内容池。
+    private sealed class LevelVerificationShop : CardShopEncounterDefinition
+    {
+        internal LevelVerificationShop(int level, int minimumRound = 1, int maximumRound = 99)
+            : base(new EntityAttributes<EncounterIdentityAttributes>(new EncounterIdentityAttributes(
+                new StringName($"encounter.verification.level.{level}"), "等级验证商店")),
+                CardSize.Small, level, minimumRound, maximumRound) { }
+    }
+
     internal static bool CheckDeterministicEncounters()
     {
         var first = CreateEncounterScheduler().Generate(new MatchSession(77)).Value!;
         var second = CreateEncounterScheduler().Generate(new MatchSession(77)).Value!;
         if (first.Count != second.Count) return false;
         for (var index = 0; index < first.Count; index++)
-            if (first[index].Key != second[index].Key) return false;
+            if (first[index] != second[index]) return false;
+        return true;
+    }
+
+    internal static bool CheckRandomEncounterLevels()
+    {
+        for (var initialLevel = 1; initialLevel <= 5; initialLevel++)
+        {
+            var definition = new LevelVerificationShop(initialLevel);
+            var registry = DefinitionRegistry.Create([definition]);
+            var scheduler = new EncounterScheduler(registry);
+            var counts = new int[6];
+            for (ulong seed = 1; seed <= 512; seed++)
+            {
+                var first = new MatchSession(seed); first.Progress.Round = 10;
+                var second = new MatchSession(seed); second.Progress.Round = 10;
+                var choice = scheduler.Generate(first).Value!.Single();
+                var repeated = scheduler.Generate(second).Value!.Single();
+                if (choice != repeated || first.Random.State != second.Random.State
+                    || first.Random.State == seed || choice.Level < initialLevel
+                    || choice.Level > (initialLevel == 5 ? 5 : 4)
+                    || choice.ShopLevel != choice.Level || definition.Level != initialLevel) return false;
+                counts[choice.Level]++;
+                var next = scheduler.Generate(first).Value!.Single();
+                if (next != scheduler.Generate(second).Value!.Single() || first.Random.State != second.Random.State) return false;
+            }
+            var maximum = initialLevel == 5 ? 5 : 4;
+            var expectedCount = 512 / (maximum - initialLevel + 1);
+            for (var level = initialLevel; level <= maximum; level++)
+                if (counts[level] < expectedCount * 3 / 4 || counts[level] > expectedCount * 5 / 4) return false;
+        }
         return true;
     }
 
@@ -335,7 +440,7 @@ internal static class EncounterChecks
         _ = CreateMatchResultService().Apply(session, battle, MatchBattleKind.Monster,
             opponent: CreateBoarOpponent());
         return session.Player.Reputation == 10
-            && session.Player.Wealth == 1
+            && session.Player.Wealth == 2
             && session.Player.Experience == 1
             && session.PendingMonsterRewards.Count == 0
             && session.Status == MatchStatus.InProgress;
@@ -359,8 +464,8 @@ internal static class EncounterChecks
         var claimed = new MonsterRewardClaimService(registry,
             new CardEconomyService(factory, board), new SkillAcquisitionService(factory), board)
             .ClaimFirst(session);
-        return session.Player.Wealth == 6
-            && session.Player.Experience == 2
+        return session.Player.Wealth == 7
+            && session.Player.Experience == 3
             && pending is { Kind: MonsterRewardKind.Card, Level: 1 }
             && (pending.Key == new StringName("card.beast_hide") || pending.Key == new StringName("card.boar"))
             && repeated.PendingMonsterRewards.Count == 1

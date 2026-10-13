@@ -42,13 +42,22 @@ public sealed class EncounterScheduler
             if (experience.IsFailure) return Fail(experience.Failure!.Code, experience.Failure.Message);
         }
         var random = new SeededRandom(session.Random.State);
+        var maximumInitialLevel = session.Progress.Round switch
+        {
+            >= 10 => 5,
+            >= 8 => 4,
+            >= 5 => 3,
+            >= 3 => 2,
+            _ => 1,
+        };
         var available = _registry.Encounters.Values
             .Where(value => value.MinimumRound <= session.Progress.Round
-                && session.Progress.Round <= value.MaximumRound)
+                && session.Progress.Round <= value.MaximumRound
+                && InitialLevel(value) <= maximumInitialLevel)
             .OrderBy(value => value.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList();
         var allDefinitions = _registry.Encounters.Values
-            .Concat(_registry.Monsters.Values.Select(monster => new RegisteredMonsterEncounterDefinition(monster)))
+            .Concat(_registry.Monsters.Values.Select(monster => new MonsterEncounterDefinition(monster)))
             .OrderBy(value => value.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList();
         List<EncounterDefinition> selected;
@@ -56,7 +65,8 @@ public sealed class EncounterScheduler
         if (session.Progress.Turn == 4)
         {
             selected = SelectMany(allDefinitions.Where(value => value.Kind == EncounterKind.Monster
-                && value.MinimumRound <= session.Progress.Round && session.Progress.Round <= value.MaximumRound).ToList(), 3, session, random);
+                && value.MinimumRound <= session.Progress.Round && session.Progress.Round <= value.MaximumRound
+                && InitialLevel(value) <= maximumInitialLevel).ToList(), 3, session, random);
             if (selected.Count < 3 && (!_allowIncompleteMonsterChoices || selected.Count == 0))
                 return Fail(MissingSpecial, "Turn four requires three different monster encounters.");
         }
@@ -79,7 +89,7 @@ public sealed class EncounterScheduler
             selected.AddRange(SelectMany(available, 2, session, random));
         }
 
-        var choices = selected.Select(ToChoice).ToList().AsReadOnly();
+        var choices = selected.Select(definition => ToChoice(definition, random)).ToList().AsReadOnly();
         session.EncounterSchedule.SetChoices(choices);
         session.Random.State = random.State;
         session.Events.Add(new EncounterChoicesGeneratedEvent(session.Progress.Round, session.Progress.Turn, choices.Count));
@@ -141,40 +151,36 @@ public sealed class EncounterScheduler
         throw new InvalidOperationException("Weighted selection did not produce an encounter.");
     }
 
-    private EncounterChoice ToChoice(EncounterDefinition definition) =>
-        new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind)
+    private EncounterChoice ToChoice(EncounterDefinition definition, SeededRandom random)
+    {
+        var level = VisitLevel(definition, random);
+        return new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind)
         {
             Illustration = definition.Attributes.Identity.Illustration,
             Summary = definition.Attributes.Identity.Summary,
-            ShopLevel = definition switch { ShopEncounterDefinition shop => _encounterLevelOverride ?? shop.Level, GemShopDefinition gems => gems.Level, _ => 0 },
-            Level = _encounterLevelOverride ?? (definition switch
-            {
-                ShopEncounterDefinition value => value.Level,
-                GemShopDefinition value => value.Level,
-                ChoiceEncounterDefinition value => value.Level,
-                MentorEncounterDefinition value => value.Level,
-                RegisteredMonsterEncounterDefinition value => value.Level,
-                _ => 0,
-            }),
+            ShopLevel = definition is ShopEncounterDefinition ? level : 0,
+            Level = level,
         };
+    }
 
-    private sealed class RegisteredMonsterEncounterDefinition : EncounterDefinition
+    private static int InitialLevel(EncounterDefinition definition) => definition switch
     {
-        public RegisteredMonsterEncounterDefinition(MonsterDefinition monster)
-            : base(
-                new EntityAttributes<EncounterIdentityAttributes>(
-                    new EncounterIdentityAttributes(
-                        monster.Attributes.Identity.Key,
-                        monster.Attributes.Identity.DisplayName,
-                        monster.Attributes.Identity.Illustration)),
-                monster.MinimumRound,
-                monster.MaximumRound,
-                EncounterKind.Monster)
-        {
-            Level = monster.Level;
-        }
+        ShopEncounterDefinition value => value.Level,
+        ChoiceEncounterDefinition value => value.Level,
+        MentorEncounterDefinition value => value.Level,
+        MonsterEncounterDefinition value => value.Level,
+        _ => definition.Kind == EncounterKind.Pvp ? 0 : 1,
+    };
 
-        public int Level { get; }
+    private int VisitLevel(EncounterDefinition definition, SeededRandom random)
+    {
+        var initialLevel = InitialLevel(definition);
+        // 5级仅来自初始5级的特殊遭遇；等级覆盖不降低初始等级。
+        if (initialLevel == 0) return _encounterLevelOverride ?? 0;
+        return initialLevel >= 5 ? initialLevel
+            : _encounterLevelOverride is int levelOverride
+                ? Math.Max(initialLevel, Math.Min(levelOverride, 4))
+                : initialLevel == 4 ? 4 : random.NextInt(initialLevel, 5);
     }
 
     private static Result<IReadOnlyList<EncounterChoice>> Fail(StringName code, string message) =>

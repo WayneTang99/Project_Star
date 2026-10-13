@@ -144,12 +144,25 @@ public sealed class ResolveEncounterOptionService
                 case GainWealthEncounterOptionEffectDefinition gain:
                     wealth = checked(wealth + gain.Amount);
                     break;
+                case GainRandomWealthEncounterOptionEffectDefinition randomGain:
+                    wealth = checked(wealth + random.NextInt(randomGain.MinimumAmount, randomGain.MaximumAmount + 1));
+                    break;
+                case GrantCardEncounterOptionEffectDefinition fixedCard:
+                    var fixedLevel = fixedCard.UseEncounterLevel ? optionSet.Level : fixedCard.Level;
+                    var fixedCandidates = _cards.Where(card => card.Attributes.Identity.Key == fixedCard.CardKey
+                        && card.SupportsLevel(fixedLevel)).ToArray();
+                    var fixedReward = GrantRandomCard(session, fixedCandidates, fixedLevel, random);
+                    if (fixedReward.IsFailure) return Result<EncounterOptionResult>.Fail(fixedReward.Failure!);
+                    grantedCard = fixedReward.Value;
+                    cardRewardSkipped = grantedCard is null;
+                    break;
                 case GrantRandomFactionCardEncounterOptionEffectDefinition factionCard:
+                    var factionLevel = factionCard.UseEncounterLevel ? optionSet.Level : factionCard.Level;
                     var factionCandidates = _cards.Where(card =>
                         card.Attributes.Identity.FactionKey == hero.Attributes.Identity.FactionKey
                         && card.Attributes.Identity.Size == factionCard.Size
-                        && card.SupportsLevel(factionCard.Level)).ToArray();
-                    var factionReward = GrantRandomCard(session, factionCandidates, factionCard.Level, random);
+                        && card.SupportsLevel(factionLevel)).ToArray();
+                    var factionReward = GrantRandomCard(session, factionCandidates, factionLevel, random);
                     if (factionReward.IsFailure) return Result<EncounterOptionResult>.Fail(factionReward.Failure!);
                     grantedCard = factionReward.Value;
                     cardRewardSkipped = grantedCard is null;
@@ -204,9 +217,10 @@ public sealed class ResolveEncounterOptionService
                         && monster.MinimumRound <= optionSet.Round && optionSet.Round <= monster.MaximumRound).ToArray();
                     if (monsters.Length == 0) { monsterEncounterSkipped = true; break; }
                     var opponent = monsters[random.NextInt(0, monsters.Length)];
-                    var identity = opponent.Attributes.Identity;
+                    var encounter = new MonsterEncounterDefinition(opponent);
+                    var identity = encounter.Attributes.Identity;
                     monsterEncounter = new EncounterChoice(identity.Key, identity.DisplayName, EncounterKind.Monster)
-                        { Level = opponent.Level, Illustration = identity.Illustration };
+                        { Level = encounter.Level, Illustration = identity.Illustration };
                     break;
             }
         }

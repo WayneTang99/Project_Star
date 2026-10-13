@@ -141,7 +141,7 @@ public sealed class MatchPresenter
                     break;
                 }
                 _page = MatchPage.Shop;
-                _stock = _registry.Encounters[key] is ShopEncounterDefinition shop
+                _stock = _registry.Encounters[key] is CardShopEncounterDefinition shop
                     ? _shops.CreateStock(_player, shop, _registry.Cards.Values, choice.ShopLevel) : null;
                 _shopRevision++;
                 _message = _stock is null || _stock.Offers.Count == 0 ? "尚未配置正式卡牌内容。"
@@ -413,7 +413,7 @@ public sealed class MatchPresenter
             }
         var options = _page != MatchPage.Event || _eventCompleted || _options is null ? Array.Empty<KeyedAction>()
             : _options.Options.Select(option => new KeyedAction(option.Key, new UiAction(option.DisplayName))
-                { Subtitle = PlaytestText.FormatOption(option, player?.Hero?.Level ?? 1, _options.Level) }).ToArray();
+                { Subtitle = PlaytestText.FormatOption(option, player?.Hero?.Level ?? 1, _options.Level, _registry.Cards) }).ToArray();
         if (_page == MatchPage.Event && !_eventCompleted && player?.MentorVisit is { IsResolved: false } mentorVisit)
             options = mentorVisit.Offers.Select(offer =>
             {

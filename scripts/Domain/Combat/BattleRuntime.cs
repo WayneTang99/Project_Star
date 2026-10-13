@@ -91,6 +91,16 @@ internal sealed class CardBattleState : IBattleAbilitySource
             if (setup.CombatValues.TryGetValue(GameAttributeKeys.BurnBonus, out var burnBonus))
                 CombatAttributes[GameAttributeKeys.BurnBonus] = burnBonus;
         }
+        if (definitions.Any(definition => definition.Effects.Any(effect => effect is
+            ApplyStatusEffectDefinition { Status: BattleStatus.Poison }
+            or ApplyAttributeStatusEffectDefinition { Status: BattleStatus.Poison }
+            or ApplySourceAttributePercentStatusEffectDefinition { Status: BattleStatus.Poison }
+            or ApplyPrimaryEffectPercentStatusEffectDefinition { Status: BattleStatus.Poison })))
+        {
+            SupportedCombatAttributes.Add(GameAttributeKeys.PoisonBonus);
+            if (setup.CombatValues.TryGetValue(GameAttributeKeys.PoisonBonus, out var poisonBonus))
+                CombatAttributes[GameAttributeKeys.PoisonBonus] = poisonBonus;
+        }
         if (definitions.Any(definition => definition.Effects.Any(HasteEffectRules.AppliesHaste)))
         {
             SupportedCombatAttributes.Add(GameAttributeKeys.HasteDurationBonus);

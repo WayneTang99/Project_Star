@@ -37,7 +37,7 @@ internal static class ApocalypseChecks
             var definition = definitions[index]; var identity = definition.Attributes.Identity;
             var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
             if (!catalog.Cards.ContainsKey(identity.Key) || definition.InitialLevel != index + 1
-                || identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Medium
+                || identity.FactionKey != new StringName("neutral") || identity.Size != CardSize.Medium
                 || identity.SetKey != new StringName("set.apocalypse") || !definition.Tags.Contains(GameTags.Human)
                 || !identity.ElementKeys.SequenceEqual(new[] { elements[index] })
                 || texture is null || texture.GetWidth() != texture.GetHeight()

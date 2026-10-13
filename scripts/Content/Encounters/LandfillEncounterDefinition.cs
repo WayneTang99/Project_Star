@@ -4,7 +4,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Encounters;
 
-// 垃圾场固定双选项遭遇内容定义（内容层）。
+// 仅在前3轮出现的垃圾场固定双选项遭遇（内容层）。
 public sealed class LandfillEncounterDefinition : ChoiceEncounterDefinition
 {
     public LandfillEncounterDefinition()
@@ -12,7 +12,7 @@ public sealed class LandfillEncounterDefinition : ChoiceEncounterDefinition
             new EntityAttributes<EncounterIdentityAttributes>(
                 new EncounterIdentityAttributes(new StringName("encounter.landfill"), "垃圾场", new StringName("res://art/ui/encounters/artwork/landfill-illustration.png"), "寻找零钱或材料")),
             1,
-            99,
+            3,
             [
                 new EncounterOptionDefinition(
                     new StringName("encounter.landfill.wealth"),

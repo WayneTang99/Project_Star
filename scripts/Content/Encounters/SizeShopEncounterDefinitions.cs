@@ -5,7 +5,7 @@ using Project_Star.Domain.Definitions;
 namespace Project_Star.Content.Encounters;
 
 // 只提供当前英雄小型卡牌的1级商店（内容层）。
-public sealed class SmallShopEncounterDefinition : ShopEncounterDefinition
+public sealed class SmallShopEncounterDefinition : CardShopEncounterDefinition
 {
     public SmallShopEncounterDefinition()
         : base(
@@ -18,7 +18,7 @@ public sealed class SmallShopEncounterDefinition : ShopEncounterDefinition
 }
 
 // 只提供当前英雄中型卡牌的1级商店（内容层）。
-public sealed class MediumShopEncounterDefinition : ShopEncounterDefinition
+public sealed class MediumShopEncounterDefinition : CardShopEncounterDefinition
 {
     public MediumShopEncounterDefinition()
         : base(
@@ -31,7 +31,7 @@ public sealed class MediumShopEncounterDefinition : ShopEncounterDefinition
 }
 
 // 只提供当前英雄大型卡牌的2级商店（内容层）。
-public sealed class LargeShopEncounterDefinition : ShopEncounterDefinition
+public sealed class LargeShopEncounterDefinition : CardShopEncounterDefinition
 {
     public LargeShopEncounterDefinition()
         : base(

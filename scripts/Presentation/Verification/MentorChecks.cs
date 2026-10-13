@@ -184,9 +184,9 @@ internal static class MentorChecks
         if (presenter.View.Player!.Skills.Single().Level != 3) return false;
         presenter.Reset();
         if (presenter.View.Player is not null || presenter.View.EventOptions.Count != 0) return false;
-        var empty = CreatePresenter(5);
+        var empty = CreatePresenter(5, skillCount: 0);
         empty.ChooseEncounter("encounter.verification.mentor");
-        return empty.View.EncounterLevel == 5 && empty.View.Player!.MentorVisit!.Level == 5
+        return empty.View.EncounterLevel == 4 && empty.View.Player!.MentorVisit!.Level == 4
             && empty.View.EventOptions.Count == 0 && empty.View.Continue.Visible
             && empty.View.Player.Skills.Count == 0;
     }
@@ -203,7 +203,7 @@ internal static class MentorChecks
         var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
         var economy = new CardEconomyService(factory, board, registry.Cards.Values);
         var game = new GameCoordinator(new CreateMatchService(factory),
-            new EncounterScheduler(registry, encounterLevelOverride: levelOverride),
+            new EncounterScheduler(registry, encounterLevelOverride: levelOverride ?? 3),
             new StartBattleService(new BattleSetupFactory(), new CombatSimulator()), new MatchResultService(board));
         var presenter = new MatchPresenter(registry, board, economy, new ShopCardPoolService(),
             new ResolveEncounterOptionService(factory, board, registry.Cards.Values), Service(registry),
@@ -296,12 +296,12 @@ internal static class MentorChecks
         public override bool CanOfferSkill(SkillDefinition skill, HeroIdentityAttributes hero) => _filter(skill, hero);
     }
 
-    // 内部导师遭遇夹具只配置引用和3级包装，不进入正式内容池。
+    // 内部导师遭遇夹具初始1级，访问测试通过覆盖提升到3级。
     private sealed class VerificationMentorEncounterDefinition : MentorEncounterDefinition
     {
         public VerificationMentorEncounterDefinition()
             : base(new EntityAttributes<EncounterIdentityAttributes>(new EncounterIdentityAttributes(
-                "encounter.verification.mentor", "验证导师遭遇", summary: "选择一个技能")), "mentor.verification", level: 3) { }
+                "encounter.verification.mentor", "验证导师遭遇", summary: "选择一个技能")), "mentor.verification", level: 1) { }
     }
 
     // 内部技能夹具提供可筛选的身份和明确的支持等级，不进入正式内容池。

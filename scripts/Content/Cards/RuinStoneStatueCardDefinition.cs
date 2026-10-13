@@ -19,7 +19,7 @@ public sealed class RuinStoneStatueCardDefinition : CardDefinition
                 new(CardKeywords.Activate, "冷却6秒，魔法消耗0，造成100/200伤害，己方英雄获得100/200护甲。"),
                 new(CardKeywords.Opening, "战斗开始时，此卡牌获得2秒禁锢。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
-            { [GameAttributeKeys.CooldownTicks] = 60 })), new TagSet(), initialLevel: 3,
+            { [GameAttributeKeys.CooldownTicks] = 60 })), new TagSet([GameTags.Mount]), initialLevel: 3,
             levels: [CreateLevel(3, 100), CreateLevel(4, 200)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int amount) => new(level,

@@ -23,6 +23,7 @@ public static class GameAttributeKeys
     public static readonly StringName Burn = new("Burn");
     public static readonly StringName BurnBonus = new("BurnBonus");
     public static readonly StringName Poison = new("Poison");
+    public static readonly StringName PoisonBonus = new("PoisonBonus");
     public static readonly StringName Reputation = new("Reputation");
     // 布尔战斗状态标识，实际值独立存放于卡牌战斗状态。
     public static readonly StringName Flying = new("Flying");

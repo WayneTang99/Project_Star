@@ -6,14 +6,14 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 天启套装圣骑士卡牌，组合通用发动与日蚀进入能力。
+// 天启套装无阵营卡牌，组合通用发动与日蚀进入能力。
 public sealed class DamosCardDefinition : CardDefinition
 {
     public DamosCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
-            new StringName("card.damos"), "征服之手达摩斯", new StringName("paladin"),
+            new StringName("card.damos"), "征服之手达摩斯", new StringName("neutral"),
             CardSize.Medium, [GameElements.General], setKey: new StringName("set.apocalypse"),
-            illustration: new StringName("res://art/ui/card-face/artwork/damos-illustration-face-v2.png"),
+            illustration: new StringName("res://art/ui/card-face/artwork/damos-illustration-neutral-v3.png"),
             descriptionEntries:
             [
                 new(CardKeywords.Activate, "冷却5秒，对敌方英雄造成20/40/80/160点伤害。"),

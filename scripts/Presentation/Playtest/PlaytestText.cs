@@ -13,23 +13,29 @@ namespace Project_Star.Presentation.Playtest;
 internal static class PlaytestText
 {
     // 事件说明直接读取通用效果与当前英雄等级，不按遭遇 key 维护文案表。
-    public static string FormatOption(EncounterOptionDefinition option, int heroLevel, int encounterLevel = 1) =>
-        string.Join(" · ", option.Effects.Select(effect => FormatOptionEffect(effect, heroLevel, encounterLevel)));
+    public static string FormatOption(EncounterOptionDefinition option, int heroLevel, int encounterLevel = 1,
+        IReadOnlyDictionary<StringName, CardDefinition>? cards = null) =>
+        string.Join(" · ", option.Effects.Select(effect => FormatOptionEffect(effect, heroLevel, encounterLevel, cards)));
 
-    private static string FormatOptionEffect(EncounterOptionEffectDefinition effect, int heroLevel, int encounterLevel, bool compact = false) => effect switch
+    private static string FormatOptionEffect(EncounterOptionEffectDefinition effect, int heroLevel, int encounterLevel,
+        IReadOnlyDictionary<StringName, CardDefinition>? cards, bool compact = false) => effect switch
         {
             ModifyHeroCombatAttributeByLevelEffectDefinition value => $"永久增加 {value.AmountPerLevel * heroLevel} {Attribute(value.AttributeKey)}",
             GainWealthEncounterOptionEffectDefinition value => $"+{value.Amount} 金币",
+            GainRandomWealthEncounterOptionEffectDefinition value => $"随机获得 {value.MinimumAmount}～{value.MaximumAmount} 金币",
+            GrantCardEncounterOptionEffectDefinition value =>
+                $"获得 {(value.UseEncounterLevel ? encounterLevel : value.Level)} 级{(cards is not null && cards.TryGetValue(value.CardKey, out var card) ? card.Attributes.Identity.DisplayName : value.CardKey.ToString())}",
             ModifyBattlefieldCardAttributeEncounterOptionEffectDefinition value => $"现有战场卡牌 {Attribute(value.AttributeKey)} +{value.Amount}",
             GrantNextBattleMaxHealthByLevelEncounterOptionEffectDefinition value => $"下场战斗生命 +{value.AmountPerLevel * heroLevel}",
             BuyRandomOtherFactionCardEncounterOptionEffectDefinition value => $"花费 {value.Cost} 金币，获得 {value.Level} 级其他阵营卡牌",
-            GrantRandomFactionCardEncounterOptionEffectDefinition value => $"获得 {value.Level} 级本阵营卡牌",
+            GrantRandomFactionCardEncounterOptionEffectDefinition value =>
+                $"获得 {(value.UseEncounterLevel ? encounterLevel : value.Level)} 级本阵营{TagDisplayNames.Get(GameTags.FromSize(value.Size))}卡牌",
             GrantRandomTaggedCardEncounterOptionEffectDefinition value =>
                 $"{(compact ? "随机" : "获得一件随机")} {(value.UseEncounterLevel ? encounterLevel : value.Level)} 级{TagDisplayNames.Get(GameTags.FromSize(value.Size))}{TagDisplayNames.Get(value.RequiredTag)}{(compact ? "" : "卡牌")}",
             EnterRandomMonsterEncounterOptionEffectDefinition => $"遇见{(compact ? "当前轮次" : "符合当前轮次")}的 {encounterLevel} 级怪物",
             WeightedEncounterOptionEffectDefinition value => string.Join("\n", value.Outcomes.Chunk(2).Select(group =>
                 string.Join("；", group.Select(outcome =>
-                    $"{100m * outcome.Weight / value.Outcomes.Sum(item => item.Weight):0.##}%：{FormatOptionEffect(outcome.Effect, heroLevel, encounterLevel, true)}")))),
+                    $"{100m * outcome.Weight / value.Outcomes.Sum(item => item.Weight):0.##}%：{FormatOptionEffect(outcome.Effect, heroLevel, encounterLevel, cards, true)}")))),
             _ => "查看选项效果",
         };
 

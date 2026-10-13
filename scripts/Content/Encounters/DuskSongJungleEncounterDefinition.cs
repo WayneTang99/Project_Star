@@ -5,7 +5,7 @@ using Project_Star.Domain.Definitions;
 namespace Project_Star.Content.Encounters;
 
 // 暮歌丛林固定双选项与砍伐加权结果（内容层）。
-public sealed class DuskSongJungleEncounterDefinition : ChoiceEncounterDefinition
+public sealed class DuskSongJungleEncounterDefinition : ExplorationEncounterDefinition
 {
     public DuskSongJungleEncounterDefinition()
         : base(new EntityAttributes<EncounterIdentityAttributes>(new EncounterIdentityAttributes(

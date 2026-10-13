@@ -34,6 +34,8 @@ public sealed partial class PhaseOneVerification : Control
             ("怪物与PvP敌方同步可见且结算与重开无残留", PlaytestVerification.EnemyVisibilityAndReset),
         ]),
         new("基础规则与定义", [
+            ("月影喵四级冷却、相邻人类逐张计数及随机禁锢", MoonshadowCatChecks.LevelsAndCombat),
+            ("月影喵筛选、光环撤销、永久倍率与禁锢累加衰减", MoonshadowCatChecks.FiltersAndRemoval),
             ("0.2 秒等于 2 个战斗 Tick", DefinitionChecks.CheckTickConversion),
             ("非固定步长时间会被拒绝", DefinitionChecks.CheckInvalidTickConversion),
             ("相同 Seed 产生相同随机序列", DefinitionChecks.CheckDeterministicRandom),
@@ -102,16 +104,34 @@ public sealed partial class PhaseOneVerification : Control
             ("导师候选确定且不重复，空池不推进随机，旧快照冻结", MentorChecks.DeterministicChoices),
             ("导师领取沿用合并并拒绝重复、跨局、过期和终局操作", MentorChecks.ClaimAndIsolation),
             ("导师遭遇等级传入选择和技能，刷新及重开不重复领取", MentorChecks.EncounterFlow),
-            ("野猪使用默认属性并携带三张1级卡牌和1级冲撞", EncounterChecks.CheckBoarMonsterDefinition),
+            ("野猪2级遭遇从第3轮解锁，卡组与冲撞保持1级", EncounterChecks.CheckBoarMonsterDefinition),
+            ("咩咩三张卡牌、治愈技能、等级布局与实际发动正确", BaaMonsterChecks.DefinitionAndBattle),
+            ("咩咩胜利奖励保留三种卡牌和治愈等级且只领取一次", BaaMonsterChecks.Rewards),
+            ("风车菊四级治疗、出售永久生命与咩咩治愈叠加正确", WindmillDaisyChecks.LevelsHealingAndSales),
+            ("冰莲两级双方迟缓、收到迟缓回响与双冰莲连锁截断", IceLotusChecks.LevelsAndCombat),
+            ("冰莲己敌施加、多重、飞行零时长与备战摧毁筛选", IceLotusChecks.ReceivedStatusAndFilters),
+            ("攻城弩车两级七秒伤害与疾速逐次攻击成长", SiegeBallistaChecks.LevelsDamageAndHaste),
+            ("攻城弩车状态筛选、回响截断、来源失效与战斗隔离", SiegeBallistaChecks.FiltersAndIsolation),
+            ("重骑兵两级双方八秒攻防与每侧装备分别贡献", HeavyCavalryChecks.LevelsAndNeighbors),
+            ("重骑兵相邻边界、排除和撤销、原生数值投影冻结", HeavyCavalryChecks.RemovalAndPreview),
+            ("狮王盾护甲百分比、取整、周期与卡面数值正确", LionKingShieldChecks.LevelsArmorAndDamage),
+            ("狮王盾护甲光环、狂暴多重、失效与百分比边界", LionKingShieldChecks.AuraAndBerserk),
+            ("训练木桩四级双方群体攻击、周期和多重累加", TrainingDummyChecks.LevelsAndGroupBuff),
+            ("训练木桩攻击分类、目标排除、来源失效和本场隔离", TrainingDummyChecks.FiltersAndSourceLoss),
             ("越狱者1级60生命、默认属性、卡组排程与实际迟缓正确", JailbreakerChecks.DefinitionAndBattle),
             ("越狱者胜利奖励池保留卡牌等级，金币经验和领取正确", JailbreakerChecks.Rewards),
             ("校场按定义永久提升英雄生命或战场卡牌攻击", EncounterChecks.CheckTrainingGround),
             ("垃圾场固定展示零钱与材料选项并结算奖励", EncounterChecks.CheckLandfill),
             ("暮歌丛林固定选项、概率配置与原画正确", DuskSongJungleChecks.Definitions),
+            ("探险分类、流沙定义、概率文案、解锁与非法奖励校验", QuicksandExpanseChecks.DefinitionsAndScheduling),
+            ("流沙金币全区间、概率边界、同阵营奖励等级与确定性", QuicksandExpanseChecks.OutcomesAndLevels),
             ("丛林概率边界、确定性、奖励等级与满盘结算正确", DuskSongJungleChecks.Outcomes),
             ("丛林怪物分支进入战斗并保持同一回合", DuskSongJungleChecks.Flow),
             ("酒馆限时出现并结算交易与下一场战斗加成", EncounterChecks.CheckTavernEncounter),
             ("普通回合三选一且包含商店", EncounterChecks.CheckNormalEncounterChoices),
+            ("遭遇按初始等级在1／3／5／8／10轮解锁并遵守轮次范围", EncounterChecks.CheckEncounterLevelUnlocks),
+            ("已解锁遭遇可提升到4级且5级仅来自特殊遭遇", EncounterChecks.CheckEncounterVisitLevelLimits),
+            ("遭遇等级在初始至4级等概率抽取且随机状态可复现", EncounterChecks.CheckRandomEncounterLevels),
             ("相同 Seed 生成相同遭遇候选", EncounterChecks.CheckDeterministicEncounters),
             ("候选生成时立即记录为已出现", EncounterChecks.CheckEncounterSeenHistory),
             ("第 4 回合固定三个怪物遭遇", EncounterChecks.CheckMonsterTurn),
@@ -156,9 +176,13 @@ public sealed partial class PhaseOneVerification : Control
             ("永久摧毁只生成永久变化记录", CombatChecks.CheckPermanentDestroy),
         ]),
         new("技能", [
+            ("无阵营光环技能分级、双方筛选、叠加及实际效果正确", NeutralAuraSkillChecks.LevelsAndTargets),
+            ("左右属性光环随边缘目标摧毁重新选择", NeutralAuraSkillChecks.DynamicPositions),
+            ("中毒光环覆盖固定属性比例公式且治疗实际结算正确", NeutralAuraSkillChecks.PoisonFormulasAndHealing),
             ("技能使用独立实例并按同级规则合并", SkillChecks.CheckSkillMerge),
             ("空战场的被动技能可触发且回响不会连锁", SkillChecks.CheckSkillBattle),
             ("冲撞仅在己方首张卡牌发动后触发一次并按等级结算", SkillChecks.CheckChargeSkill),
+            ("领袖意识仅在己方首张人类发动后充能其他人类且分级正确", LeadershipAwarenessChecks.LevelsAndFirstActivation),
             ("放逐2至4级开战禁锢双方各随机一张，冷却与确定性正确", BanishChecks.LevelsAndTargets),
             ("放逐禁锢叠加、飞行减半、空目标及摧毁过滤正确", BanishChecks.StackingAndFilters),
             ("放逐合并更新数值且旧技能快照保持冻结", BanishChecks.MergeAndSnapshots),
@@ -184,6 +208,8 @@ public sealed partial class PhaseOneVerification : Control
             ("变羊回放身份冻结且下场恢复原卡与位置等级", PolymorphChecks.PlaybackAndRestoration),
             ("小型生命药水分级治疗后仅本场摧毁并在下场恢复", SmallRedPotionChecks.HealingAndConsumption),
             ("小型魔法药水恢复魔法并在恢复后本场摧毁，上限及多重正确", SmallManaPotionChecks.RestoreAndConsume),
+            ("狂暴与飞行药水分级、其他目标及本场消耗正确", StatePotionChecks.LevelsAndConsumption),
+            ("药水随机可复现，狂暴增伤与飞行减时长正确", StatePotionChecks.RandomAndStateEffects),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("弗兰肯特材料出售成长、多重完整发动、升级保留和原画正确", FrankentChecks.SaleGrowthAndBattle),
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
@@ -358,6 +384,11 @@ public sealed partial class PhaseOneVerification : Control
             ("机关重弩身份、原画、三级伤害与多重共用冷却正确", MechanismHeavyCrossbowChecks.LevelsAndMulticast),
             ("机关重弩相邻机械筛选、双侧不重复与动态冷却正确", MechanismHeavyCrossbowChecks.AdjacencyAndTransitions),
             ("短刃斥候身份、原画、三级疾速伤害与冷却正确", ShortbladeScoutChecks.LevelsAndCooldown),
+            ("双截棍身份、三级充能、多重伤害与相邻筛选正确", NunchakuChecks.LevelsAndCombat),
+            ("弓骑兵身份、三级伤害及相邻坐骑筛选正确", MountedArcherChecks.LevelsAndTargets),
+            ("弓骑兵疾速累计、到期、冷却加速与确定性正确", MountedArcherChecks.StackingAndCooldown),
+            ("信鸽身份、三级疾速与己方战场首尾筛选正确", CarrierPigeonChecks.LevelsAndFilters),
+            ("信鸽多重累加、到期、实际加速与首尾失效重选正确", CarrierPigeonChecks.StackingAndTransitions),
             ("短刃斥候外部疾速、多重、增益及来源失效正确", ShortbladeScoutChecks.StatusSourcesAndMulticast),
             ("自身状态获得回响筛选、零时长及连锁截断正确", ShortbladeScoutChecks.FiltersAndChainCutoff),
             ("连枷骑士身份、原画、三级伤害与多重共用冷却正确", FlailKnightChecks.LevelsAndMulticast),
@@ -365,6 +396,9 @@ public sealed partial class PhaseOneVerification : Control
             ("精钢战斧身份、原画、四档10秒伤害与快照正确", FineSteelBattleAxeChecks.LevelsAndDamage),
             ("精钢战斧相邻人类、双侧多重及攻击成长正确", FineSteelBattleAxeChecks.AdjacencyAndGrowth),
             ("精钢战斧触发筛选、来源失效及跨战斗隔离正确", FineSteelBattleAxeChecks.FiltersAndIsolation),
+            ("伙伴猎犬身份、原画、四档7秒攻击与尺寸筛选快照正确", CompanionHoundChecks.LevelsAndDamage),
+            ("伙伴猎犬相邻小型卡牌、双侧多重与攻击累加正确", CompanionHoundChecks.AdjacencyAndGrowth),
+            ("伙伴猎犬尺寸位置筛选、来源失效与战斗隔离正确", CompanionHoundChecks.FiltersAndIsolation),
             ("备战卡面展示当前光环、英雄等级与移区后的最终值", CardFinalValueChecks.Preparation),
             ("战斗卡面最终施加量、多重变化与旧回放快照正确", CardFinalValueChecks.Playback),
             ("三种尺寸卡面多重标记、刷新和边界正确", () => CardFinalValueChecks.FaceScene(this)),
@@ -452,6 +486,66 @@ public sealed partial class PhaseOneVerification : Control
                 try { await ShortbladeScoutChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-training-dummy"))
+            Callable.From((Action)(async () =>
+            {
+                try { await TrainingDummyChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-lion-king-shield"))
+            Callable.From((Action)(async () =>
+            {
+                try { await LionKingShieldChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-heavy-cavalry"))
+            Callable.From((Action)(async () =>
+            {
+                try { await HeavyCavalryChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-siege-ballista"))
+            Callable.From((Action)(async () =>
+            {
+                try { await SiegeBallistaChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-ice-lotus"))
+            Callable.From((Action)(async () =>
+            {
+                try { await IceLotusChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-windmill-daisy"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WindmillDaisyChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-mounted-archer"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MountedArcherChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-carrier-pigeon"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CarrierPigeonChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-companion-hound"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CompanionHoundChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-state-potions"))
+            Callable.From((Action)(async () =>
+            {
+                try { await StatePotionChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-flail-knight"))
             Callable.From((Action)(async () =>
             {
@@ -535,6 +629,12 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await ManaSourceGeneratorChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-moonshadow-cat"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MoonshadowCatChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-adventurer-journal"))

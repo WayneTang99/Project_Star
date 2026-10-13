@@ -51,8 +51,9 @@ internal static class BattleEffectResolver
                 break;
             case ApplyPrimaryEffectPercentStatusEffectDefinition primaryStatus:
                 var extraAmount = checked((int)((long)pending.PrimaryValue * primaryStatus.Percent / 100));
-                if (primaryStatus.Status == BattleStatus.Burn)
-                    extraAmount = checked(extraAmount + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.BurnBonus));
+                if (primaryStatus.Status is BattleStatus.Burn or BattleStatus.Poison)
+                    extraAmount = checked(extraAmount + GetEffectiveCombatAttribute(runtime, pending.Source,
+                        primaryStatus.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : GameAttributeKeys.PoisonBonus));
                 var enemyHero = runtime.GetHero(Opposite(pending.Source.Side));
                 var extraApplied = BattleStatusResolver.ApplyStatus(pending.Source, enemyHero,
                     new ApplyStatusEffectDefinition(primaryStatus.Status, BerserkAmount(pending, extraAmount)));
@@ -192,13 +193,14 @@ internal static class BattleEffectResolver
                 ApplyEffect(runtime, pending, new ApplyStatusEffectDefinition(percentStatus.Status, statusAmount));
                 break;
             case ApplyStatusEffectDefinition status:
-                if (status.Status == BattleStatus.Burn)
+                if (status.Status is BattleStatus.Burn or BattleStatus.Poison)
                     status = status with { Amount = checked(status.Amount
-                        + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.BurnBonus)) };
+                        + GetEffectiveCombatAttribute(runtime, pending.Source,
+                            status.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : GameAttributeKeys.PoisonBonus)) };
                 var appliedStatus = status.Status is BattleStatus.Burn or BattleStatus.Poison
                     ? status with { Amount = BerserkAmount(pending, status.Amount) }
                     : status with { Amount = BattleStatusResolver.DurationWithSourceBonus(runtime, pending, status.Status, status.Amount) };
-                var statusTarget = definition.Target is AbilityTarget.LeftAdjacentAlliedCard or AbilityTarget.RightAdjacentAlliedCard
+                var statusTarget = definition.Target is AbilityTarget.LeftAdjacentAlliedCard or AbilityTarget.RightAdjacentAlliedCard or AbilityTarget.RightmostAlliedCard
                     ? GetTargetCard(runtime, pending)
                     : definition.Target == AbilityTarget.EventCard ? pending.EventCard : pending.Source;
                 if (statusTarget is null) break;
@@ -228,6 +230,13 @@ internal static class BattleEffectResolver
                 if (candidates.Length > 0)
                     SetCardState(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)],
                         adjacentState.StateKey, adjacentState.Enabled);
+                break;
+            case SetRandomOtherAlliedCardStateEffectDefinition otherState:
+                var otherCandidates = runtime.Cards.Where(card => card.Side == pending.Source.Side
+                    && card.EntityId != pending.Source.EntityId && !card.Destroyed && !card.IsOnBench).ToArray();
+                if (otherCandidates.Length > 0)
+                    SetCardState(runtime, pending, otherCandidates[runtime.NextRandomIndex(otherCandidates.Length)],
+                        otherState.StateKey, otherState.Enabled);
                 break;
             case ApplyStatusToAdjacentAlliedCardsEffectDefinition adjacent:
                 if (pending.Source is not CardBattleState adjacentSource)
@@ -272,11 +281,10 @@ internal static class BattleEffectResolver
                     ChargeCard(runtime, cardChargeSource, chargeTarget, cardCharge.AmountTicks);
                 break;
             case ChargeTaggedAlliedCardsEffectDefinition taggedCharge:
-                if (pending.Source is not CardBattleState taggedChargeSource)
-                    throw new InvalidOperationException("Tagged allied charge requires a card source.");
                 foreach (var target in runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed
-                    && !card.IsOnBench && HasEffectiveTag(runtime, card, taggedCharge.RequiredTag)).ToArray())
-                    ChargeCard(runtime, taggedChargeSource, target, taggedCharge.AmountTicks);
+                    && !card.IsOnBench && HasEffectiveTag(runtime, card, taggedCharge.RequiredTag)
+                    && (!taggedCharge.ExcludeEventCard || card.EntityId != pending.EventCard?.EntityId)).ToArray())
+                    ChargeCard(runtime, pending.Source, target, taggedCharge.AmountTicks);
                 break;
             case RepairRandomDestroyedAlliedCardEffectDefinition repair:
                 RepairRandomDestroyedAlliedCard(runtime, pending, repair);
@@ -333,6 +341,15 @@ internal static class BattleEffectResolver
                         currentValue));
                 }
                 break;
+            case ModifyAlliedAttackCardsAttributeEffectDefinition allAttackModifier:
+                foreach (var card in runtime.Cards)
+                {
+                    if (card.Side != pending.Source.Side || card.Destroyed || card.IsOnBench || !card.IsAttackCard) continue;
+                    var currentValue = card.AddCombatAttribute(allAttackModifier.AttributeKey, allAttackModifier.Amount);
+                    runtime.Events.Add(new CardAttributeChangedEvent(runtime.Tick, card.EntityId,
+                        allAttackModifier.AttributeKey, allAttackModifier.Amount, currentValue));
+                }
+                break;
             case ModifyRandomAlliedAttackCardAttributeEffectDefinition randomModifier:
                 var attackers = runtime.Cards.Where(card => card.Side == pending.Source.Side
                     && !card.Destroyed && !card.IsOnBench && card.IsAttackCard).ToArray();
@@ -386,10 +403,13 @@ internal static class BattleEffectResolver
             DestroyAlliedCardsAndDamageEffectDefinition value => Value(value.DamageAttributeKey),
             GainSourceHeroArmorFromAttributeEffectDefinition value => Value(value.AttributeKey),
             ApplyAttributeStatusEffectDefinition value => Value(value.AttributeKey)
-                + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus) : 0),
+                + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
+                    : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
             ApplySourceAttributePercentStatusEffectDefinition value => checked((int)((long)Value(value.AttributeKey) * value.Percent / 100))
-                + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus) : 0),
-            ApplyStatusEffectDefinition value => value.Amount + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus) : 0),
+                + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
+                    : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
+            ApplyStatusEffectDefinition value => value.Amount + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
+                    : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
             DamageEffectDefinition value => value.Amount,
             HealEffectDefinition value => checked(value.Amount + Value(GameAttributeKeys.HealingBonus)),
             HealMaxHealthPercentEffectDefinition value => checked((int)((long)target.MaxHealth * value.Percent / 100)
@@ -406,7 +426,8 @@ internal static class BattleEffectResolver
             ChargeCardEffectDefinition value => value.AmountTicks,
             ApplyPrimaryEffectPercentStatusEffectDefinition value when !primaryValue =>
                 checked((int)((long)pending.PrimaryValue * value.Percent / 100)
-                    + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus) : 0)),
+                    + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
+                    : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0)),
             IncreaseAlliedCardAttributeAuraEffectDefinition value => checked(value.Amount + own.Level * value.HeroLevelMultiplier),
             _ => null,
         };
@@ -416,7 +437,8 @@ internal static class BattleEffectResolver
     {
         var multiplier = pending.Source is CardBattleState { ActiveActivationCount: 0 }
             ? effect.FirstActivationMultiplier : 1;
-        return checked(GetEffectiveCombatAttribute(runtime, pending.Source, effect.AttributeKey) * multiplier);
+        var amount = checked((int)((long)GetEffectiveCombatAttribute(runtime, pending.Source, effect.AttributeKey) * effect.Percent / 100));
+        return checked(amount * multiplier);
     }
 
     private static int BerserkAmount(PendingAbility pending, int amount) =>
@@ -473,7 +495,11 @@ internal static class BattleEffectResolver
                 continue;
             foreach (var card in runtime.Cards)
                 if (card.Side == source.Side && !card.Destroyed && !card.IsOnBench
-                    && HasEffectiveTag(runtime, card, increase.RequiredTag))
+                    && HasEffectiveTag(runtime, card, increase.RequiredTag)
+                    && (!increase.AdjacentOnly || source is CardBattleState { Destroyed: false, IsOnBench: false } origin
+                        && card.EntityId != origin.EntityId
+                        && (card.BoardStart + card.OccupiedSlots == origin.BoardStart
+                            || origin.BoardStart + origin.OccupiedSlots == card.BoardStart)))
                     value = checked(value + increase.Amount);
         }
         foreach (var ability in source.Abilities)
@@ -515,7 +541,12 @@ internal static class BattleEffectResolver
                 if (ability.Definition.Activation != AbilityActivation.PassiveAura) continue;
                 foreach (var effect in ability.Definition.Effects)
                     if (effect is IncreaseAlliedCardAttributeAuraEffectDefinition aura
-                        && target.SupportsCombatAttribute(aura.AttributeKey))
+                        && target.SupportsCombatAttribute(aura.AttributeKey)
+                        && (aura.ExtremeSide is not { } side || !runtime.Cards.Any(candidate =>
+                            candidate.Side == target.Side && !candidate.Destroyed && !candidate.IsOnBench
+                            && candidate.SupportsCombatAttribute(aura.AttributeKey)
+                            && (side == AdjacentCardSide.Left ? candidate.BoardStart < target.BoardStart
+                                : candidate.BoardStart > target.BoardStart))))
                         yield return aura with
                         {
                             Amount = checked(aura.Amount + checked(runtime.GetHero(source.Side).Level * aura.HeroLevelMultiplier)),
@@ -654,6 +685,9 @@ internal static class BattleEffectResolver
         if (pending.Source is not CardBattleState source)
             throw new InvalidOperationException("Card target requires a card source.");
         if (pending.Ability.Definition.Target == AbilityTarget.SelfCard) return source;
+        if (pending.Ability.Definition.Target == AbilityTarget.RightmostAlliedCard)
+            return runtime.Cards.Where(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench)
+                .OrderByDescending(card => card.BoardStart).FirstOrDefault();
         return runtime.Cards.FirstOrDefault(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench
             && (pending.Ability.Definition.Target == AbilityTarget.LeftAdjacentAlliedCard
                 ? card.BoardStart + card.OccupiedSlots == source.BoardStart
@@ -661,7 +695,7 @@ internal static class BattleEffectResolver
     }
 
     // 共用充能结算，降至零时只对原本尚在冷却的主动能力排队。
-    private static void ChargeCard(BattleRuntime runtime, CardBattleState source, CardBattleState target, int amountTicks)
+    private static void ChargeCard(BattleRuntime runtime, IBattleAbilitySource source, CardBattleState target, int amountTicks)
     {
         foreach (var ability in target.Abilities)
         {

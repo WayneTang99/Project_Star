@@ -4,7 +4,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Encounters;
 
-// 校场固定双选项遭遇（内容层）。
+// 仅在前3轮出现的校场固定双选项遭遇（内容层）。
 public sealed class TrainingGroundEncounterDefinition : ChoiceEncounterDefinition
 {
     public TrainingGroundEncounterDefinition()
@@ -12,7 +12,7 @@ public sealed class TrainingGroundEncounterDefinition : ChoiceEncounterDefinitio
             new EntityAttributes<EncounterIdentityAttributes>(
                 new EncounterIdentityAttributes(new StringName("encounter.training_ground"), "校场", new StringName("res://art/ui/encounters/artwork/training_ground-illustration.png"), "强化英雄或战场卡牌")),
             1,
-            99,
+            3,
             [
                 new EncounterOptionDefinition(
                     new StringName("encounter.training_ground.body_training"),

@@ -6,11 +6,23 @@
 
 随机敌方持续状态效果可配置目标数量，一次效果不重复选择，候选不足时影响全部可选卡牌；备战区和已摧毁卡牌不参与抽选。双方战场元素冷却光环在战斗层动态计数，以贡献差值调整来源冷却，不回写卡牌实例。
 
+`ApplyStatusToAdjacentAlliedCardsEffectDefinition.RequiredTag` 可选地限制目标标签；为空时维持左右直接相邻己方存活战场卡牌的原有范围。标签筛选与 `BonusTag` 时长倍率独立，`BonusMultiplier = 1` 表示不翻倍；每次发动重新筛选，状态时长仍累加并自然到期。
+
 `ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition` 配置标签与每张卡的缩减Tick数，仅允许战场自身光环。按己方存活战场卡牌有效标签动态计数，包含符合条件的来源自身，排除敌方、备战与已摧毁卡牌；复用冷却贡献差值与永久倍率规则，不回写对局实例。
 
 内容增删改查使用项目内的 [project-star-content-definition Skill](../../.codex/skills/project-star-content-definition/SKILL.md)：查询从当前定义读取数据，修改和删除追踪实际引用，内容变更执行构建与行为验证。查询结果可以临时展示或按需导出，内容数据仍统一维护在 Definition。
 
 ## 卡牌
+
+`ModifyAlliedAttackCardsAttributeEffectDefinition` 对全部己方存活战场攻击卡牌累加指定本场属性，不消耗随机数；沿用战斗层按伤害能力判定的攻击分类，零攻击值仍符合，纯治疗／护甲辅助、备战、敌方及已摧毁卡牌排除。贡献仅本场保留，不回写实例或作为永久属性奖励；来源失效不撤销已结算加成。
+
+`AttributeDamageEffectDefinition.Percent` 默认100，可配置1～100。按来源当次有效卡牌属性（包含其光环贡献）乘百分比后向下取整，再应用首次发动倍率及发动狂暴；读取卡牌护甲与读取英雄当前护甲是不同的效果。卡面与详情共用百分比计算，默认100保留既有属性攻击行为，不写回来源属性。
+
+`IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition.AdjacentOnly` 可选地按完整占格边界筛选来源左右直接相邻的己方存活战场标签卡牌，排除自身、敌方、备战及已摧毁卡牌；开启时仅允许战场自身光环。每张邻居各贡献一次，双方贡献累加，邻居失效后动态停止计入；不依赖其他卡牌的最终数值。关闭时保留全己方标签计数及包含自身的既有行为。战场卡面和预览复用战斗投影读取有效数值，不写回卡牌实例。
+
+`EchoOnAlliedCardStatusGained` 以受影响卡牌的归属筛选己方存活战场来源，用`TriggerStatus`指定疾速、迟缓或禁锢。每张目标实际获得正时长时触发一次，包含来源自身、己方或敌方施加及多重；不包含备战、已摧毁目标、飞行取整后零时长或回响产生的状态。通用状态获得入口保存事件卡牌，来源无冷却且仅战场有效；与按施加方筛选的`EchoOnAlliedSlowApplied`分别维护，互不改变含义。
+
+`IncreaseSourceCooldownPerAdjacentAlliedTaggedCardEffectDefinition` 配置标签与每张直接相邻己方存活战场卡牌的冷却增加Tick数，仅允许战场自身光环。按完整占格边界分别计数左右邻居，复用冷却贡献差值与永久倍率规则，不回写对局实例。
 
 `PassiveOnEclipseStart` 是本场一次性战斗触发；`EnterEclipseEffectDefinition` 可提前进入全场日蚀，重复请求不生效。进入增益复用来源属性倍率与 `IncreaseHeroMaxHealthPercentEffectDefinition`，后者向下取整增加目标英雄最大生命并等量增加当前生命。`MultiplyReceivedEclipseDamageEffectDefinition` 是英雄目标的日蚀伤害光环；按开战冻结的套装来源保持有效。`ReduceSetCardCooldownEffectDefinition` 由轮开始应用结算作用于该来源套装的战场成员，重复缩减按既有十进制冷却倍率累乘；相同卡牌key的多个实例不重复贡献套装计数，但各成员均获得缩减，备战不受影响。
 
@@ -50,15 +62,21 @@
 
 ### 按卡牌分类触发的充能回响
 
+`EchoOnLeftmostAlliedCardActivated` 响应己方战场最左侧存活卡牌成功主动发动，包含多重。按发动开始时的战场位置判断，空格不影响排序，纯被动卡牌仍占首位；排除敌方、备战、技能及回响发动。`RightmostAlliedCard` 在效果执行时选择己方战场最右侧存活卡牌，包含来源自身，不要求相邻或具有主动能力；支持卡牌持续状态，复用时长累加与自然衰减。来源位于备战或被摧毁时不生效，首尾随存活战场卡牌变化重新选择。
+
 `ChargeRandomOtherAlliedCardsEffectDefinition` 按配置数量无重复抽选己方其他存活战场卡牌并提供固定充能；候选必须有尚在冷却的主动能力，排除来源自身、敌方、备战及已摧毁卡牌。候选不足时影响全部候选，沿用确定性随机与充能到零的即时发动队列。
 
 `ChargeTaggedAlliedCardsEffectDefinition` 为匹配标签的己方存活战场卡牌逐张提供固定秒数充能，包含满足条件的来源自身，排除敌方、备战与已摧毁卡牌。充能只扣减当前主动能力的剩余冷却；由正值降至0时立即排队发动，已就绪能力不会重复排队。不改变基础冷却，产生的正常主动发动可触发既有回响。
 
 `EchoOnMatchingAlliedCardActivated` 配置 `TriggerCardTag` / `TriggerCardElement`，匹配己方战场卡牌的主动发动；任一条件成立即触发一次，两项同时满足不重复触发。可配置 `TriggerCardSize`，尺寸条件必须同时满足；也可仅按尺寸筛选。包含满足条件的来源自身及多重额外发动，排除敌方、技能、备战区与回响产生的被动发动。筛选随能力冻结传入快照。`ChargeSourceCardEffectDefinition` 缩短来源主动能力剩余冷却，到零时立即排队发动；不改变基础冷却，不触发被动能力的冷却。
 
+`EchoOnFirstAlliedCardActivated` 可用 `TriggerCardTag` 筛选首次成功主动发动的己方战场卡牌，每个能力每场仅触发一次；不匹配的卡牌不消耗机会，多重不重复触发。回响保留该次发动的事件卡牌。`ChargeTaggedAlliedCardsEffectDefinition` 支持卡牌及技能来源，对己方存活战场指定标签卡牌充能；配置 `ExcludeEventCard` 时排除本次发动者，仅用于首次发动回响，无其他目标仍消耗本场触发机会。
+
 ### 己方施加迟缓与双方攻击发动回响
 
 `ApplyStatusToRandomAlliedCardEffectDefinition` 从己方存活战场卡牌中按战斗随机数选择一张，包含来源自身，排除备战与已摧毁卡牌；无目标时跳过。持续状态累加并自然衰减，迟缓与禁锢沿用目标飞行减半规则。
+
+`SetRandomOtherAlliedCardStateEffectDefinition` 按本场冻结随机数等概率选择一张己方其他存活战场卡牌，设置飞行或狂暴布尔状态；排除来源自身、敌方、备战和已摧毁卡牌，不要求相邻。已有状态的卡牌仍可被选中，重复设置不重复发布进入事件；无目标跳过且不消耗随机数。与自毁效果组合时先设置目标状态，再摧毁来源；无目标也继续结算自毁。
 
 轮初词条使用 `keyword.round_start`，能力使用 `PassiveOnRoundStart`，不进入战斗队列。轮收入边界先冻结当前战场卡牌的能力和等级，再各结算一次；备战区不触发，轮中获得或放入战场不补发。`GrantRandomOtherHeroSourceLevelCardEffectDefinition` 按指定尺寸筛选已注册英雄归属中当前玩家英雄以外、支持来源等级的卡牌，包含无阵营；按key稳定排序后使用对局随机数等概率选取。获得沿用同级合并及自动放置，无法放置时保留同级待领奖励；空池不消耗随机数。新获得或合并后的能力不参与生成它们的本次轮初。
 
@@ -82,7 +100,7 @@
 
 ### 单侧相邻卡牌发动回响
 
-`EchoOnAdjacentAlliedCardActivated` 通过 `TriggerCardSide` 指定左侧或右侧，响应该侧直接相邻的己方战场卡牌主动发动，包含多重额外发动，不要求攻击能力；可用 `TriggerCardTag` 限定标签，未配置时不筛选标签。相邻按完整占格边界判断，不跨空格；排除敌方、备战区、技能及回响发动，来源被摧毁后失效，无主动冷却与魔法消耗。左右两侧分别配置可组合为双侧相邻触发。
+`EchoOnAdjacentAlliedCardActivated` 通过 `TriggerCardSide` 指定左侧或右侧，响应该侧直接相邻的己方战场卡牌主动发动，包含多重额外发动，不要求攻击能力；可用 `TriggerCardTag` 限定标签、`TriggerCardSize` 限定尺寸；同时配置时必须全部满足，未配置的条件不筛选。相邻按完整占格边界判断，不跨空格；排除敌方、备战区、技能及回响发动，来源被摧毁后失效，无主动冷却与魔法消耗。左右两侧分别配置可组合为双侧相邻触发。
 
 `LeftAdjacentAlliedCard` / `RightAdjacentAlliedCard` 在执行时选择该侧直接相邻的己方存活战场卡牌，无目标时跳过效果。可组合持续状态施加或 `ChargeCardEffectDefinition`；状态时长累加并自然衰减，充能复用剩余主动冷却扣减与到零即时排队，不改变基础冷却。充能产生的正常主动发动仍可触发回响。
 
@@ -99,6 +117,8 @@
 `ReduceAlliedElementCardCooldownAuraEffectDefinition` 在战场自身光环中配置元素与1～100的百分比，向己方匹配元素的存活战场卡牌提供冷却缩减。同类百分比累加至100%，与永久冷却倍率相乘；动态增减按总时长差值调整剩余冷却，首发、重置、冷却增量与冻结回放均读取有效倍率，不回写实例。
 
 `IncreaseAlliedCardAttributeAuraEffectDefinition` 由有效来源向己方存活战场卡牌提供指定属性加成，包含具备对应属性能力的来源自身；只增强已有属性能力，多张来源按贡献累加，备战区及被摧毁卡牌不参与。有效值从基础值加各来源的定义贡献求得，再参与来源的条件倍率；来源失效立即停止贡献，不回写实例，也不依赖其他卡牌最终值。新召唤或转变卡牌立即按当前有效来源求值。
+
+该光环支持卡牌、技能及套装来源；技能使用 `AlliedHero` 目标。可选 `ExtremeSide` 按当前存活战场中具备对应属性能力的卡牌位置选择最左或最右一张；空目标无贡献，摧毁、修复、召唤及转变后重新求值。`PoisonBonus` 与 `BurnBonus` 分别向中毒和灼伤施加量追加贡献，覆盖固定量、属性量及百分比量，每次施加只追加一次，再计算狂暴。
 
 该光环可配置 `HeroLevelMultiplier`：每个来源贡献为固定量加来源方英雄等级×系数。英雄等级使用本场战斗输入冻结值，升级在下一场输入生效；卡面展示等级公式，受益卡牌的回放数值携带已计算的加成。
 
@@ -275,6 +295,14 @@
 
 ## 遭遇
 
+`ExplorationEncounterDefinition` 是 `ChoiceEncounterDefinition` 的探险内容子类，沿用 `Other` 排程、固定选项槽及加权结果结算，不增加独立的抽取池。新增探险通过正式 Definition 组合通用效果，已有探险的选项和概率不因分类调整而改变。
+
+`ShopEncounterDefinition` 共用商店类型、等级和轮次配置；`CardShopEncounterDefinition` 扩展卡牌尺寸筛选，`GemShopDefinition` 扩展砧板候选及镶嵌费用。排程对两类商店统一读取共用基类等级，具体购买和镶嵌仍由各自用例结算。
+
+`MonsterEncounterDefinition` 将独立 `MonsterDefinition` 投影为怪物遭遇，统一读取只读身份、等级和轮次范围；固定怪物回合与探险引出的怪物战共用该投影，不手工重复注册同名遭遇。怪物等级调整不改变卡组与技能条目配置的等级；本地对手英雄等级读取怪物等级。
+
+`GainRandomWealthEncounterOptionEffectDefinition` 在包含两端的正整数区间内等概率抽取金币，使用对局随机状态；`GrantCardEncounterOptionEffectDefinition` 引用已注册且支持所配等级的卡牌 key，复用普通卡牌奖励的合并、放置与满盘跳过规则。同阵营随机奖励与指定卡牌奖励均可配置 `UseEncounterLevel`，开启时按本次访问等级筛选并授予，而非英雄等级或内容初始等级。指定卡牌展示名从正式卡牌目录读取，UI不按遭遇或卡牌 key 硬编码。
+
 ### 字段约定
 
 | 字段 | 含义 |
@@ -303,7 +331,9 @@
 
 遭遇原画由 `EncounterIdentityAttributes.Illustration` 保存为只读 `StringName` 项目资源路径；怪物遭遇沿用 `MonsterIdentityAttributes.Illustration`，不重复登记。正式原画位于 `art/ui/encounters/artwork/`，排程将路径及商店等级传入 `EncounterChoice` 和对局快照，表现层加载纹理。未配置原画的内部夹具保留名称，正式内容验证资源加载。
 
-`EncounterChoice.Level` 将商店、普通事件和怪物的定义等级传入表现层；`ShopLevel` 仍仅表示商店的商品上限。进入遭遇后的页面快照保留遭遇等级，重开及生成下一组选项时清除旧遭遇信息。
+商店、宝石商店、普通事件、导师包装及怪物的 Definition `Level` 为初始等级，默认解锁轮次依次为1／3／5／8／10（对应1～5级），并与 `MinimumRound` / `MaximumRound` 范围共同筛选。固定PvP保留每轮第8回合规则，不抽取等级。排程先按初始等级筛选，再用对局随机状态从初始等级至4级等概率抽取本次访问等级，与当前轮次开放的初始等级上限无关；每个候选只抽取一次，`Level` / `ShopLevel` 共用结果。测试等级覆盖不得降低初始等级，低于5级的遭遇最多提升到4级，初始5级的特殊遭遇保持5级；只有一个可用等级或采用覆盖时不消耗等级抽取随机数。
+
+`EncounterChoice.Level` 将本次访问等级传入表现层；`ShopLevel` 仍仅表示商店的商品上限，与商店本次访问等级一致。进入遭遇后的页面快照保留遭遇等级，重开及生成下一组选项时清除旧遭遇信息。
 
 ### 内容维护约定
 

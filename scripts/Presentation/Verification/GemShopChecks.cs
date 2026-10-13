@@ -137,8 +137,8 @@ internal static class GemShopChecks
             shell.GemSocketPreviewRequested += (drag, index, revision) => presenter.PreviewGemSocket(drag.MatchId, drag.CardId, index, revision);
             shell.GemSocketRequested += (drag, index, revision) => presenter.SocketShopGem(drag.MatchId, drag.CardId, index, revision);
             presenter.ViewChanged += shell.Render; presenter.Reset(); presenter.SelectHero(new StringName("hero.robin"));
+            var session = OpenGemRound(presenter);
             Require(presenter.View.Choices.Single().Level == 4, "排程等级");
-            var session = Session(presenter);
             var card = economy.AcquireAndPlace(session, new RuinStoneStatueCardDefinition(), 3, CardAcquisitionSource.Reward).Value!.Card;
             presenter.ChooseEncounter(new StringName("encounter.shop.gems"));
             var view = presenter.View; var random = session.Random.State; presenter.RefreshView();
@@ -186,7 +186,7 @@ internal static class GemShopChecks
             shell.DragSellRequested += presenter.SellDraggedCard;
             shell.CancelRequested += presenter.CancelSelection;
             presenter.ViewChanged += shell.Render; presenter.Reset(); presenter.SelectHero(new StringName("hero.robin"));
-            var session = Session(presenter);
+            var session = OpenGemRound(presenter);
             var field = economy.AcquireAndPlace(session, new RuinStoneStatueCardDefinition(), 3, CardAcquisitionSource.Reward).Value!.Card;
             var bench = economy.AcquireAndPlace(session, new RuinStoneStatueCardDefinition(), 4, CardAcquisitionSource.Reward).Value!.Card;
             new BoardService(new BoardPlacementSolver()).PlaceCard(session, bench.Id, BoardZone.Bench, 0);
@@ -268,6 +268,16 @@ internal static class GemShopChecks
     private static MatchSession Session(MatchPresenter presenter) => (MatchSession)typeof(MatchPresenter)
         .GetField("_player", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(presenter)!;
 
+    private static MatchSession OpenGemRound(MatchPresenter presenter)
+    {
+        var session = Session(presenter);
+        session.Progress.Round = 8;
+        var catalog = DefinitionRegistry.Create([new GemShopEncounterDefinition()]);
+        Require(new EncounterScheduler(catalog).Generate(session).IsSuccess, "第8轮宝石商店解锁");
+        presenter.RefreshView();
+        return session;
+    }
+
     internal static async Task Capture(Control owner)
     {
         var (presenter, economy) = CreatePresenter(); var shell = CreateShell(owner);
@@ -275,7 +285,7 @@ internal static class GemShopChecks
         {
             shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
             presenter.Reset(); presenter.SelectHero(new StringName("hero.robin"));
-            economy.AcquireAndPlace(Session(presenter), new RuinStoneStatueCardDefinition(), 3, CardAcquisitionSource.Reward);
+            economy.AcquireAndPlace(OpenGemRound(presenter), new RuinStoneStatueCardDefinition(), 3, CardAcquisitionSource.Reward);
             presenter.ChooseEncounter(new StringName("encounter.shop.gems"));
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
             {

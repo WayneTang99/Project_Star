@@ -98,7 +98,11 @@ internal static class SkillCatalogChecks
             Search("至圣斩"); OpenDetail();
             if (level.ItemCount != 1 || level.GetItemId(0) != 4) return Fail("固定等级");
             Search("护甲"); OpenDetail();
-            if (grid.GetChildCount() != 1 || !name.Text.Contains("捍卫")) return Fail("效果搜索");
+            var armorNames = SkillCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly))
+                .Where(entry => entry.Levels.Any(skill => CardDisplayAdapter.SkillDetails(skill).Contains("护甲")))
+                .Select(entry => entry.InitialSkill.DisplayName).ToArray();
+            if (grid.GetChildCount() != armorNames.Length || !grid.GetChildren().OfType<VBoxContainer>()
+                .Select(cell => cell.GetChild<Label>(1).Text).SequenceEqual(armorNames)) return Fail("效果搜索");
             Search(""); var faction = catalog.GetNode<OptionButton>("Content/Filters/Faction");
             for (var index = 1; index < faction.ItemCount; index++)
             {

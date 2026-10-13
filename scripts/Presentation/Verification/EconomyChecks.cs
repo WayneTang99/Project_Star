@@ -213,7 +213,8 @@ internal static class EconomyChecks
             var stock = service.CreateStock(session, shop, cards);
             if (service.GetEligibleCards(session, shop, cards).Count != shopLevel + 3
                 || stock.Offers.Count != 3 || !stock.CanRefresh
-                || stock.Offers.Any(offer => offer.Level > shopLevel || offer.Level != offer.Definition.InitialLevel)
+                || stock.Offers.Any(offer => offer.Level > shopLevel || offer.Level < offer.Definition.InitialLevel
+                    || !offer.Definition.SupportsLevel(offer.Level))
                 || service.CreateOffer(session, shop, cards) is not { } offer || offer.Level > shopLevel) return false;
             var refresh = service.Refresh(session, stock);
             if (refresh.IsFailure || stock.Offers.Any(item => item.Level > shopLevel)
@@ -227,7 +228,7 @@ internal static class EconomyChecks
                 || session.Random.State != randomBefore) return false;
             // 刷新资格也只计算过滤后的商品池。
             var limited = service.CreateStock(session, shop, [cards[0], cards[4]]);
-            if (limited.Offers.Count != 1 || limited.CanRefresh || limited.Offers[0].Level != 1) return false;
+            if (limited.Offers.Count != 1 || limited.CanRefresh || limited.Offers[0].Level > shopLevel) return false;
         }
         var testSession = new MatchSession(42, 100);
         testSession.Player.SelectHero(new EntityFactory().CreateHero(new PaladinHeroDefinition()));
@@ -237,11 +238,53 @@ internal static class EconomyChecks
             || service.GetEligibleCards(testSession, ordinaryShop, cards, 5).Count != 8
             || service.GetEligibleCards(testSession, ordinaryShop, cards).Count != 4) return false;
         return service.Refresh(testSession, testStock).IsSuccess && testSession.Player.Wealth == 90
-            && testStock.Offers.All(offer => offer.Level <= 5 && offer.Level == offer.Definition.InitialLevel);
+            && testStock.Offers.All(offer => offer.Level <= 5 && offer.Level >= offer.Definition.InitialLevel
+                && offer.Definition.SupportsLevel(offer.Level))
+            && CheckShopHigherLevelsAndOwnership();
+    }
+
+    private static bool CheckShopHigherLevelsAndOwnership()
+    {
+        var factory = new EntityFactory();
+        var service = new ShopCardPoolService();
+        var shop = new LevelShopVerificationDefinition(4);
+        var cards = Enumerable.Range(0, 6).Select(index => (CardDefinition)new ShopVerificationCardDefinition(
+            CardSize.Small, new StringName("paladin"), $"owned{index}")).ToArray();
+        var session = new MatchSession(42, 100);
+        var replay = new MatchSession(42, 100);
+        session.Player.SelectHero(factory.CreateHero(new PaladinHeroDefinition()));
+        replay.Player.SelectHero(factory.CreateHero(new PaladinHeroDefinition()));
+        var seenLevels = new System.Collections.Generic.HashSet<int>();
+        for (var draw = 0; draw < 64; draw++)
+        {
+            var offer = service.CreateOffer(session, shop, [cards[0]])!;
+            var repeated = service.CreateOffer(replay, shop, [cards[0]])!;
+            if (offer.Level != repeated.Level || session.Random.State != replay.Random.State
+                || offer.Price != CardValueCalculator.CalculateInitialValue(cards[0], offer.Level)) return false;
+            seenLevels.Add(offer.Level);
+        }
+        if (!seenLevels.SetEquals([1, 2, 3, 4])) return false;
+        session.Player.Inventory.Add(factory.CreateCard(cards[0], 4));
+        session.Player.Inventory.Add(factory.CreateCard(cards[1], 3));
+        if (service.GetEligibleCards(session, shop, cards).Count != 5
+            || service.CreateOffer(session, shop, [cards[0]]) is not null) return false;
+        // 进入商店后再获得满级卡牌，刷新也必须重新检查当前库存。
+        var stock = service.CreateStock(session, shop, cards);
+        session.Player.Inventory.Add(factory.CreateCard(cards[2], 4));
+        var refresh = service.Refresh(session, stock);
+        if (refresh.IsFailure || stock.Offers.Any(offer => offer.Definition == cards[0] || offer.Definition == cards[2])) return false;
+        var limited = service.CreateStock(session, shop, cards);
+        session.Player.Inventory.Add(factory.CreateCard(cards[3], 4));
+        var wealth = session.Player.Wealth;
+        var random = session.Random.State;
+        if (service.Refresh(session, limited).IsSuccess || session.Player.Wealth != wealth || session.Random.State != random) return false;
+        foreach (var card in cards.Skip(1)) session.Player.Inventory.Add(factory.CreateCard(card, 4));
+        return service.CreateStock(session, shop, cards).Offers.Count == 0
+            && session.Random.State == random;
     }
 
     // 可指定等级的验证商店，不进入正式遭遇池（表现层验证模块）。
-    private sealed class LevelShopVerificationDefinition : ShopEncounterDefinition
+    private sealed class LevelShopVerificationDefinition : CardShopEncounterDefinition
     {
         public LevelShopVerificationDefinition(int level)
             : base(new EntityAttributes<EncounterIdentityAttributes>(new EncounterIdentityAttributes(

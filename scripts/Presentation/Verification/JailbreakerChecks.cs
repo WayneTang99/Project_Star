@@ -44,7 +44,7 @@ internal static class JailbreakerChecks
         session.Progress.Turn = 4;
         var choices = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true).Generate(session).Value!;
         var choice = choices.Single(item => item.Key == identity.Key);
-        if (choice.Kind != EncounterKind.Monster || choice.Level != 1 || choice.Illustration != identity.Illustration
+        if (choice.Kind != EncounterKind.Monster || choice.Level is < 1 or > 4 || choice.Illustration != identity.Illustration
             || MatchSnapshot.From(session).EncounterChoices.Single(item => item.Key == identity.Key).Illustration != identity.Illustration)
             return false;
         var opponent = new LocalTestOpponentProvider(registry).CreateMonsterOpponent(2, definition);

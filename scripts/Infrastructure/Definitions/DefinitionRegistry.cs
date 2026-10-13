@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Godot;
 using Project_Star.Domain.Definitions;
@@ -127,6 +128,9 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         ValidateSummons(cards);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
+        foreach (var encounter in encounters.Values.OfType<ChoiceEncounterDefinition>())
+            foreach (var effect in encounter.Options.SelectMany(option => option.Effects))
+                ValidateEncounterCardRewards(effect, cards);
         foreach (var encounter in encounters.Values)
             if (encounter is MentorEncounterDefinition mentorEncounter && !mentors.ContainsKey(mentorEncounter.MentorKey))
                 throw new DefinitionValidationException(
@@ -333,10 +337,23 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         }
     }
 
+    private static void ValidateEncounterCardRewards(EncounterOptionEffectDefinition effect,
+        IReadOnlyDictionary<StringName, CardDefinition> cards)
+    {
+        if (effect is WeightedEncounterOptionEffectDefinition weighted)
+            foreach (var outcome in weighted.Outcomes) ValidateEncounterCardRewards(outcome.Effect, cards);
+        if (effect is GrantCardEncounterOptionEffectDefinition reward
+            && (!cards.TryGetValue(reward.CardKey, out var card) || !card.SupportsLevel(reward.Level)))
+            throw new DefinitionValidationException($"Encounter reward references unknown or unsupported card '{reward.CardKey}'.");
+    }
+
     private static bool InvalidEncounterEffect(EncounterOptionEffectDefinition effect) => effect switch
     {
         ModifyHeroCombatAttributeByLevelEffectDefinition modifier => modifier.AttributeKey.IsEmpty || modifier.AmountPerLevel < 1,
         GainWealthEncounterOptionEffectDefinition gain => gain.Amount < 1,
+        GainRandomWealthEncounterOptionEffectDefinition gain =>
+            gain.MinimumAmount < 1 || gain.MaximumAmount < gain.MinimumAmount || gain.MaximumAmount == int.MaxValue,
+        GrantCardEncounterOptionEffectDefinition reward => reward.CardKey.IsEmpty || reward.Level is < 1 or > 5,
         GrantRandomFactionCardEncounterOptionEffectDefinition reward => !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,
         GrantRandomTaggedCardEncounterOptionEffectDefinition reward =>
             reward.RequiredTag.IsEmpty || !Enum.IsDefined(reward.Size) || reward.Level is < 1 or > 5,

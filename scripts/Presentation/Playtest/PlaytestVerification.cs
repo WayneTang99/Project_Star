@@ -51,7 +51,7 @@ internal static class PlaytestVerification
         var result = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true).Generate(session);
         return result.IsSuccess && result.Value!.All(choice => choice.Kind == EncounterKind.Monster
             && choice.Illustration == registry.Monsters[choice.Key].Attributes.Identity.Illustration && choice.ShopLevel == 0
-            && choice.Level == registry.Monsters[choice.Key].Level);
+            && choice.Level >= registry.Monsters[choice.Key].Level && choice.Level <= 4);
     }
 
     // 真实图卡提交选择，刷新替换旧按钮后不再重复操作。
@@ -121,11 +121,11 @@ internal static class PlaytestVerification
             var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
             var session = new CreateMatchService(new EntityFactory()).Create(42, 100, new PaladinHeroDefinition());
             var normal = new EncounterScheduler(registry, allowIncompleteMonsterChoices: true);
-            if (normal.Generate(session).Value!.Any(choice => choice.Level != (registry.Encounters[choice.Key] switch
-                { ShopEncounterDefinition shop => shop.Level, GemShopDefinition gems => gems.Level,
+            if (normal.Generate(session).Value!.Any(choice => choice.Level > 4 || choice.Level < (registry.Encounters[choice.Key] switch
+                { ShopEncounterDefinition shop => shop.Level,
                     ChoiceEncounterDefinition option => option.Level, MentorEncounterDefinition mentor => mentor.Level, _ => choice.Level }))) return false;
             session.Progress.Turn = 4;
-            if (normal.Generate(session).Value!.Any(choice => choice.Level != registry.Monsters[choice.Key].Level)) return false;
+            if (normal.Generate(session).Value!.Any(choice => choice.Level < registry.Monsters[choice.Key].Level || choice.Level > 4)) return false;
             session.Progress.Turn = 8;
             return normal.Generate(session).Value!.Single().Level == 0 && kinds.Count == 4;
         }

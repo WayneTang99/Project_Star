@@ -30,7 +30,7 @@ internal static class DuskSongJungleChecks
     {
         var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         var definition = (DuskSongJungleEncounterDefinition)registry.Encounters[new StringName("encounter.dusk_song_jungle")];
-        if (definition.Attributes.Identity.DisplayName != "暮歌丛林" || definition.Level != 2
+        if (definition is not ExplorationEncounterDefinition || definition.Attributes.Identity.DisplayName != "暮歌丛林" || definition.Level != 2
             || definition.MinimumRound != 1 || definition.MaximumRound != 99 || definition.BaseWeight != 1
             || definition.Options.Count != 2 || definition.OptionSlots.Count != 2
             || definition.Options[0].DisplayName != "采摘" || definition.Options[1].DisplayName != "砍伐") return false;
@@ -73,6 +73,11 @@ internal static class DuskSongJungleChecks
         {
             var session = new MatchSession(1); session.Progress.Round = round; session.Progress.Turn = 4;
             var choices = new EncounterScheduler(monsterRegistry, allowIncompleteMonsterChoices: true).Generate(session);
+            if (round <= 2)
+            {
+                if (choices.IsSuccess) return false;
+                continue;
+            }
             if (choices.IsFailure || choices.Value!.Any(choice =>
                 monsterRegistry.Monsters[choice.Key].MinimumRound > round || monsterRegistry.Monsters[choice.Key].MaximumRound < round)) return false;
         }
@@ -149,6 +154,13 @@ internal static class DuskSongJungleChecks
     internal static bool Flow()
     {
         var presenter = CreatePresenter(); presenter.Reset(); presenter.SelectHero(new StringName("hero.paladin"));
+        var session = (MatchSession)typeof(MatchPresenter)
+            .GetField("_player", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(presenter)!;
+        session.Progress.Round = 3;
+        new EncounterScheduler(DefinitionRegistry.Create([new SmallShopEncounterDefinition(), new DuskSongJungleEncounterDefinition()]),
+            encounterLevelOverride: 2)
+            .Generate(session);
+        presenter.RefreshView();
         var choice = presenter.View.Choices.Single(item => item.Key == new StringName("encounter.dusk_song_jungle"));
         if (choice.Level != 2) return false;
         presenter.ChooseEncounter(choice.Key);
@@ -156,6 +168,7 @@ internal static class DuskSongJungleChecks
         var option = presenter.View.EventOptions[1]; var revision = presenter.View.EventRevision;
         presenter.ResolveEventOption(option.Key, revision - 1);
         if (presenter.View.Page != MatchPage.Event) return false;
+        session.Random.State = SeedForRoll(50);
         presenter.ResolveEventOption(option.Key, revision);
         if (presenter.View.Page != MatchPage.Preparation || presenter.View.Enemy?.Hero?.Level != 2
             || presenter.View.Player?.Turn != 2 || presenter.View.DisplayTurn != 1 || presenter.View.EncounterLevel != 2) return false;
@@ -172,7 +185,7 @@ internal static class DuskSongJungleChecks
     {
         var registry = DefinitionRegistry.Create([new PaladinHeroDefinition(), new DuskSongJungleEncounterDefinition(),
             new SmallShopEncounterDefinition(), new PlantCard(CardSize.Small), new PlantCard(CardSize.Medium),
-            new PlantCard(CardSize.Large), new TestMonster("flow", 2, 1, 1)]);
+            new PlantCard(CardSize.Large), new TestMonster("flow", 2, 3, 3)]);
         var factory = new EntityFactory(); var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
         var economy = new CardEconomyService(factory, board, registry.Cards.Values);
         var game = new GameCoordinator(new CreateMatchService(factory), new EncounterScheduler(registry, allowIncompleteMonsterChoices: true),

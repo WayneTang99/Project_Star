@@ -83,7 +83,13 @@ public sealed record ModifyHeroCombatAttributeByLevelEffectDefinition(StringName
 
 public sealed record GainWealthEncounterOptionEffectDefinition(int Amount) : EncounterOptionEffectDefinition;
 
-public sealed record GrantRandomFactionCardEncounterOptionEffectDefinition(CardSize Size, int Level)
+public sealed record GainRandomWealthEncounterOptionEffectDefinition(int MinimumAmount, int MaximumAmount)
+    : EncounterOptionEffectDefinition;
+
+public sealed record GrantCardEncounterOptionEffectDefinition(StringName CardKey, int Level, bool UseEncounterLevel = false)
+    : EncounterOptionEffectDefinition;
+
+public sealed record GrantRandomFactionCardEncounterOptionEffectDefinition(CardSize Size, int Level, bool UseEncounterLevel = false)
     : EncounterOptionEffectDefinition;
 
 public sealed record GrantRandomTaggedCardEncounterOptionEffectDefinition(StringName RequiredTag, CardSize Size, int Level,
