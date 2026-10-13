@@ -69,7 +69,8 @@ public sealed class CardDisplayAdapter
                     MaxHealthPercentDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, $"{value.Percent}%"),
                     SourceHeroHealthScaledAttributeDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, Value(card, value.AttributeKey).ToString()),
                     SourceHeroArmorDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage,
-                        value.BonusAttributeKey is { } key && Value(card, key) != 0 ? $"护甲+{Value(card, key)}" : "己方护甲"),
+                        (value.BonusAttributeKey is { } key && Value(card, key) != 0 ? $"护甲+{Value(card, key)}" : "己方护甲")
+                        + (value.Multiplier == 1 ? "" : $"×{value.Multiplier}")),
                     SourceHeroLevelScaledDamageEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Damage, (card.HeroLevel * value.Multiplier).ToString()),
                     HealEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Healing,
                         checked(value.Amount + Value(card, GameAttributeKeys.HealingBonus)).ToString()),
@@ -78,7 +79,7 @@ public sealed class CardDisplayAdapter
                         || value.AttributeKey == GameAttributeKeys.Armor || value.AttributeKey == GameAttributeKeys.HealingBonus => new CardFaceEffect(
                         value.AttributeKey == GameAttributeKeys.AttackDamage ? CardFaceEffectKind.Damage
                             : value.AttributeKey == GameAttributeKeys.Armor ? CardFaceEffectKind.Armor : CardFaceEffectKind.Healing,
-                        $"+{value.Amount + card.HeroLevel * value.HeroLevelMultiplier}"),
+                        $"+{value.Amount + card.HeroLevel * value.HeroLevelMultiplier + card.Value * value.SourceValueMultiplier}"),
                     RestoreManaEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Mana, value.Amount.ToString()),
                     ArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
@@ -183,13 +184,14 @@ public sealed class CardDisplayAdapter
                 {
                     (AttributeDamageEffectDefinition damage, { } value) => $"造成 {value} 伤害{(damage.Percent == 100 ? "" : $"（此卡牌{AttributeName(damage.AttributeKey)}的{damage.Percent}%）")}",
                     (SourceHeroHealthScaledAttributeDamageEffectDefinition, { } value) => $"造成 {value} 伤害（随己方英雄生命比例变化）",
-                    (SourceHeroArmorDamageEffectDefinition, { } value) => $"造成 {value} 伤害（己方英雄护甲）",
+                    (SourceHeroArmorDamageEffectDefinition damage, { } value) =>
+                        $"{(damage.ConsumeArmor ? "失去己方英雄全部当前护甲，" : "")}造成 {value} 伤害（己方英雄护甲{(damage.Multiplier == 1 ? "" : $"×{damage.Multiplier}")}）",
                     (SourceHeroLevelScaledDamageEffectDefinition, { } value) => $"造成 {value} 伤害",
                     (GainSourceHeroLevelScaledArmorEffectDefinition, { } value) => $"获得 {value} 护甲",
                     (SourceHeroLevelScaledDamageEffectDefinition value, _) => $"造成 {card.HeroLevel * value.Multiplier} 伤害",
                     (GainSourceHeroLevelScaledArmorEffectDefinition value, _) => $"获得 {card.HeroLevel * value.Multiplier} 护甲",
                     (ModifyHeroLevelScaledAttributeEffectDefinition value, _) => $"{AttributeName(value.AttributeKey)} +{card.HeroLevel * value.Multiplier}",
-                    (IncreaseAlliedCardAttributeAuraEffectDefinition value, _) => $"{AuraScope(value)}{AttributeName(value.AttributeKey)} +{value.Amount + card.HeroLevel * value.HeroLevelMultiplier}",
+                    (IncreaseAlliedCardAttributeAuraEffectDefinition value, _) => $"{AuraScope(value)}{AttributeName(value.AttributeKey)} +{value.Amount + card.HeroLevel * value.HeroLevelMultiplier + card.Value * value.SourceValueMultiplier}",
                     (ReduceSourceCooldownWhileAdjacentTaggedCardEffectDefinition value, _) => $"相邻己方{TagDisplayNames.Get(value.RequiredTag)}时，冷却减少 {value.AmountTicks / 10m:0.##}秒",
                     (ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition value, _) => $"每张己方战场{TagDisplayNames.Get(value.RequiredTag)}，冷却减少 {value.AmountTicks / 10m:0.##}秒",
                     (IncreaseSourceCooldownPerAdjacentAlliedTaggedCardEffectDefinition value, _) => $"每张相邻己方{TagDisplayNames.Get(value.RequiredTag)}，冷却增加 {value.AmountTicks / 10m:0.##}秒",
@@ -392,8 +394,11 @@ public sealed class CardDisplayAdapter
         ReduceOtherHeroCardCooldownAuraEffectDefinition value => $"己方当前英雄以外的卡牌（含无阵营）冷却缩减{value.Percent}%",
         GrantSourceLevelCardEffectDefinition value => $"获得一张与来源卡牌同等级的{value.Card.Attributes.Identity.DisplayName}",
         GrantRandomOtherHeroSourceLevelCardEffectDefinition value => $"随机获得一张当前英雄以外的同级{SizeName(value.Size)}{(value.AdditionalSize is { } extraSize ? "或" + SizeName(extraSize) : "")}卡牌（含无阵营）",
+        GrantRandomTaggedSourceLevelCardEffectDefinition value => $"随机获得一张同级{SizeName(value.Size)}{TagDisplayNames.Get(value.RequiredTag)}卡牌",
         ModifyHeroLevelScaledAttributeEffectDefinition value => $"{AttributeName(value.AttributeKey)}增加英雄当前等级×{value.Multiplier}（失效时移除）",
         ModifyAttributeEffectDefinition value => $"{AttributeName(value.AttributeKey)} {value.Amount:+0;-0;0}",
+        IncreaseAlliedCardAttributeAuraEffectDefinition value when value.SourceValueMultiplier > 0 =>
+            $"{AuraScope(value)}{AttributeName(value.AttributeKey)}增加此卡牌价值×{value.SourceValueMultiplier}",
         IncreaseAlliedCardAttributeAuraEffectDefinition value => value.HeroLevelMultiplier == 0
             ? $"{AuraScope(value)} {AttributeName(value.AttributeKey)} +{value.Amount}"
             : $"己方战场卡牌{AttributeName(value.AttributeKey)}增加{(value.Amount == 0 ? "" : $"{value.Amount}+")}英雄当前等级×{value.HeroLevelMultiplier}",
@@ -404,7 +409,7 @@ public sealed class CardDisplayAdapter
         DestroyAlliedCardsAndDamageEffectDefinition value => $"摧毁己方{TagDisplayNames.Get(GameTags.FromSize(value.Size))}{ElementName(value.ElementKey)}属性战场卡牌，每张造成 {Value(card, value.DamageAttributeKey)} 点伤害",
         MaxHealthPercentDamageEffectDefinition value => $"造成目标最大生命的 {value.Percent}% 伤害",
         SourceHeroHealthScaledAttributeDamageEffectDefinition value => $"{Value(card, value.AttributeKey)} 点伤害按己方英雄当前生命比例缩放",
-        SourceHeroArmorDamageEffectDefinition value => $"伤害等于己方英雄当前护甲{(value.BonusAttributeKey is { } key ? $" + {Value(card, key)}" : "")}",
+        SourceHeroArmorDamageEffectDefinition value => $"{(value.ConsumeArmor ? "己方英雄失去当前全部护甲，" : "")}伤害等于{(value.Multiplier == 1 ? "" : "（")}己方英雄当前护甲{(value.BonusAttributeKey is { } key ? $" + {Value(card, key)}" : "")}{(value.Multiplier == 1 ? "" : $"）×{value.Multiplier}")}",
         SourceHeroLevelScaledDamageEffectDefinition value => $"伤害等于己方英雄等级 × {value.Multiplier}",
         HealEffectDefinition value => $"治疗{(value.TargetsSourceHero ? "己方英雄" : "")} {checked(value.Amount + Value(card, GameAttributeKeys.HealingBonus))}",
         RestoreManaEffectDefinition value => $"恢复 {value.Amount} 魔法",

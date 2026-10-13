@@ -163,16 +163,21 @@ public sealed class CardEconomyService
     private void ApplyPickup(MatchSession session, CardInstance card, SeededRandom? random = null)
     {
         var effects = card.Abilities.Where(ability => ability.Activation == AbilityActivation.PassiveOnPickup)
-            .SelectMany(ability => ability.Effects).OfType<GrantRandomOtherHeroSourceLevelCardEffectDefinition>().ToArray();
+            .SelectMany(ability => ability.Effects).ToArray();
         if (effects.Length == 0 || session.Player.Hero is null) return;
         var level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
         var faction = session.Player.Hero.Attributes.Identity.FactionKey;
         random ??= new SeededRandom(session.Random.State);
         foreach (var effect in effects)
         {
-            var candidates = _cardDefinitions.Where(definition => definition.Attributes.Identity.FactionKey != faction
-                && (definition.Attributes.Identity.Size == effect.Size || definition.Attributes.Identity.Size == effect.AdditionalSize)
-                && definition.SupportsLevel(level)).ToArray();
+            var candidates = _cardDefinitions.Where(definition => definition.SupportsLevel(level) && (effect switch
+            {
+                GrantRandomOtherHeroSourceLevelCardEffectDefinition other => definition.Attributes.Identity.FactionKey != faction
+                    && (definition.Attributes.Identity.Size == other.Size || definition.Attributes.Identity.Size == other.AdditionalSize),
+                GrantRandomTaggedSourceLevelCardEffectDefinition tagged => definition.Attributes.Identity.Size == tagged.Size
+                    && definition.Tags.Contains(tagged.RequiredTag),
+                _ => false,
+            })).ToArray();
             if (candidates.Length == 0) continue;
             var reward = candidates[random.NextInt(0, candidates.Length)];
             session.Random.State = random.State;
@@ -302,9 +307,10 @@ public sealed class CardEconomyService
         foreach (var source in session.Player.Inventory.Cards)
         {
             if (source.Id == cardId || !session.Board.Contains(source.Id)) continue;
-            foreach (var bonuses in source.SaleAttributeBonuses.Where(bonus => card.Tags.Contains(bonus.RequiredTag))
+            foreach (var bonuses in source.SaleAttributeBonuses.Where(bonus => bonus.Matches(card.Tags))
                 .GroupBy(bonus => bonus.AttributeKey))
-                if ((long)source.Attributes.BaseCombat.GetFinalValue(bonuses.Key) + bonuses.Sum(bonus => (long)bonus.Amount) > int.MaxValue)
+                if ((long)(bonuses.Key == GameAttributeKeys.Value ? source.Attributes.Persistent : source.Attributes.BaseCombat)
+                    .GetFinalValue(bonuses.Key) + bonuses.Sum(bonus => bonus.CalculateAmount(currentValue)) > int.MaxValue)
                     return Result<int>.Fail(new Failure(InvalidValue, "Sale attribute bonus would overflow."));
         }
         return Result<int>.Success(currentValue);
@@ -324,21 +330,22 @@ public sealed class CardEconomyService
         if (fromBoard) _boardService!.RemoveFromBoard(session, cardId);
         session.Player.Inventory.Remove(cardId);
         session.Player.AddWealth(check.Value);
-        ApplySaleAttributeBonuses(session, card);
+        ApplySaleAttributeBonuses(session, card, check.Value);
         new CardQuestService(_boardService).ProcessEvent(session, new CardSoldQuestEvent(Array.AsReadOnly(card.Tags.ToArray())));
         ApplyOnSellReward(session, card);
         return check;
     }
 
-    private static void ApplySaleAttributeBonuses(MatchSession session, CardInstance soldCard)
+    private static void ApplySaleAttributeBonuses(MatchSession session, CardInstance soldCard, int soldValue)
     {
         foreach (var source in session.Player.Inventory.Cards)
         {
             if (!session.Board.Contains(source.Id)) continue;
             foreach (var bonus in source.SaleAttributeBonuses)
-                if (soldCard.Tags.Contains(bonus.RequiredTag))
-                    source.Attributes.BaseCombat.ApplyModifier(new StatModifier(
-                        ModifierId.New(), source.Id, bonus.AttributeKey, bonus.Amount));
+                if (bonus.Matches(soldCard.Tags))
+                    (bonus.AttributeKey == GameAttributeKeys.Value ? source.Attributes.Persistent : source.Attributes.BaseCombat)
+                        .ApplyModifier(new StatModifier(ModifierId.New(), source.Id, bonus.AttributeKey,
+                            checked((int)bonus.CalculateAmount(soldValue))));
         }
     }
 

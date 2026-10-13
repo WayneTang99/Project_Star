@@ -117,6 +117,10 @@ public sealed partial class PhaseOneVerification : Control
             ("狮王盾护甲百分比、取整、周期与卡面数值正确", LionKingShieldChecks.LevelsArmorAndDamage),
             ("狮王盾护甲光环、狂暴多重、失效与百分比边界", LionKingShieldChecks.AuraAndBerserk),
             ("训练木桩四级双方群体攻击、周期和多重累加", TrainingDummyChecks.LevelsAndGroupBuff),
+            ("训练营分级人类群体训练、辅助目标、双方与本场隔离", TrainingCampChecks.LevelsAndTraining),
+            ("碎甲重锤身份、周期护甲消耗、五倍伤害及冻结回放", ArmorShatteringMaulChecks.ConsumptionAndDamage),
+            ("碎甲重锤多重宝石、狂暴、护甲补充、失效与隐身边界", ArmorShatteringMaulChecks.OrderingAndBoundaries),
+            ("训练营同级小型人类拾取、合并、满盘、空池与随机状态", TrainingCampChecks.PickupAndBoundaries),
             ("训练木桩攻击分类、目标排除、来源失效和本场隔离", TrainingDummyChecks.FiltersAndSourceLoss),
             ("越狱者1级60生命、默认属性、卡组排程与实际迟缓正确", JailbreakerChecks.DefinitionAndBattle),
             ("越狱者胜利奖励池保留卡牌等级，金币经验和领取正确", JailbreakerChecks.Rewards),
@@ -212,6 +216,7 @@ public sealed partial class PhaseOneVerification : Control
             ("药水随机可复现，狂暴增伤与飞行减时长正确", StatePotionChecks.RandomAndStateEffects),
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("弗兰肯特材料出售成长、多重完整发动、升级保留和原画正确", FrankentChecks.SaleGrowthAndBattle),
+            ("黑市典当铺分级交易、价值光环、失效撤销、冻结与溢出预检", BlackMarketPawnshopChecks.SaleGrowthAndAura),
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
             ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
@@ -438,6 +443,30 @@ public sealed partial class PhaseOneVerification : Control
             $"当前共 {allChecks.Length} 项，选择上方按钮运行全部验证或指定分类。";
         GetNode<Button>("Margin/Panel/Margin/Content/Back").Pressed +=
             () => GetTree().ChangeSceneToFile("res://Playtest.tscn");
+        if (OS.GetCmdlineUserArgs().Contains("--capture-armor-shattering-maul"))
+        {
+            Callable.From((Action)(async () =>
+            {
+                try { await ArmorShatteringMaulChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        }
+        if (OS.GetCmdlineUserArgs().Contains("--capture-training-camp"))
+        {
+            Callable.From((Action)(async () =>
+            {
+                try { await TrainingCampChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        }
+        if (OS.GetCmdlineUserArgs().Contains("--capture-black-market-pawnshop"))
+        {
+            Callable.From((Action)(async () =>
+            {
+                try { await BlackMarketPawnshopChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        }
         if (OS.GetCmdlineUserArgs().Contains("--capture-shadow-cloak"))
             Callable.From((Action)(async () =>
             {

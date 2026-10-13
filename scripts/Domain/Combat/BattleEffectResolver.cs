@@ -134,12 +134,15 @@ internal static class BattleEffectResolver
                 var bonusDamage = heroArmorDamage.BonusAttributeKey is not { IsEmpty: false } bonusAttributeKey
                     ? 0
                     : GetEffectiveCombatAttribute(runtime, pending.Source, bonusAttributeKey);
+                var consumedArmor = armorSourceHero.Armor;
+                var armorDamageAmount = BerserkAmount(pending, checked((consumedArmor + bonusDamage) * heroArmorDamage.Multiplier));
+                if (heroArmorDamage.ConsumeArmor) armorSourceHero.Armor -= consumedArmor;
                 if (ApplyDamage(
                     runtime,
                     pending.Source.EntityId,
                     targetSide,
                     hero,
-                    BerserkAmount(pending, checked(armorSourceHero.Armor + bonusDamage)),
+                    armorDamageAmount,
                     heroArmorDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
@@ -419,7 +422,8 @@ internal static class BattleEffectResolver
             GainSourceHeroLevelScaledArmorEffectDefinition value => checked(own.Level * value.Multiplier),
             SourceHeroLevelScaledDamageEffectDefinition value => checked(own.Level * value.Multiplier),
             GainArmorEqualToManaSpentEffectDefinition => own.ManaSpent,
-            SourceHeroArmorDamageEffectDefinition value => checked(own.Armor + (value.BonusAttributeKey is { IsEmpty: false } key ? Value(key) : 0)),
+            SourceHeroArmorDamageEffectDefinition value => checked((own.Armor
+                + (value.BonusAttributeKey is { IsEmpty: false } key ? Value(key) : 0)) * value.Multiplier),
             MaxHealthPercentDamageEffectDefinition value => checked((int)((long)target.MaxHealth * value.Percent / 100)),
             RestoreManaEffectDefinition value => value.Amount,
             ChargeSourceCardEffectDefinition value => value.AmountTicks,
@@ -428,7 +432,8 @@ internal static class BattleEffectResolver
                 checked((int)((long)pending.PrimaryValue * value.Percent / 100)
                     + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0)),
-            IncreaseAlliedCardAttributeAuraEffectDefinition value => checked(value.Amount + own.Level * value.HeroLevelMultiplier),
+            IncreaseAlliedCardAttributeAuraEffectDefinition value => checked(value.Amount + own.Level * value.HeroLevelMultiplier
+                + (pending.Source is CardBattleState auraSource ? auraSource.FrozenValue : 0) * value.SourceValueMultiplier),
             _ => null,
         };
     }
@@ -542,6 +547,7 @@ internal static class BattleEffectResolver
                 foreach (var effect in ability.Definition.Effects)
                     if (effect is IncreaseAlliedCardAttributeAuraEffectDefinition aura
                         && target.SupportsCombatAttribute(aura.AttributeKey)
+                        && (!aura.AttackCardsOnly || target.IsAttackCard)
                         && (aura.ExtremeSide is not { } side || !runtime.Cards.Any(candidate =>
                             candidate.Side == target.Side && !candidate.Destroyed && !candidate.IsOnBench
                             && candidate.SupportsCombatAttribute(aura.AttributeKey)
@@ -549,8 +555,10 @@ internal static class BattleEffectResolver
                                 : candidate.BoardStart > target.BoardStart))))
                         yield return aura with
                         {
-                            Amount = checked(aura.Amount + checked(runtime.GetHero(source.Side).Level * aura.HeroLevelMultiplier)),
+                            Amount = checked(aura.Amount + checked(runtime.GetHero(source.Side).Level * aura.HeroLevelMultiplier)
+                                + checked((source is CardBattleState cardSource ? cardSource.FrozenValue : 0) * aura.SourceValueMultiplier)),
                             HeroLevelMultiplier = 0,
+                            SourceValueMultiplier = 0,
                         };
             }
         }

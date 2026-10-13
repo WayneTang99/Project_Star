@@ -55,6 +55,7 @@ public abstract class SkillDefinition
                 if (effect is ApplyStatusToAdjacentAlliedCardsEffectDefinition
                     or GrantSourceLevelCardEffectDefinition
                     or GrantRandomOtherHeroSourceLevelCardEffectDefinition
+                    or GrantRandomTaggedSourceLevelCardEffectDefinition
                     or IncreaseSourceCardAttributeEffectDefinition
                     or MultiplySourceCardAttributeEffectDefinition
                     or ApplySourceAttributePercentStatusEffectDefinition

@@ -77,6 +77,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
         CombatAttributes[GameAttributeKeys.AttackDamage] = setup.AttackDamage;
         CombatAttributes[GameAttributeKeys.Armor] = setup.ArmorAmount;
         CombatAttributes[GameAttributeKeys.Multicast] = setup.Multicast;
+        FrozenValue = setup.CombatValues.TryGetValue(GameAttributeKeys.Value, out var value) ? value : 0;
         var definitions = setup.Abilities is { Count: > 0 }
             ? setup.Abilities
             : setup.UseLegacyAttack
@@ -143,6 +144,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public SideId Side { get; }
     public int BoardStart { get; }
     public int Level { get; }
+    public int FrozenValue { get; }
     public CardIdentityAttributes? TransformedIdentity { get; init; }
     public CardIdentityAttributes? Identity { get; }
     public SummonedCardSnapshot? SummonedCard { get; init; }

@@ -98,7 +98,8 @@ public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, in
 
 // 为己方存活战场卡牌持续提供属性加成（领域战斗层）。
 public sealed record IncreaseAlliedCardAttributeAuraEffectDefinition(
-    StringName AttributeKey, int Amount, int HeroLevelMultiplier = 0, AdjacentCardSide? ExtremeSide = null) : EffectDefinition;
+    StringName AttributeKey, int Amount, int HeroLevelMultiplier = 0, AdjacentCardSide? ExtremeSide = null,
+    int SourceValueMultiplier = 0, bool AttackCardsOnly = false) : EffectDefinition;
 
 // 倍增己方指定元素卡牌的有效属性，可要求敌方存在任一标签的存活战场卡牌。
 public sealed record MultiplyAlliedElementCardAttributeAuraEffectDefinition(
@@ -130,9 +131,10 @@ public sealed record AttributeDamageEffectDefinition(
 public sealed record SourceHeroHealthScaledAttributeDamageEffectDefinition(
     StringName AttributeKey, bool BypassArmor = false) : EffectDefinition;
 
+// 按己方英雄当前护甲造成伤害，可按倍率消耗本次读取的护甲（领域战斗层）。
 public sealed record SourceHeroArmorDamageEffectDefinition(
     bool BypassArmor = false,
-    StringName? BonusAttributeKey = null) : EffectDefinition;
+    StringName? BonusAttributeKey = null, int Multiplier = 1, bool ConsumeArmor = false) : EffectDefinition;
 
 public sealed record HealEffectDefinition(int Amount, bool TargetsSourceHero = false) : EffectDefinition;
 
@@ -413,9 +415,11 @@ public sealed class AbilityDefinition
             if (MatchAbilityRules.IsMatchTrigger(activation)
                 ? target != AbilityTarget.AlliedHero || allowsBench || cooldownTicks != 0
                     || effect is not GrantExperienceEffectDefinition and not GrantSourceLevelCardEffectDefinition
-                        and not GrantRandomOtherHeroSourceLevelCardEffectDefinition and not ReduceSetCardCooldownEffectDefinition
+                        and not GrantRandomOtherHeroSourceLevelCardEffectDefinition and not GrantRandomTaggedSourceLevelCardEffectDefinition
+                        and not ReduceSetCardCooldownEffectDefinition
                 : effect is GrantExperienceEffectDefinition or GrantSourceLevelCardEffectDefinition
-                    or GrantRandomOtherHeroSourceLevelCardEffectDefinition or ReduceSetCardCooldownEffectDefinition)
+                    or GrantRandomOtherHeroSourceLevelCardEffectDefinition or GrantRandomTaggedSourceLevelCardEffectDefinition
+                    or ReduceSetCardCooldownEffectDefinition)
                 throw new ArgumentException("Match rewards require a match event and an allied hero target.", nameof(effects));
             if (effect is ReduceSetCardCooldownEffectDefinition reductionOnRound
                 && (activation != AbilityActivation.PassiveOnRoundStart || reductionOnRound.Percent is < 1 or > 100))
@@ -439,8 +443,12 @@ public sealed class AbilityDefinition
                     || !Enum.IsDefined(randomReward.Size)
                     || randomReward.AdditionalSize is { } additionalSize && !Enum.IsDefined(additionalSize)))
                 throw new ArgumentException("Random other-hero rewards require a round start or pickup and valid sizes.", nameof(effects));
-            if (activation == AbilityActivation.PassiveOnPickup && effect is not GrantRandomOtherHeroSourceLevelCardEffectDefinition)
-                throw new ArgumentException("Pickup abilities require a random other-hero card reward.", nameof(effects));
+            if (effect is GrantRandomTaggedSourceLevelCardEffectDefinition taggedReward
+                && (activation != AbilityActivation.PassiveOnPickup || !Enum.IsDefined(taggedReward.Size) || taggedReward.RequiredTag.IsEmpty))
+                throw new ArgumentException("Tagged card rewards require pickup, a valid size and a nonempty tag.", nameof(effects));
+            if (activation == AbilityActivation.PassiveOnPickup
+                && effect is not GrantRandomOtherHeroSourceLevelCardEffectDefinition and not GrantRandomTaggedSourceLevelCardEffectDefinition)
+                throw new ArgumentException("Pickup abilities require a random card reward.", nameof(effects));
             if (effect is ModifyHeroLevelScaledAttributeEffectDefinition scaled
                 && (activation != AbilityActivation.PassiveWhileEnabled || target != AbilityTarget.AlliedHero
                     || scaled.AttributeKey.IsEmpty || scaled.Multiplier < 1))
@@ -471,7 +479,9 @@ public sealed class AbilityDefinition
                 && (activation != AbilityActivation.PassiveAura || target is not AbilityTarget.SelfCard and not AbilityTarget.AlliedHero
                     || alliedAura.ExtremeSide is { } extremeSide && !Enum.IsDefined(extremeSide)
                     || allowsBench || alliedAura.AttributeKey.IsEmpty || alliedAura.Amount < 0
-                    || alliedAura.HeroLevelMultiplier < 0 || alliedAura.Amount == 0 && alliedAura.HeroLevelMultiplier == 0))
+                    || alliedAura.HeroLevelMultiplier < 0 || alliedAura.SourceValueMultiplier < 0
+                    || alliedAura.SourceValueMultiplier > 0 && target != AbilityTarget.SelfCard
+                    || alliedAura.Amount == 0 && alliedAura.HeroLevelMultiplier == 0 && alliedAura.SourceValueMultiplier == 0))
                 throw new ArgumentException("Allied card attribute aura requires a battlefield aura, nonempty key and positive contribution.", nameof(effects));
             if (effect is MultiplyAlliedElementCardAttributeAuraEffectDefinition elementMultiplier)
             {
@@ -608,6 +618,10 @@ public sealed class AbilityDefinition
             if (effect is SourceHeroHealthScaledAttributeDamageEffectDefinition scaledDamage
                 && scaledDamage.AttributeKey.IsEmpty)
                 throw new ArgumentException("Scaled damage key cannot be empty.", nameof(effects));
+            if (effect is SourceHeroArmorDamageEffectDefinition armorDamage
+                && (armorDamage.Multiplier < 1 || armorDamage.ConsumeArmor
+                    && (target != AbilityTarget.EnemyHero || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled)))
+                throw new ArgumentException("Armor damage requires a positive multiplier; consuming armor requires an executed enemy hero effect.", nameof(effects));
             if (effect is GainSourceHeroArmorFromAttributeEffectDefinition attributeArmor
                 && attributeArmor.AttributeKey.IsEmpty)
             {

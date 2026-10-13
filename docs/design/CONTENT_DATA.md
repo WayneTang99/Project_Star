@@ -18,6 +18,8 @@
 
 `AttributeDamageEffectDefinition.Percent` 默认100，可配置1～100。按来源当次有效卡牌属性（包含其光环贡献）乘百分比后向下取整，再应用首次发动倍率及发动狂暴；读取卡牌护甲与读取英雄当前护甲是不同的效果。卡面与详情共用百分比计算，默认100保留既有属性攻击行为，不写回来源属性。
 
+`SourceHeroArmorDamageEffectDefinition.Multiplier` 默认为1，按己方英雄当前护甲与可选属性加成之和乘正整数倍率造成伤害。`ConsumeArmor` 默认为false；开启时只用于已执行的敌方英雄伤害效果，先读取本次当前护甲、计算伤害，再扣除实际读取量，随后按普通伤害/无视护甲及狂暴配置结算。敌方隐身阻挡伤害不返还已失去的护甲；多重每次独立读取，不重复使用已消耗护甲。宝石主值在原发动效果执行前冻结，预览只计算数值不消耗护甲，战后不回写英雄战斗护甲。
+
 `IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition.AdjacentOnly` 可选地按完整占格边界筛选来源左右直接相邻的己方存活战场标签卡牌，排除自身、敌方、备战及已摧毁卡牌；开启时仅允许战场自身光环。每张邻居各贡献一次，双方贡献累加，邻居失效后动态停止计入；不依赖其他卡牌的最终数值。关闭时保留全己方标签计数及包含自身的既有行为。战场卡面和预览复用战斗投影读取有效数值，不写回卡牌实例。
 
 `EchoOnAlliedCardStatusGained` 以受影响卡牌的归属筛选己方存活战场来源，用`TriggerStatus`指定疾速、迟缓或禁锢。每张目标实际获得正时长时触发一次，包含来源自身、己方或敌方施加及多重；不包含备战、已摧毁目标、飞行取整后零时长或回响产生的状态。通用状态获得入口保存事件卡牌，来源无冷却且仅战场有效；与按施加方筛选的`EchoOnAlliedSlowApplied`分别维护，互不改变含义。
@@ -181,6 +183,8 @@
 ### 出售触发的永久加成
 
 等级定义的 `SaleAttributeBonuses` 使用通用 `TaggedCardSaleAttributeBonus` 配置出售目标标签、来源属性与增量。来源须仍位于战场区或备战区；成功出售后累加来源实例的永久 Modifier，失败或重复出售不结算，来源自身被出售后不再触发。升级按新等级更新增量，并保留之前的永久贡献。交易预检检查加成溢出后再提交，不转入战斗状态或战斗回响。
+
+`SoldValuePercent` 可将出售前最终价值的百分比（向下取整）加到固定增量；配置比例时空标签匹配任意卡牌。价值加成写入永久属性，其余加成仍写入基础战斗属性。`IncreaseAlliedCardAttributeAuraEffectDefinition.SourceValueMultiplier` 读取开战冻结的来源价值提供光环，`AttackCardsOnly` 可限定直接伤害卡牌；备战或摧毁来源失效，不读取其他卡牌最终值。备战预览随交易后的当前价值重新求值，旧战斗输入保持不变。
 
 卡牌的 `Poison` / `Burn` 基础属性在此表示施加量，区别于英雄已经受到的中毒／灼伤。`ApplyAttributeStatusEffectDefinition` 从来源卡牌的冻结战斗属性读取施加量，卡面显示实例现值；已有战斗输入不会被后续出售改写。恢复魔法使用通用 `RestoreManaEffectDefinition`，累计至最大魔法上限后不再增加。
 
@@ -347,6 +351,8 @@
 `ReduceOtherHeroCardCooldownAuraEffectDefinition` 按战斗输入冻结的当前英雄归属筛选己方存活战场卡牌，包含无阵营，排除同英雄归属、敌方、备战与已摧毁卡牌。与现有元素冷却百分比光环累计，合计最多100%，再乘永久冷却倍率；来源失效时撤销精确贡献，不回写对局实例。召唤与转变沿用新身份的归属。
 
 `PassiveOnPickup` 只在成功获得卡牌后结算，不进入战斗队列，允许使用 `GrantRandomOtherHeroSourceLevelCardEffectDefinition` 配置单一尺寸或第二个可选尺寸。候选按key稳定排序并从尺寸并集中等概率抽选，包含无阵营、排除当前英雄归属且须支持来源等级。新建或合并都触发一次，奖励使用合并后的来源等级；先完成来源放置，再执行拾取，满盘保留待领，空池不消耗随机数。连锁拾取沿用统一获得与合并，遭遇的随机选择与拾取共用同一对局随机状态。
+
+`GrantRandomTaggedSourceLevelCardEffectDefinition` 复用上述拾取结算，按指定尺寸与标签筛选所有归属的卡牌，候选须支持来源当前等级；不排除当前英雄归属。奖励使用来源同级，成功合并后按合并等级抽选一次，失败获得不触发。
 
 拾取任务用 `CardAcquiredQuestEvent` 与 `AcquiredElementCardQuestConditionDefinition` 表达，统一由获得／合并入口发布。任务的 `AdditionalActiveEffects` 追加到原发动；`CardAbilityComposer` 为展示与战斗合成当前解锁效果和冷却属性加成，不创建独立冷却或魔法消耗。成长数值放入每级战斗属性，追加效果读取对应属性，因此升级保留进度并更新效果数值。
 
