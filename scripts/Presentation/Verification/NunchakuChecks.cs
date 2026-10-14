@@ -34,16 +34,16 @@ internal static class NunchakuChecks
             var weapon = new CardBattleSetup(instance.Id, 3, 5, 70, instance.Abilities,
                 UseLegacyAttack: false, Tags: instance.Tags, ElementKeys: identity.ElementKeys)
                 { Level = level, Multicast = 1 };
-            var solo = Run([weapon], [], 70);
+            var solo = Run([weapon], [], 72);
             var hits = solo.Events.OfType<DamageDealtEvent>().ToArray();
-            if (hits.Length != 2 || hits.Any(e => e.RawDamage != 5 || e.Tick.Value != 70)
+            if (hits.Length != 2 || hits.Any(e => e.RawDamage != 5) || !hits.Select(e => e.Tick.Value).SequenceEqual(new long[] { 70, 72 })
                 || solo.Events.OfType<CardChargedEvent>().Any()) return false;
             // 左侧大型辅助卡与右侧不同标签卡均可触发；多重逐次充能。
             var left = Neighbor(0) with { OccupiedSlots = 3, Multicast = 1 };
             var right = Neighbor(4);
             foreach (var mirror in new[] { false, true })
             {
-                var result = Run([left, weapon, right], [Neighbor(4)], 20, mirror);
+                var result = Run([left, weapon, right], [Neighbor(4)], 24, mirror);
                 var charges = result.Events.OfType<CardChargedEvent>().ToArray();
                 if (charges.Length != 3 || charges.Any(e => e.TargetCardId != weapon.EntityId
                         || e.AmountTicks != (level - 1) * 10)

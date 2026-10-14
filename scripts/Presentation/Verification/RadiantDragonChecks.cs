@@ -47,7 +47,7 @@ internal static class RadiantDragonChecks
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
         }
         var repeated = Card(3) with { Multicast = 1 };
-        var stacked = new CombatSimulator().Simulate(Battle([repeated], 80));
+        var stacked = new CombatSimulator().Simulate(Battle([repeated], 82));
         return stacked.Events.OfType<StatusChangedEvent>().Select(item => item.Amount).SequenceEqual(new[] { 10, 10 })
             && stacked.States[^1].Opponent.Burn == 20 && stacked.PermanentAttributeBonuses.Count == 0;
     }
@@ -98,14 +98,14 @@ internal static class RadiantDragonChecks
             AbilityTarget.SelfCard, 0, 0, [new DestroyCardEffectDefinition(false)])).ToArray() };
         var removed = new CombatSimulator().Simulate(Battle([destroyed], 20));
         if (Hits(removed, card.EntityId).Any() || State(removed, card.EntityId, 0).CooldownDurationUnits.Single() != 80) return false;
-        // 复用同一光环机制处理狂暴状态，缩减超过基础冷却时最低为0。
+        // 复用同一光环机制处理狂暴状态，缩减超过基础冷却时最低为1秒。
         var shortCard = Card(3);
         var stateAura = new AbilityDefinition(new StringName("verification.dragon.state_aura"), AbilityActivation.PassiveAura,
             AbilityTarget.SelfCard, 0, 0, [new ReduceSourceCooldownWhileInStateEffectDefinition(GameAttributeKeys.Berserk, 100)]);
         shortCard = WithOpeningState(shortCard with { Abilities = [shortCard.Abilities![0], stateAura] }, GameAttributeKeys.Berserk);
-        var capped = new CombatSimulator().Simulate(Battle([shortCard], 3));
-        if (!Hits(capped, shortCard.EntityId).SequenceEqual(new long[] { 1, 2, 3 })
-            || capped.States.SelectMany(frame => frame.Cards).Any(snapshot => snapshot.CooldownDurationUnits.Any(value => value < 0))) return false;
+        var capped = new CombatSimulator().Simulate(Battle([shortCard], 30));
+        if (!Hits(capped, shortCard.EntityId).SequenceEqual(new long[] { 10, 20, 30 })
+            || capped.States.SelectMany(frame => frame.Cards).Any(snapshot => snapshot.CooldownDurationUnits.Any(value => value < 20))) return false;
         foreach (var invalid in new[]
         {
             (GameAttributeKeys.Flying, 0, AbilityActivation.PassiveAura, AbilityTarget.SelfCard, false),

@@ -58,7 +58,7 @@ internal static class ApprenticeSwordsmanChecks
         {
             var sword = Swordsman(level);
             var human = Activator(1, CardSize.Medium, true, 20) with { Multicast = 1 };
-            var setup = side == SideId.Player ? Battle([sword, human], [], 40) : Battle([], [sword, human], 40);
+            var setup = side == SideId.Player ? Battle([sword, human], [], 42) : Battle([], [sword, human], 42);
             var result = new CombatSimulator().Simulate(setup);
             var charges = result.Events.OfType<CardChargedEvent>().ToArray();
             var hits = result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceCardId == sword.EntityId).ToArray();
@@ -66,8 +66,8 @@ internal static class ApprenticeSwordsmanChecks
                     || item.TargetCardId != sword.EntityId || item.AmountTicks != 10)
                 || Echoes(result, sword) != 4 || hits.Length != 1 || hits[0].Tick.Value != 40
                 || hits[0].RawDamage != 10 << (level - 1) || hits[0].TargetSide == side
-                || LiveFrame(result, 20).Cards.Single(card => card.Id == sword.EntityId).CooldownUnits[0] != 60
-                || LiveFrame(result, 40).Cards.Single(card => card.Id == sword.EntityId).CooldownUnits[0] != 140
+                || LiveFrame(result, 20).Cards.Single(card => card.Id == sword.EntityId).CooldownUnits[0] != 80
+                || LiveFrame(result, 42).Cards.Single(card => card.Id == sword.EntityId).CooldownUnits[0] != 116
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)
                 || result.PermanentChanges.Any()) return false;
         }

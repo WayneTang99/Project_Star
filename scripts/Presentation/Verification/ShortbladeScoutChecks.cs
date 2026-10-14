@@ -73,9 +73,9 @@ internal static class ShortbladeScoutChecks
         if (Hits(Run([scout], [enemy], 1), scout).Length != 1) return false;
         var multi = scout with { Multicast = 2, AttackDamage = 37,
             CombatValues = new System.Collections.Generic.Dictionary<StringName, int> { [GameAttributeKeys.HasteDurationBonus] = 5 } };
-        var multiResult = Run([multi], [], 30);
+        var multiResult = Run([multi], [], 34);
         if (Hits(multiResult, scout).Length != 3 || Hits(multiResult, scout).Any(hit => hit.RawDamage != 37)
-            || State(multiResult, scout, 30).Haste != 45) return false;
+            || State(multiResult, scout, 34).Haste != 41) return false;
         // 狂暴只提升主动伤害，回响伤害保持当前攻击。
         var berserk = multi with { Abilities = multi.Abilities!.Append(Ability(AbilityActivation.PassiveOnBattleStart,
             AbilityTarget.SelfCard, new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true))).ToArray() };
@@ -106,8 +106,8 @@ internal static class ShortbladeScoutChecks
                 0, 1, [new ArmorEffectDefinition(0)]),
             Ability(AbilityActivation.EchoOnSourceCardActivated, AbilityTarget.RightAdjacentAlliedCard,
                 new ApplyStatusEffectDefinition(BattleStatus.HasteDuration, 10)));
-        var cut = Run([giver, scout], [], 1);
-        if (State(cut, scout, 1).Haste != 10 || Hits(cut, scout).Any()) return false;
+        var cut = Run([giver, scout], [], 10);
+        if (State(cut, scout, 10).Haste != 10 || Hits(cut, scout).Any()) return false;
         // 自身回响产生的伤害不得触发另一个伤害回响。
         var damageListener = Fixture(0, Ability(AbilityActivation.EchoOnDamageDealt, AbilityTarget.EnemyHero, new DamageEffectDefinition(99)));
         var result = Run([damageListener, scout], [], 30);

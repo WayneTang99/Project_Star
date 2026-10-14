@@ -171,7 +171,8 @@ public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
 public sealed record ChargeSourceCardEffectDefinition(int AmountTicks) : EffectDefinition;
 
 // 无重复随机充能己方其他存活战场卡牌（领域战斗层）。
-public sealed record ChargeRandomOtherAlliedCardsEffectDefinition(int AmountTicks, int TargetCount) : EffectDefinition;
+public sealed record ChargeRandomOtherAlliedCardsEffectDefinition(
+    int AmountTicks, int TargetCount, StringName? RequiredTag = null) : EffectDefinition;
 
 // 缩短能力所选卡牌的主动冷却，支持自身及单侧相邻目标（领域战斗层）。
 public sealed record ChargeCardEffectDefinition(int AmountTicks) : EffectDefinition;
@@ -282,6 +283,9 @@ public sealed record MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition(
 
 public sealed record IncreaseSourceCooldownEffectDefinition(int AmountTicks, bool FirstActivationOnly = false)
     : EffectDefinition;
+
+// 累计缩短来源卡牌本场冷却，并保留已走过的进度（领域战斗层）。
+public sealed record ReduceSourceCooldownEffectDefinition(int AmountTicks) : EffectDefinition;
 
 // 累加己方匹配标签卡牌的已有属性，可配置每次随机选择一张。
 public sealed record ModifyTaggedAlliedCardsAttributeEffectDefinition(
@@ -533,6 +537,7 @@ public sealed class AbilityDefinition
                 SourceHeroLevelScaledDamageEffectDefinition value => value.Multiplier,
                 MaxHealthPercentDamageEffectDefinition value => value.Percent,
                 IncreaseSourceCooldownEffectDefinition value => value.AmountTicks,
+                ReduceSourceCooldownEffectDefinition value => value.AmountTicks,
                 ModifyTaggedAlliedCardsAttributeEffectDefinition value => value.Amount,
                 ModifyRandomAlliedAttackCardAttributeEffectDefinition value => value.Amount,
                 ModifyAlliedAttackCardsAttributeEffectDefinition value => value.Amount,
@@ -554,6 +559,10 @@ public sealed class AbilityDefinition
                 _ => 0,
             };
             if (amount < 0) throw new ArgumentException("Effect amount cannot be negative.", nameof(effects));
+            if (effect is ReduceSourceCooldownEffectDefinition sourceReduction
+                && (sourceReduction.AmountTicks < 1 || target != AbilityTarget.SelfCard || allowsBench
+                    || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
+                throw new ArgumentException("Cooldown reduction requires a positive duration and executed battlefield self ability.", nameof(effects));
             if (effect is AttributeDamageEffectDefinition firstDamage
                 && (firstDamage.Percent is < 1 or > 100 || firstDamage.FirstActivationMultiplier < 1
                     || firstDamage.FirstActivationMultiplier != 1 && activation != AbilityActivation.Active))
@@ -665,7 +674,7 @@ public sealed class AbilityDefinition
                 throw new ArgumentException("Random card charge configuration is invalid.", nameof(effects));
             }
             if (effect is ChargeRandomOtherAlliedCardsEffectDefinition randomCharge
-                && (randomCharge.AmountTicks < 1 || randomCharge.TargetCount < 1))
+                && (randomCharge.AmountTicks < 1 || randomCharge.TargetCount < 1 || randomCharge.RequiredTag is { IsEmpty: true }))
                 throw new ArgumentException("Random allied cards charge configuration is invalid.", nameof(effects));
             if (effect is GrantTagToEnemySizeCardsEffectDefinition tagAura
                 && (!Enum.IsDefined(tagAura.Size) || tagAura.Tag.IsEmpty))

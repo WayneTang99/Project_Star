@@ -38,7 +38,7 @@ internal static class AscendantChecks
         {
             var context = new Context(level);
             var initial = MatchSnapshot.From(context.Match);
-            var setup = context.Setup(2730);
+            var setup = context.Setup(2732);
             var simulator = new CombatSimulator();
             var result = simulator.Simulate(setup);
             var hits = result.Events.OfType<DamageDealtEvent>().Where(e => e.SourceCardId == context.Card.Id).ToArray();
@@ -47,8 +47,8 @@ internal static class AscendantChecks
             if (hits.Length != 122 || hits[0].Tick.Value != 30 || hits[0].RawDamage != 1
                 || hits.Single(e => e.Tick.Value == 600).RawDamage != 1 + 19 * level
                 || hits.Single(e => e.Tick.Value == 630).RawDamage != 81 + 20 * level
-                || hits.Count(e => e.Tick.Value == 1800) != 1 || hits.Count(e => e.Tick.Value == 1830) != 2
-                || statuses.Length != 2 || statuses.Any(e => e.Tick.Value != 2730 || e.Amount != (81 + 120 * level) / 10)
+                || hits.Count(e => e.Tick.Value == 1800) != 1 || hits.Count(e => e.Tick.Value == 1830) != 1 || hits.Count(e => e.Tick.Value == 1832) != 1
+                || statuses.Length != 2 || statuses.Any(e => e.Tick.Value is not (2730 or 2732) || e.Amount != (81 + 120 * level) / 10)
                 || last.Values[GameAttributeKeys.AttackDamage] != 81 + 122 * level
                 || last.Values[GameAttributeKeys.Multicast] != 1 || !last.QuestTags.Contains(GameTags.Human)
                 || !last.QuestTags.Contains(GameTags.Deity) || !last.QuestElementKeys.SequenceEqual(new[] { GameElements.Light })
@@ -62,7 +62,7 @@ internal static class AscendantChecks
                 || StateAt(result, context.Card.Id, 1799).QuestElementKeys.Contains(GameElements.Light)
                 || !StateAt(result, context.Card.Id, 1800).QuestElementKeys.Contains(GameElements.Light)
                 || StateAt(result, context.Card.Id, 2699).QuestTags.Contains(GameTags.Deity)
-                || !StateAt(result, context.Card.Id, 2700).QuestTags.Contains(GameTags.Deity)) return false;
+                || !StateAt(result, context.Card.Id, 2702).QuestTags.Contains(GameTags.Deity)) return false;
             if (!context.Apply(result) || context.Attack != 81 + 122 * level
                 || context.Card.Quests.Any(quest => !context.Card.IsQuestUnlocked(quest))
                 || !context.Card.Tags.Contains(GameTags.Deity) || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light
@@ -126,7 +126,7 @@ internal static class AscendantChecks
         if (context.Attack != 181 || context.Card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast) != 0
             || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light) return false;
         context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Battlefield, 0);
-        if (!context.Apply(context.Run(900)) || context.Attack != 501 || !context.Card.Tags.Contains(GameTags.Deity)) return false;
+        if (!context.Apply(context.Run(902)) || context.Attack != 501 || !context.Card.Tags.Contains(GameTags.Deity)) return false;
         context.Board.RefreshQuestAbilities(context.Match);
         context.Board.RefreshQuestAbilities(context.Match);
         if (context.Attack != 501 || context.Card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast) != 1) return false;
@@ -227,7 +227,7 @@ internal static class AscendantChecks
         for (var count = 0; count < 119; count++) quests.ProcessEvent(context.Match, new SourceCardActivatedQuestEvent(context.Card.Id));
         var before = MatchSnapshot.From(context.Match);
         var enemyBefore = MatchSnapshot.From(context.Enemy);
-        var setup = context.Setup(30);
+        var setup = context.Setup(32);
         var result = new CombatSimulator().Simulate(setup);
         if (result.Events.OfType<StatusChangedEvent>().Single(e => e.Status == BattleStatus.Burn).Amount != 8
             || result.Events.OfType<DamageDealtEvent>().Count() != 2

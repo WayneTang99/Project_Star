@@ -98,7 +98,7 @@ internal static class FireglowJewelBeetleChecks
             board.PlaceCard(session, target.Id, BoardZone.Battlefield, 0);
             var sold = factory.CreateCard(new FireglowJewelBeetleCardDefinition(), 4); session.Player.Inventory.Add(sold);
             if (economy.SellCard(session, sold.Id).IsFailure || Bonus(target) != 4) return false;
-            var setup = new BattleSetupFactory().Create(session, matches.Create(2, 0, new MonaHeroDefinition()), 3, new BattleTick(10));
+            var setup = new BattleSetupFactory().Create(session, matches.Create(2, 0, new MonaHeroDefinition()), 3, new BattleTick(berserk ? 12 : 10));
             var basic = effect is ApplyStatusEffectDefinition ? 0 : 10;
             var expected = berserk ? (basic + 4) * 120 / 100 : basic + 4;
             var burns = new CombatSimulator().Simulate(setup).Events.OfType<StatusChangedEvent>()

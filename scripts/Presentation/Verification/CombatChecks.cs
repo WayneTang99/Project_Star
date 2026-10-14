@@ -77,7 +77,7 @@ internal static class CombatChecks
             new BattleSideSetup(playerHero, [playerCard]),
             new BattleSideSetup(opponentHero, Array.Empty<CardBattleSetup>()),
             1,
-            new BattleTick(1));
+            new BattleTick(10), new BattleTick(1000));
         var result = new CombatSimulator().Simulate(setup);
         foreach (var battleEvent in result.Events)
         {
@@ -101,7 +101,7 @@ internal static class CombatChecks
             0,
             1,
             [new MaxHealthPercentDamageEffectDefinition(20)]);
-        var result = SimulateAbilities([ability], timeout: 1, opponentArmor: 10, opponentMaxHealth: 103);
+        var result = SimulateAbilities([ability], timeout: 10, opponentArmor: 10, opponentMaxHealth: 103);
         foreach (var battleEvent in result.Events)
         {
             if (battleEvent is DamageDealtEvent damage
@@ -145,7 +145,7 @@ internal static class CombatChecks
             AbilityTarget.AlliedHero, 0, 0, [new ArmorEffectDefinition(1)]);
         var echoB = new AbilityDefinition(new StringName("test.echo_b"), AbilityActivation.EchoOnAbilityActivated,
             AbilityTarget.AlliedHero, 0, 0, [new ArmorEffectDefinition(1)]);
-        var result = SimulateAbilities([active, echoA, echoB], timeout: 1);
+        var result = SimulateAbilities([active, echoA, echoB], timeout: 10);
         var activated = 0; var echoes = 0;
         foreach (var battleEvent in result.Events)
         {
@@ -189,7 +189,7 @@ internal static class CombatChecks
     {
         var ability = new AbilityDefinition(new StringName("test.destroy"), AbilityActivation.Active,
             AbilityTarget.SelfCard, 0, 1, [new DestroyCardEffectDefinition(true)]);
-        var result = SimulateAbilities([ability], timeout: 2);
+        var result = SimulateAbilities([ability], timeout: 10);
         return result.PermanentChanges.Count == 1 && result.PermanentChanges[0].ChangeType == "Destroy";
     }
 

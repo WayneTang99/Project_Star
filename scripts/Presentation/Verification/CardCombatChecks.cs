@@ -210,7 +210,7 @@ internal static class CardCombatChecks
         {
             if (battleEvent is AbilityActivatedEvent activation
                 && activation.SourceCardId == armguardId
-                && activation.Tick.Value == 50)
+                && activation.Tick.Value is 50 or 52)
             {
                 armguardActivations++;
             }
@@ -225,8 +225,8 @@ internal static class CardCombatChecks
 
         return armguardActivations == 2
             && armguardDamage == 10
-            && absorbed == 10
-            && healthDamage == 10;
+            && absorbed == 5
+            && healthDamage == 15;
     }
 
     internal static bool CheckThornArmor()
@@ -781,7 +781,7 @@ internal static class CardCombatChecks
                 new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
                 Array.Empty<CardBattleSetup>()),
             1,
-            new BattleTick(1),
+            new BattleTick(14),
             new BattleTick(1000));
         var stackedResult = new CombatSimulator().Simulate(stackedSetup);
         var lightDamageCount = stackedResult.Events.Count(value =>
@@ -811,17 +811,17 @@ internal static class CardCombatChecks
                 new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
                 Array.Empty<CardBattleSetup>()),
             1,
-            new BattleTick(2),
+            new BattleTick(20),
             new BattleTick(1000));
         var removableResult = new CombatSimulator().Simulate(removableSetup);
         var firstTickDamage = removableResult.Events.Count(value =>
             value is DamageDealtEvent damage
             && damage.SourceCardId == repeatedLightCardId
-            && damage.Tick.Value == 1);
+            && damage.Tick.Value is 10 or 12);
         var secondTickDamage = removableResult.Events.Count(value =>
             value is DamageDealtEvent damage
             && damage.SourceCardId == repeatedLightCardId
-            && damage.Tick.Value == 2);
+            && damage.Tick.Value == 20);
 
         return lightDamageCount == 3
             && generalDamageCount == 1
@@ -1100,7 +1100,7 @@ internal static class CardCombatChecks
             AbilityActivation.Active,
             AbilityTarget.EnemyHero,
             0,
-            2,
+            11,
             [new DestroyRandomEnemyCardEffectDefinition([GameTags.Demon], [CardSize.Small])]);
         var expiringCrusaderAbilities = level.Abilities.Concat([destroyCrusader]).ToArray();
         var neutralSmallId = EntityId.New();
@@ -1117,7 +1117,7 @@ internal static class CardCombatChecks
                 new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0),
                 [new CardBattleSetup(neutralSmallId, 0, 0, 0, Array.Empty<AbilityDefinition>(), UseLegacyAttack: false)]),
             1,
-            new BattleTick(2),
+            new BattleTick(20),
             new BattleTick(1000));
         var expiryResult = new CombatSimulator().Simulate(expirySetup);
 

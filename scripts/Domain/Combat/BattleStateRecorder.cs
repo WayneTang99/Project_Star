@@ -37,8 +37,8 @@ internal static class BattleStateRecorder
                         BattleEffectResolver.PreviewEffectAmount(runtime, card, ability, effect, hasOpponent))).ToArray()),
                 CooldownDurationUnits = Array.AsReadOnly(card.Abilities
                     .Where(ability => ability.Definition.Activation == AbilityActivation.Active)
-                    .Select(ability => Math.Max(0, ability.Definition.CooldownTicks + card.CooldownBonusTicks) * 2
-                        * card.EffectiveCooldownMultiplier).ToArray()),
+                    .Select(ability => BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks,
+                        card.CooldownBonusTicks, card.EffectiveCooldownMultiplier)).ToArray()),
                 IsFlying = card.IsFlying, IsBerserk = card.IsBerserk, IsOnBench = card.IsOnBench,
                 TransformedIdentity = card.TransformedIdentity, Level = card.Level,
                 SummonedCard = card.SummonedCard,

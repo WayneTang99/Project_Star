@@ -50,7 +50,7 @@ internal static class IceSwordfishChecks
                 || !rules.Contains("冰属性") || rules.Contains("40/80/160") || rules.Contains("5/10/20")) return false;
         }
         var multicast = Fish(2) with { Multicast = 1 };
-        var repeated = new CombatSimulator().Simulate(Battle([multicast], [], 60));
+        var repeated = new CombatSimulator().Simulate(Battle([multicast], [], 62));
         return Echoes(repeated, multicast) == 2 && Value(repeated, multicast) == 50;
     }
 
@@ -63,7 +63,7 @@ internal static class IceSwordfishChecks
         var enemy = Attack(0, 50);
         foreach (var side in new[] { SideId.Player, SideId.Opponent })
         {
-            var setup = Battle([fish, first, second, bench, dead, support, ice], [enemy], 40, side);
+            var setup = Battle([fish, first, second, bench, dead, support, ice], [enemy], 42, side);
             var result = new CombatSimulator().Simulate(setup);
             var changes = result.Events.OfType<CardAttributeChangedEvent>().ToArray();
             if (Echoes(result, fish) != 4 || changes.Length != 4
@@ -75,7 +75,7 @@ internal static class IceSwordfishChecks
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
         }
         // 零攻击能力卡牌仍可获得增量；下一场不继承上一场成长。
-        var single = new CombatSimulator().Simulate(Battle([fish, first, ice], [], 40));
+        var single = new CombatSimulator().Simulate(Battle([fish, first, ice], [], 42));
         return Value(single, first) == 20 && first.AttackDamage == 0
             && Value(new CombatSimulator().Simulate(Battle([fish, first], [], 40)), first) == 0
             && !new CombatSimulator().Simulate(Battle([fish, ice], [], 40)).Events.OfType<CardAttributeChangedEvent>().Any();

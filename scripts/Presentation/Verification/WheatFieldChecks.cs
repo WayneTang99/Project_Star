@@ -36,7 +36,7 @@ internal static class WheatFieldChecks
                 Abilities = [new AbilityDefinition(new StringName("verification.wheat.destroy"),
                     AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard, 0, 0, [new DestroyCardEffectDefinition(false)])]
             };
-            var setup = Battle([field, first, second, other, bench, dead], [enemy], cooldown);
+            var setup = Battle([field, first, second, other, bench, dead], [enemy], cooldown + 2);
             var simulator = new CombatSimulator();
             var result = simulator.Simulate(setup);
             var charges = result.Events.OfType<CardChargedEvent>().ToArray();
@@ -45,7 +45,7 @@ internal static class WheatFieldChecks
                 || result.Events.OfType<AbilityActivatedEvent>().Count(e => !e.IsEcho && e.SourceCardId == first.EntityId) != 2
                 || result.Events.OfType<AbilityActivatedEvent>().Count(e => !e.IsEcho && e.SourceCardId == second.EntityId) != 1
                 || result.Events.OfType<StatusChangedEvent>().Count(e => e.Status == BattleStatus.HasteDuration && e.Amount == 10) != 3
-                || result.States.Last().Cards.Single(card => card.Id == field.EntityId).Haste != 30
+                || result.States.Last().Cards.Single(card => card.Id == field.EntityId).Haste != 28
                 || !result.Events.SequenceEqual(simulator.Simulate(setup).Events) || result.PermanentChanges.Count != 0) return false;
         }
         return true;
@@ -57,7 +57,7 @@ internal static class WheatFieldChecks
         var human = Attacker(3, 20, true) with { Multicast = 1 };
         var result = new CombatSimulator().Simulate(Battle([field, human], [], 70));
         var at20 = result.States.Last(frame => frame.Tick.Value == 20);
-        if (at20.Cards.Single(card => card.Id == field.EntityId).Haste != 20
+        if (at20.Cards.Single(card => card.Id == field.EntityId).Haste != 10
             || result.Events.OfType<AbilityActivatedEvent>().Single(e => e.SourceCardId == field.EntityId && !e.IsEcho).Tick.Value != 70)
             return false;
         // 敌方人类、己方非人类和备战人类不会触发麦田回响；无目标时发动仍结束。

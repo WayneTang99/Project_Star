@@ -46,7 +46,7 @@ internal static class GemShopChecks
                 && CardDisplayAdapter.Details(snapshot).Contains(gem.Attributes.Identity.DisplayName), "投影与冻结");
             var enemy = new CreateMatchService(new EntityFactory()).Create(21, 0, new RobinHeroDefinition());
             enemy.Player.Hero!.Attributes.BaseCombat.SetBaseValue(GameAttributeKeys.MaxHealth, 10000);
-            var setup = new BattleSetupFactory().Create(session, enemy, 42, new BattleTick(100), new BattleTick(101));
+            var setup = new BattleSetupFactory().Create(session, enemy, 42, new BattleTick(102), new BattleTick(103));
             var result = new CombatSimulator().Simulate(setup);
             var status = ((ApplyPrimaryEffectPercentStatusEffectDefinition)gem.ActiveEffects.Single()).Status;
             Require(result.Events.OfType<StatusChangedEvent>().Where(item => item.Status == status).Select(item => item.Amount)
@@ -60,7 +60,7 @@ internal static class GemShopChecks
                 Require(upgraded.IsSuccess && upgraded.Value!.Card.Id == card.Id && card.GemSockets[0] == gem
                     && card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 4
                     && setup.Player.Cards.Single().AttackDamage == 100 && frozen[0].Effects.Count == 3, "升级保留与旧输入");
-                var next = new CombatSimulator().Simulate(new BattleSetupFactory().Create(session, enemy, 42, new BattleTick(100), new BattleTick(101)));
+                var next = new CombatSimulator().Simulate(new BattleSetupFactory().Create(session, enemy, 42, new BattleTick(102), new BattleTick(103)));
                 Require(next.Events.OfType<StatusChangedEvent>().Where(item => item.Status == status).All(item => item.Amount == 20), "升级后主值");
             }
         }
@@ -72,8 +72,8 @@ internal static class GemShopChecks
             var card = new CardBattleSetup(EntityId.New(), 0, 0, 1, [ability], UseLegacyAttack: false);
             var result = new CombatSimulator().Simulate(new BattleSetup(
                 new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [card]),
-                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 42, new BattleTick(1), new BattleTick(2)));
-            var frame = result.States.Last(frame => frame.Tick.Value == 1 && frame.Opponent.Health > 0);
+                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 42, new BattleTick(10), new BattleTick(11)));
+            var frame = result.States.Last(frame => frame.Tick.Value == 10 && frame.Opponent.Health > 0);
             Require(frame.Opponent.Poison == 10 && frame.Player.Poison == 0, "治疗护甲卡敌方目标与取整");
         }
         var boosted = new CardBattleSetup(EntityId.New(), 0, 107, 1,
@@ -86,7 +86,7 @@ internal static class GemShopChecks
         { CombatValues = new System.Collections.Generic.Dictionary<StringName, int> { [GameAttributeKeys.BurnBonus] = 3 } };
         var boostedResult = new CombatSimulator().Simulate(new BattleSetup(
             new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [boosted]),
-            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 42, new BattleTick(1), new BattleTick(2)));
+            new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 42, new BattleTick(12), new BattleTick(13)));
         Require(boostedResult.Events.OfType<StatusChangedEvent>().Where(item => item.Status == BattleStatus.Burn).Select(item => item.Amount).SequenceEqual(new[] { 15, 15 })
             && boostedResult.Events.OfType<StatusChangedEvent>().Where(item => item.Status == BattleStatus.Poison).Select(item => item.Amount).SequenceEqual(new[] { 12, 12 }), "灼伤加成和狂暴各结算一次");
         return true;

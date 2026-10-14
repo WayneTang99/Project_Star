@@ -48,7 +48,7 @@ internal static class CompanionHoundChecks
                     || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             }
             var boosted = hound with { AttackDamage = damage + 17, Multicast = 1 };
-            if (!Hits(Run([boosted], [], 70), hound).Select(hit => hit.RawDamage).SequenceEqual(new[] { damage + 17, damage + 17 })) return false;
+            if (!Hits(Run([boosted], [], 72), hound).Select(hit => hit.RawDamage).SequenceEqual(new[] { damage + 17, damage + 17 })) return false;
             var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
             if (!CardDisplayAdapter.FaceEffects(snapshot).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == damage.ToString())
                 || !snapshot.Abilities.Skip(1).Select(ability => ability.TriggerCardSide).SequenceEqual(new AdjacentCardSide?[] { AdjacentCardSide.Left, AdjacentCardSide.Right })
@@ -70,15 +70,15 @@ internal static class CompanionHoundChecks
             var result = new CombatSimulator().Simulate(setup);
             var growth = result.Events.OfType<CardAttributeChangedEvent>().Where(e => e.CardId == hound.EntityId).ToArray();
             if (growth.Length != 9 || growth.Any(e => e.AttributeKey != GameAttributeKeys.AttackDamage || e.Amount != (5 << (level - 1)))
-                || Value(result, hound, 20) != hound.AttackDamage + 3 * (5 << (level - 1))
+                || Value(result, hound, 22) != hound.AttackDamage + 3 * (5 << (level - 1))
                 || Hits(result, hound).Single().RawDamage != hound.AttackDamage + 9 * (5 << (level - 1))
                 || result.PermanentAttributeBonuses.Any() || result.PermanentChanges.Any()) return false;
             var mirrored = new BattleSetup(setup.Opponent, setup.Player, 42, new BattleTick(70), new BattleTick(71));
-            if (Value(new CombatSimulator().Simulate(mirrored), hound, 20) != hound.AttackDamage + 3 * (5 << (level - 1))) return false;
-            if (Value(Run([hound, left], [], 20), hound, 20) != hound.AttackDamage + 2 * (5 << (level - 1))
+            if (Value(new CombatSimulator().Simulate(mirrored), hound, 22) != hound.AttackDamage + 3 * (5 << (level - 1))) return false;
+            if (Value(Run([hound, left], [], 22), hound, 22) != hound.AttackDamage + 2 * (5 << (level - 1))
                 || Value(Run([hound, right], [], 20), hound, 20) != hound.AttackDamage + (5 << (level - 1))) return false;
             // 回放冻结当前攻击，后续成长不修改已捕获的数值。
-            var frozen = result.States.Last(frame => frame.Tick.Value == 20).Cards.Single(card => card.Id == hound.EntityId);
+            var frozen = result.States.Last(frame => frame.Tick.Value == 22).Cards.Single(card => card.Id == hound.EntityId);
             var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(new CompanionHoundCardDefinition(), level))
                 with { CurrentValues = frozen.Values, EffectAmounts = frozen.EffectAmounts };
             if (!CardDisplayAdapter.FaceEffects(snapshot).Any(effect => effect.Kind == CardFaceEffectKind.Damage

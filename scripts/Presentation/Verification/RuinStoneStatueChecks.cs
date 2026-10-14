@@ -96,11 +96,11 @@ internal static class RuinStoneStatueChecks
             || removed.Events.OfType<DamageDealtEvent>().Any(hit => hit.SourceCardId == card.EntityId)) return false;
         // 同一通用组合的多重完整重复伤害和己方护甲，并共用一次冷却。
         var activeOnly = card with { Abilities = card.Abilities!.Where(ability => ability.Activation == AbilityActivation.Active).ToArray(), Multicast = 1 };
-        var repeated = new CombatSimulator().Simulate(Battle([activeOnly, guardian], [OpeningDamage(500)], 60));
-        return LiveFrame(repeated, 60).Player.Health == 500 && LiveFrame(repeated, 60).Player.Armor == 290
-            && LiveFrame(repeated, 60).Opponent.Health == 760
+        var repeated = new CombatSimulator().Simulate(Battle([activeOnly, guardian], [OpeningDamage(500)], 62));
+        return LiveFrame(repeated, 62).Player.Health == 500 && LiveFrame(repeated, 62).Player.Armor == 290
+            && LiveFrame(repeated, 62).Opponent.Health == 760
             && repeated.Events.OfType<DamageDealtEvent>().Count(hit => hit.SourceCardId == card.EntityId) == 2
-            && LiveFrame(repeated, 60).Cards.Single(item => item.Id == card.EntityId).CooldownUnits[0] == 120
+            && LiveFrame(repeated, 62).Cards.Single(item => item.Id == card.EntityId).CooldownUnits[0] == 116
             && new CombatSimulator().Simulate(Battle([card], [], 1)).States.Last(frame => frame.Tick.Value == 0)
                 .Cards.Single().Immobilize == 20;
     }

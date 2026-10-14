@@ -39,10 +39,10 @@ internal static class MechanismHeavyCrossbowChecks
             if (card.AttackDamage != damage || card.CooldownTicks != 120 || card.Multicast != 2
                 || card.Abilities!.Any(ability => ability.ManaCost != 0)) return false;
             var boosted = card with { AttackDamage = damage + bonus };
-            var setup = side == SideId.Player ? Battle([boosted], [], 240) : Battle([], [boosted], 240);
+            var setup = side == SideId.Player ? Battle([boosted], [], 244) : Battle([], [boosted], 244);
             var result = new CombatSimulator().Simulate(setup);
             var hits = result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceCardId == card.EntityId).ToArray();
-            if (!hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { 120, 120, 120, 240, 240, 240 })
+            if (!hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { 120, 122, 124, 240, 242, 244 })
                 || hits.Any(hit => hit.RawDamage != damage + bonus || hit.TargetSide == side)
                 || result.Events.OfType<ManaChangedEvent>().Any() || result.PermanentChanges.Any()
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)
@@ -64,8 +64,8 @@ internal static class MechanismHeavyCrossbowChecks
         foreach (var neighbors in new CardBattleSetup[][] { [left], [right], [left, right] })
         {
             var allies = new[] { card }.Concat(neighbors).ToArray();
-            var result = new CombatSimulator().Simulate(side == SideId.Player ? Battle(allies, [], 200) : Battle([], allies, 200));
-            if (!Hits(result, card).SequenceEqual(new long[] { 100, 100, 100, 200, 200, 200 })
+            var result = new CombatSimulator().Simulate(side == SideId.Player ? Battle(allies, [], 204) : Battle([], allies, 204));
+            if (!Hits(result, card).SequenceEqual(new long[] { 100, 102, 104, 200, 202, 204 })
                 || State(result, card, 0).CooldownDurationUnits[0] != 200) throw new InvalidOperationException("Crossbow: adjacency baseline");
         }
         foreach (var excluded in new[]
@@ -74,18 +74,18 @@ internal static class MechanismHeavyCrossbowChecks
             right with { Tags = new TagSet([GameTags.Equipment]) },
             right with { Abilities = [Ability(AbilityActivation.PassiveOnBattleStart, 0, new DestroyCardEffectDefinition(false))] },
         })
-            if (!Hits(new CombatSimulator().Simulate(Battle([card, excluded], [], 120)), card)
-                .SequenceEqual(new long[] { 120, 120, 120 })) throw new InvalidOperationException("Crossbow: excluded neighbor");
-        if (!Hits(new CombatSimulator().Simulate(Battle([card], [right], 120)), card)
-            .SequenceEqual(new long[] { 120, 120, 120 })) throw new InvalidOperationException("Crossbow: enemy isolation");
+            if (!Hits(new CombatSimulator().Simulate(Battle([card, excluded], [], 124)), card)
+                .SequenceEqual(new long[] { 120, 122, 124 })) throw new InvalidOperationException("Crossbow: excluded neighbor");
+        if (!Hits(new CombatSimulator().Simulate(Battle([card], [right], 124)), card)
+            .SequenceEqual(new long[] { 120, 122, 124 })) throw new InvalidOperationException("Crossbow: enemy isolation");
         var dying = right with { Abilities = [Ability(AbilityActivation.Active, 50, new DestroyCardEffectDefinition(false))] };
-        var lost = new CombatSimulator().Simulate(Battle([card, dying], [], 240));
-        if (!Hits(lost, card).SequenceEqual(new long[] { 120, 120, 120, 240, 240, 240 })
+        var lost = new CombatSimulator().Simulate(Battle([card, dying], [], 244));
+        if (!Hits(lost, card).SequenceEqual(new long[] { 120, 122, 124, 240, 242, 244 })
             || State(lost, card, 50).CooldownUnits[0] != 140 || State(lost, card, 50).CooldownDurationUnits[0] != 240)
             throw new InvalidOperationException($"Crossbow: lost neighbor hits={string.Join(',', Hits(lost, card))}, remaining={State(lost, card, 50).CooldownUnits[0]}");
         // 一侧失效但另一侧仍有机械时，不撤销相邻条件。
-        if (!Hits(new CombatSimulator().Simulate(Battle([card, left, dying], [], 100)), card)
-            .SequenceEqual(new long[] { 100, 100, 100 })) throw new InvalidOperationException("Crossbow: surviving neighbor");
+        if (!Hits(new CombatSimulator().Simulate(Battle([card, left, dying], [], 104)), card)
+            .SequenceEqual(new long[] { 100, 102, 104 })) throw new InvalidOperationException("Crossbow: surviving neighbor");
         var untagged = Neighbor(6, 1) with
         {
             Tags = new TagSet([]),
@@ -97,13 +97,13 @@ internal static class MechanismHeavyCrossbowChecks
         {
             Abilities = [Ability(AbilityActivation.PassiveAura, 0, new GrantTagToEnemySizeCardsEffectDefinition(CardSize.Small, GameTags.Mechanical))],
         };
-        var gained = new CombatSimulator().Simulate(Battle([card, untagged], [], 100));
-        if (!Hits(gained, card).SequenceEqual(new long[] { 100, 100, 100 })
+        var gained = new CombatSimulator().Simulate(Battle([card, untagged], [], 104));
+        if (!Hits(gained, card).SequenceEqual(new long[] { 100, 102, 104 })
             || State(gained, card, 50).CooldownUnits[0] != 100 || State(gained, card, 50).CooldownDurationUnits[0] != 200)
             throw new InvalidOperationException($"Crossbow: gained tag hits={string.Join(',', Hits(gained, card))}, remaining={State(gained, card, 50).CooldownUnits[0]}");
         var granted = untagged with { Abilities = [], Quests = [] };
-        if (!Hits(new CombatSimulator().Simulate(Battle([card, granted], [tagger], 100)), card)
-            .SequenceEqual(new long[] { 100, 100, 100 })) return false;
+        if (!Hits(new CombatSimulator().Simulate(Battle([card, granted], [tagger], 104)), card)
+            .SequenceEqual(new long[] { 100, 102, 104 })) return false;
         if (Hits(new CombatSimulator().Simulate(Battle([card with { IsOnBench = true }, right], [], 240)), card).Any()) return false;
         var destroyed = card with { Multicast = 0, Abilities = card.Abilities!.Append(
             Ability(AbilityActivation.PassiveOnBattleStart, 0, new DestroyCardEffectDefinition(false))).ToArray() };
@@ -112,8 +112,8 @@ internal static class MechanismHeavyCrossbowChecks
         var generic = card with { Abilities = [card.Abilities![0], new AbilityDefinition("verification.crossbow.other_tag",
             AbilityActivation.PassiveAura, AbilityTarget.SelfCard, 0, 0,
             [new ReduceSourceCooldownWhileAdjacentTaggedCardEffectDefinition(GameTags.Equipment, 20)])] };
-        if (!Hits(new CombatSimulator().Simulate(Battle([generic, right with { Tags = new TagSet([GameTags.Equipment]) }], [], 100)), card)
-            .SequenceEqual(new long[] { 100, 100, 100 })) return false;
+        if (!Hits(new CombatSimulator().Simulate(Battle([generic, right with { Tags = new TagSet([GameTags.Equipment]) }], [], 104)), card)
+            .SequenceEqual(new long[] { 100, 102, 104 })) return false;
         foreach (var invalid in new[]
         {
             (new StringName(), 20, AbilityActivation.PassiveAura, AbilityTarget.SelfCard, false),

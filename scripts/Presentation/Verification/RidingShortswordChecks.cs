@@ -98,7 +98,7 @@ internal static class RidingShortswordChecks
         var skillSetup = new BattleSetup(
             new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0), [sword], [skill]),
             new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0), []),
-            42, new BattleTick(50), new BattleTick(51));
+            42, new BattleTick(52), new BattleTick(53));
         if (SwordHits(new CombatSimulator().Simulate(skillSetup), sword).Length != 0) return false;
         try
         {
@@ -126,5 +126,5 @@ internal static class RidingShortswordChecks
     private static BattleSetup Battle(CardBattleSetup[] player, CardBattleSetup[] enemy, int armor = 0) =>
         new(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0, ManaRegen: 0), player),
             new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, armor, ManaRegen: 0), enemy),
-            42, new BattleTick(50), new BattleTick(51));
+            42, new BattleTick(52), new BattleTick(53));
 }

@@ -72,14 +72,14 @@ internal static class SteelWrenchChecks
         var permanent = Machine(6) with { Abilities = [Opening([new DestroyCardEffectDefinition(true)])] };
         var bench = Machine(0) with { IsOnBench = true, Abilities = [Opening([new DestroyCardEffectDefinition(false)], true)] };
         var enemy = Machine(0);
-        var setup = Battle([wrench, first, second, third, human, alive, permanent, bench], [enemy], 50);
+        var setup = Battle([wrench, first, second, third, human, alive, permanent, bench], [enemy], 52);
         var result = new CombatSimulator().Simulate(setup);
         var repairs = result.Events.OfType<CardRepairedEvent>().ToArray();
         var eligible = new[] { first.EntityId, second.EntityId, third.EntityId };
         if (repairs.Length != 2 || repairs.Select(repair => repair.CardId).Distinct().Count() != 2
             || repairs.Any(repair => !eligible.Contains(repair.CardId) || repair.SourceCardId != wrench.EntityId)
             || result.Events.OfType<DamageDealtEvent>().Count(hit => hit.SourceCardId == wrench.EntityId) != 2
-            || LiveFrame(result, 50).Cards.Count(card => eligible.Contains(card.Id) && card.Destroyed) != 1
+            || LiveFrame(result, 52).Cards.Count(card => eligible.Contains(card.Id) && card.Destroyed) != 1
             || !result.PermanentChanges.Any(change => change.CardId == permanent.EntityId)
             || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
         foreach (var source in new[] { Wrench(1) with { IsOnBench = true }, Wrench(1) with

@@ -56,10 +56,10 @@ internal static class RadiantStandardChecks
         if (result.States[0].Cards.Single(card => card.Id == receiver.EntityId).CooldownDurationUnits.Single() != 124.8m
             || !result.Events.OfType<AbilityActivatedEvent>().Where(e => e.SourceCardId == receiver.EntityId)
                 .Select(e => e.Tick.Value).SequenceEqual(new long[] { 63, 126 })) return false;
-        // 叠加到100%时每Tick至多发动一次，光环不改写输入倍率。
+        // 叠加到100%时完整冷却最低1秒，光环不改写输入倍率。
         var banners = Enumerable.Range(1, 7).Select(start => Banner(4, start)).Prepend(receiver).ToArray();
-        result = new CombatSimulator().Simulate(Battle(banners, [], 3));
-        return result.States[0].Cards.Single(card => card.Id == receiver.EntityId).CooldownDurationUnits.Single() == 0
+        result = new CombatSimulator().Simulate(Battle(banners, [], 30));
+        return result.States[0].Cards.Single(card => card.Id == receiver.EntityId).CooldownDurationUnits.Single() == 20
             && result.Events.OfType<AbilityActivatedEvent>().Count(e => e.SourceCardId == receiver.EntityId) == 3
             && receiver.CooldownMultiplier == 0.8m && result.PermanentChanges.Count == 0;
     }

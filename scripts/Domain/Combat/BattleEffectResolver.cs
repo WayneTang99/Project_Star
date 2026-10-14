@@ -267,6 +267,7 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Random card charge requires a card source.");
                 var chargeCandidates = runtime.Cards.Where(card => card.Side == randomChargeSource.Side
                     && card.EntityId != randomChargeSource.EntityId && !card.Destroyed && !card.IsOnBench
+                    && (randomCharge.RequiredTag is null || card.Tags.Contains(randomCharge.RequiredTag))
                     && card.Abilities.Any(ability => ability.Definition.Activation == AbilityActivation.Active
                         && ability.RemainingCooldownUnits > 0)).ToList();
                 for (var i = 0; i < randomCharge.TargetCount && chargeCandidates.Count > 0; i++)
@@ -314,17 +315,10 @@ internal static class BattleEffectResolver
                 break;
             case IncreaseSourceCooldownEffectDefinition cooldown:
                 if (!cooldown.FirstActivationOnly || pending.Source.ActivationCount == 0)
-                {
-                    pending.Source.CooldownBonusTicks = checked(
-                        pending.Source.CooldownBonusTicks + cooldown.AmountTicks);
-                    foreach (var ability in pending.Source.Abilities)
-                    {
-                        if (ability.Definition.Activation == AbilityActivation.Active)
-                            ability.RemainingCooldownUnits = checked(
-                                ability.RemainingCooldownUnits + cooldown.AmountTicks * 2
-                                    * (pending.Source is CardBattleState cooldownCard ? cooldownCard.EffectiveCooldownMultiplier : 1m));
-                    }
-                }
+                    AdjustSourceCooldown(pending.Source, cooldown.AmountTicks);
+                break;
+            case ReduceSourceCooldownEffectDefinition reduction:
+                AdjustSourceCooldown(pending.Source, -reduction.AmountTicks);
                 break;
             case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
                 var targets = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
@@ -623,6 +617,8 @@ internal static class BattleEffectResolver
             { TransformedIdentity = identity, SummonedCard = target.SummonedCard };
         foreach (var entry in replacement.CombatValues) transformed.CombatAttributes[entry.Key] = entry.Value;
         runtime.Cards[runtime.Cards.IndexOf(target)] = transformed;
+        runtime.Queue.CancelSource(target);
+        runtime.ScheduledMulticasts.RemoveAll(item => ReferenceEquals(item.Ability.Source, target));
         runtime.Events.Add(new CardTransformedEvent(runtime.Tick, source.EntityId, target.EntityId, identity.Key));
     }
 
@@ -793,8 +789,8 @@ internal static class BattleEffectResolver
         BattleStatusResolver.RefreshCooldownAuras(runtime);
         foreach (var ability in target.Abilities)
             if (ability.Definition.Activation == AbilityActivation.Active)
-                ability.RemainingCooldownUnits = Math.Max(0, ability.Definition.CooldownTicks + target.CooldownBonusTicks)
-                    * 2 * target.EffectiveCooldownMultiplier;
+                ability.RemainingCooldownUnits = BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks,
+                    target.CooldownBonusTicks, target.EffectiveCooldownMultiplier);
         runtime.Events.Add(new CardRepairedEvent(runtime.Tick, pending.Source.EntityId, target.EntityId,
             target.Side, target.BoardStart, target.OccupiedSlots));
     }
@@ -819,8 +815,22 @@ internal static class BattleEffectResolver
         }
         target.Destroyed = true;
         runtime.Queue.CancelSource(target);
+        runtime.ScheduledMulticasts.RemoveAll(item => ReferenceEquals(item.Ability.Source, target));
         runtime.Events.Add(new CardDestroyedEvent(runtime.Tick, target.EntityId, target.Side, sourceId));
         if (permanent && target.SummonedCard is null) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
+    }
+
+    // 以完整冷却差值调整剩余时长，避免到达一秒下限后继续扣减进度。
+    private static void AdjustSourceCooldown(IBattleAbilitySource source, int amountTicks)
+    {
+        var oldBonus = source.CooldownBonusTicks;
+        source.CooldownBonusTicks = checked(oldBonus + amountTicks);
+        var multiplier = source is CardBattleState card ? card.EffectiveCooldownMultiplier : 1m;
+        foreach (var ability in source.Abilities)
+            if (ability.Definition.Activation == AbilityActivation.Active)
+                ability.RemainingCooldownUnits = Math.Max(0m, ability.RemainingCooldownUnits
+                    + BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, source.CooldownBonusTicks, multiplier)
+                    - BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, oldBonus, multiplier));
     }
 
     // 统一扣减护甲与生命，并记录伤害事件及对应冻结状态。

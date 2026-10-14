@@ -238,7 +238,7 @@ internal static class BoardChecks
         var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
         if (board.PlaceCard(player, card.Id, BoardZone.Battlefield, 0).IsFailure) return false;
         var setup = new BattleSetupFactory(registry.Sets).Create(
-            player, opponent, 3, new BattleTick(2), new BattleTick(300));
+            player, opponent, 3, new BattleTick(10), new BattleTick(300));
         if (setup.Player.Sets.Count != 1
             || board.PlaceCard(player, card.Id, BoardZone.Bench, 0).IsFailure)
             return false;
@@ -318,10 +318,10 @@ internal static class BoardChecks
         var board = new BoardService(new BoardPlacementSolver());
         if (board.PlaceCard(session, card.Id, BoardZone.Battlefield, 0).IsFailure) return false;
         var setupFactory = new BattleSetupFactory();
-        if (setupFactory.Create(session, opponent, 1, new BattleTick(2)).Player.Cards[0].Abilities!.Count != 1)
+        if (setupFactory.Create(session, opponent, 1, new BattleTick(10), new BattleTick(300)).Player.Cards[0].Abilities!.Count != 1)
             return false;
         new CardQuestService(board).ProcessEvent(session, new BattleWonQuestEvent());
-        var setup = setupFactory.Create(session, opponent, 1, new BattleTick(2));
+        var setup = setupFactory.Create(session, opponent, 1, new BattleTick(10), new BattleTick(300));
         if (setup.Player.Cards[0].Abilities!.Count != 2) return false;
         var events = new CombatSimulator().Simulate(setup).Events;
         return events.OfType<CardDestroyedEvent>().Any(value => value.CardId == card.Id)

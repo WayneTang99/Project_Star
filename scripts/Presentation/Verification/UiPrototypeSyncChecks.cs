@@ -129,7 +129,7 @@ internal static class UiPrototypeSyncChecks
         finally { owner.RemoveChild(origin); origin.Free(); owner.RemoveChild(label); label.Free(); owner.RemoveChild(preview); preview.Free(); }
     }
 
-    // 真实战場投影与等级预览保留冷却；100%缩减仍显示0秒，被动卡不显示圆徽。
+    // 真实战場投影与等级预览保留冷却；100%缩减显示1秒，被动卡不显示圆徽。
     internal static bool CooldownDetails(Control owner)
     {
         var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
@@ -145,12 +145,15 @@ internal static class UiPrototypeSyncChecks
         var live = capture.Cards.Single();
         if (live.CurrentCooldownSeconds != 6m) return false;
         var query = new CardPreviewQuery(registry);
+        var minimum = query.Preview(live with { CooldownMultiplier = 0m }, 4,
+            live.GemSockets.Select(gem => (StringName?)gem?.Key).ToArray(), capture);
+        if (minimum.CurrentCooldownSeconds != 1m) return false;
         var content = new CardDetailsContent(); owner.AddChild(content);
         try
         {
             foreach (var card in CardCatalogQuery.Capture(registry).SelectMany(entry => entry.Levels).Select(level => level.Card)
                 .Append(live).Append(query.Preview(live, 4, live.GemSockets.Select(gem => (StringName?)gem?.Key).ToArray(), capture))
-                .Append(live with { CurrentCooldownSeconds = 0m }))
+                .Append(minimum))
             {
                 content.Render(card, 396, 420);
                 var active = card.Abilities.Any(ability => ability.Activation == Project_Star.Domain.Combat.AbilityActivation.Active);

@@ -56,13 +56,13 @@ internal static class FlangedMaceChecks
             .SequenceEqual(new[] { 20, 20, 10 })) return false;
         // 属性加成与多重：护甲被首击打破后，同组额外发动立即恢复原倍率。
         var boosted = card with { AttackDamage = 15, Multicast = 1 };
-        var result = new CombatSimulator().Simulate(Battle(boosted, 1, 50));
+        var result = new CombatSimulator().Simulate(Battle(boosted, 1, 52));
         if (!result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceKind == DamageSourceKind.Card).Select(hit => hit.RawDamage)
             .SequenceEqual(new[] { 30, 15 })) return false;
         var berserk = new AbilityDefinition(new StringName("verification.mace_berserk"),
             AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard, 0, 0,
             [new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true)]);
-        result = new CombatSimulator().Simulate(Battle(boosted with { Abilities = abilities.Append(berserk).ToArray() }, 1, 50));
+        result = new CombatSimulator().Simulate(Battle(boosted with { Abilities = abilities.Append(berserk).ToArray() }, 1, 52));
         if (!result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceKind == DamageSourceKind.Card).Select(hit => hit.RawDamage)
             .SequenceEqual(new[] { 36, 18 })) return false;
         var mirrored = new BattleSetup(

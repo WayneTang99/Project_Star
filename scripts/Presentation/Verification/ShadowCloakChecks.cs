@@ -41,11 +41,11 @@ internal static class ShadowCloakChecks
             var changes = result.Events.OfType<HeroStealthChangedEvent>().ToArray();
             if (changes.Length != 2 || changes[0].Tick.Value != 30 || changes[0].RemainingTicks != duration
                 || changes[1].Tick.Value != 30 + duration || changes[1].RemainingTicks != 0
-                || result.States.Last(state => state.Tick.Value == 25).Player.Health != 500
+                || result.States.Last(state => state.Tick.Value == 20).Player.Health != 600
                 || result.States.Last(state => state.Tick.Value == 30).Player.Health != 400
                 || result.States.Last(state => state.Tick.Value == 30).Player.StealthDurationTicks != duration
                 || !result.Events.OfType<DamageDealtEvent>().Any(hit => hit.TargetSide == SideId.Player && hit.Tick.Value == 30 + duration)
-                || !result.Events.OfType<AttackBlockedEvent>().Any()
+                || result.Events.OfType<DamageDealtEvent>().Any(hit => hit.TargetSide == SideId.Player && hit.Tick.Value > 30 && hit.Tick.Value < 30 + duration)
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             var mirrored = new BattleSetup(setup.Opponent, setup.Player, 42, setup.Timeout, setup.EclipseTime);
             if (!new CombatSimulator().Simulate(mirrored).Events.OfType<HeroStealthChangedEvent>()
@@ -71,7 +71,7 @@ internal static class ShadowCloakChecks
         if (result.Events.OfType<HeroStealthChangedEvent>().Count(change => change.RemainingTicks > 0) != 1
             || result.States.Last(state => state.Tick.Value == 35).Player.Health != 1000
             || result.States.Last(state => state.Tick.Value == 65 && state.Player.Health > 0).Player.Health != 400) return false;
-        var lethal = new CombatSimulator().Simulate(Battle([first], [Attack(1000)], 5));
+        var lethal = new CombatSimulator().Simulate(Battle([first], [Attack(1000)], 10));
         return lethal.EndReason == BattleEndReason.HeroDefeated && !lethal.Events.OfType<HeroStealthChangedEvent>().Any();
     }
 
@@ -98,14 +98,14 @@ internal static class ShadowCloakChecks
                 [new DamageEffectDefinition(501), new DamageEffectDefinition(100),
                     new ApplyStatusEffectDefinition(BattleStatus.Burn, 5), new ApplyStatusEffectDefinition(BattleStatus.Poison, 3),
                     new DestroyCardEffectDefinition(false)])], UseLegacyAttack: false);
-        var result = new CombatSimulator().Simulate(Battle([Cloak(4), watcher], [attack], 12, eclipse: 10));
-        var alive = result.States.Last(state => state.Player.Health > 0 && state.Tick.Value == 12).Player;
+        var result = new CombatSimulator().Simulate(Battle([Cloak(4), watcher], [attack], 22, eclipse: 20));
+        var alive = result.States.Last(state => state.Player.Health > 0 && state.Tick.Value == 22).Player;
         return result.Events.OfType<AttackBlockedEvent>().Count() == 1
             && result.Events.OfType<AbilityActivatedEvent>().Count(item => item.SourceCardId == watcher.EntityId) == 1
             && result.Events.OfType<DamageDealtEvent>().Any(item => item.StatusOrigin == BattleStatus.Burn)
             && result.Events.OfType<DamageDealtEvent>().Any(item => item.StatusOrigin == BattleStatus.Poison)
             && result.Events.OfType<DamageDealtEvent>().Any(item => item.SourceKind == DamageSourceKind.Eclipse)
-            && alive.Health == 487 && alive.StealthDurationTicks == 9;
+            && alive.Health == 487 && alive.StealthDurationTicks == 8;
     }
 
     internal static bool PlaybackAndValidation(Control owner)
@@ -180,7 +180,7 @@ internal static class ShadowCloakChecks
     private static CardBattleSetup Cloak(int level = 3) => new(EntityId.New(), 0, 0, 1,
         new ShadowCloakCardDefinition().GetLevel(level)!.Abilities, UseLegacyAttack: false, OccupiedSlots: 2);
 
-    private static CardBattleSetup Attack(int damage = 100) => new(EntityId.New(), 0, damage, 5,
+    private static CardBattleSetup Attack(int damage = 200) => new(EntityId.New(), 0, damage, 5,
         [new AbilityDefinition(new StringName("verification.cloak_attack"), AbilityActivation.Active,
             AbilityTarget.EnemyHero, 0, 5, [new DamageEffectDefinition(damage)])], UseLegacyAttack: false);
 

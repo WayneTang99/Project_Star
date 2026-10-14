@@ -34,6 +34,11 @@ public sealed partial class PhaseOneVerification : Control
             ("怪物与PvP敌方同步可见且结算与重开无残留", PlaytestVerification.EnemyVisibilityAndReset),
         ]),
         new("基础规则与定义", [
+            ("农夫四级冷却与双方随机人类充能、即时发动", FarmerChecks.LevelsAndCharge),
+            ("农夫排除自身、非人类、备战、摧毁与就绪目标，多重及随机确定性", FarmerChecks.FiltersAndMulticast),
+            ("破晓长弓分级伤害、累计冷却与全局一秒下限", DawnLongbowChecks.LevelsAndCooldown),
+            ("多重每隔0.2秒逐次发动及回响，仅支付一次魔法", DawnLongbowChecks.DelayedMulticast),
+            ("延迟多重冻结次数且摧毁、修复与转变取消旧发动", DawnLongbowChecks.CancellationAndFrozenCount),
             ("月影喵四级冷却、相邻人类逐张计数及随机禁锢", MoonshadowCatChecks.LevelsAndCombat),
             ("月影喵筛选、光环撤销、永久倍率与禁锢累加衰减", MoonshadowCatChecks.FiltersAndRemoval),
             ("0.2 秒等于 2 个战斗 Tick", DefinitionChecks.CheckTickConversion),
@@ -410,7 +415,7 @@ public sealed partial class PhaseOneVerification : Control
             ("HTML同步全卡当前值描述与统一资源、冷却配色", UiPrototypeSyncChecks.Definitions),
             ("等级宝石预览保留成长与实例且不修改原快照", UiPrototypeSyncChecks.Preview),
             ("放大预览等级、宝石、还原、描述方括号及Escape正确", () => UiPrototypeSyncChecks.Scene(this)),
-            ("战场、全卡等级预览与零冷却显示正确", () => UiPrototypeSyncChecks.CooldownDetails(this)),
+            ("战场、全卡等级预览与一秒冷却下限显示正确", () => UiPrototypeSyncChecks.CooldownDetails(this)),
             ("宝石商店两砧板、扣费刷新、一次选择与过期隔离正确", GemShopChecks.FeesAndRefresh),
             ("宝石商店真实砧板拖放、预览只读及离店关闭正确", () => GemShopChecks.DragScene(this)),
             ("英雄初始属性、插画身份、选角缩略图与头像正确", () => HeroArtworkChecks.Check(this)),
@@ -688,6 +693,18 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await WarhammerFortressChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-dawn-longbow"))
+            Callable.From((Action)(async () =>
+            {
+                try { await DawnLongbowChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-farmer"))
+            Callable.From((Action)(async () =>
+            {
+                try { await FarmerChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-apocalypse"))

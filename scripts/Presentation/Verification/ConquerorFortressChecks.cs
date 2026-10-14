@@ -42,8 +42,8 @@ internal static class ConquerorFortressChecks
             var enemyHuman = Human(1, 10, 0);
             CardBattleSetup[] allies = [fortress, human, zero, beast, bench, dead];
             CardBattleSetup[] enemies = [enemy, enemyHuman];
-            var setup = side == SideId.Player ? Battle(allies, enemies, 40) : Battle(enemies, allies, 40);
-            var result = new CombatSimulator().Simulate(setup); var frame = LiveFrame(result, 40);
+            var setup = side == SideId.Player ? Battle(allies, enemies, 42) : Battle(enemies, allies, 42);
+            var result = new CombatSimulator().Simulate(setup); var frame = LiveFrame(result, 42);
             var changes = result.Events.OfType<CardAttributeChangedEvent>().ToArray();
             if (Echoes(result, fortress) != 4 || changes.Length != 8 || changes.Any(change => change.Amount != bonus
                     || change.CardId != human.EntityId && change.CardId != zero.EntityId)

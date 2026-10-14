@@ -64,10 +64,10 @@ internal static class MischievousBatChecks
             var bat = Bat(level) with { AttackDamage = 7, Multicast = 1 };
             var target = Target(0);
             var ticks = (level - 1) * 10;
-            var result = new CombatSimulator().Simulate(Battle([bat], [target], 40));
+            var result = new CombatSimulator().Simulate(Battle([bat], [target], 42));
             if (result.Events.OfType<DamageDealtEvent>().Count(hit => hit.SourceCardId == bat.EntityId && hit.RawDamage == 7) != 4
-                || LiveFrame(result, 20).Cards.Single(card => card.Id == target.EntityId).Slow != ticks * 2
-                || LiveFrame(result, 40).Cards.Single(card => card.Id == target.EntityId).Slow != Math.Max(0, ticks * 2 - 20) + ticks * 2)
+                || LiveFrame(result, 22).Cards.Single(card => card.Id == target.EntityId).Slow != ticks * 2 - 2
+                || LiveFrame(result, 42).Cards.Single(card => card.Id == target.EntityId).Slow != Math.Max(0, ticks * 2 - 20) + ticks * 2 - 2)
                 return false;
             var flying = target with { Abilities = [Opening(new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true))] };
             var flight = new CombatSimulator().Simulate(Battle([Bat(level)], [flying], 20));

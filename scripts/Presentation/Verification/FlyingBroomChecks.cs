@@ -58,9 +58,9 @@ internal static class FlyingBroomChecks
                     UseLegacyAttack: false)]),
             new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 100, 0),
                 [new CardBattleSetup(enemy, 0, 0, 1, [Enter("enemy", AbilityActivation.Active, 1)], UseLegacyAttack: false)]),
-            42, new BattleTick(2));
+            42, new BattleTick(10), new BattleTick(100));
         var result = new CombatSimulator().Simulate(setup);
-        var cards = result.States.Last(frame => frame.Tick.Value == 1).Cards;
+        var cards = result.States.Last(frame => frame.Tick.Value == 10).Cards;
         if (cards.Single(card => card.Id == ally).Haste != 20
             || cards.Single(card => card.Id == enemy).Haste != 0
             || cards.Single(card => card.Id == first).Haste != 0
@@ -70,7 +70,7 @@ internal static class FlyingBroomChecks
         var echoEntry = Enter("echo_entry", AbilityActivation.EchoOnAbilityActivated, 0);
         var chain = Simulate([new CardBattleSetup(ally, 0, 0, 1,
             [Enter("berserk_active", AbilityActivation.Active, 1, false), echoEntry], UseLegacyAttack: false),
-            Broom(first, 1)], [], 2);
+            Broom(first, 1)], [], 10);
         return chain.Events.OfType<CardStateChangedEvent>().Any(item => item.StateKey == GameAttributeKeys.Flying)
             && !chain.Events.OfType<StatusChangedEvent>().Any();
     }

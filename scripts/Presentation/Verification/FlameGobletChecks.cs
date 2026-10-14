@@ -46,7 +46,7 @@ internal static class FlameGobletChecks
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
         }
         var repeatedCup = Cup(2) with { Multicast = 1 };
-        var repeated = new CombatSimulator().Simulate(Battle([repeatedCup], [], 60));
+        var repeated = new CombatSimulator().Simulate(Battle([repeatedCup], [], 62));
         return Echoes(repeated, repeatedCup) == 2 && Value(repeated, repeatedCup) == 10;
     }
 
@@ -75,7 +75,7 @@ internal static class FlameGobletChecks
         var echoing = fire with { Multicast = 1, Abilities = fire.Abilities!.Append(new AbilityDefinition(
             "verification.goblet.echo", AbilityActivation.EchoOnSourceCardActivated, AbilityTarget.SelfCard, 0, 0,
             [new GainSourceHeroArmorEffectDefinition(1)])).ToArray() };
-        var result = new CombatSimulator().Simulate(Battle([echoOnly, echoing], [], 40));
+        var result = new CombatSimulator().Simulate(Battle([echoOnly, echoing], [], 42));
         var reset = new CombatSimulator().Simulate(Battle([cup], [], 60));
         return Echoes(result, cup) == 4 && Value(result, cup) == 14
             && reset.Events.OfType<StatusChangedEvent>().Single(item => item.Status == BattleStatus.Burn).Amount == 6

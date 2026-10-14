@@ -38,7 +38,7 @@ internal static class SiegeBallistaChecks
                 || Hits(haste, card).Single().RawDamage != damage + bonus * 2
                 || haste.PermanentAttributeBonuses.Count != 0) return false;
             var multi = Giver(0, AbilityActivation.Active, BattleStatus.HasteDuration, 10) with { Multicast = 1 };
-            var stacked = Run([multi, card], [], 10, reverse);
+            var stacked = Run([multi, card], [], 12, reverse);
             if (Echoes(stacked, card) != 2 || Attack(stacked, card) != damage + bonus * 2) return false;
             if (Attack(Run([card], [], 1, reverse), card) != damage) return false;
         }

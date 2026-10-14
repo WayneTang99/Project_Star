@@ -56,7 +56,7 @@ internal static class DivineSmiteChecks
             var bench = Attack(0, GameElements.Light) with { IsOnBench = true };
             var alliedDemon = Tagged(GameTags.Demon) with { BoardStart = 3 };
             var enemyAttack = Attack(2, GameElements.Light);
-            var setup = Battle([light, dual, other, bench, alliedDemon], enemies[index].Append(enemyAttack).ToArray(), 2);
+            var setup = Battle([light, dual, other, bench, alliedDemon], enemies[index].Append(enemyAttack).ToArray(), 10);
             var result = new CombatSimulator().Simulate(setup);
             foreach (var card in new[] { light, dual })
             {
@@ -78,27 +78,27 @@ internal static class DivineSmiteChecks
     internal static bool DynamicConditions()
     {
         var attacker = Attack(0, GameElements.Light);
-        var demon = Tagged(GameTags.Demon) with { Abilities = [Destroy(3)], UseLegacyAttack = false };
-        var result = new CombatSimulator().Simulate(Battle([attacker], [demon], 4));
+        var demon = Tagged(GameTags.Demon) with { Abilities = [Destroy(15)], UseLegacyAttack = false };
+        var result = new CombatSimulator().Simulate(Battle([attacker], [demon], 20));
         if (!Hits(result, attacker.EntityId).SequenceEqual(new[] { 40, 20 })) return false;
         // 临时恶魔标签来源失效后恢复；敌方卡牌本身仍存活。
         var grant = new CardBattleSetup(EntityId.New(), 1, 0, 3,
             [new AbilityDefinition("ability.verification.demon_aura", AbilityActivation.PassiveAura,
-                AbilityTarget.SelfCard, 0, 0, [new GrantTagToEnemySizeCardsEffectDefinition(CardSize.Small, GameTags.Demon)]), Destroy(3)],
+                AbilityTarget.SelfCard, 0, 0, [new GrantTagToEnemySizeCardsEffectDefinition(CardSize.Small, GameTags.Demon)]), Destroy(15)],
             UseLegacyAttack: false);
-        result = new CombatSimulator().Simulate(Battle([attacker, grant], [Tagged()], 4));
+        result = new CombatSimulator().Simulate(Battle([attacker, grant], [Tagged()], 20));
         if (!Hits(result, attacker.EntityId).SequenceEqual(new[] { 40, 20 })) return false;
         // 敌方标签通过转变移除，当场恢复基础倍率。
         var transform = new CardBattleSetup(EntityId.New(), 0, 0, 1,
             [new AbilityDefinition("ability.verification.remove_demon", AbilityActivation.Active,
-                AbilityTarget.EnemyHero, 0, 1, [new TransformRandomEnemyCardEffectDefinition(new TestCardDefinition(GameElements.Fire))])],
+                AbilityTarget.EnemyHero, 0, 10, [new TransformRandomEnemyCardEffectDefinition(new TestCardDefinition(GameElements.Fire))])],
             UseLegacyAttack: false);
-        result = new CombatSimulator().Simulate(Battle([transform, attacker with { BoardStart = 1 }], [Tagged(GameTags.Demon)], 2));
+        result = new CombatSimulator().Simulate(Battle([transform, attacker with { BoardStart = 1 }], [Tagged(GameTags.Demon)], 10));
         if (!Hits(result, attacker.EntityId).SequenceEqual(new[] { 20 })) return false;
         // 新召唤光属性攻击卡牌立即参与光环，敌方新召唤亡灵立即满足条件。
         var alliedSummoner = Summoner(new TestCardDefinition(GameElements.Light), 0);
         var enemySummoner = Summoner(new TestCardDefinition(GameElements.Fire, GameTags.Undead), 0);
-        result = new CombatSimulator().Simulate(Battle([alliedSummoner], [enemySummoner], 2));
+        result = new CombatSimulator().Simulate(Battle([alliedSummoner], [enemySummoner], 10));
         var summons = result.Events.OfType<CardSummonedEvent>().ToArray();
         var alliedId = summons.Single(value => value.Side == SideId.Player).SummonedCardId;
         return Hits(result, alliedId).SequenceEqual(new[] { 40 });
@@ -110,9 +110,9 @@ internal static class DivineSmiteChecks
         var additive = new CardBattleSetup(EntityId.New(), 1, 0, 1,
             [new AbilityDefinition("ability.verification.additive", AbilityActivation.PassiveAura, AbilityTarget.SelfCard,
                 0, 0, [new IncreaseAlliedCardAttributeAuraEffectDefinition(GameAttributeKeys.AttackDamage, 5)])], UseLegacyAttack: false);
-        var single = new CombatSimulator().Simulate(Battle([attacker, additive], [Tagged(GameTags.Demon)], 2));
+        var single = new CombatSimulator().Simulate(Battle([attacker, additive], [Tagged(GameTags.Demon)], 10));
         if (!Hits(single, attacker.EntityId).SequenceEqual(new[] { 60 })) return false;
-        var stacked = new CombatSimulator().Simulate(Battle([attacker, additive], [Tagged(GameTags.Demon)], 2, 2));
+        var stacked = new CombatSimulator().Simulate(Battle([attacker, additive], [Tagged(GameTags.Demon)], 10, 2));
         if (!Hits(stacked, attacker.EntityId).SequenceEqual(new[] { 240 })) return false;
         var tags = new List<StringName> { GameTags.Demon };
         var aura = new AbilityDefinition("ability.verification.frozen", AbilityActivation.PassiveAura, AbilityTarget.AlliedHero,

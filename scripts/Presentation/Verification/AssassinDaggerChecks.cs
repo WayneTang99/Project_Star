@@ -65,7 +65,7 @@ internal static class AssassinDaggerChecks
         var first = result.States.Last(state => state.Tick.Value == 40).Cards.Single();
         return first.Values[GameAttributeKeys.AttackDamage] == 15 && first.EffectAmounts[0] == 15
             && first.EffectAmounts[1] == 7 && first.Side == SideId.Player
-            && result.States.Last(state => state.Tick.Value == 40).Opponent.Poison == 22
+            && result.States.Last(state => state.Tick.Value == 42).Opponent.Poison == 22
             && before.EffectAmounts[0] == 30;
     }
 
@@ -109,7 +109,7 @@ internal static class AssassinDaggerChecks
             config.Abilities, UseLegacyAttack: false);
     }
 
-    private static BattleSetup Battle(CardBattleSetup[] cards, int armor = 0, int timeout = 80) =>
+    private static BattleSetup Battle(CardBattleSetup[] cards, int armor = 0, int timeout = 82) =>
         new(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 1000, 0, ManaRegen: 0), cards),
             new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 1000, armor, ManaRegen: 0), []),
             42, new BattleTick(timeout), new BattleTick(timeout + 1));

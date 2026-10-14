@@ -40,11 +40,13 @@ internal static class BattlePlaybackVerification
             || states[0].Player.Health != 100 || states[0].Player.Mana != 20 || states[0].Player.Poison != 4) return false;
         if (!states.Any(frame => frame.Cards.Any(card => card.Haste > 0))
             || !states.Any(frame => frame.Cards.Any(card => card.Destroyed))
-            || !states.Any(frame => frame.Player.Armor > 0) || !states.Any(frame => frame.Player.Mana < 20)
+            || !states.Any(frame => frame.Player.Armor > 0)
+            || !result.Events.OfType<ManaChangedEvent>().Any(item => item.Side == SideId.Player && item.Amount == -3)
             || states.Any(frame => frame.Player.Poison != 4) || !states.Any(frame => frame.Player.Burn < 3)
             || !states.Zip(states.Skip(1)).Any(pair => pair.Second.Player.Health > pair.First.Player.Health)
             || !result.Events.OfType<CardChargedEvent>().Any()
-            || result.Events.OfType<DamageDealtEvent>().Count(item => item.Tick.Value == 2 && item.TargetSide == SideId.Opponent) != 2)
+            || result.Events.OfType<DamageDealtEvent>().Count(item => item.Tick.Value == 10 && item.TargetSide == SideId.Opponent) != 1
+            || result.Events.OfType<DamageDealtEvent>().Count(item => item.Tick.Value == 12 && item.TargetSide == SideId.Opponent) != 1)
             return false;
         for (var index = 1; index < states.Count; index++)
             if (states[index].Tick.Value < states[index - 1].Tick.Value || states[index].EventCount < states[index - 1].EventCount) return false;

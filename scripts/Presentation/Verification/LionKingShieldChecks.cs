@@ -58,7 +58,7 @@ internal static class LionKingShieldChecks
             var berserk = shield with { Abilities = shield.Abilities!.Append(new AbilityDefinition("verification.shield.berserk",
                 AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard, 0, 0,
                 [new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true)])).ToArray(), Multicast = 1 };
-            var enhanced = new CombatSimulator().Simulate(Setup([berserk], 50));
+            var enhanced = new CombatSimulator().Simulate(Setup([berserk], 52));
             if (enhanced.Events.OfType<DamageDealtEvent>().Count() != 2
                 || enhanced.Events.OfType<DamageDealtEvent>().Any(hit => hit.RawDamage != shield.ArmorAmount * percent / 100 * 120 / 100)
                 || enhanced.States.Last().Player.Armor != shield.ArmorAmount * 2) return false;

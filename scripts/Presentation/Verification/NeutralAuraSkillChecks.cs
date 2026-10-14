@@ -49,7 +49,7 @@ internal static class NeutralAuraSkillChecks
                 var own = new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0),
                     [right, unsupported, bench, left], [Skill(skill, level), Skill(skill, level)]);
                 var other = new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [enemy]);
-                var setup = new BattleSetup(opposing ? other : own, opposing ? own : other, 19, new BattleTick(2), new BattleTick(300));
+                var setup = new BattleSetup(opposing ? other : own, opposing ? own : other, 19, new BattleTick(11), new BattleTick(300));
                 var frame = new CombatSimulator().Preview(setup);
                 int Value(EntityId id) => frame.Cards.Single(card => card.Id == id).Values.TryGetValue(key, out var value) ? value : 0;
                 if (Value(left.EntityId) != Base(key) + (side == AdjacentCardSide.Right ? 0 : 2 * amount)
@@ -63,14 +63,14 @@ internal static class NeutralAuraSkillChecks
                     && result.Events.OfType<DamageDealtEvent>().Single(hit => hit.SourceCardId == left.EntityId).RawDamage != Value(left.EntityId)) return false;
                 if (key == GameAttributeKeys.Armor)
                 {
-                    var hero = result.States.Last(frame => frame.Tick.Value == 2).Player;
-                    if (opposing) hero = result.States.Last(frame => frame.Tick.Value == 2).Opponent;
+                    var hero = result.States.Last(frame => frame.Tick.Value == 11).Player;
+                    if (opposing) hero = result.States.Last(frame => frame.Tick.Value == 11).Opponent;
                     if (hero.Armor != 10 + (side is null ? 4 : 2) * amount) return false;
                 }
                 if (key == GameAttributeKeys.PoisonBonus || key == GameAttributeKeys.BurnBonus)
                 {
                     var status = key == GameAttributeKeys.PoisonBonus ? BattleStatus.Poison : BattleStatus.Burn;
-                    var applied = result.Events.OfType<StatusChangedEvent>().Where(change => change.Tick.Value == 2 && change.Status == status).Sum(change => change.Amount);
+                    var applied = result.Events.OfType<StatusChangedEvent>().Where(change => change.Tick.Value == 11 && change.Status == status).Sum(change => change.Amount);
                     if (applied != 15 + (side is null ? 4 : 2) * amount) return false;
                 }
             }
@@ -94,10 +94,10 @@ internal static class NeutralAuraSkillChecks
                 AbilityActivation.Active, AbilityTarget.SelfCard, 0, 1, [new DestroyCardEffectDefinition(false)])).ToArray() };
             var middle = Receiver(aura.AttributeKey, 3);
             var setup = new BattleSetup(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [middle, edge], [Skill(skill, 4)]),
-                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 1, new BattleTick(2), new BattleTick(300));
+                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 1, new BattleTick(10), new BattleTick(300));
             var result = new CombatSimulator().Simulate(setup);
             var before = result.States.First().Cards.Single(card => card.Id == middle.EntityId);
-            var after = result.States.Last(frame => frame.Tick.Value == 2).Cards.Single(card => card.Id == middle.EntityId);
+            var after = result.States.Last(frame => frame.Tick.Value == 10).Cards.Single(card => card.Id == middle.EntityId);
             if ((before.Values.TryGetValue(aura.AttributeKey, out var original) ? original : 0) != Base(aura.AttributeKey)
                 || after.Values[aura.AttributeKey] != Base(aura.AttributeKey) + 160
                 || result.Events.OfType<CardDestroyedEvent>().Count() != 1) return false;
@@ -119,7 +119,7 @@ internal static class NeutralAuraSkillChecks
                     0, 2, index == 3 ? [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage), effects[index]] : [effects[index]])],
                 UseLegacyAttack: false) { CombatValues = new System.Collections.Generic.Dictionary<StringName, int> { [GameAttributeKeys.Value] = 11 } };
             var setup = new BattleSetup(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [card], [Skill(new PoisonMasterySkillDefinition(), 4)]),
-                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 7, new BattleTick(2), new BattleTick(300));
+                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 7, new BattleTick(10), new BattleTick(300));
             var result = new CombatSimulator().Simulate(setup);
             if (result.Events.OfType<StatusChangedEvent>().Single(change => change.Status == BattleStatus.Poison).Amount != expected[index]) { GD.Print($"中毒公式{index}：实际{result.Events.OfType<StatusChangedEvent>().Single(change => change.Status == BattleStatus.Poison).Amount}，预期{expected[index]}"); return false; }
         }
@@ -129,13 +129,13 @@ internal static class NeutralAuraSkillChecks
         {
             var healer = Receiver(GameAttributeKeys.HealingBonus, 3);
             var attacker = Receiver(GameAttributeKeys.AttackDamage, 0) with { AttackDamage = 500,
-                Abilities = [new AbilityDefinition("ability.verification.hurt", AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 1,
+                Abilities = [new AbilityDefinition("ability.verification.hurt", AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 10,
                     [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage)])] };
             var setup = new BattleSetup(new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [healer], [Skill(skill, level)]),
-                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [attacker]), 1, new BattleTick(2), new BattleTick(300));
-            var frame = new CombatSimulator().Simulate(setup).States.Last(state => state.Tick.Value == 2 && state.Player.Health > 0);
+                new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [attacker]), 1, new BattleTick(11), new BattleTick(300));
+            var frame = new CombatSimulator().Simulate(setup).States.Last(state => state.Tick.Value == 11 && state.Player.Health > 0);
             var amount = ((IncreaseAlliedCardAttributeAuraEffectDefinition)skill.GetLevel(level)!.Abilities[0].Effects[0]).Amount;
-            if (frame.Player.Health != 9000 + 5 + amount) { GD.Print($"治疗{skill.Attributes.Identity.DisplayName} {level}：实际{frame.Player.Health}，预期{9000 + 5 + amount}"); return false; }
+            if (frame.Player.Health != 9500 + 5 + amount) { GD.Print($"治疗{skill.Attributes.Identity.DisplayName} {level}：实际{frame.Player.Health}，预期{9500 + 5 + amount}"); return false; }
         }
         return true;
     }
@@ -149,7 +149,7 @@ internal static class NeutralAuraSkillChecks
             : key == GameAttributeKeys.HealingBonus ? new HealEffectDefinition(5, TargetsSourceHero: true)
             : new ApplyStatusEffectDefinition(key == GameAttributeKeys.PoisonBonus ? BattleStatus.Poison : BattleStatus.Burn, 5);
         return new CardBattleSetup(EntityId.New(), position, 5, 2,
-            [new AbilityDefinition("ability.verification.receiver", AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 2, [effect])],
+            [new AbilityDefinition("ability.verification.receiver", AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 11, [effect])],
             UseLegacyAttack: false, ArmorAmount: 5);
     }
 }

@@ -26,11 +26,11 @@ internal static class CardStateChecks
                     new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true),
                     new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true),
                     new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true)),
-                 Ability("disable", AbilityActivation.Active, 2,
+                 Ability("disable", AbilityActivation.Active, 11,
                     new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, false),
                     new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, false),
                     new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, false))], UseLegacyAttack: false)]),
-        new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 100, 0), []), 42, new BattleTick(4));
+        new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 100, 0), []), 42, new BattleTick(11));
 
     internal static bool BooleanLifecycle()
     {
@@ -39,7 +39,7 @@ internal static class CardStateChecks
         var simulator = new CombatSimulator();
         var result = simulator.Simulate(setup);
         var initial = result.States[0].Cards.Single();
-        var enabled = result.States.Last(frame => frame.Tick.Value == 1).Cards.Single();
+        var enabled = result.States.Last(frame => frame.Tick.Value == 10).Cards.Single();
         var final = result.States[^1].Cards.Single();
         if (initial.IsFlying || initial.IsBerserk || !enabled.IsFlying || !enabled.IsBerserk
             || final.IsFlying || final.IsBerserk || enabled.Values.ContainsKey(GameAttributeKeys.Flying)
@@ -153,7 +153,7 @@ internal static class CardStateChecks
                 new ApplyStatusEffectDefinition(BattleStatus.Poison, 7), new ApplyStatusEffectDefinition(BattleStatus.Burn, 7)]);
         var result = new CombatSimulator().Simulate(Battle([
             new CardBattleSetup(card, 0, 7, 1, [Ability("rage", AbilityActivation.PassiveOnBattleStart, 0,
-                new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true)), attack], UseLegacyAttack: false)], 1, enemyArmor: 5));
+                new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true)), attack], UseLegacyAttack: false)], 10, enemyArmor: 5));
         var damage = result.Events.OfType<DamageDealtEvent>().Where(item => item.SourceCardId == card).ToArray();
         var final = result.States[^1];
         return damage.Select(item => item.RawDamage).SequenceEqual(new[] { 8, 8, 12, 8, 8, 8, 7 })
@@ -173,7 +173,7 @@ internal static class CardStateChecks
         var attack = new AbilityDefinition(new StringName("verification.berserk.active"), AbilityActivation.Active,
             AbilityTarget.EnemyHero, 0, 10, hit);
         var result = new CombatSimulator().Simulate(Battle([
-            new CardBattleSetup(card, 0, 7, 10, [opening, attack], UseLegacyAttack: false, Multicast: 1)], 11));
+            new CardBattleSetup(card, 0, 7, 10, [opening, attack], UseLegacyAttack: false, Multicast: 1)], 12));
         var direct = result.Events.OfType<DamageDealtEvent>().Where(item => item.SourceCardId == card).ToArray();
         // 当前多重也重复战斗开始被动；两次7点中毒在周期结算时应造成14，而不是再次增加20%。
         if (!direct.Select(item => item.RawDamage).SequenceEqual(new[] { 7, 7, 8, 8 })
@@ -192,5 +192,5 @@ internal static class CardStateChecks
 
     private static BattleSetup Battle(CardBattleSetup[] cards, int timeout, int enemyArmor = 0) => new(
         new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 100, 7), cards),
-        new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 1000, enemyArmor), []), 42, new BattleTick(timeout));
+        new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 1000, enemyArmor), []), 42, new BattleTick(timeout), new BattleTick(timeout + 1));
 }

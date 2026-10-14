@@ -55,7 +55,7 @@ internal static class ArmorShatteringMaulChecks
         var gem = new ApplyPrimaryEffectPercentStatusEffectDefinition(BattleStatus.Poison, 20);
         maul = maul with { Abilities = [new AbilityDefinition(new StringName("verification.maul.gem"), AbilityActivation.Active,
             AbilityTarget.EnemyHero, 0, 60, maul.Abilities!.Single().Effects.Append(gem).ToArray())], Multicast = 1 };
-        var result = new CombatSimulator().Simulate(Battle([maul], [], 17, 0, 60));
+        var result = new CombatSimulator().Simulate(Battle([maul], [], 17, 0, 62));
         if (!result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceCardId == maul.EntityId)
                 .Select(hit => hit.RawDamage).SequenceEqual(new[] { 85, 0 })
             || !result.Events.OfType<StatusChangedEvent>().Where(item => item.Status == BattleStatus.Poison)

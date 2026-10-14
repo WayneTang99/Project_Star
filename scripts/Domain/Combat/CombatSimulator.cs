@@ -37,6 +37,7 @@ public sealed class CombatSimulator
             BattleStatusResolver.AdvanceHeroStates(runtime);
             BattleStatusResolver.ApplyEclipse(runtime, setup);
             BattleStatusResolver.AdvanceCooldowns(runtime);
+            EnqueueScheduledMulticasts(runtime);
             EnqueueReadyActives(runtime);
             BattleStatusResolver.SettleHeroStatuses(runtime);
             BattleStateRecorder.CaptureState(runtime);
@@ -96,6 +97,18 @@ public sealed class CombatSimulator
         }
     }
 
+    // 延迟多重按到期时间及首次排程顺序入队；每次发动独立触发回响。
+    private static void EnqueueScheduledMulticasts(BattleRuntime runtime)
+    {
+        var due = runtime.ScheduledMulticasts.Where(item => item.Due.Value <= runtime.Tick.Value)
+            .OrderBy(item => item.Due.Value).ToArray();
+        runtime.ScheduledMulticasts.RemoveAll(item => item.Due.Value <= runtime.Tick.Value);
+        foreach (var item in due)
+            if (!item.Ability.Source.Destroyed && !item.Ability.Source.IsOnBench
+                && item.Ability.Source is CardBattleState card && runtime.Cards.Contains(card))
+                Enqueue(runtime, card, item.Ability.Ability, false, true);
+    }
+
     // 将发动追加到 FIFO，并按原顺序记录排队事件。
     internal static void Enqueue(
         BattleRuntime runtime,
@@ -138,8 +151,9 @@ public sealed class CombatSimulator
             if (definition.ManaCost > 0 && paysMana)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
             if (!pending.IsEcho && !pending.IsMulticast)
-                pending.Ability.RemainingCooldownUnits = Math.Max(0, definition.CooldownTicks + pending.Source.CooldownBonusTicks) * 2
-                    * (pending.Source is CardBattleState cooldownCard ? cooldownCard.EffectiveCooldownMultiplier : 1m);
+                pending.Ability.RemainingCooldownUnits = BattleCooldownRules.DurationUnits(definition.CooldownTicks,
+                    pending.Source.CooldownBonusTicks,
+                    pending.Source is CardBattleState cooldownCard ? cooldownCard.EffectiveCooldownMultiplier : 1m);
             runtime.Events.Add(new AbilityActivatedEvent(
                 runtime.Tick,
                 pending.Source.EntityId,
@@ -148,8 +162,12 @@ public sealed class CombatSimulator
                 BattleEffectResolver.GetAbilitySourceKind(pending.Source)));
             BattleStateRecorder.CaptureState(runtime);
             if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
-                for (var repeat = 0; repeat < BattleEffectResolver.GetEffectiveMulticast(runtime, cardSource); repeat++)
-                    Enqueue(runtime, cardSource, pending.Ability, false, true);
+            {
+                var multicast = BattleEffectResolver.GetEffectiveMulticast(runtime, cardSource);
+                for (var repeat = 0; repeat < multicast; repeat++)
+                    runtime.ScheduledMulticasts.Add((runtime.Tick + new BattleTick(checked((repeat + 1) * 2)),
+                        new PendingAbility(cardSource, pending.Ability, false, true, runtime.Tick)));
+            }
             if (definition.Effects.Any(effect => effect is ApplyPrimaryEffectPercentStatusEffectDefinition))
                 pending = pending with { PrimaryValue = BattleEffectResolver.PrimaryValue(runtime, pending) };
             foreach (var effect in definition.Effects)

@@ -268,7 +268,8 @@ public sealed class CardDisplayAdapter
 
     // 冷却优先读取战斗层计算的冻结时长，定义预览使用当前属性与倍率。
     public static decimal CooldownSeconds(CardSnapshot card) => card.CurrentCooldownSeconds
-        ?? card.CurrentValues.GetValueOrDefault(GameAttributeKeys.CooldownTicks) / 10m * card.CooldownMultiplier;
+        ?? BattleCooldownRules.DurationUnits(card.CurrentValues.GetValueOrDefault(GameAttributeKeys.CooldownTicks),
+            multiplier: card.CooldownMultiplier) / 20m;
 
     // 当前属性另行展开；不列初始值和其他等级数值。
     public static string CurrentDetails(CardSnapshot card) => string.Join("\n", card.CurrentValues.Concat(
@@ -420,7 +421,7 @@ public sealed class CardDisplayAdapter
         GainArmorEqualToManaSpentEffectDefinition => "获得等同于本场累计魔法消耗的护甲",
         GrantMulticastToAlliedElementCardsEffectDefinition value => $"己方{ElementName(value.ElementKey)}属性卡牌多重 +{value.Amount}",
         ChargeRandomOtherAlliedElementCardEffectDefinition value => $"随机另一张己方{ElementName(value.ElementKey)}属性卡牌充能 {value.AmountTicks / 10m:0.##}秒",
-        ChargeRandomOtherAlliedCardsEffectDefinition value => $"随机{value.TargetCount}张己方其他卡牌充能 {value.AmountTicks / 10m:0.##}秒",
+        ChargeRandomOtherAlliedCardsEffectDefinition value => $"随机{value.TargetCount}张己方其他{(value.RequiredTag is { } tag ? TagDisplayNames.Get(tag) : "")}卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         ChargeSourceCardEffectDefinition value => $"此卡牌充能 {value.AmountTicks / 10m:0.##}秒",
         ReduceSourceCooldownWhileAdjacentTaggedCardEffectDefinition value =>
             $"与己方 {TagDisplayNames.Get(value.RequiredTag)} 卡牌直接相邻时，冷却缩短 {value.AmountTicks / 10m:0.##}秒（仅一次）",
@@ -446,6 +447,7 @@ public sealed class CardDisplayAdapter
         DestroyRandomEnemyCardEffectDefinition value => $"随机{(value.Permanent ? "永久" : "本场")}摧毁敌方 {string.Join("/", value.AllowedSizes.Select(size => TagDisplayNames.Get(GameTags.FromSize(size))))} {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))}卡牌",
         MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => $"每张已摧毁的 {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))} 卡牌使 {AttributeName(value.AttributeKey)} ×{value.Multiplier}",
         IncreaseSourceCooldownEffectDefinition value => $"{(value.FirstActivationOnly ? "首次发动" : "发动后")}增加冷却 {value.AmountTicks / 10m:0.##}秒",
+        ReduceSourceCooldownEffectDefinition value => $"此卡牌冷却缩短 {value.AmountTicks / 10m:0.##}秒，仅本场战斗生效",
         ModifyTaggedAlliedCardsAttributeEffectDefinition value => $"己方{(value.RandomSingleTarget ? "随机一张" : "")} {TagDisplayNames.Get(value.RequiredTag)} 卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         ModifyRandomAlliedAttackCardAttributeEffectDefinition value => $"己方随机一张攻击卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         ModifyAlliedAttackCardsAttributeEffectDefinition value => $"己方所有存活战场攻击卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（仅本场）",

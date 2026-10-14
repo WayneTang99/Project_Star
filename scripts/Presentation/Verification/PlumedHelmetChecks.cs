@@ -42,7 +42,7 @@ internal static class PlumedHelmetChecks
                     || damage.ArmorAbsorbed != Math.Min(expected, armor) || damage.HealthDamage != expected - damage.ArmorAbsorbed
                     || result.Events.OfType<ManaChangedEvent>().Any()) return false;
             }
-            var boosted = Simulate([helmet with { AttackDamage = expected + 5, Multicast = 1 }], [], 50);
+            var boosted = Simulate([helmet with { AttackDamage = expected + 5, Multicast = 1 }], [], 52);
             if (!boosted.Events.OfType<DamageDealtEvent>().Where(e => e.SourceKind == DamageSourceKind.Card)
                 .Select(e => e.RawDamage).SequenceEqual(new[] { expected + 5, expected + 5 })) return false;
         }
@@ -54,7 +54,7 @@ internal static class PlumedHelmetChecks
         var helmet = Helmet(2);
         var left = Human(0, 20) with { OccupiedSlots = 3, Multicast = 1 };
         var right = Human(4, 20) with { OccupiedSlots = 2 };
-        var setup = Battle([left, helmet, right], [Human(0, 20)], 20);
+        var setup = Battle([left, helmet, right], [Human(0, 20)], 22);
         var simulator = new CombatSimulator();
         var result = simulator.Simulate(setup);
         var charges = result.Events.OfType<CardChargedEvent>().ToArray();
@@ -63,7 +63,7 @@ internal static class PlumedHelmetChecks
             || result.Events.OfType<AbilityActivatedEvent>().Count(e => e.SourceCardId == helmet.EntityId && !e.IsEcho) != 1
             || result.States[^1].Cards.Single(e => e.Id == helmet.EntityId).CooldownUnits.Single() != 100
             || result.PermanentChanges.Count != 0 || !result.Events.SequenceEqual(simulator.Simulate(setup).Events)) return false;
-        var mirrored = new BattleSetup(setup.Opponent, setup.Player, 42, new BattleTick(20), new BattleTick(21));
+        var mirrored = new BattleSetup(setup.Opponent, setup.Player, 42, new BattleTick(22), new BattleTick(23));
         if (simulator.Simulate(mirrored).Events.OfType<CardChargedEvent>().Count() != 3) return false;
         foreach (var excluded in new[]
         {

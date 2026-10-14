@@ -38,7 +38,8 @@ internal sealed class BattleAbilityState
 {
     public BattleAbilityState(AbilityDefinition definition, decimal cooldownMultiplier = 1m)
     {
-        Definition = definition; RemainingCooldownUnits = definition.CooldownTicks * 2 * cooldownMultiplier;
+        Definition = definition; RemainingCooldownUnits = definition.Activation == AbilityActivation.Active
+            ? BattleCooldownRules.DurationUnits(definition.CooldownTicks, multiplier: cooldownMultiplier) : 0m;
     }
     public AbilityDefinition Definition { get; set; }
     public decimal RemainingCooldownUnits { get; set; }
@@ -325,6 +326,7 @@ internal sealed class BattleRuntime
         }
     }
     public AbilityQueue Queue { get; } = new();
+    public List<(BattleTick Due, PendingAbility Ability)> ScheduledMulticasts { get; } = [];
     public List<BattleEvent> Events { get; } = [];
     public BattleTick EclipseTime { get; set; }
     public bool EclipseEntered { get; set; }

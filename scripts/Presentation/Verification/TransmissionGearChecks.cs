@@ -45,11 +45,11 @@ internal static class TransmissionGearChecks
                 var gear = Gear(definition, level, 3) with { Abilities = frozenAbilities };
                 var left = ActiveCard(0, 20) with { OccupiedSlots = 3, Multicast = 1 };
                 var right = ActiveCard(3 + (int)size, 100) with { OccupiedSlots = 2 };
-                var setup = Battle([left, gear, right], [], 20);
+                var setup = Battle([left, gear, right], [], 22);
                 var simulator = new CombatSimulator();
                 var result = simulator.Simulate(setup);
                 var frozenRight = result.States[^1].Cards.Single(card => card.Id == right.EntityId);
-                var enemyResult = simulator.Simulate(Battle([], [left, gear, right], 20));
+                var enemyResult = simulator.Simulate(Battle([], [left, gear, right], 22));
                 var enemyRight = enemyResult.States[^1].Cards.Single(card => card.Id == right.EntityId);
                 if (EchoCount(enemyResult, gear) != 2 || enemyRight.Haste != frozenRight.Haste
                     || !enemyRight.CooldownUnits.SequenceEqual(frozenRight.CooldownUnits)) return false;
@@ -59,13 +59,13 @@ internal static class TransmissionGearChecks
                     || instance.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks) != 0) return false;
                 if (size == CardSize.Small)
                 {
-                    if (frozenRight.Haste != level * 20 || frozenRight.CooldownUnits.Single() != 160
+                    if (frozenRight.Haste != level * 20 - 2 || frozenRight.CooldownUnits.Single() != 152
                         || result.Events.OfType<StatusChangedEvent>().Count(e => e.Amount == level * 10) != 2) return false;
                 }
                 else
                 {
                     var charges = result.Events.OfType<CardChargedEvent>().ToArray();
-                    if (frozenRight.CooldownUnits.Single() != 160 - (level - 2) * 40
+                    if (frozenRight.CooldownUnits.Single() != 156 - (level - 2) * 40
                         || charges.Length != 2 || charges.Any(e => e.SourceCardId != gear.EntityId
                             || e.TargetCardId != right.EntityId || e.AmountTicks != (level - 2) * 10)) return false;
                 }

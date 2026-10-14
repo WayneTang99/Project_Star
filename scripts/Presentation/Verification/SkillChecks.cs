@@ -91,7 +91,7 @@ internal static class SkillChecks
                     [playerCard], [new SkillBattleSetup(skill.Id, skill.Abilities,
                         skill.Attributes.BaseCombat.SnapshotFinalValues())]),
                 new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 200, 5), [opponentCard]),
-                1, new BattleTick(5), new BattleTick(300));
+                1, new BattleTick(20), new BattleTick(300));
             var events = new CombatSimulator().Simulate(setup).Events;
             var charge = events.OfType<DamageDealtEvent>()
                 .Where(value => value.SourceCardId == skill.Id).ToArray();
@@ -100,7 +100,7 @@ internal static class SkillChecks
                 || charge[0].TargetSide != SideId.Opponent
                 || charge[0].RawDamage != heroLevels[level - 1] * multipliers[level - 1]
                 || charge[0].ArmorAbsorbed != 5
-                || charge[0].Tick != new BattleTick(2)
+                || charge[0].Tick != new BattleTick(10)
                 || skill.Abilities[0].Effects[0] is not SourceHeroLevelScaledDamageEffectDefinition levelEffect
                 || levelEffect.Multiplier != multipliers[level - 1]
                 || events.OfType<AbilityActivatedEvent>().Count(value =>
@@ -108,7 +108,7 @@ internal static class SkillChecks
                 || events.OfType<AbilityActivatedEvent>().Count(value =>
                     value.SourceCardId == playerCard.EntityId) < 2
                 || !events.OfType<AbilityActivatedEvent>().Any(value =>
-                    value.SourceCardId == opponentCard.EntityId && value.Tick == new BattleTick(1)))
+                    value.SourceCardId == opponentCard.EntityId && value.Tick == new BattleTick(10)))
                 return false;
         }
 
@@ -144,7 +144,7 @@ internal static class SkillChecks
                         skill.Attributes.BaseCombat.SnapshotFinalValues())]),
                 new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 200, 11, Level: 9),
                     [new CardBattleSetup(EntityId.New(), 0, 3, 1)]),
-                1, new BattleTick(4), new BattleTick(300));
+                1, new BattleTick(40), new BattleTick(300));
             var result = new CombatSimulator().Simulate(setup);
             var initialArmor = 7 + heroLevels[level - 1] * multipliers[level - 1];
             var activations = result.Events.OfType<AbilityActivatedEvent>()

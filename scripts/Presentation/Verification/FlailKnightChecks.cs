@@ -42,7 +42,7 @@ internal static class FlailKnightChecks
             var hits = Hits(result, card);
             if (card.AttackDamage != damage || card.CooldownTicks != 70 || card.Multicast != 1
                 || card.Abilities!.Single().ManaCost != 0
-                || !hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { 70, 70, 140, 140 })
+                || !hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { 70, 72, 140, 142 })
                 || hits.Any(hit => hit.RawDamage != damage + bonus || hit.TargetSide == side)
                 || hits[0].ArmorAbsorbed != 1 || hits[0].HealthDamage != damage + bonus - 1
                 || result.Events.OfType<AbilityActivatedEvent>().Count(e => e.SourceCardId == card.EntityId && !e.IsEcho) != 4
@@ -107,7 +107,7 @@ internal static class FlailKnightChecks
     private static BattleSetup Battle(CardBattleSetup card, SideId side = SideId.Player) => new(
         new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 1, ManaRegen: 0), side == SideId.Player ? [card] : []),
         new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 1, ManaRegen: 0), side == SideId.Opponent ? [card] : []),
-        42, new BattleTick(140), new BattleTick(141));
+        42, new BattleTick(140 + card.Multicast * 2), new BattleTick(141 + card.Multicast * 2));
     private static DamageDealtEvent[] Hits(BattleResult result, CardBattleSetup card) =>
         result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceCardId == card.EntityId).ToArray();
     private static CardBattleSnapshot State(BattleResult result, CardBattleSetup card, long tick) =>

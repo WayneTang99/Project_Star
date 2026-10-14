@@ -193,8 +193,8 @@ internal static class BattleStatusResolver
             foreach (var ability in source.Abilities)
                 if (ability.Definition.Activation == AbilityActivation.Active)
                     ability.RemainingCooldownUnits = Math.Max(0, ability.RemainingCooldownUnits
-                        + Math.Max(0, ability.Definition.CooldownTicks + source.CooldownBonusTicks) * 2 * source.EffectiveCooldownMultiplier
-                        - Math.Max(0, ability.Definition.CooldownTicks + oldBonus) * 2 * oldMultiplier);
+                        + BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, source.CooldownBonusTicks, source.EffectiveCooldownMultiplier)
+                        - BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, oldBonus, oldMultiplier));
         }
     }
 

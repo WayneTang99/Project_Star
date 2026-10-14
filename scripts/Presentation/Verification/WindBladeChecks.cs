@@ -36,12 +36,12 @@ internal static class WindBladeChecks
             var enemy = blade with { EntityId = EntityId.New() };
             var ally = Card(EntityId.New(), [new AbilityDefinition(new StringName("verification.wind.ally"),
                 AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 35, [new DamageEffectDefinition(1)])]);
-            var setup = Battle([blade, ally, bench], [enemy], 280);
+            var setup = Battle([blade, ally, bench], [enemy], 294);
             var result = new CombatSimulator().Simulate(setup);
             var activations = result.Events.OfType<AbilityActivatedEvent>().Where(item => item.SourceCardId == instance.Id).ToArray();
             for (var batch = 1; batch <= 4; batch++)
-                if (activations.Count(item => item.Tick.Value == batch * 70 && !item.IsEcho) != 1 << (batch - 1)
-                    || activations.Count(item => item.Tick.Value == batch * 70 && item.IsEcho) != 1 << (batch - 1)) return false;
+                if (activations.Count(item => item.Tick.Value >= batch * 70 && item.Tick.Value <= batch * 70 + 2 * ((1 << (batch - 1)) - 1) && !item.IsEcho) != 1 << (batch - 1)
+                    || activations.Count(item => item.Tick.Value >= batch * 70 && item.Tick.Value <= batch * 70 + 2 * ((1 << (batch - 1)) - 1) && item.IsEcho) != 1 << (batch - 1)) return false;
             var changes = result.Events.OfType<CardAttributeChangedEvent>().Where(item => item.CardId == instance.Id).ToArray();
             if (instance.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.AttackDamage) != damage
                 || instance.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks) != 70
@@ -66,7 +66,7 @@ internal static class WindBladeChecks
         player.Player.Inventory.Add(blade);
         if (VerificationFixtures.CreateBoardService().PlaceCard(player, blade.Id, BoardZone.Battlefield, 0).IsFailure) return false;
         var before = MatchSnapshot.From(player);
-        var setup = new BattleSetupFactory().Create(player, opponent, 42, new BattleTick(140));
+        var setup = new BattleSetupFactory().Create(player, opponent, 42, new BattleTick(142));
         var result = new CombatSimulator().Simulate(setup);
         var playback = new BattlePlaybackPresenter(new BattleResolution(before, MatchSnapshot.From(opponent), result, before));
         playback.Advance(7);

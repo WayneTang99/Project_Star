@@ -170,8 +170,8 @@ internal static class BlackRhinocerosBeetleChecks
             UseLegacyAttack: false);
         var charged = new CombatSimulator().Simulate(Battle([card with { ElementKeys = [GameElements.Earth] }, charger], [], 30));
         if (charged.Events.OfType<AbilityActivatedEvent>().Single(item => item.SourceCardId == source).Tick.Value != 29) return false;
-        var zero = new CombatSimulator().Simulate(Battle([card with { CooldownMultiplier = 0m }], [], 3));
-        if (!zero.Events.OfType<AbilityActivatedEvent>().Select(item => item.Tick.Value).SequenceEqual(new long[] { 1, 2, 3 })) return false;
+        var zero = new CombatSimulator().Simulate(Battle([card with { CooldownMultiplier = 0m }], [], 30));
+        if (!zero.Events.OfType<AbilityActivatedEvent>().Select(item => item.Tick.Value).SequenceEqual(new long[] { 10, 20, 30 })) return false;
         var unchanged = new CombatSimulator().Simulate(Battle([card with { CooldownMultiplier = 1m }], [], 80));
         if (!unchanged.Events.OfType<AbilityActivatedEvent>().Select(item => item.Tick.Value).SequenceEqual(new long[] { 40, 80 })) return false;
         foreach (var invalid in new[] { -0.01m, 1.01m })

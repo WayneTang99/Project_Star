@@ -63,6 +63,7 @@ public abstract class SkillDefinition
                     or SetRandomAdjacentAlliedTaggedCardStateEffectDefinition
                     or DestroyCardEffectDefinition
                     or IncreaseSourceCooldownEffectDefinition
+                    or ReduceSourceCooldownEffectDefinition
                     or IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition
                     or ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition
                     or ChargeRandomOtherAlliedElementCardEffectDefinition

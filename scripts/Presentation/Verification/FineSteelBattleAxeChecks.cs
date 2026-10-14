@@ -48,7 +48,7 @@ internal static class FineSteelBattleAxeChecks
                     || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             }
             var boosted = axe with { AttackDamage = damage + 17, Multicast = 1 };
-            if (!Hits(Run([boosted], [], 100), axe).Select(hit => hit.RawDamage).SequenceEqual(new[] { damage + 17, damage + 17 })) return false;
+            if (!Hits(Run([boosted], [], 102), axe).Select(hit => hit.RawDamage).SequenceEqual(new[] { damage + 17, damage + 17 })) return false;
             var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
             if (!CardDisplayAdapter.FaceEffects(snapshot).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == damage.ToString())
                 || !snapshot.Abilities.Skip(1).Select(ability => ability.TriggerCardSide).SequenceEqual(new AdjacentCardSide?[] { AdjacentCardSide.Left, AdjacentCardSide.Right })
@@ -66,19 +66,19 @@ internal static class FineSteelBattleAxeChecks
             var axe = Axe(level);
             var left = Human(0, 3) with { Multicast = 1 };
             var right = Human(5, 2);
-            var setup = Battle([axe, left, right], [Human(0, 1)], 100);
+            var setup = Battle([axe, left, right], [Human(0, 1)], 102);
             var result = new CombatSimulator().Simulate(setup);
             var growth = result.Events.OfType<CardAttributeChangedEvent>().Where(e => e.CardId == axe.EntityId).ToArray();
             if (growth.Length != 15 || growth.Any(e => e.AttributeKey != GameAttributeKeys.AttackDamage || e.Amount != level * 10)
-                || Value(result, axe, 20) != axe.AttackDamage + 3 * level * 10
+                || Value(result, axe, 22) != axe.AttackDamage + 3 * level * 10
                 || Hits(result, axe).Single().RawDamage != axe.AttackDamage + 12 * level * 10
                 || result.PermanentAttributeBonuses.Any() || result.PermanentChanges.Any()) return false;
-            var mirrored = new BattleSetup(setup.Opponent, setup.Player, 42, new BattleTick(100), new BattleTick(101));
-            if (Value(new CombatSimulator().Simulate(mirrored), axe, 20) != axe.AttackDamage + 3 * level * 10) return false;
-            if (Value(Run([axe, left], [], 20), axe, 20) != axe.AttackDamage + 2 * level * 10
+            var mirrored = new BattleSetup(setup.Opponent, setup.Player, 42, new BattleTick(102), new BattleTick(103));
+            if (Value(new CombatSimulator().Simulate(mirrored), axe, 22) != axe.AttackDamage + 3 * level * 10) return false;
+            if (Value(Run([axe, left], [], 22), axe, 22) != axe.AttackDamage + 2 * level * 10
                 || Value(Run([axe, right], [], 20), axe, 20) != axe.AttackDamage + level * 10) return false;
             // 回放冻结当前攻击，后续成长不修改已捕获的数值。
-            var frozen = result.States.Last(frame => frame.Tick.Value == 20).Cards.Single(card => card.Id == axe.EntityId);
+            var frozen = result.States.Last(frame => frame.Tick.Value == 22).Cards.Single(card => card.Id == axe.EntityId);
             var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(new FineSteelBattleAxeCardDefinition(), level))
                 with { CurrentValues = frozen.Values, EffectAmounts = frozen.EffectAmounts };
             if (!CardDisplayAdapter.FaceEffects(snapshot).Any(effect => effect.Kind == CardFaceEffectKind.Damage

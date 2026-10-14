@@ -26,7 +26,7 @@ internal static class LeadershipAwarenessChecks
             CardBattleSetup Card(int position, int cooldown, bool human = true) => new(
                 EntityId.New(), position, 0, cooldown, Tags: new TagSet(human ? [GameTags.Human] : []));
             var nonhuman = Card(0, 1, false);
-            var first = Card(1, 5) with { Multicast = 2 };
+            var first = Card(1, 10) with { Multicast = 2 };
             var second = Card(2, 40);
             var third = Card(3, 50);
             var bench = Card(4, 1) with { IsOnBench = true };
@@ -40,8 +40,8 @@ internal static class LeadershipAwarenessChecks
             var result = new CombatSimulator().Simulate(setup);
             var charges = result.Events.OfType<CardChargedEvent>().Where(item => item.SourceCardId == skill.Id).ToArray();
             var echoes = result.Events.OfType<AbilityActivatedEvent>().Where(item => item.SourceCardId == skill.Id).ToArray();
-            if (echoes.Length != 1 || !echoes[0].IsEcho || echoes[0].Tick != new BattleTick(5)
-                || charges.Length != 2 || charges.Any(item => item.Tick != new BattleTick(5) || item.AmountTicks != amount)
+            if (echoes.Length != 1 || !echoes[0].IsEcho || echoes[0].Tick != new BattleTick(10)
+                || charges.Length != 2 || charges.Any(item => item.Tick != new BattleTick(10) || item.AmountTicks != amount)
                 || !charges.Select(item => item.TargetCardId).ToHashSet().SetEquals([second.EntityId, third.EntityId])
                 || result.Events.OfType<AbilityActivatedEvent>().First(item => item.SourceCardId == second.EntityId).Tick != new BattleTick(40 - amount)
                 || result.Events.OfType<AbilityActivatedEvent>().First(item => item.SourceCardId == third.EntityId).Tick != new BattleTick(50 - amount)

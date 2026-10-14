@@ -80,9 +80,9 @@ internal static class MoonshadowCatChecks
         if (benchResult.Events.OfType<AbilityActivatedEvent>().Any(e => e.SourceCardId == cat.EntityId)) return false;
         // 多重对唯一有效敌方目标累加，禁锢自然衰减；空目标仍完成发动。
         var target = Neighbor(0);
-        var stacked = new CombatSimulator().Simulate(Setup([cat with { Multicast = 1 }], [target], 80));
+        var stacked = new CombatSimulator().Simulate(Setup([cat with { Multicast = 1 }], [target], 82));
         if (stacked.Events.OfType<StatusChangedEvent>().Count(e => e.Status == BattleStatus.ImmobilizeDuration && e.Amount == 10) != 2
-            || stacked.States.Last(f => f.Tick.Value == 60).Cards.Single(c => c.Id == target.EntityId).Immobilize != 20
+            || stacked.States.Last(f => f.Tick.Value == 60).Cards.Single(c => c.Id == target.EntityId).Immobilize != 10
             || stacked.States.Last().Cards.Single(c => c.Id == target.EntityId).Immobilize != 0) return false;
         var empty = new CombatSimulator().Simulate(Setup([cat], [], 60));
         if (empty.Events.OfType<StatusChangedEvent>().Any() || empty.Events.OfType<AbilityActivatedEvent>().Count() != 1) return false;

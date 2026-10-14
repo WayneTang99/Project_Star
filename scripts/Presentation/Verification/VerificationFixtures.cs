@@ -64,7 +64,7 @@ internal static class VerificationFixtures
             new BattleSideSetup(opponentHero, Array.Empty<CardBattleSetup>()),
             1,
             new BattleTick(timeout),
-            new BattleTick(timeout)));
+            new BattleTick(timeout + 1)));
     }
 
     internal static (MatchSession Player, MatchSession Opponent) CreateBattlePair(

@@ -66,9 +66,9 @@ internal static class JiyunControlChecks
             if (result.States.Last(frame => frame.Tick.Value == 30 && frame.Player.Health > 0).Player.Health != 200 + healing[level - 1]
                 || Snapshot(result, gourd).Slow != 10 || Snapshot(result, opening).Slow != 0 || EchoCount(result, gourd) != 0
                 || result.PermanentChanges.Count != 0) return false;
-            result = Simulate([gourd with { Multicast = 1 }], [opening], 30);
-            if (Snapshot(result, gourd).Slow != 20
-                || result.States.Last(frame => frame.Tick.Value == 30 && frame.Player.Health > 0).Player.Health
+            result = Simulate([gourd with { Multicast = 1 }], [opening], 32);
+            if (Snapshot(result, gourd).Slow != 18
+                || result.States.Last(frame => frame.Tick.Value == 32 && frame.Player.Health > 0).Player.Health
                     != Math.Min(1000, 200 + healing[level - 1] * 2)) return false;
             var flying = Flying(gourd);
             if (Snapshot(Simulate([flying], [], 30), flying).Slow != 5) return false;
@@ -121,7 +121,7 @@ internal static class JiyunControlChecks
         if (EchoCount(Simulate([zero, receiver], [Flying(Idle(0))], 20), receiver) != 0) return false;
         var multiTarget = enemySlow with { Multicast = 1, Abilities = [Active(20,
             new ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus.SlowDuration, 10, 2))] };
-        if (EchoCount(Simulate([multiTarget, receiver], [Idle(0), Idle(1)], 20), receiver) != 4) return false;
+        if (EchoCount(Simulate([multiTarget, receiver], [Idle(0), Idle(1)], 22), receiver) != 4) return false;
         foreach (var inactive in new[] { receiver with { IsOnBench = true }, DestroyAtStart(receiver) })
             if (EchoCount(Simulate([enemySlow, inactive], [Idle(0)], 20), receiver) != 0) return false;
         var enemyReceiver = Card(new BambooHatCardDefinition(), 1, 1);
@@ -137,10 +137,10 @@ internal static class JiyunControlChecks
             var wood = ActiveCard(0, 20, new HealEffectDefinition(1)) with { ElementKeys = [GameElements.Wood], Multicast = 1 };
             var hat = Card(new BambooHatCardDefinition(), 1, 4);
             var enemy = Idle(0);
-            var result = Simulate([wood, grove, hat], [enemy, Idle(1) with { IsOnBench = true }, DestroyAtStart(Idle(2))], 20);
-            if (EchoCount(result, grove) != 2 || Snapshot(result, enemy).Slow != (level - 1) * 20
+            var result = Simulate([wood, grove, hat], [enemy, Idle(1) with { IsOnBench = true }, DestroyAtStart(Idle(2))], 22);
+            if (EchoCount(result, grove) != 2 || Snapshot(result, enemy).Slow != (level - 1) * 20 - 2
                 || EchoCount(result, hat) != 0 || result.Events.OfType<CardChargedEvent>().Any()) return false;
-            if (Snapshot(Simulate([wood, grove], [Flying(enemy)], 20), enemy).Slow != (level - 1) * 10) return false;
+            if (Snapshot(Simulate([wood, grove], [Flying(enemy)], 22), enemy).Slow != (level - 1) * 10 - 2) return false;
             foreach (var excluded in new[] { wood with { ElementKeys = [GameElements.General] }, wood with { IsOnBench = true },
                 wood with { Abilities = [Active(20, new HealEffectDefinition(1), 1)] } })
                 if (EchoCount(Simulate([excluded, grove], [enemy], 20), grove) != 0) return false;
@@ -170,8 +170,8 @@ internal static class JiyunControlChecks
             var attacker = ActiveCard(0, 20, effect) with { Multicast = 1 };
             foreach (var enemy in new[] { false, true })
             {
-                var result = enemy ? Simulate([temple], [attacker], 20) : Simulate([attacker, temple], [], 20);
-                if (EchoCount(result, temple) != 2 || Snapshot(result, attacker).Immobilize != 20
+                var result = enemy ? Simulate([temple], [attacker], 22) : Simulate([attacker, temple], [], 22);
+                if (EchoCount(result, temple) != 2 || Snapshot(result, attacker).Immobilize != 18
                     || Snapshot(result, temple).Immobilize != 0 || result.PermanentChanges.Count != 0) return false;
             }
         }

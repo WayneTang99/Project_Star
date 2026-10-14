@@ -60,9 +60,9 @@ internal static class MountedArcherChecks
     {
         var archer = Archer(2) with { Multicast = 1 };
         var mount = Fixture(3, GameTags.Mount);
-        var result = Run([archer, mount], [], 50);
-        if (Haste(result, mount) != 20 || result.Events.OfType<DamageDealtEvent>().Count() != 2) return false;
-        var result2 = Run([archer, mount], [], 50);
+        var result = Run([archer, mount], [], 52);
+        if (Haste(result, mount) != 18 || result.Events.OfType<DamageDealtEvent>().Count() != 2) return false;
+        var result2 = Run([archer, mount], [], 52);
         if (!result.Events.SequenceEqual(result2.Events)) return false;
         var activeMount = mount with { CooldownTicks = 60, Abilities = [new AbilityDefinition(
             "verification.mount.active", AbilityActivation.Active, AbilityTarget.EnemyHero, 0, 60,

@@ -37,7 +37,7 @@ internal static class TrainingDummyChecks
                 || result.Events.OfType<AbilityActivatedEvent>().Count(e => e.SourceCardId == dummy.EntityId) != 2
                 || result.PermanentAttributeBonuses.Count != 0 || !result.Events.SequenceEqual(simulator.Simulate(setup).Events)) return false;
             var multi = dummy with { Multicast = 1 };
-            if (Attack(new CombatSimulator().Simulate(Setup([multi, first, zero], [], 60, reverse)), first) != 50 + level * 20) return false;
+            if (Attack(new CombatSimulator().Simulate(Setup([multi, first, zero], [], 62, reverse)), first) != 50 + level * 20) return false;
             if (Attack(new CombatSimulator().Simulate(Setup([first], [], 1, reverse)), first) != 50) return false;
         }
         return true;

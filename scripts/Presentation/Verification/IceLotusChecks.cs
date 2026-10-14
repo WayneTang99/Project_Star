@@ -52,8 +52,8 @@ internal static class IceLotusChecks
             var result = Run([lotus], [enemy], 10, reverse);
             if (EchoCount(result, lotus) != 1 || Slow(result, enemy) != 20) return false;
             var multi = enemy with { Multicast = 1 };
-            var repeated = Run([lotus], [multi], 10, reverse);
-            if (EchoCount(repeated, lotus) != 2 || Slow(repeated, lotus) != 20 || Slow(repeated, multi) != 40) return false;
+            var repeated = Run([lotus], [multi], 12, reverse);
+            if (EchoCount(repeated, lotus) != 2 || Slow(repeated, lotus) != 18 || Slow(repeated, multi) != 38) return false;
         }
         var friendly = Caster(new ApplyStatusToRandomAlliedCardEffectDefinition(BattleStatus.SlowDuration, 10), 1);
         if (EchoCount(Run([lotus, friendly], [Idle(0)], 10), lotus) != 1) return false;

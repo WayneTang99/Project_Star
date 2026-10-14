@@ -57,7 +57,7 @@ internal static class TrainingCampChecks
                 new StringName("verification.camp.destroy_after_training"), AbilityActivation.Active,
                 AbilityTarget.SelfCard, 0, 40, [new DestroyCardEffectDefinition(false)])).ToArray() };
             if (Attack(new CombatSimulator().Simulate(Battle([loss, first], [], 75, reverse)), first) != 50 + amount
-                || Attack(new CombatSimulator().Simulate(Battle([camp with { Multicast = 1 }, first], [], 60, reverse)), first) != 50 + amount * 4
+                || Attack(new CombatSimulator().Simulate(Battle([camp with { Multicast = 1 }, first], [], 62, reverse)), first) != 50 + amount * 4
                 || Attack(new CombatSimulator().Simulate(Battle([first], [], 1, reverse)), first) != 50) return false;
             if (new CombatSimulator().Simulate(Battle([camp], [], 60, reverse)).Events.OfType<CardAttributeChangedEvent>().Any()) return false;
             var display = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));

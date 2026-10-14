@@ -72,8 +72,8 @@ internal static class DisguiseMaskChecks
             || result.Events.OfType<AbilityActivatedEvent>().Single(item => item.SourceCardId == receiver.EntityId).Tick.Value != 68
             || receiver.CooldownMultiplier != 0.8m || result.PermanentChanges.Count != 0) return false;
         var capped = new CombatSimulator().Simulate(Battle(Enumerable.Range(1, 7).Select(start => Mask(4, start)).Prepend(receiver).ToArray(),
-            [], new ValosHeroDefinition(), 3));
-        if (capped.States[0].Cards.Single(card => card.Id == receiver.EntityId).CooldownDurationUnits.Single() != 0
+            [], new ValosHeroDefinition(), 30));
+        if (capped.States[0].Cards.Single(card => card.Id == receiver.EntityId).CooldownDurationUnits.Single() != 20
             || capped.Events.OfType<AbilityActivatedEvent>().Count(item => item.SourceCardId == receiver.EntityId) != 3) return false;
         var factory = new EntityFactory(); var board = new BoardService(new BoardPlacementSolver());
         var session = new CreateMatchService(factory).Create(42, 0, new ValosHeroDefinition());

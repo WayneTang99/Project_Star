@@ -58,8 +58,8 @@ internal static class CarrierPigeonChecks
         var left = Fixture(0, 10) with { Multicast = 1 };
         var right = Fixture(9);
         var setup = new[] { pigeon, left, right };
-        var result = Run(setup, [], 10);
-        if (Haste(result, right) != 20 || !result.Events.SequenceEqual(Run(setup, [], 10).Events)) return false;
+        var result = Run(setup, [], 12);
+        if (Haste(result, right) != 18 || !result.Events.SequenceEqual(Run(setup, [], 12).Events)) return false;
         if (Haste(Run([pigeon, left with { CooldownTicks = 0, Abilities = [new AbilityDefinition(
             "verification.pigeon.opening", AbilityActivation.PassiveOnBattleStart, AbilityTarget.EnemyHero,
             0, 0, [new DamageEffectDefinition(1)])] }, right], [], 10), right) != 0) return false;
@@ -74,7 +74,7 @@ internal static class CarrierPigeonChecks
         var deadRight = Fixture(9, 5, consume: true);
         var nextRight = Fixture(7);
         var changed = Run([deadRight, pigeon, nextRight, nextLeft, deadLeft], [], 10);
-        if (Haste(changed, nextRight) != 15) return false;
+        if (Haste(changed, nextRight) != 20) return false;
         var destroyedSource = pigeon with { Abilities = pigeon.Abilities!.Concat(new[] { new AbilityDefinition(
             "verification.pigeon.destroy", AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard,
             0, 0, [new DestroyCardEffectDefinition(false)]) }).ToArray() };
