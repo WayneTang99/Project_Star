@@ -205,7 +205,7 @@ public sealed record MatchSnapshot(
                 _ => effect,
             }).ToArray()), ability.AllowsBench, ability.TriggerStateKey,
             ability.TriggerCardTag, ability.TriggerCardElement, ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus,
-            ability.TriggerHeroHealthPercent)).ToArray());
+            ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags)).ToArray());
 
     private static void AddPlacements(
         BoardZoneState zoneState,

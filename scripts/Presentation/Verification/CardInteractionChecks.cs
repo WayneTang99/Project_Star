@@ -144,7 +144,7 @@ internal static class CardInteractionChecks
         var projected = CardQuestViewModel.From(card, null);
         if (projected[0].Progress != 20 || projected[1].Progress != 60 || projected[2].Progress != 75
             || !projected[0].Reward.Contains("+80") || !projected[1].Reward.Contains("光属性")
-            || !projected[2].Reward.Contains("10%灼伤") || !projected[2].Reward.Contains("神明")) return false;
+            || !projected[2].Reward.Contains("10%灼伤") || !projected[2].Reward.Contains("飞行") || projected[2].Reward.Contains("神明")) return false;
         var replay = new CardBattleSnapshot(card.Id, SideId.Player, false, 0, 0, 0, [], card.CurrentValues)
             { Quests = Array.AsReadOnly(card.QuestDefinitions.Select(quest => new CardQuestBattleSnapshot(quest.Key, 0, quest.RequiredCount, false)).ToArray()) };
         if (CardQuestViewModel.From(card, replay).Any(quest => quest.Progress != 0 || quest.Unlocked)) return false;
@@ -167,11 +167,11 @@ internal static class CardInteractionChecks
             if (paragraphs.GetChildren().OfType<RichTextLabel>().Any(label => label.GetParsedText().Contains("任务"))
                 || view.GetNode<RichTextLabel>("InstanceDetails").GetParsedText().Contains("任务")) return false;
             var row = paragraphs.GetNode<PanelContainer>("Quests/quest_ascendant_divinity");
-            if (row.GetNode<Label>("Column/Meter/Count").Text != "75 / 120"
+            if (row.GetNode<Label>("Column/Meter/Count").Text != "75 / 100"
                 || row.GetNode<ProgressBar>("Column/Meter/Progress").Value != 75) return false;
             view.Render(card with { Quests = Array.AsReadOnly(progress.Select(quest => quest with { Progress = 140, Unlocked = true }).ToArray()) }, 338, 300);
             row = paragraphs.GetNode<PanelContainer>("Quests/quest_ascendant_divinity");
-            if (row.GetNode<ProgressBar>("Column/Meter/Progress").Value != 120 || row.GetNode<Label>("Column/Heading/State").Text != "✓ 已解锁") return false;
+            if (row.GetNode<ProgressBar>("Column/Meter/Progress").Value != 100 || row.GetNode<Label>("Column/Heading/State").Text != "✓ 已解锁") return false;
             view.Render(MatchDisplayQuery.FromOffer(ShopOffer.Create(new BoarCardDefinition())), 338, 300);
             return !paragraphs.HasNode("Quests");
         }
@@ -280,7 +280,7 @@ internal static class CardInteractionChecks
             {
                 owner.GetWindow().Size = size; owner.GetTree().Root.ContentScaleSize = size; await Frames();
                 var sample = MatchDisplayQuery.FromOffer(ShopOffer.Create(new AscendantCardDefinition()));
-                foreach (var progress in new[] { 0, 35, 75, 120 })
+                foreach (var progress in new[] { 0, 35, 75, 100 })
                 {
                     var card = sample with { Id = EntityId.New(), Quests = Array.AsReadOnly(sample.QuestDefinitions.Select(quest =>
                         new QuestProgressSnapshot(quest.Key, Math.Min(progress, quest.RequiredCount), quest.RequiredCount, progress >= quest.RequiredCount)).ToArray()) };

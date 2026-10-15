@@ -19,7 +19,7 @@ using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.Verification;
 
-// 登神者分级、即时任务、跨战斗成长及身份回放验证（表现层）。
+// 飞升者分级、即时任务、跨战斗成长及身份回放验证（表现层）。
 internal static class AscendantChecks
 {
     internal static bool LevelsAndThresholds()
@@ -28,7 +28,7 @@ internal static class AscendantChecks
         var identity = definition.Attributes.Identity;
         var texture = ResourceLoader.Load<Texture2D>(identity.Illustration.ToString());
         if (!DefinitionRegistry.Scan(typeof(AscendantChecks).Assembly).Cards.ContainsKey(identity.Key)
-            || identity.Key != new StringName("card.ascendant") || identity.DisplayName != "登神者"
+            || identity.Key != new StringName("card.ascendant") || identity.DisplayName != "飞升者"
             || identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Medium
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General }) || definition.InitialLevel != 1
             || definition.SupportsLevel(5) || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Human)
@@ -38,22 +38,22 @@ internal static class AscendantChecks
         {
             var context = new Context(level);
             var initial = MatchSnapshot.From(context.Match);
-            var setup = context.Setup(2732);
+            var setup = context.Setup(2432);
             var simulator = new CombatSimulator();
             var result = simulator.Simulate(setup);
             var hits = result.Events.OfType<DamageDealtEvent>().Where(e => e.SourceCardId == context.Card.Id).ToArray();
             var statuses = result.Events.OfType<StatusChangedEvent>().Where(e => e.Status == BattleStatus.Burn).ToArray();
             var last = State(result, context.Card.Id);
-            if (hits.Length != 122 || hits[0].Tick.Value != 30 || hits[0].RawDamage != 1
+            if (hits.Length != 102 || hits[0].Tick.Value != 30 || hits[0].RawDamage != 1
                 || hits.Single(e => e.Tick.Value == 600).RawDamage != 1 + 19 * level
                 || hits.Single(e => e.Tick.Value == 630).RawDamage != 81 + 20 * level
                 || hits.Count(e => e.Tick.Value == 1800) != 1 || hits.Count(e => e.Tick.Value == 1830) != 1 || hits.Count(e => e.Tick.Value == 1832) != 1
-                || statuses.Length != 2 || statuses.Any(e => e.Tick.Value is not (2730 or 2732) || e.Amount != (81 + 120 * level) / 10)
-                || last.Values[GameAttributeKeys.AttackDamage] != 81 + 122 * level
+                || statuses.Length != 2 || statuses.Any(e => e.Tick.Value is not (2430 or 2432) || e.Amount != (81 + 100 * level) / 10)
+                || last.Values[GameAttributeKeys.AttackDamage] != 81 + 102 * level
                 || last.Values[GameAttributeKeys.Multicast] != 1 || !last.QuestTags.Contains(GameTags.Human)
-                || !last.QuestTags.Contains(GameTags.Deity) || !last.QuestElementKeys.SequenceEqual(new[] { GameElements.Light })
-                || !last.Quests.Select(quest => quest.Progress).SequenceEqual(new[] { 20, 60, 120 })
-                || result.PermanentAttributeBonuses.Count != 122
+                || last.QuestTags.Contains(GameTags.Deity) || !last.QuestElementKeys.SequenceEqual(new[] { GameElements.Light })
+                || !last.Quests.Select(quest => quest.Progress).SequenceEqual(new[] { 20, 60, 100 })
+                || result.PermanentAttributeBonuses.Count != 102
                 || result.PermanentAttributeBonuses.Any(bonus => bonus.Amount != level || bonus.CardId != context.Card.Id)
                 || !result.Events.SequenceEqual(simulator.Simulate(setup).Events)
                 || !result.PermanentAttributeBonuses.SequenceEqual(simulator.Simulate(setup).PermanentAttributeBonuses)
@@ -61,11 +61,11 @@ internal static class AscendantChecks
             if (StateAt(result, context.Card.Id, 600).Values[GameAttributeKeys.AttackDamage] != 81 + 20 * level
                 || StateAt(result, context.Card.Id, 1799).QuestElementKeys.Contains(GameElements.Light)
                 || !StateAt(result, context.Card.Id, 1800).QuestElementKeys.Contains(GameElements.Light)
-                || StateAt(result, context.Card.Id, 2699).QuestTags.Contains(GameTags.Deity)
-                || !StateAt(result, context.Card.Id, 2702).QuestTags.Contains(GameTags.Deity)) return false;
-            if (!context.Apply(result) || context.Attack != 81 + 122 * level
+                || StateAt(result, context.Card.Id, 2400).Quests[2].Unlocked
+                || !StateAt(result, context.Card.Id, 2402).Quests[2].Unlocked) return false;
+            if (!context.Apply(result) || context.Attack != 81 + 102 * level
                 || context.Card.Quests.Any(quest => !context.Card.IsQuestUnlocked(quest))
-                || !context.Card.Tags.Contains(GameTags.Deity) || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light
+                || context.Card.Tags.Contains(GameTags.Deity) || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light
                 || initial.Cards.Single().ElementKeys.Single() != GameElements.General || initial.Cards.Single().Tags.Contains(GameTags.Deity)
                 || definition.Attributes.Identity.ElementKeys.Single() != GameElements.General || definition.Tags.Contains(GameTags.Deity)) return false;
         }
@@ -77,11 +77,11 @@ internal static class AscendantChecks
         for (var level = 1; level <= 4; level++)
         {
             var context = new Context(level);
-            var before = context.Run(570);
+            var before = context.Run(2400);
             if (FlightEntries(before, context.Card.Id) != 0 || !context.Apply(before)) return false;
             var crossing = context.Run(30);
             if (FlightEntries(crossing, context.Card.Id) != 0 || !context.Apply(crossing)
-                || !context.Card.IsQuestUnlocked(context.Card.Quests[0]) || context.Attack != 81 + 20 * level) return false;
+                || !context.Card.IsQuestUnlocked(context.Card.Quests[2]) || context.Attack != 81 + 100 * level) return false;
             // 新解锁的开战能力从下一场开始执行，每场恰好一次。
             foreach (var ticks in new[] { 30, 60 })
             {
@@ -126,13 +126,13 @@ internal static class AscendantChecks
         if (context.Attack != 181 || context.Card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast) != 0
             || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light) return false;
         context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Battlefield, 0);
-        if (!context.Apply(context.Run(902)) || context.Attack != 501 || !context.Card.Tags.Contains(GameTags.Deity)) return false;
+        if (!context.Apply(context.Run(902)) || context.Attack != 501 || context.Card.Tags.Contains(GameTags.Deity)) return false;
         context.Board.RefreshQuestAbilities(context.Match);
         context.Board.RefreshQuestAbilities(context.Match);
         if (context.Attack != 501 || context.Card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast) != 1) return false;
         context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Bench, 0);
         var fresh = context.Factory.CreateCard(context.Definition);
-        return context.Attack == 421 && context.Card.Tags.Contains(GameTags.Deity)
+        return context.Attack == 421 && !context.Card.Tags.Contains(GameTags.Deity)
             && context.Card.Attributes.Identity.ElementKeys.Single() == GameElements.Light
             && context.Card.Attributes.Identity.GemSocketCount == 1 && context.Card.GemSockets.Count == 1
             && !lightBefore.Cards.Single().Tags.Contains(GameTags.Deity)
@@ -142,7 +142,7 @@ internal static class AscendantChecks
 
     internal static bool MergePreservesProgress()
     {
-        foreach (var (level, ticks, bench) in new[] { (1, 570, false), (2, 570, false), (2, 1800, true), (3, 2730, true) })
+        foreach (var (level, ticks, bench) in new[] { (1, 570, false), (2, 570, false), (2, 1800, true), (3, 2430, true) })
         {
             var context = new Context(level);
             if (!context.Apply(context.Run(ticks))) return false;
@@ -172,11 +172,11 @@ internal static class AscendantChecks
             if (context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Battlefield, 0).IsFailure) return false;
             var attack = context.Attack;
             var result = context.Run(30);
-            // 登神者每次主动发动产生一次直接伤害；开战能力不计入永久成长次数。
+            // 飞升者每次主动发动产生一次直接伤害；开战能力不计入永久成长次数。
             var activations = result.Events.OfType<DamageDealtEvent>().Count(e => e.SourceCardId == context.Card.Id);
             if (!context.Apply(result) || context.Attack != attack + activations * (level + 1)
                 + (before.Quests[0].Progress == 19 ? 80 : 0)) return false;
-            if (before.Quests[2].Progress < 120 && context.Card.GetQuestProgress(context.Card.Quests[2].Key)
+            if (before.Quests[2].Progress < 100 && context.Card.GetQuestProgress(context.Card.Quests[2].Key)
                 != before.Quests[2].Progress + activations) return false;
             if (before.Quests[2].Unlocked
                 && !result.Events.OfType<StatusChangedEvent>().Any(e => e.Status == BattleStatus.Burn)) return false;
@@ -224,7 +224,7 @@ internal static class AscendantChecks
     {
         var context = new Context(1);
         var quests = new CardQuestService(context.Board);
-        for (var count = 0; count < 119; count++) quests.ProcessEvent(context.Match, new SourceCardActivatedQuestEvent(context.Card.Id));
+        for (var count = 0; count < 99; count++) quests.ProcessEvent(context.Match, new SourceCardActivatedQuestEvent(context.Card.Id));
         var before = MatchSnapshot.From(context.Match);
         var enemyBefore = MatchSnapshot.From(context.Enemy);
         var setup = context.Setup(32);
@@ -235,12 +235,12 @@ internal static class AscendantChecks
             || !context.Apply(result)) return false;
         var playback = new BattlePlaybackPresenter(new BattleResolution(before, enemyBefore, result, MatchSnapshot.From(context.Match)));
         var old = playback.Project(SideId.Player).Cards.Single();
-        if (old.Quests.Last().Progress != 119 || old.Tags.Contains(GameTags.Deity)) return false;
+        if (old.Quests.Last().Progress != 99 || old.Tags.Contains(GameTags.Deity)) return false;
         playback.Skip(); playback.Skip();
         var projected = playback.Project(SideId.Player).Cards.Single();
-        if (projected.Quests.Last().Progress != 120 || !projected.Tags.Contains(GameTags.Deity)
+        if (projected.Quests.Last().Progress != 100 || projected.Tags.Contains(GameTags.Deity)
             || projected.ElementKeys.Single() != GameElements.Light || context.Attack != 83
-            || old.Quests.Last().Progress != 119 || old.Tags.Contains(GameTags.Deity)
+            || old.Quests.Last().Progress != 99 || old.Tags.Contains(GameTags.Deity)
             || !CardDisplayAdapter.AbilityDetails(projected.Abilities).Contains("10%灼伤")) return false;
         // 百分比读取有效攻击，先取整，再遵循狂暴的状态施加倍率。
         quests.ProcessEvent(context.Match, new SourceCardActivatedQuestEvent(context.Card.Id));

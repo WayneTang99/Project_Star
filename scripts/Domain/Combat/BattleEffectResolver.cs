@@ -13,6 +13,14 @@ internal static class BattleEffectResolver
     internal static int GetEffectiveMulticast(BattleRuntime runtime, CardBattleState card)
     {
         var multicast = card.GetCombatAttribute(GameAttributeKeys.Multicast);
+        if (!card.Destroyed && !card.IsOnBench)
+            foreach (var ability in card.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is GrantSourceMulticastWhileEnemyTaggedEffectDefinition conditional
+                    && runtime.Cards.Any(enemy => enemy.Side != card.Side && !enemy.Destroyed && !enemy.IsOnBench
+                        && ContainsAnyEffectiveTag(runtime, enemy, conditional.RequiredAnyTags)))
+                    multicast = checked(multicast + conditional.Amount);
         foreach (var source in runtime.AbilitySources)
         {
             if (source.Side != card.Side || source.Destroyed || source.IsOnBench) continue;
@@ -41,6 +49,17 @@ internal static class BattleEffectResolver
         var hero = runtime.GetHero(targetSide);
         switch (effect)
         {
+            case GrantTagToRandomEnemyCardsEffectDefinition randomTag:
+                var tagCandidates = runtime.Cards.Where(card => card.Side != pending.Source.Side
+                    && !card.Destroyed && !card.IsOnBench).ToList();
+                for (var index = 0; index < randomTag.TargetCount && tagCandidates.Count > 0; index++)
+                {
+                    var chosenIndex = runtime.NextRandomIndex(tagCandidates.Count);
+                    var chosen = tagCandidates[chosenIndex];
+                    tagCandidates.RemoveAt(chosenIndex);
+                    chosen.Tags = new TagSet(chosen.Tags.Concat(new[] { randomTag.Tag }));
+                }
+                break;
             case EnterEclipseEffectDefinition:
                 CombatSimulator.EnterEclipse(runtime);
                 break;
@@ -48,6 +67,11 @@ internal static class BattleEffectResolver
                 var healthIncrease = checked((int)((long)hero.MaxHealth * healthGrowth.Percent / 100));
                 hero.MaxHealth = checked(hero.MaxHealth + healthIncrease);
                 hero.Health = checked(hero.Health + healthIncrease);
+                break;
+            case IncreaseHeroMaxHealthEffectDefinition fixedHealthGrowth:
+                var growingHero = fixedHealthGrowth.TargetsSourceHero ? runtime.GetHero(pending.Source.Side) : hero;
+                growingHero.MaxHealth = checked(growingHero.MaxHealth + fixedHealthGrowth.Amount);
+                growingHero.Health = checked(growingHero.Health + fixedHealthGrowth.Amount);
                 break;
             case ApplyPrimaryEffectPercentStatusEffectDefinition primaryStatus:
                 var extraAmount = checked((int)((long)pending.PrimaryValue * primaryStatus.Percent / 100));
@@ -452,6 +476,23 @@ internal static class BattleEffectResolver
         if (source is CardBattleState target)
             foreach (var aura in AlliedAttributeAuras(runtime, target))
                 if (aura.AttributeKey == key) value = checked(value + aura.Amount);
+        if (source is CardBattleState { Destroyed: false, IsOnBench: false } cooldownSource
+            && cooldownSource.SupportsCombatAttribute(key))
+        {
+            foreach (var ability in cooldownSource.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is IncreaseSourceAttributePerCooldownSecondEffectDefinition increase
+                    && increase.AttributeKey == key)
+                {
+                    var duration = cooldownSource.Abilities
+                        .Where(active => active.Definition.Activation == AbilityActivation.Active)
+                        .Select(active => BattleCooldownRules.DurationUnits(active.Definition.CooldownTicks,
+                            cooldownSource.CooldownBonusTicks, cooldownSource.EffectiveCooldownMultiplier))
+                        .DefaultIfEmpty(0m).Max();
+                    value = checked(value + (int)decimal.Floor(duration * increase.AmountPerSecond / 20m));
+                }
+        }
         foreach (var ability in source.Abilities)
         foreach (var effect in ability.Definition.Effects)
         {

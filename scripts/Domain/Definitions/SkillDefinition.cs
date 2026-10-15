@@ -60,6 +60,7 @@ public abstract class SkillDefinition
                     or MultiplySourceCardAttributeEffectDefinition
                     or ApplySourceAttributePercentStatusEffectDefinition
                     or SetSourceCardStateEffectDefinition
+                    or GrantSourceMulticastWhileEnemyTaggedEffectDefinition
                     or SetRandomAdjacentAlliedTaggedCardStateEffectDefinition
                     or DestroyCardEffectDefinition
                     or IncreaseSourceCooldownEffectDefinition

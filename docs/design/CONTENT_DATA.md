@@ -30,7 +30,17 @@
 
 `EchoOnSourceHeroFirstLethalDamage` 响应来源方英雄每场首次致命伤害，在护甲扣除、生命降至0后立即执行，早于死亡判定及同Tick后续伤害。直接攻击、灼伤、中毒与日蚀共用该入口；寂灭强制终止不触发。英雄仅有一次首次致命事件，按稳定顺序执行所有存活战场来源的匹配能力；备战及已摧毁来源不参与，多重不复制救援。`HealMaxHealthPercentEffectDefinition` 按目标最大生命百分比向下取整后累加来源治疗加成，治疗上限为最大生命；`MultiplySourceCardAttributeEffectDefinition` 按倍率累加来源卡牌当前本场属性的增量，保留已累计加成，仅作用于已支持的属性，不回写对局实例；持续光环仍按各来源独立求值。
 
+`IncreaseHeroMaxHealthEffectDefinition`以正整数固定量增加英雄本场最大生命与等量当前生命，多次发动累加，不受治疗加成影响，不回写对局。默认作用于己方英雄目标；`TargetsSourceHero`可在敌方英雄目标的伤害能力中指向来源英雄，让伤害与生命成长共用一次发动、冷却和多重。持续光环及备战区不能执行此效果。
+
 ### 字段约定
+
+`EchoOnEnemyCardActivated`可通过`TriggerCardAnyTags`限定敌方发动卡牌具有任意一个有效标签；未配置时仍监听所有敌方战场卡牌。标签按战斗Runtime求值，识别临时追加及光环标签；同一卡牌命中多个标签只触发一次，多重每次独立触发，回响产生的发动不再连锁。快照及等级预览保留该只读筛选列表。
+
+`GrantTagToRandomEnemyCardsEffectDefinition`在执行时无重复随机选取敌方存活战场卡牌，保留原标签并追加指定标签，仅影响本场Runtime。候选不足时处理全部候选，备战和已摧毁卡牌不参与；已具有该标签的卡牌仍在候选中。标签随战斗快照冻结并用于回放及所有有效标签筛选，不回写对局身份。
+
+`GrantSourceMulticastWhileEnemyTaggedEffectDefinition`为战场自身光环：敌方至少有一张存活战场卡牌具有任意指定有效标签时提供固定多重贡献，多标签或多目标不重复叠加；敌方不再满足条件或来源失效后停止贡献。与其他多重来源累加，额外发动次数仍在正常发动时冻结。
+
+`IncreaseSourceAttributePerCooldownSecondEffectDefinition`是战场自身属性光环，读取来源最慢主动能力经固定增减、所有倍率和一秒下限计算后的有效完整冷却，以秒数乘`AmountPerSecond`后向下取整，作为独立贡献累加到已有属性。不读取当前倒计时，不写回基础属性，不允许修改冷却属性；来源离开战场或被摧毁后失效。人类数量、状态或冷却倍率变化后，战斗与只读预览均使用最新贡献。
 
 | 字段 | 含义 |
 |---|---|

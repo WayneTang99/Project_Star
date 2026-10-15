@@ -203,7 +203,9 @@ public sealed class CombatSimulator
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnEnemyCardActivated
                 && source.Side != origin.Source.Side
-                && origin.Source is CardBattleState { IsOnBench: false }
+                && origin.Source is CardBattleState { IsOnBench: false } enemyCard
+                && (ability.Definition.TriggerCardAnyTags is not { } enemyTags
+                    || enemyTags.Any(tag => BattleEffectResolver.HasEffectiveTag(runtime, enemyCard, tag)))
                 && origin.Ability.Definition.Activation == AbilityActivation.Active)
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnAnyAttackCardActivated

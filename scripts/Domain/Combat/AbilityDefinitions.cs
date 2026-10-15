@@ -70,6 +70,9 @@ public sealed record EnterEclipseEffectDefinition : EffectDefinition;
 // 增加目标英雄本场生命上限，同时增加等量当前生命。
 public sealed record IncreaseHeroMaxHealthPercentEffectDefinition(int Percent) : EffectDefinition;
 
+// 固定增加英雄本场生命上限及等量当前生命，可组合进敌方目标的发动。
+public sealed record IncreaseHeroMaxHealthEffectDefinition(int Amount, bool TargetsSourceHero = false) : EffectDefinition;
+
 // 仅在日蚀期间倍增目标英雄受到的日蚀伤害。
 public sealed record MultiplyReceivedEclipseDamageEffectDefinition(int Multiplier) : EffectDefinition;
 
@@ -187,6 +190,13 @@ public sealed record RepairRandomDestroyedAlliedCardEffectDefinition(StringName 
 public sealed record GrantTagToEnemySizeCardsEffectDefinition(CardSize Size, StringName Tag)
     : EffectDefinition;
 
+// 为无重复随机选中的敌方存活战场卡牌追加本场标签（领域战斗层）。
+public sealed record GrantTagToRandomEnemyCardsEffectDefinition(StringName Tag, int TargetCount) : EffectDefinition;
+
+// 敌方存在任意指定标签的存活战场卡牌时，为来源提供多重光环（领域战斗层）。
+public sealed record GrantSourceMulticastWhileEnemyTaggedEffectDefinition(
+    IReadOnlyList<StringName> RequiredAnyTags, int Amount) : EffectDefinition;
+
 // 按敌方存活的指定标签卡牌数量增加来源属性（领域战斗层）。
 public sealed record IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition(
     StringName AttributeKey,
@@ -199,6 +209,10 @@ public sealed record IncreaseSourceAttributePerAlliedTaggedCardEffectDefinition(
     StringName RequiredTag,
     int Amount,
     bool AdjacentOnly = false) : EffectDefinition;
+
+// 按来源最慢主动能力的有效完整冷却秒数提供本场属性光环（领域战斗层）。
+public sealed record IncreaseSourceAttributePerCooldownSecondEffectDefinition(
+    StringName AttributeKey, int AmountPerSecond) : EffectDefinition;
 
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
@@ -315,9 +329,14 @@ public sealed class AbilityDefinition
         AdjacentCardSide? triggerCardSide = null,
         CardSize? triggerCardSize = null,
         BattleStatus? triggerStatus = null,
-        int? triggerHeroHealthPercent = null)
+        int? triggerHeroHealthPercent = null,
+        IReadOnlyList<StringName>? triggerCardAnyTags = null)
     {
         ArgumentNullException.ThrowIfNull(effects);
+        if (triggerCardAnyTags is not null
+            && (activation != AbilityActivation.EchoOnEnemyCardActivated || triggerCardAnyTags.Count == 0
+                || HasEmptyKey(triggerCardAnyTags)))
+            throw new ArgumentException("Any-tag filter requires an enemy card activation echo and nonempty tags.", nameof(triggerCardAnyTags));
         if (activation == AbilityActivation.EchoOnLeftmostAlliedCardActivated && (allowsBench || cooldownTicks != 0))
             throw new ArgumentException("Leftmost card echo requires a battlefield source and no cooldown.");
         if (activation == AbilityActivation.EchoOnEnemyCardActivated && (allowsBench || cooldownTicks != 0))
@@ -435,6 +454,11 @@ public sealed class AbilityDefinition
                 && (healthGrowth.Percent < 1 || target != AbilityTarget.AlliedHero
                     || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
                 throw new ArgumentException("Max health growth requires a positive executed allied hero effect.", nameof(effects));
+            if (effect is IncreaseHeroMaxHealthEffectDefinition fixedHealthGrowth
+                && (fixedHealthGrowth.Amount < 1
+                    || target != AbilityTarget.AlliedHero && !(target == AbilityTarget.EnemyHero && fixedHealthGrowth.TargetsSourceHero)
+                    || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled || allowsBench))
+                throw new ArgumentException("Fixed max health growth requires a positive executed battlefield allied hero effect.", nameof(effects));
             if (effect is MultiplyReceivedEclipseDamageEffectDefinition eclipseDamage
                 && (eclipseDamage.Multiplier < 1 || activation != AbilityActivation.PassiveAura
                     || target is not AbilityTarget.EnemyHero and not AbilityTarget.AlliedHero || allowsBench))
@@ -575,6 +599,11 @@ public sealed class AbilityDefinition
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
                     || taggedCooldown.RequiredTag.IsEmpty || taggedCooldown.AmountTicks < 1))
                 throw new ArgumentException("Tagged cooldown reduction requires a battlefield self aura, tag and positive duration.", nameof(effects));
+            if (effect is IncreaseSourceAttributePerCooldownSecondEffectDefinition cooldownAttribute
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || cooldownAttribute.AttributeKey.IsEmpty || cooldownAttribute.AmountPerSecond < 1
+                    || cooldownAttribute.AttributeKey == GameAttributeKeys.CooldownTicks))
+                throw new ArgumentException("Cooldown attribute growth requires a battlefield self aura, a non-cooldown attribute and positive amount.", nameof(effects));
             if (effect is ReduceSourceCooldownWhileInStateEffectDefinition stateCooldown
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
                     || stateCooldown.StateKey != GameAttributeKeys.Flying && stateCooldown.StateKey != GameAttributeKeys.Berserk
@@ -681,6 +710,15 @@ public sealed class AbilityDefinition
             {
                 throw new ArgumentException("Enemy card tag aura configuration is invalid.", nameof(effects));
             }
+            if (effect is GrantTagToRandomEnemyCardsEffectDefinition randomTag
+                && (randomTag.Tag.IsEmpty || randomTag.TargetCount < 1 || target != AbilityTarget.EnemyHero || allowsBench
+                    || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
+                throw new ArgumentException("Random enemy tags require a positive count and executed battlefield enemy effect.", nameof(effects));
+            if (effect is GrantSourceMulticastWhileEnemyTaggedEffectDefinition taggedMulticast
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || taggedMulticast.Amount < 1 || taggedMulticast.RequiredAnyTags is null
+                    || taggedMulticast.RequiredAnyTags.Count == 0 || HasEmptyKey(taggedMulticast.RequiredAnyTags)))
+                throw new ArgumentException("Conditional source multicast requires a battlefield self aura, tags and positive amount.", nameof(effects));
             if (effect is IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition taggedIncrease
                 && (taggedIncrease.AttributeKey.IsEmpty || taggedIncrease.RequiredTag.IsEmpty))
             {
@@ -714,7 +752,9 @@ public sealed class AbilityDefinition
         Effects = effects.Select(effect => effect is MultiplyAlliedElementCardAttributeAuraEffectDefinition
             { RequiredEnemyAnyTags: { } tags } multiplier
                 ? multiplier with { RequiredEnemyAnyTags = Array.AsReadOnly(tags.ToArray()) }
-                : effect).ToList().AsReadOnly();
+                : effect is GrantSourceMulticastWhileEnemyTaggedEffectDefinition conditionalMulticast
+                    ? conditionalMulticast with { RequiredAnyTags = Array.AsReadOnly(conditionalMulticast.RequiredAnyTags.ToArray()) }
+                    : effect).ToList().AsReadOnly();
         AllowsBench = allowsBench;
         TriggerStateKey = triggerStateKey;
         TriggerCardTag = triggerCardTag;
@@ -723,6 +763,7 @@ public sealed class AbilityDefinition
         TriggerCardSize = triggerCardSize;
         TriggerStatus = triggerStatus;
         TriggerHeroHealthPercent = triggerHeroHealthPercent;
+        TriggerCardAnyTags = triggerCardAnyTags is null ? null : Array.AsReadOnly(triggerCardAnyTags.ToArray());
     }
 
     public StringName Key { get; }
@@ -739,6 +780,7 @@ public sealed class AbilityDefinition
     public CardSize? TriggerCardSize { get; }
     public BattleStatus? TriggerStatus { get; }
     public int? TriggerHeroHealthPercent { get; }
+    public IReadOnlyList<StringName>? TriggerCardAnyTags { get; }
 
     private static bool HasEmptyKey(IReadOnlyList<StringName> keys)
     {

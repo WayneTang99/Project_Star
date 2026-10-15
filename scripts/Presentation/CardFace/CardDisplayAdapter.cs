@@ -225,6 +225,8 @@ public sealed class CardDisplayAdapter
                 : ability.Activation == AbilityActivation.PassiveOnHeroLevelUp ? "己方英雄每升一级" + (ability.AllowsBench ? "（战场区与备战区均生效），" : "，")
                 : ability.Activation == AbilityActivation.PassiveOnPickup ? "获得或合并后，"
                 : keyword == "回响" ? Activation(ability.Activation).Replace("回响", "") + "，" : "";
+            if (ability.TriggerCardAnyTags is { } anyTags)
+                condition += $"触发卡牌为{string.Join("或", anyTags.Select(TagDisplayNames.Get))}，";
             if (ability.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
                 && ability.TriggerCardTag is { } matchingTag && ability.TriggerCardElement is { } matchingElement)
                 condition += $"触发卡牌为{TagDisplayNames.Get(matchingTag)}或{ElementName(matchingElement)}属性，";
@@ -374,6 +376,7 @@ public sealed class CardDisplayAdapter
     {
         EnterEclipseEffectDefinition => "提前进入日蚀时间（全场仅一次）",
         IncreaseHeroMaxHealthPercentEffectDefinition value => $"最大生命 +{value.Percent}%，当前生命增加等量，仅本场生效",
+        IncreaseHeroMaxHealthEffectDefinition value => $"{(value.TargetsSourceHero ? "己方英雄" : "")}最大生命 +{value.Amount}，当前生命增加等量，仅本场生效",
         MultiplyReceivedEclipseDamageEffectDefinition value => $"日蚀时间内，受到的日蚀伤害 ×{value.Multiplier}",
         ReduceSetCardCooldownEffectDefinition value => $"套装内战场卡牌冷却永久缩减{value.Percent}%",
         RepairRandomDestroyedAlliedCardEffectDefinition value => $"随机修复1张己方被摧毁的{TagDisplayNames.Get(value.RequiredTag)}卡牌",
@@ -452,6 +455,9 @@ public sealed class CardDisplayAdapter
         ModifyRandomAlliedAttackCardAttributeEffectDefinition value => $"己方随机一张攻击卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}",
         ModifyAlliedAttackCardsAttributeEffectDefinition value => $"己方所有存活战场攻击卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（仅本场）",
         IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌{(value.Permanent ? "永久" : "")} {AttributeName(value.AttributeKey)} +{value.Amount}",
+        IncreaseSourceAttributePerCooldownSecondEffectDefinition value => $"此卡牌{AttributeName(value.AttributeKey)}增加等同于有效完整冷却秒数 ×{value.AmountPerSecond}（向下取整）",
+        GrantTagToRandomEnemyCardsEffectDefinition value => $"敌方随机{value.TargetCount}张存活战场卡牌视为{TagDisplayNames.Get(value.Tag)}，保留原标签，仅本场生效",
+        GrantSourceMulticastWhileEnemyTaggedEffectDefinition value => $"敌方战场存在存活的{string.Join("或", value.RequiredAnyTags.Select(TagDisplayNames.Get))}卡牌时，此卡牌多重 +{value.Amount}",
         MultiplySourceCardAttributeEffectDefinition value => $"此卡牌 {AttributeName(value.AttributeKey)} ×{value.Multiplier}",
         HealMaxHealthPercentEffectDefinition value => $"治疗最大生命值的{value.Percent}%（向下取整）",
         _ => throw new NotSupportedException($"No display formatter for {effect.GetType().Name}."),
