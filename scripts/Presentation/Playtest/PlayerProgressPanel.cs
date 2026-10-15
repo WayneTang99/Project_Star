@@ -20,7 +20,7 @@ public sealed partial class PlayerProgressPanel : Control
     }
     // 回放文本保留完整悬停内容，常态显示三项成长值。
     public void RenderPlayback(string feedback)
-    { _feedback.Text = feedback; _feedback.TooltipText = feedback; _feedback.Visible = feedback.Length > 0; _summary.Visible = feedback.Length == 0; }
+    { _feedback.Text = feedback; TooltipText = feedback; _feedback.Hide(); _summary.Show(); }
     // 成长数值来自只读对局快照。
     public void Render(MatchSnapshot? snapshot)
     {
@@ -32,10 +32,16 @@ public sealed partial class PlayerProgressPanel : Control
     public override void _ExitTree() => Resized -= LayoutPanel;
     private Label Entry(string caption)
     {
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 4); _summary.AddChild(row);
-        var label = new Label { Text = caption }; MatchTheme.Text(label, 10, new Color("9dae9b")); row.AddChild(label);
-        var value = new Label(); MatchTheme.Text(value, 14, new Color("d4ba80"), true); row.AddChild(value); return value;
+        var row = new HBoxContainer();
+        row.Alignment = BoxContainer.AlignmentMode.Center; row.TooltipText = caption;
+        var key = new StringName(caption == "经验" ? "experience" : caption == "声望" ? "reputation" : "victories");
+        row.AddChild(new TextureRect { Texture = MatchTheme.Icon(key), CustomMinimumSize = new Vector2(18, 18), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = new Color("ddbf87"), MouseFilter = MouseFilterEnum.Ignore });
+        row.AddThemeConstantOverride("separation", 7);
+        _summary.AddChild(row);
+        var value = new Label(); MatchTheme.Text(value, 16, new Color("f2dfbd"), true); row.AddChild(value); return value;
     }
     private void Spacer() => _summary.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore });
-    private void LayoutPanel() { _summary.Size = Size; _feedback.Size = Size; }
+    private void LayoutPanel() { _summary.Position = new Vector2(10, 6); _summary.Size = Size - new Vector2(20, 12); _feedback.Size = Size; QueueRedraw(); }
+    public override void _Draw() => DrawStyleBox(MatchTheme.Plate("hud-inset", 6), new Rect2(Vector2.Zero, Size));
 }

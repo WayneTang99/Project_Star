@@ -560,8 +560,8 @@ internal static class PlaytestVerification
                 var name = hero.GetNode<Label>("Identity/HeroName");
                 var host = shell.GetNode<Control>("ContextRow/ContextHost");
                 var benchCell = shell.GetNode<Control>("BenchRow/Content");
-                if (name.Size.X < 100 || name.Text != capture.Player!.Hero!.DisplayName
-                    || hero.GlobalPosition.X + hero.Size.X >= benchCell.GlobalPosition.X
+                if (name.Text != capture.Player!.Hero!.DisplayName
+                    || hero.GetNode<TextureRect>("Identity/Portrait").GetGlobalRect().GetCenter().X != shell.GetGlobalRect().GetCenter().X
                     || hero.GlobalPosition.Y + hero.Size.Y + shell.GetNode<VScrollBar>("DesktopScroll").Value > shell.GetNode<VScrollBar>("DesktopScroll").MaxValue
                     || !Mathf.IsEqualApprox(benchCell.Size.X, board.Size.X))
                     return Fail("英雄侧栏被压缩、越界或双棋盘宽度不一致");
@@ -591,7 +591,10 @@ internal static class PlaytestVerification
                 if (details.Position != detailPosition || details.Modulate.A < .99f
                     || !details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible)
                     return Fail($"刷新移动详情、重启淡入或收起实例属性：{detailPosition}→{details.Position}，淡入 {details.Modulate.A}，展开 {details.GetNode<RichTextLabel>("Content/CardContent/InstanceDetails").Visible}");
-                var longCard = detailCard with { Value = 0, Abilities = Array.Empty<AbilityDefinition>(),
+                var longCard = detailCard with { Value = 0,
+                    Abilities = Enumerable.Range(0, 60).Select(index => new AbilityDefinition(new StringName($"verify.long.{index}"),
+                        AbilityActivation.EchoOnSourceCardActivated, AbilityTarget.SelfCard, 0, 0,
+                        [new IncreaseSourceCardAttributeEffectDefinition(GameAttributeKeys.AttackDamage, 1)])).ToArray(),
                     DescriptionEntries = Array.AsReadOnly(Enumerable.Range(0, 20).Select(_ => new CardDescriptionEntry(CardKeywords.Passive,
                         "当前数值 0；攻击公式 = 英雄最大生命 × 20% + 护甲 × 1.5。长说明与宝石属性展开后应保留完整内容并在正文区域滚动阅读。")).ToArray()) };
                 details.ShowNear(longCard, new Rect2(new Vector2(shell.Size.X - 100, shell.Size.Y - 80), new Vector2(70, 60)), shell.Size);
@@ -615,7 +618,7 @@ internal static class PlaytestVerification
                 viewport.PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = true }, true);
                 viewport.PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = false }, true);
                 await Frame();
-                if (viewport.GuiGetFocusOwner() is not Button focus || focus == item) return Fail("Tab焦点未移动");
+                if (viewport.GuiGetFocusOwner() is not Control focus || focus == item || !focus.IsVisibleInTree()) return Fail("Tab焦点未移动");
                 var rewardCard = MatchDisplayQuery.FromOffer(ShopOffer.Create(new JudgmentHammerCardDefinition()));
                 shell.Render(capture with { Page = MatchPage.BattleResult, SelectedCardId = null,
                     Rewards = Array.AsReadOnly(new[] { new RewardItemViewModel(0, 1, "三格奖励", rewardCard, "") }) });
@@ -626,7 +629,7 @@ internal static class PlaytestVerification
                 var claim = rewardRow.GetNode<Control>("Claim0");
                 if (rewardScroll.GlobalPosition.Y + rewardScroll.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1
                     || rewardItem.GlobalPosition.Y + rewardItem.Size.Y > host.GlobalPosition.Y + host.Size.Y + 1
-                    || claim.Size.X < 99) return Fail("奖励卡面或领取按钮缩回后越界");
+                    || claim.Visible) return Fail("奖励卡面或领取按钮缩回后越界");
                 shell.Render(capture); await Frame(); await Frame();
             }
             var leave = shell.GetNode<LeavePanel>("ContextRow/Leave/LeaveScroll/LeavePanel");
@@ -634,6 +637,7 @@ internal static class PlaytestVerification
             leave.GetNode<Button>("Developer").EmitSignal(Button.SignalName.Pressed);
             if (!leave.GetNode<Button>("Verification").Visible || !ReferenceEquals(capture, presenter.View))
                 return Fail("开发展开修改对局或未显示入口");
+            shell.SetBenchOpen(true);
             var target = shell.GetNode<Button>("BenchRow/Content/Board/Slot0"); target.GrabFocus();
             viewport.PushInput(new InputEventKey { Keycode = Key.Enter, Pressed = true }, true);
             viewport.PushInput(new InputEventKey { Keycode = Key.Enter, Pressed = false }, true);

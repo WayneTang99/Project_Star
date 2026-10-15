@@ -58,8 +58,9 @@ public sealed partial class PlayerHeroPanel : Control
         identity.AddChild(_level);
         _health = new ResourceBar("HealthBar", new Color("729c51")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("438fa2")); AddChild(_mana);
-        _health.SetDisplayHeight(15); _mana.SetDisplayHeight(10);
-        _battle = new HeroBattleStatusView { Name = "BattleResources", Visible = false }; AddChild(_battle);
+        _health.SetDisplayHeight(24); _mana.SetDisplayHeight(24);
+        _portrait.Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/PortraitClip.gdshader") };
+        _battle = new HeroBattleStatusView { Name = "BattleResources", Visible = false, ShowArmor = false }; AddChild(_battle);
         _buttons = new HFlowContainer(); AddChild(_buttons);
         _skillIcons = new HBoxContainer { Name = "SkillIcons" }; _skillIcons.AddThemeConstantOverride("separation", 7); AddChild(_skillIcons);
         AddEntry("技能", HeroSection.Skills); AddEntry("套装", HeroSection.Sets); AddEntry("奖励", HeroSection.Rewards);
@@ -121,7 +122,7 @@ public sealed partial class PlayerHeroPanel : Control
             foreach (var child in _skillIcons.GetChildren()) { _skillIcons.RemoveChild(child); child.QueueFree(); }
             foreach (var skill in skills)
             {
-                var button = new Button { CustomMinimumSize = new Vector2(24, 24), TooltipText = Project_Star.Presentation.CardFace.CardDisplayAdapter.SkillDetails(skill) };
+                var button = new Button { CustomMinimumSize = new Vector2(28, 28), TooltipText = Project_Star.Presentation.CardFace.CardDisplayAdapter.SkillDetails(skill) };
                 var style = MatchTheme.Surface(Colors.Transparent, new Color("c1aa76")); style.SetCornerRadiusAll(12);
                 style.ContentMarginLeft = style.ContentMarginRight = style.ContentMarginTop = style.ContentMarginBottom = 0;
                 button.AddThemeStyleboxOverride("normal", style); _skillIcons.AddChild(button);
@@ -136,14 +137,14 @@ public sealed partial class PlayerHeroPanel : Control
                 button.Pressed += () => SectionRequested?.Invoke(HeroSection.Skills);
             }
         }
-        _buttons.GetChild<Button>(0).Text = $"{skills.Count} 项技能"; _buttons.GetChild<Button>(1).Text = $"{setCount} 个套装";
+        _buttons.GetChild<Button>(0).TooltipText = $"技能 · {skills.Count}项"; _buttons.GetChild<Button>(1).TooltipText = $"套装 · {setCount}个";
         LayoutPanel();
     }
     private void AddEntry(string text, HeroSection section)
     {
         var key = section == HeroSection.Skills ? new StringName("skills")
             : section == HeroSection.Sets ? new StringName("sets") : new StringName("rewards");
-        var button = new Button { Text = text, TooltipText = text };
+        var button = new Button { Icon = MatchTheme.Icon(key), TooltipText = text, CustomMinimumSize = new Vector2(24, 28) };
         button.AddThemeConstantOverride("icon_max_width", 16);
         button.AddThemeFontSizeOverride("font_size", 10);
         button.AddThemeColorOverride("font_color", new Color("889d8f"));
@@ -161,28 +162,23 @@ public sealed partial class PlayerHeroPanel : Control
     {
         if (_portrait is null) return;
         _identity.Size = Size;
-        const float portrait = 86;
         _portrait.CustomMinimumSize = Vector2.Zero;
-        _portrait.Position = new Vector2(0, 18.5f); _portrait.Size = Vector2.One * portrait;
-        _level.Position = new Vector2(-7, 78.5f); _level.Size = new Vector2(30, 30);
-        var left = GetViewportRect().Size.X <= 900 ? 77 : GetViewportRect().Size.X <= 1150 ? 106 : 131;
-        var width = Mathf.Max(120, Size.X - left);
-        _name.Position = new Vector2(left, 0); _name.Size = new Vector2(Mathf.Min(110, width), 20);
-        _name.TooltipText = _subtitle.Text;
-        _subtitle.Visible = width >= 310;
-        _subtitle.Position = new Vector2(left + 118, 4); _subtitle.Size = new Vector2(Mathf.Max(1, width - 118), 16);
-        _health.Position = new Vector2(left, 30); _health.Size = new Vector2(width, 15);
-        _mana.Position = new Vector2(left, 53); _mana.Size = new Vector2(width, 10);
-        _skillIcons.Position = new Vector2(left, 72); _skillIcons.Size = new Vector2(_skillIcons.GetChildCount() * 31, 24);
-        _buttons.Position = new Vector2(left + _skillIcons.GetChildCount() * 31 + 5, 73);
-        _battle.Position = new Vector2(left, 103);
-        _buttons.Size = new Vector2(Mathf.Max(1, width - _skillIcons.GetChildCount() * 31 - 5), 24);
-        _battle.Size = new Vector2(width, 24);
+        _portrait.Position = new Vector2(Size.X / 2 - 45, 30); _portrait.Size = new Vector2(90, 90);
+        _name.Hide(); _subtitle.Hide(); _level.Hide();
+        _health.Position = new Vector2(280, 14); _health.Size = new Vector2(244, 24);
+        _mana.Position = new Vector2(676, 14); _mana.Size = new Vector2(244, 24);
+        _skillIcons.Position = new Vector2(686, 54); _skillIcons.Size = new Vector2(132, 28);
+        // 技能过多时沿用技能详情入口，常态栏仅显示可用宽度内的图标。
+        for (var index = 0; index < _skillIcons.GetChildCount(); index++) _skillIcons.GetChild<Control>(index).Visible = index < 3;
+        _buttons.Position = new Vector2(824, 54); _buttons.Size = new Vector2(90, 28);
+        _battle.Position = new Vector2(676, -16); _battle.Size = new Vector2(244, 24);
+        QueueRedraw();
     }
 
     public override void _Draw()
     {
         if (_portrait is null || !_portrait.Visible) return;
-        DrawStyleBox(MatchTheme.Outline(MatchTheme.Gold), _portrait.GetRect().Grow(1));
+        MatchTheme.DrawPortraitMount(this, _portrait.GetRect());
+        DrawStyleBox(MatchTheme.Plate("hud-inset", 6), new Rect2(676, 50, 244, 36));
     }
 }

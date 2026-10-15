@@ -48,6 +48,11 @@ internal static class DragSaleChecks
             using var drag = new BoardDragData(session.Id, boar.Id, 1, 2);
             var wealth = session.Player.Wealth;
             var random = session.Random.State;
+            var boardRect = scene.GetNode<BoardZoneView>("MatchShell/BattlefieldRow/Content/Board").GetGlobalRect();
+            var buffer = drop.GetGlobalTransform().AffineInverse() * (boardRect.Position + new Vector2(-10, 30));
+            if (drop._CanDropData(buffer, drag)) return false;
+            drop._DropData(buffer, drag);
+            if (!session.Board.Contains(boar.Id) || session.Player.Wealth != wealth || session.Random.State != random) return false;
             if (!drop._CanDropData(Vector2.Zero, drag) || session.Player.Wealth != wealth || session.Random.State != random) return false;
             presenter.SellDraggedCard(session.Id, boar.Id, card.Level, card.Value + 1);
             if (!session.Board.Contains(boar.Id) || session.Player.Wealth != wealth) return false;
@@ -125,6 +130,7 @@ internal static class DragSaleChecks
             presenter.RefreshView(); viewport.NotifyMouseEntered();
             await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
             var drop = scene.GetNode<SellDropZone>("MatchShell/SellDropZone");
+            scene.GetNode<MatchShell>("MatchShell").SetBenchOpen(true);
             // 真实页面同时覆盖空格、已有卡牌、反复拖放和选中后的拖放。
             var selectedItem = scene.GetNode<CardItemView>("MatchShell/BattlefieldRow/Content/Board/Card_" + boar.Id.Value.ToString("N"));
             var selectedPoint = selectedItem.GetGlobalRect().GetCenter();
@@ -153,7 +159,7 @@ internal static class DragSaleChecks
             {
                 var item = scene.GetNode<CardItemView>(path + "/Card_" + card.Id.Value.ToString("N"));
                 var press = item.GlobalPosition + item.Size / 2;
-                var target = drop.GetGlobalRect().GetCenter();
+                var target = drop.GlobalPosition + new Vector2(40, 300);
                 var wealth = session.Player.Wealth;
                 var value = card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value);
                 var placements = presenter.View.Player!.BoardPlacements.ToArray();

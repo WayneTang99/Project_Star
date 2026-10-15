@@ -85,11 +85,11 @@ public sealed partial class ContextPortrait : Control
     {
         _eyebrow.Position = new Vector2(24, Size.Y / 2 - 77); _eyebrow.Size = new Vector2(Size.X - 48, 18);
         _title.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
-        _title.Position = new Vector2(24, Size.Y / 2 - 49); _title.Size = new Vector2(Mathf.Max(1, Size.X - 48), 43);
-        MatchTheme.Text(_title, _resources.Visible ? 20 : 27, new Color("f0deb5"), spacing: 3);
+        _title.Position = new Vector2(24, Size.Y / 2 - 20); _title.Size = new Vector2(Mathf.Max(1, Size.X - 48), 43);
+        MatchTheme.Text(_title, _resources.Visible ? 20 : 23, new Color("f0deb5"), spacing: 3);
         _message.Position = new Vector2(24, Size.Y / 2 + 4);
         _message.Size = new Vector2(Mathf.Max(1, Size.X - 48), 40);
-        _message.Visible = true; _resources.Hide();
+        _eyebrow.Hide(); _message.Hide(); _resources.Hide();
         _resources.Position = new Vector2(12, 83); _resources.Size = new Vector2(Mathf.Max(1, Size.X - 24), 73);
     }
 }

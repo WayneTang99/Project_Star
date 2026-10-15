@@ -202,9 +202,9 @@ internal static class CardInteractionChecks
             await Feedback(menu, "menu");
             var primary = shell.GetNode<VBoxContainer>("FooterActions").GetChildren().OfType<Button>().First(button => button.IsVisibleInTree() && !button.Disabled);
             await Feedback(primary, "primary");
-            shell.SetDesktopPalette(true); await Frames();
-            await Feedback(menu, "menu-blue"); await Feedback(primary, "primary-blue");
-            shell.SetDesktopPalette(false); await Frames();
+            shell.ApplyBoardSkin(MatchTheme.Skin); await Frames();
+            await Feedback(menu, "menu-refreshed"); await Feedback(primary, "primary-refreshed");
+            shell.ApplyBoardSkin(MatchTheme.Skin); await Frames();
             menu.GrabFocus(); KeyDown(Key.Space); await Frames(); await Save("feedback-keyboard-down");
             if (menu.GetDrawMode() is not BaseButton.DrawMode.Pressed and not BaseButton.DrawMode.HoverPressed)
                 throw new InvalidOperationException("Space按住时按钮缺少按下状态。");
@@ -292,7 +292,7 @@ internal static class CardInteractionChecks
                         || details.Position.X < 12 * details.Scale.X || details.Position.Y < 12 * details.Scale.Y) throw new InvalidOperationException("任务详情越界。");
                     await Save($"quest-{progress}");
                 }
-                shell.SetDesktopPalette(true); await Save("quest-blue"); shell.SetDesktopPalette(false);
+                shell.ApplyBoardSkin(MatchTheme.Skin); await Save("quest-refreshed"); shell.ApplyBoardSkin(MatchTheme.Skin);
                 var body = details.GetNode<ScrollContainer>("Content/CardContent/BodyScroll");
                 body.ScrollVertical = (int)body.GetVScrollBar().MaxValue; await Frames();
                 if (body.GetVScrollBar().MaxValue > body.GetVScrollBar().Page && body.ScrollVertical <= 0)

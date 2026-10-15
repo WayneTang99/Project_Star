@@ -41,20 +41,20 @@ public sealed partial class ResultView : Control
         Clear(); _summary.Text = view.Message;
         if (_log.Text != view.BattleLog) _log.Hide();
         _log.Text = view.BattleLog;
-        var height = Mathf.Clamp(Size.Y - 82, 60, 180);
+        var height = Mathf.Clamp(Size.Y - 24, 60, 196);
         foreach (var reward in view.Rewards)
         {
-            var width = reward.Card is null ? 220 : height * (int)reward.Card.Size / 2 + 112;
+            var width = reward.Card is null ? 220 : height * (int)reward.Card.Size / 2;
             var row = new Control { CustomMinimumSize = new Vector2(width, height), MouseFilter = MouseFilterEnum.Ignore };
             _rewards.AddChild(row);
             var inset = 44f;
             CardItemView? rewardCard = null;
             if (reward.Card is not null)
             {
-                var card = new CardItemView { Name = $"RewardCard{reward.Index}", Size = new Vector2(width - 112, height) };
+                var card = new CardItemView { Name = $"RewardCard{reward.Index}", Size = new Vector2(width, height) };
                 row.AddChild(card); card.Render(reward.Card, _adapter);
                 card.DetailsRequested += ShowDetails; _cards.Add(card); inset = card.Size.X + 12;
-                rewardCard = card;
+                rewardCard = card; card.InteractionHint = "点击获取 · " + reward.Text;
             }
             else
             {
@@ -69,6 +69,7 @@ public sealed partial class ResultView : Control
             Control claim = rewardCard is null ? new Button { Text = "领取技能", Disabled = !view.Reward.Enabled,
                 Icon = MatchTheme.Icon("rewards"), TooltipText = reward.Text + "\n" + reward.Details, ClipText = true }
                 : new Label { Text = "点击获取", MouseFilter = MouseFilterEnum.Ignore };
+            claim.Visible = rewardCard is null;
             claim.Name = $"Claim{reward.Index}"; claim.Position = new Vector2(inset, height / 2 - 16); claim.Size = new Vector2(width - inset, 32);
             claim.AddThemeFontSizeOverride("font_size", 12); claim.AddThemeConstantOverride("icon_max_width", 16);
             row.AddChild(claim);
@@ -103,19 +104,19 @@ public sealed partial class ResultView : Control
 
     private void LayoutView()
     {
-        _summary.Size = new Vector2(Mathf.Max(1, Size.X - 88), 54);
-        _scroll.Position = new Vector2(12, 70); _scroll.Size = new Vector2(Mathf.Max(1, Size.X - 24), Mathf.Max(1, Size.Y - 74));
+        _summary.Hide(); TooltipText = _summary.Text;
+        _scroll.Position = new Vector2(22, 12); _scroll.Size = new Vector2(Mathf.Max(1, Size.X - 44), Mathf.Max(1, Size.Y - 24));
         _scroll.Visible = !_log.Visible;
-        _log.Position = new Vector2(12, 70); _log.Size = _scroll.Size;
-        var height = Mathf.Clamp(Size.Y - 82, 60, 180);
+        _log.Position = new Vector2(22, 12); _log.Size = _scroll.Size;
+        var height = Mathf.Clamp(Size.Y - 24, 60, 196);
         foreach (Control row in _rewards.GetChildren())
         {
             var card = row.GetChildren().OfType<CardItemView>().SingleOrDefault();
             var claim = row.GetChildren().OfType<Control>().Single(child => child.Name.ToString().StartsWith("Claim", StringComparison.Ordinal));
-            var width = card is null ? 220 : height * card.Size.X / card.Size.Y + 112;
+            var width = card is null ? 220 : height * card.Size.X / card.Size.Y;
             var inset = card is null ? 44 : width - 100;
             row.CustomMinimumSize = new Vector2(width, height);
-            if (card is not null) card.Size = new Vector2(width - 112, height);
+            if (card is not null) card.Size = new Vector2(width, height);
             claim.Position = new Vector2(inset, height / 2 - 16); claim.Size = new Vector2(width - inset, 32);
         }
     }

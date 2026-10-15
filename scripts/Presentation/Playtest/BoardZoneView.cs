@@ -68,7 +68,7 @@ public sealed partial class BoardZoneView : Control
         _caption = title == "战场" ? "战 场" : title == "备战" ? "备 战" : title;
         _count.Text = $"{used} / {capacity}";
         _tip.Text = zone == BoardZone.Bench ? "为下一场战斗留一手" : "悬停查看卡牌 · 点击固定详情";
-        TooltipText = "右键查看详情" + (interactive ? " · 拖到上方出售 · Escape 取消选择" : "");
+        TooltipText = "右键查看详情" + (interactive ? " · 拖到落点摆放，移出棋盘出售 · Escape 取消" : "");
         _title.Text = _caption;
         while (_slots.Count > capacity)
         {
@@ -139,7 +139,7 @@ public sealed partial class BoardZoneView : Control
             || atPosition.Y < _cardTop || atPosition.Y >= _cardTop + _track * 2) return false;
         var start = Mathf.FloorToInt((atPosition.X - _left) / _unit) - drag.GrabOffset;
         var result = PreviewRequested(drag, _zone, start);
-        var color = result.IsSuccess ? new Color(0.3f, 0.9f, 0.5f, .35f) : new Color(1, .25f, .25f, .4f);
+        var color = result.IsSuccess ? new Color(.39f, .84f, .9f, .4f) : new Color(1, .25f, .25f, .4f);
         AddPreview(start, drag.OccupiedSlots, color);
         _title.Text = result.IsSuccess ? $"可放置，推挤 {result.Value!.AffectedCards} 张卡牌。" : result.Failure!.Message;
         if (result.IsSuccess)
@@ -184,6 +184,8 @@ public sealed partial class BoardZoneView : Control
         Color = color, MouseFilter = MouseFilterEnum.Ignore,
     });
 
+    internal void ClearDropPreview() => ClearPreview();
+
     private void ClearPreview()
     {
         foreach (var child in _preview.GetChildren()) { _preview.RemoveChild(child); child.QueueFree(); }
@@ -199,8 +201,8 @@ public sealed partial class BoardZoneView : Control
         _title.Visible = _count.Visible = ShowHeading;
         _tip.Position = new Vector2(Size.X - 310, 0); _tip.Size = new Vector2(306, 16); _tip.Visible = ShowHeading && GetViewportRect().Size.X > 900;
         if (_slots.Count == 0) return;
-        var gap = GetViewportRect().Size.X <= 900 ? 4 : 6;
-        var left = GetViewportRect().Size.X <= 900 ? 8 : 10;
+        const int gap = 0;
+        const int left = 13;
         var capacity = Math.Max(_slots.Count, SharedCapacity);
         var headingHeight = ShowHeading ? 27 : 0;
         var track = Mathf.Max(1, Mathf.Min((Size.X - left * 2 - gap * (capacity - 1)) / capacity, (Size.Y - headingHeight - left * 2) / 2));
@@ -223,6 +225,6 @@ public sealed partial class BoardZoneView : Control
     public override void _Draw()
     {
         if (_unit <= 0) return;
-        MatchTheme.DrawSurface(this, new Rect2(new Vector2(0, _cardTop - _left), new Vector2(Size.X, _track * 2 + _left * 2)));
+        MatchTheme.DrawRecess(this, new Rect2(new Vector2(0, _cardTop - _left), new Vector2(Size.X, _track * 2 + _left * 2)));
     }
 }

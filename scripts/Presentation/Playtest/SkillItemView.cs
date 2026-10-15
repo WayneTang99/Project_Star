@@ -28,7 +28,7 @@ public sealed partial class SkillItemView : Button
 
     // 选中轮廓只影响展示，不执行技能能力。
     public void SetSelected(bool selected) => AddThemeStyleboxOverride("normal",
-        MatchTheme.Surface(selected ? new Color(MatchTheme.BluePalette ? "314c57" : "354c38") : MatchTheme.SurfaceColor,
+        MatchTheme.Surface(selected ? new Color("354c38") : MatchTheme.SurfaceColor,
             selected ? MatchTheme.Gold : new Color("a5bcc9")));
 
     public override void _GuiInput(InputEvent input)

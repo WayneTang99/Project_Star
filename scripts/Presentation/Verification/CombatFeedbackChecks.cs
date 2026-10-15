@@ -102,7 +102,7 @@ internal static class CombatFeedbackChecks
             var view = new MatchPageViewModel(MatchPage.Preparation, "怪物", "", null, null, null, false, true, [], [], [], [], 0,
                 new UiAction("", false), new UiAction("开始"), new UiAction("", false), new UiAction("", false)) { EncounterLevel = 5 };
             stage.Render(view);
-            if (!Frame(stage.GetNode<TextureRect>("EnemyPortrait"), 5)) return false;
+            if (!stage.GetNode<TextureRect>("EnemyPortrait").TooltipText.Contains("等级 5")) return false;
             var details = new CardDetailsView { ZIndex = 100 }; parent.AddChild(details);
             details.ShowCard(MatchDisplayQuery.FromOffer(ShopOffer.Create(new BoarCardDefinition(), 2)), Vector2.Zero, new Vector2(1600, 900));
             var detailBorder = details.GetNode<LevelBorderView>("LevelBorder"); detailBorder._Process(0);

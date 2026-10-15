@@ -67,6 +67,7 @@ public sealed partial class ShopView : Control
             Action handler = () => { if (IsVisibleInTree() && offer.Action.Enabled && !sold && !card.ConsumeClickSuppression())
                 BuyRequested?.Invoke(offer.Index, offer.Revision); };
             actions.AddChild(price); card.Pressed += handler; _bindings.Add((card, handler));
+            card.InteractionHint = $"{offer.Card.DisplayName} · 购买价 {offer.Price}金币\n{offer.Action.Text} {offer.Action.Reason}";
             card.MouseDefaultCursorShape = offer.Action.Enabled ? CursorShape.PointingHand : CursorShape.Arrow;
             var hint = new Label { Name = "Hint", Text = sold ? "已购买" : offer.Action.Enabled ? "点击购买" : offer.Action.Reason,
                 MouseFilter = MouseFilterEnum.Ignore, ClipText = true, TooltipText = offer.Action.Reason };
@@ -99,8 +100,8 @@ public sealed partial class ShopView : Control
         var feedbackHeight = _message.Visible ? 26 : 0;
         _message.Position = new Vector2(8, Size.Y - feedbackHeight);
         _message.Size = new Vector2(Mathf.Max(1, Size.X - 16), feedbackHeight);
-        _scroll.Position = new Vector2(22, 16); _scroll.Size = new Vector2(Mathf.Max(1, Size.X - 44), Mathf.Max(1, Size.Y - 32 - feedbackHeight));
-        var separation = Mathf.RoundToInt(Mathf.Clamp(GetViewportRect().Size.X * .03f, 16, 40));
+        _scroll.Position = new Vector2(22, 12); _scroll.Size = new Vector2(Mathf.Max(1, Size.X - 44), Mathf.Max(1, Size.Y - 24 - feedbackHeight));
+        var separation = 28;
         _offers.AddThemeConstantOverride("separation", separation);
         foreach (var item in _items)
         {
@@ -113,15 +114,15 @@ public sealed partial class ShopView : Control
 
     private void LayoutOffer(Control row, CardItemView card, int slots, VBoxContainer info, VBoxContainer actions)
     {
-        var height = Mathf.Clamp(GetViewportRect().Size.Y * GetViewport().GetStretchTransform().Scale.Y * .16f, 116, 165);
+        var height = Mathf.Min(196, Mathf.Max(1, _scroll.Size.Y));
         var infoWidth = GetViewportRect().Size.X <= 1150 ? 50 : 69;
         var cardGap = GetViewportRect().Size.X <= 1150 ? 8 : 12;
-        row.CustomMinimumSize = new Vector2(height * slots / 2 + cardGap + infoWidth, _scroll.Size.Y);
+        row.CustomMinimumSize = new Vector2(height * slots / 2, _scroll.Size.Y);
         card.Position = new Vector2(0, (_scroll.Size.Y - height) / 2);
         card.Size = new Vector2(height * slots / 2, height);
         info.Position = new Vector2(card.Size.X + cardGap, card.Position.Y + height - 87);
-        info.Size = new Vector2(infoWidth, 49); info.Show();
-        if (info.GetNodeOrNull<Control>("MergePreview") is { } merge) { merge.Show(); info.Position -= new Vector2(0, 21); }
+        info.Size = new Vector2(infoWidth, 49); info.Hide(); actions.Hide();
+        if (info.GetNodeOrNull<Control>("MergePreview") is { } merge) merge.Hide();
         actions.Position = new Vector2(info.Position.X, card.Position.Y + height - 42);
         actions.Size = new Vector2(infoWidth - 4, 32);
     }

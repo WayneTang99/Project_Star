@@ -302,11 +302,11 @@ internal static class CardCatalogChecks
                 var selectedSort = sort.Selected; var selectedCount = catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount();
                 foreach (var blue in new[] { true, false })
                 {
-                    shell.SetDesktopPalette(blue); await Frame(); await Frame();
+                    shell.ApplyBoardSkin(MatchTheme.Skin); await Frame(); await Frame();
                     if (owner.GetViewport().GuiGetFocusOwner() != currentFocus || sort.Selected != selectedSort || !direction.ButtonPressed
                         || sizeFilter.Selected != 2 || elementFilter.Selected != 9
                         || catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount() != selectedCount
-                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color(blue ? "102432" : "10211b"))
+                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color("262b34"))
                         throw new InvalidOperationException("卡牌图鉴切换配色后样式遗漏或筛选、排序、焦点改变。");
                     await Save(blue ? "filtered-blue" : "filtered-green-restored");
                 }

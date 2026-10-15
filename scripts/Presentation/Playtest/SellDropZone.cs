@@ -7,43 +7,46 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Presentation.Playtest;
 
-// 上方出售目标仅在己方卡牌拖拽期间显示，通过意图调用应用出售用例。
-public sealed partial class SellDropZone : PanelContainer
+// 全屏拖拽路由按落点区分摆放、镶嵌、取消和出售；小提示随鼠标，不遮挡桌面。
+public sealed partial class SellDropZone : Control
 {
     public Func<BoardDragData, Result<int>>? PreviewRequested { get; set; }
     public event Action<BoardDragData, CardSnapshot>? DropRequested;
+    internal BoardZoneView[] Boards { get; set; } = Array.Empty<BoardZoneView>();
+    internal GemShopView? Gems { get; set; }
+    internal Control? BenchToggle { get; set; }
     private MatchSnapshot? _player;
     private bool _enabled;
+    private PanelContainer _feedback = null!;
     private Label _hint = null!;
     private Label _title = null!;
     private Label _value = null!;
     private RichTextLabel _effect = null!;
-    private bool _valid;
-    private bool _over;
+    private bool _selling;
+    private Color _color;
+    private BoardZoneView? _lastBoard;
 
     public override void _Ready()
     {
-        Visible = false;
-        MouseFilter = MouseFilterEnum.Stop;
-        AddThemeStyleboxOverride("panel", new StyleBoxEmpty { ContentMarginLeft = 22, ContentMarginRight = 22,
-            ContentMarginTop = 18, ContentMarginBottom = 18 });
-        var column = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore }; column.AddThemeConstantOverride("separation", 7); AddChild(column);
-        _title = new Label { Name = "CardName", HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-        MatchTheme.Text(_title, 20, MatchTheme.Gold, bold: true); column.AddChild(_title);
-        _value = new Label { Name = "Value", HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-        MatchTheme.Text(_value, 24, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Value), serif: true); column.AddChild(_value);
+        Visible = false; MouseFilter = MouseFilterEnum.Stop;
+        _feedback = new PanelContainer { Name = "Feedback", MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(_feedback);
+        var column = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        column.AddThemeConstantOverride("separation", 4); _feedback.AddChild(column);
+        _title = new Label { Name = "CardName", MouseFilter = MouseFilterEnum.Ignore, ClipText = true };
+        MatchTheme.Text(_title, 13, MatchTheme.Gold, bold: true); column.AddChild(_title);
+        _value = new Label { Name = "Value", MouseFilter = MouseFilterEnum.Ignore };
+        MatchTheme.Text(_value, 16, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Value), serif: true); column.AddChild(_value);
         _effect = new RichTextLabel { Name = "SaleEffect", FitContent = true, ScrollActive = false, MouseFilter = MouseFilterEnum.Ignore };
         _effect.AddThemeFontSizeOverride("normal_font_size", 12); column.AddChild(_effect);
-        _hint = new Label { Name = "Hint", HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        MatchTheme.Text(_hint, 12, MatchTheme.Muted); column.AddChild(_hint);
+        _hint = new Label { Name = "Hint", MouseFilter = MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        MatchTheme.Text(_hint, 11, MatchTheme.Muted); column.AddChild(_hint);
     }
 
+    // 同批快照刷新不会提交任何拖拽操作。
     public void Render(MatchSnapshot? player, bool enabled)
     {
-        _player = player;
-        _enabled = enabled;
+        _player = player; _enabled = enabled;
         if (!_enabled || _player is null) Hide();
     }
 
@@ -57,63 +60,67 @@ public sealed partial class SellDropZone : PanelContainer
 
     public override bool _CanDropData(Vector2 atPosition, Variant data)
     {
-        var card = FindCard(data);
+        var card = FindCard(data); _selling = false;
         if (card is null || PreviewRequested is null) return false;
-        var result = PreviewRequested((BoardDragData)data.AsGodotObject());
-        var valid = result.IsSuccess && result.Value == card.Value;
-        _valid = valid;
-        _title.Text = $"✧　{card.DisplayName} · {card.Level}级";
-        _title.AddThemeColorOverride("font_color", Project_Star.Presentation.CardFace.CardLevelGem.LevelColor(card.Level));
-        _value.Text = $"出售获得  {card.Value} 金币";
-        CardKeywordText.RenderRule(_effect, string.Join(" · ", card.DescriptionEntries.Where(entry => entry.KeywordKey == CardKeywords.Sell).Select(entry => entry.Text)));
-        _effect.Visible = _effect.GetParsedText().Length > 0;
-        _hint.Text = valid ? "移入区域松开出售 · 移出或Escape取消"
-            : result.Failure?.Message ?? "卡牌信息已变化，请重新拖拽。";
-        QueueRedraw();
+        var point = GlobalPosition + atPosition * GetGlobalTransform().Scale;
+        var board = Boards.FirstOrDefault(b => b.IsVisibleInTree() && b.GetGlobalRect().Grow(24 * GetGlobalTransform().Scale.X).HasPoint(point));
+        if (_lastBoard != board) _lastBoard?.ClearDropPreview();
+        _lastBoard = board;
+        var gem = Gems?.IsVisibleInTree() == true ? Gems.TargetAt(point) : null;
+        bool valid;
+        if (board is not null)
+        {
+            valid = board.GetGlobalRect().HasPoint(point) && board._CanDropData(board.GetGlobalTransform().AffineInverse() * point, data);
+            _hint.Text = valid ? "松开摆放 · 青色区域为接收位置" : "此处无法摆放 · 松开取消，移出边缘后出售";
+            _color = new Color(valid ? "83edf2" : "ef9585");
+        }
+        else if (gem is not null)
+        {
+            valid = gem._CanDropData(gem.GetGlobalTransform().AffineInverse() * point, data);
+            _hint.Text = valid ? "松开镶嵌" : gem.DropHint + " · 松开取消";
+            _color = new Color(valid ? "d0a0f3" : "ef9585");
+        }
+        else if (BenchToggle?.GetGlobalRect().HasPoint(point) == true)
+        {
+            valid = false; _hint.Text = "停留打开备战 · 松开取消"; _color = new Color("a2a9b3");
+        }
+        else
+        {
+            var result = PreviewRequested((BoardDragData)data.AsGodotObject());
+            valid = result.IsSuccess && result.Value == card.Value;
+            _selling = valid; _hint.Text = valid ? "松开出售 · Escape取消" : result.Failure?.Message ?? "卡牌信息已变化";
+            _color = new Color(valid ? "efc56f" : "ef9585");
+        }
+        _title.Text = card.DisplayName + (board is not null ? " · 摆放" : gem is not null ? " · 镶嵌" : _selling ? " · 出售" : " · 取消");
+        _value.Text = $"出售可得 {card.Value} 金币"; _value.Visible = _selling;
+        CardKeywordText.RenderRule(_effect, string.Join(" · ", card.DescriptionEntries.Where(e => e.KeywordKey == CardKeywords.Sell).Select(e => e.Text)));
+        _effect.Visible = _selling && _effect.GetParsedText().Length > 0;
+        var plate = MatchTheme.Surface(new Color("303039f5"), _color); plate.SetCornerRadiusAll(7);
+        plate.ContentMarginLeft = plate.ContentMarginRight = 14; plate.ContentMarginTop = plate.ContentMarginBottom = 12;
+        _feedback.AddThemeStyleboxOverride("panel", plate);
+        _feedback.Size = new Vector2(250, 0);
+        var offset = atPosition + new Vector2(22, 24);
+        _feedback.Position = new Vector2(Mathf.Clamp(offset.X, 8, Math.Max(8, Size.X - 258)), Mathf.Clamp(offset.Y, 8, Math.Max(8, Size.Y - _feedback.Size.Y - 8)));
         return valid;
     }
 
     public override void _DropData(Vector2 atPosition, Variant data)
     {
         if (!_CanDropData(atPosition, data)) return;
-        var card = FindCard(data)!;
+        var point = GlobalPosition + atPosition * GetGlobalTransform().Scale;
+        if (_lastBoard is not null) _lastBoard._DropData(_lastBoard.GetGlobalTransform().AffineInverse() * point, data);
+        else if (Gems?.IsVisibleInTree() == true && Gems.TargetAt(point) is { } gem) gem._DropData(gem.GetGlobalTransform().AffineInverse() * point, data);
+        else if (_selling) DropRequested?.Invoke((BoardDragData)data.AsGodotObject(), FindCard(data)!);
         Hide();
-        DropRequested?.Invoke((BoardDragData)data.AsGodotObject(), card);
     }
 
     public override void _Notification(int what)
     {
-        if (what == NotificationDragBegin && _hint is not null)
-        {
-            var data = GetViewport().GuiGetDragData();
-            if (FindCard(data) is null) return;
-            _CanDropData(Vector2.Zero, data);
-            Show();
-        }
-        if (what == NotificationDragEnd) Hide();
+        if (what == NotificationDragBegin && _hint is not null && FindCard(GetViewport().GuiGetDragData()) is not null)
+        { Show(); _CanDropData(GetLocalMousePosition(), GetViewport().GuiGetDragData()); }
+        if (what == NotificationDragEnd) { _lastBoard?.ClearDropPreview(); _lastBoard = null; Hide(); }
     }
 
     public override void _Process(double delta)
-    {
-        if (!Visible) return;
-        var over = GetGlobalRect().HasPoint(GetGlobalMousePosition());
-        if (_over == over) return;
-        _over = over; QueueRedraw();
-    }
-    public override void _Draw()
-    {
-        var rect = new Rect2(Vector2.Zero, Size);
-        MatchTheme.DrawSurface(this, rect, "stage");
-        var color = _over && _valid ? AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Value)!.Value : MatchTheme.Gold;
-        // 低对比斜纹及中心星纹保留主题纹理，不用纯色遮住整片界面。
-        DrawRect(rect.Grow(-8), new Color(color, .35f), false, 1);
-        for (var x = -Size.Y; x < Size.X; x += 22)
-        {
-            var start = new Vector2(Mathf.Max(0, x), Mathf.Max(0, -x));
-            var end = new Vector2(Mathf.Min(Size.X, x + Size.Y), Mathf.Min(Size.Y, Size.X - x));
-            DrawLine(start, end, new Color(color, .04f), 1);
-        }
-        DrawCircle(Size / 2, 62, new Color(color, _over && _valid ? .12f : .04f));
-        DrawStyleBox(MatchTheme.Outline(new Color(color, _over && _valid ? 1 : .55f)), rect);
-    }
+    { if (Visible && GetViewport().GuiIsDragging()) _CanDropData(GetLocalMousePosition(), GetViewport().GuiGetDragData()); }
 }

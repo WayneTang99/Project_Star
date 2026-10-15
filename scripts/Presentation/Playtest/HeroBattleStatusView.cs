@@ -8,6 +8,7 @@ namespace Project_Star.Presentation.Playtest;
 // 双方共用的护甲与周期伤害徽章，跳字仅使用已结算事件。
 public sealed partial class HeroBattleStatusView : HBoxContainer
 {
+    public bool ShowArmor { get; set; } = true;
     private PanelContainer _armor = null!;
     private PanelContainer _burn = null!;
     private PanelContainer _poison = null!;
@@ -29,7 +30,7 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
     public void Render(HeroBattleSnapshot? hero, BattlePlaybackViewModel? playback = null, SideId side = SideId.Player)
     {
         Visible = hero is not null;
-        Update(_armor, hero?.Armor ?? 0, "", null);
+        Update(_armor, hero?.Armor ?? 0, "", null); _armor.Visible &= ShowArmor;
         Update(_burn, hero?.Burn ?? 0, "0.6s", BattleStatus.Burn);
         Update(_poison, hero?.Poison ?? 0, "1s", BattleStatus.Poison);
         _stealth.Visible = hero?.StealthDurationTicks > 0;

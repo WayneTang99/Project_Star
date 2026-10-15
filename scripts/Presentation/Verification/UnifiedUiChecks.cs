@@ -72,13 +72,12 @@ internal static class UnifiedUiChecks
     internal static bool AttributeText(Control owner)
     {
         var label = new RichTextLabel(); owner.AddChild(label);
-        var previous = MatchTheme.BluePalette;
         try
         {
             const string text = "获得护甲10，造成10点普通伤害，治疗5，最大生命+20；出售20件植物卡牌。疾速0.5秒 [url]";
-            foreach (var blue in new[] { false, true })
+            foreach (var pass in new[] { 0 })
             {
-                MatchTheme.SetPalette(blue); CardKeywordText.RenderRule(label, text);
+                CardKeywordText.RenderRule(label, text);
                 if (label.GetParsedText() != text.Replace("植物", "[植物]") || AttributePalette.Find(GameAttributeKeys.Armor) != new Color("72b7ff")
                     || AttributePalette.Find(GameAttributeKeys.HealingBonus) != new Color("55d6a5")) return false;
                 var tokens = new System.Text.RegularExpressions.Regex("护甲|普通伤害|治疗|最大生命|疾速|(?<number>[0-9]+(?:\\.[0-9]+)?)").Matches(text)
@@ -90,7 +89,7 @@ internal static class UnifiedUiChecks
             }
             return true;
         }
-        finally { MatchTheme.SetPalette(previous); owner.RemoveChild(label); label.Free(); }
+        finally { owner.RemoveChild(label); label.Free(); }
     }
 
     internal static async Task<bool> NativeMenu(Control owner)

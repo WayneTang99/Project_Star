@@ -30,6 +30,7 @@ internal static class HtmlParityCapture
         var shell = root.GetNode<MatchShell>("MatchShell"); root.RemoveChild(shell); root.Free(); owner.AddChild(shell);
         shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         GD.Print($"16:9捕获：窗口 {owner.GetWindow().Size}，逻辑视口 {owner.GetViewportRect().Size}，伸缩 {ProjectSettings.GetSetting("display/window/stretch/aspect")}");
+        owner.GetViewport().GuiDisableInput = true;
         var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         shell.SetCatalog(CardCatalogQuery.Capture(registry)); shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
         var snapshot = MatchSnapshot.From(new CreateMatchService(new EntityFactory()).Create(42, 34, new PaladinHeroDefinition()));
@@ -66,6 +67,16 @@ internal static class HtmlParityCapture
             new UiAction("刷新 · 8"), new UiAction("开始战斗", false), new UiAction("继续旅程　→"), new UiAction("奖励", false))
         { ShopLevel = 4, DisplayRound = 2, DisplayTurn = 3, ContextIllustration = new StringName("res://art/ui/encounters/artwork/large_shop-illustration.png") };
         shell.Render(view);
+        if (OS.GetCmdlineUserArgs().Contains("--centered-overview"))
+        {
+            shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel").GetNode<ResourceBar>("HealthBar").Render("生命", 450, 600);
+            await Save("shop"); shell.SetBenchOpen(true); await Save("bench-open"); shell.SetBenchOpen(false);
+            var opponent = MatchSnapshot.From(new Project_Star.Infrastructure.Encounters.LocalTestOpponentProvider(registry)
+                .CreateMonsterOpponent(42, registry.Monsters["monster.boar"]));
+            shell.Render(view with { Page = MatchPage.Preparation, Enemy = opponent, EnemyVisible = true, Title = "战斗准备",
+                Battle = new UiAction("开始战斗"), Continue = new UiAction("继续", false) }); await Save("battle");
+            owner.GetTree().Quit(); return;
+        }
         if (OS.GetCmdlineUserArgs().Contains("--attribute-colors"))
         {
             var sample = hammer with { DisplayName = "属性配色预览", DescriptionEntries = Array.AsReadOnly(new[]
@@ -78,7 +89,6 @@ internal static class HtmlParityCapture
             shell.Render(view);
             shell.GetNode<CardDetailsView>("CardDetails").ShowCard(sample, new Vector2(660, 130), owner.Size);
             await Save("attribute-colors");
-            shell.SetDesktopPalette(true); await Save("attribute-colors-blue");
             GD.Print("项目十种属性色及两套桌面主题捕获完成。");
             owner.GetTree().Quit(); return;
         }
@@ -95,6 +105,10 @@ internal static class HtmlParityCapture
         }
         shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel").GetNode<ResourceBar>("HealthBar").Render("生命", 450, 600);
         await Save("shop");
+        shell.SetBenchOpen(true); await Save("bench-open"); shell.SetBenchOpen(false);
+        var firstOffer = shell.GetNode<ShopView>("ContextRow/ContextHost/ShopView").GetNode<HBoxContainer>("OfferScroll/Offers").GetChild<Control>(0).GetNode<CardItemView>("Card");
+        shell.ShowHoverCard(view.Offers[0].Card, firstOffer.GetGlobalRect(), interactionHint: firstOffer.InteractionHint);
+        await Save("shop-price-hover"); shell.HideHoverCard();
         shell.GetNode<Button>("OpenGameMenu").EmitSignal(Button.SignalName.Pressed); await Save("menu");
         var menu = shell.GetNode<MatchMenuView>("GameMenu");
         menu.GetNode<Button>("ItemsPanel/Items/Abandon").EmitSignal(Button.SignalName.Pressed); await Save("abandon"); menu.Close();
@@ -114,7 +128,7 @@ internal static class HtmlParityCapture
         var scrollbar = shell.GetNode<VScrollBar>("DesktopScroll"); scrollbar.Value = scrollbar.MaxValue - scrollbar.Page; await Save("shop-bottom"); scrollbar.Value = 0;
         var details = shell.GetNode<CardDetailsView>("CardDetails");
         var item = shell.GetNode<BoardZoneView>("BattlefieldRow/Content/Board").GetNode<CardItemView>($"Card_{hammer.Id.Value:N}");
-        item._GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true }); await Save("details");
+        details.SetPinned(true); details.ShowNear(hammer, item.GetGlobalRect(), shell.Size); await Save("details");
         var physicalDetailSize = details.Size * details.Scale * owner.GetViewport().GetStretchTransform().Scale;
         if (!Mathf.IsEqualApprox(physicalDetailSize.X, 440)) throw new InvalidOperationException($"详情屏幕宽度错误：{physicalDetailSize}。");
         GD.Print($"详情屏幕尺寸{physicalDetailSize}，正文宽{details.GetNode<CardDetailsContent>("Content/CardContent").Size.X}，伸缩{details.Scale}。");
@@ -143,7 +157,10 @@ internal static class HtmlParityCapture
         details.ShowNear(cauldron, item.GetGlobalRect(), shell.Size, state); await Save("details-status");
         details.RefreshCard(cauldron, shell.Size, state with { Destroyed = false, Haste = 0, Slow = 0, Immobilize = 0, IsFlying = false, IsBerserk = false,
             Quests = Array.AsReadOnly(new[] { new CardQuestBattleSnapshot(new StringName("ui.sample.quest"), 5, 5, true) }) }); await Save("details-quest");
-        var longCard = cauldron with { Value = 0, Abilities = Array.Empty<AbilityDefinition>(),
+        var longCard = cauldron with { Value = 0,
+            Abilities = Enumerable.Range(0, 60).Select(index => new AbilityDefinition(new StringName($"ui.long.{index}"),
+                AbilityActivation.EchoOnSourceCardActivated, AbilityTarget.SelfCard, 0, 0,
+                [new IncreaseSourceCardAttributeEffectDefinition(GameAttributeKeys.AttackDamage, 1)])).ToArray(),
             DescriptionEntries = Array.AsReadOnly(Enumerable.Range(0, 20).Select(_ => new CardDescriptionEntry(CardKeywords.Passive,
                 "当前数值 0；攻击公式 = 英雄最大生命 × 20% + 护甲 × 1.5。长说明保留全部文字，展开宝石和当前属性后正文仍可滚动阅读。")).ToArray()) };
         details.ShowNear(longCard, new Rect2(new Vector2(shell.Size.X - 100, shell.Size.Y - 80), new Vector2(70, 60)), shell.Size);
@@ -180,10 +197,15 @@ internal static class HtmlParityCapture
                     { Level = skill.Level, Subtitle = CardDisplayAdapter.AbilityDetails(skill.Abilities, skill.CurrentValues) };
             }).ToArray() });
         await Save("mentor");
+        var gems = registry.Gems.Values.Take(2).Select((gem, index) => new GemAnvilViewModel(index, 1,
+            gem.Attributes.Identity.Key, gem.Attributes.Identity.DisplayName, gem.Attributes.Identity.Description, gem.Color, 20, false)).ToArray();
+        shell.Render(view with { Page = MatchPage.GemShop, Title = "宝石商店", GemOffers = gems }); await Save("gem-shop");
+        shell.Render(view with { Page = MatchPage.BattleResult, Title = "战后奖励", Rewards = [new RewardItemViewModel(0, 1, hammer.DisplayName, hammer, "点击获取")],
+            Reward = new UiAction("奖励") }); await Save("reward");
         shell.Render(view with { Page = MatchPage.HeroSelection, Heroes = registry.Heroes.Values.Select(definition => new KeyedAction(definition.Attributes.Identity.Key, new UiAction(definition.Attributes.Identity.DisplayName)) { Illustration = definition.Attributes.Identity.Illustration, Hero = HeroSelectionDetails.From(definition) }).ToArray() });
         shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenDisplaySettings").EmitSignal(Button.SignalName.Pressed); await Save("settings");
         shell.GetNode<DisplaySettingsView>("DisplaySettings").Hide();
-        shell.Render(view); shell.SetDesktopPalette(true); await Save("blue"); shell.SetDesktopPalette(false);
+        shell.Render(view); await Save("sandstone-final");
         owner.GetTree().Quit();
         BattleSideSetup Side(MatchSnapshot side, bool player)
         {
@@ -232,8 +254,7 @@ internal static class HtmlParityCapture
     {
         var background = new ColorRect { Color = new Color("31463b"), MouseFilter = Control.MouseFilterEnum.Ignore };
         owner.AddChild(background); background.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        var blue = OS.GetCmdlineUserArgs().Contains("--blue-details");
-        MatchTheme.SetPalette(blue); owner.Theme = MatchTheme.Create();
+        owner.Theme = MatchTheme.Create();
         var details = new CardDetailsView { ZIndex = 100 }; owner.AddChild(details);
         var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(new JudgmentHammerCardDefinition(), 3)) with
         {
@@ -269,8 +290,8 @@ internal static class HtmlParityCapture
         using var image = owner.GetViewport().GetTexture().GetImage();
         var window = owner.GetWindow().Size;
         var windowSuffix = window == new Vector2I(image.GetWidth(), image.GetHeight()) ? "" : $"-window-{window.X}x{window.Y}";
-        var suffix = $"{image.GetWidth()}x{image.GetHeight()}{windowSuffix}{(blue ? "-blue" : "")}{(setDetails ? "-set" : "")}{(cooldownDetails ? "-cooldown" : "")}";
-        GD.Print($"详情组件：窗口{window}，图像{image.GetWidth()}x{image.GetHeight()}，内容坐标(200,150)，主题{(blue ? "星辉蓝" : "森林金")}。");
+        var suffix = $"{image.GetWidth()}x{image.GetHeight()}{windowSuffix}{(setDetails ? "-set" : "")}{(cooldownDetails ? "-cooldown" : "")}";
+        GD.Print($"详情组件：窗口{window}，图像{image.GetWidth()}x{image.GetHeight()}，内容坐标(200,150)，主题默认砂石。");
         if (image.SavePng($"res://output/ui-html-parity/details-component/native-{suffix}.png") != Error.Ok) throw new InvalidOperationException("详情组件截图保存失败。");
         var measurements = new Dictionary<string, object>();
         foreach (var path in new[] { ".", "Content/CardContent/HeaderMargin" })

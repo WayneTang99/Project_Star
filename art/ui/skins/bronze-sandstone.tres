@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="BoardSkin" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Presentation/Playtest/BoardSkin.cs" id="1"]
+[ext_resource type="Texture2D" path="res://art/ui/skins/bronze-sandstone-table.png" id="2"]
+[ext_resource type="Texture2D" path="res://art/ui/skins/sandstone-grain.png" id="3"]
+[ext_resource type="Texture2D" path="res://art/ui/skins/portrait-mount.png" id="4"]
+[ext_resource type="Shader" path="res://scripts/Presentation/Playtest/BoardSurface.gdshader" id="5"]
+
+[ext_resource type="Texture2D" path="res://art/ui/skins/board-track.svg" id="6"]
+
+[sub_resource type="ShaderMaterial" id="Surface"]
+shader = ExtResource("5")
+shader_parameter/grain_tint = Color(1, 1, 1, 1)
+shader_parameter/grain_opacity = 0.04
+
+[resource]
+script = ExtResource("1")
+TableFrame = ExtResource("2")
+BoardTrack = ExtResource("6")
+TableSurface = ExtResource("3")
+PortraitMount = ExtResource("4")
+SurfaceEffect = SubResource("Surface")

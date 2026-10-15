@@ -49,7 +49,7 @@ public sealed partial class LeavePanel : HFlowContainer
     {
         foreach (var intent in new[] { MatchAction.Refresh, MatchAction.Developer })
         {
-            var plate = MatchTheme.Surface(new Color(MatchTheme.BluePalette ? "233747" : "1e3128"), new Color(MatchTheme.BluePalette ? "617d85" : "6b775a"));
+            var plate = MatchTheme.Surface(new Color("1e3128"), new Color("6b775a"));
             plate.ContentMarginLeft = plate.ContentMarginRight = 9; plate.ContentMarginTop = plate.ContentMarginBottom = 6;
             _buttons[intent].AddThemeStyleboxOverride("normal", plate);
         }
@@ -60,7 +60,7 @@ public sealed partial class LeavePanel : HFlowContainer
     {
         if (_view?.Player?.MatchId != view.Player?.MatchId) _expanded = false;
         _view = view;
-        _stageContinue.Visible = view.Page is MatchPage.Shop or MatchPage.GemShop; _stageContinue.Disabled = !view.Continue.Enabled;
+        _stageContinue.Visible = false; _stageContinue.Disabled = !view.Continue.Enabled;
         Set(MatchAction.Refresh, view.Refresh); Set(MatchAction.Battle, view.Battle);
         Set(MatchAction.Continue, view.Continue); Set(MatchAction.Reward, view.Reward with { Text = $"战利品 ({view.Rewards.Count})" });
         Set(MatchAction.Pause, new UiAction(view.Playback?.Paused == true ? "继续播放" : "暂停", view.Playback is not null));
@@ -87,14 +87,14 @@ public sealed partial class LeavePanel : HFlowContainer
         foreach (var intent in new[] { MatchAction.Battle, MatchAction.Continue, MatchAction.Reward })
         {
             _buttons[intent].Reparent(host);
-            MatchTheme.Accent(_buttons[intent]);
+            MatchTheme.PrimaryAction(_buttons[intent]);
         }
     }
 
     private void Set(MatchAction intent, UiAction action)
     {
         var button = _buttons[intent]; button.Text = action.Text; button.Visible = action.Visible;
-        if (intent == MatchAction.Continue && _view?.Page != MatchPage.MatchEnded) button.Text = "继续旅程　→";
+        if (intent == MatchAction.Continue && _view?.Page != MatchPage.MatchEnded) button.Text = "继续";
         if (intent == MatchAction.Refresh)
         {
             var amount = System.Text.RegularExpressions.Regex.Match(action.Text, @"\d+");
@@ -107,9 +107,9 @@ public sealed partial class LeavePanel : HFlowContainer
             MatchAction.Pause => new StringName(_view?.Playback?.Paused == true ? "play" : "pause"),
             _ => new StringName(""),
         };
-        button.Icon = key.IsEmpty ? null : MatchTheme.Icon(key);
+        button.Icon = intent is MatchAction.Continue or MatchAction.Battle or MatchAction.Reward || key.IsEmpty ? null : MatchTheme.Icon(key);
         button.CustomMinimumSize = new Vector2(intent is MatchAction.Battle or MatchAction.Continue or MatchAction.Reward ? 0 : 40,
-            intent is MatchAction.Battle or MatchAction.Continue or MatchAction.Reward ? 36 : 26);
+            intent is MatchAction.Battle or MatchAction.Continue or MatchAction.Reward ? 56 : 26);
         if (intent == MatchAction.Refresh) button.ClipText = false;
         button.Disabled = !action.Enabled; button.TooltipText = action.Text + "\n" + action.Reason;
     }

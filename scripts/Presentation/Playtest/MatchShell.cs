@@ -11,7 +11,7 @@ using Project_Star.Domain.Combat;
 
 namespace Project_Star.Presentation.Playtest;
 
-// 16:9双列排版；怪物及其战场在上，英雄及其战场在下，子视图仅消费快照。
+// 16:9中轴桌面；敌方/阶段与己方战场上下排布，英雄HUD居中，子视图仅消费快照。
 public sealed partial class MatchShell : Control
 {
     public event Action<MatchPage, StringName, long>? ChoiceSelected;
@@ -73,6 +73,14 @@ public sealed partial class MatchShell : Control
     private PanelContainer _toast = null!;
     private Label _toastText = null!;
     private Tween? _toastTween;
+    private Button _benchToggle = null!;
+    private Button _benchClose = null!;
+    private TextureRect _tableSurface = null!;
+    private TextureRect _contextAvatar = null!;
+    private bool _benchOpen;
+    private double _benchHoverTime;
+    private double _benchExitTime;
+
 
     public override void _Ready()
     {
@@ -83,6 +91,9 @@ public sealed partial class MatchShell : Control
             MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true };
         AddChild(background); MoveChild(background, 0);
         background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _tableSurface = Add(this, new TextureRect { Name = "TableMaterial", MouseFilter = MouseFilterEnum.Ignore,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, TextureRepeat = TextureRepeatEnum.Enabled });
+        MoveChild(_tableSurface, 1);
         _top = GetNode<TopBar>("TopBar");
         _portrait = Add(GetNode<Control>("ContextRow/Portrait"), new ContextPortrait { Name = "ContextPortrait" });
         _hero = Add(GetNode<Control>("BenchRow/Hero"), new PlayerHeroPanel { Name = "PlayerHeroPanel" });
@@ -98,18 +109,17 @@ public sealed partial class MatchShell : Control
         _bottomLine = Add(this, new HBoxContainer { Name = "BottomLine" });
         var footerText = new Label { Text = "小 / 中 / 大型卡牌共用构图", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         MatchTheme.Text(footerText, 10, new Color("748d7f"), spacing: 1); _bottomLine.AddChild(footerText);
-        var paletteText = new Label { Text = "桌面配色" }; MatchTheme.Text(paletteText, 10, new Color("748d7f")); _bottomLine.AddChild(paletteText);
-        foreach (var (title, blue) in new[] { ("森林金", false), ("星辉蓝", true) })
-        {
-            var button = new Button { Text = title }; button.AddThemeFontSizeOverride("font_size", 10);
-            _bottomLine.AddChild(button); button.Pressed += () => SetDesktopPalette(blue);
-        }
         _heroStats = Add(this, new HBoxContainer { Name = "HeroStats" }); _heroStats.AddThemeConstantOverride("separation", 20);
         var armor = new HBoxContainer(); var regen = new HBoxContainer(); _heroStats.AddChild(armor); _heroStats.AddChild(regen);
         var armorTitle = new Label { Text = "护甲" }; MatchTheme.Text(armorTitle, 11, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Armor)); armor.AddChild(armorTitle);
-        _heroArmor = new Label(); MatchTheme.Text(_heroArmor, 17, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Armor), true); armor.AddChild(_heroArmor);
+        _heroArmor = new Label(); MatchTheme.Text(_heroArmor, 15, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.Armor), true); armor.AddChild(_heroArmor);
         var regenTitle = new Label { Text = "再生" }; MatchTheme.Text(regenTitle, 11, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen)); regen.AddChild(regenTitle);
-        _heroRegen = new Label(); MatchTheme.Text(_heroRegen, 17, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen), true); regen.AddChild(_heroRegen);
+        armorTitle.Hide(); regenTitle.Hide();
+        var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill, MouseFilter = MouseFilterEnum.Ignore }; _heroStats.AddChild(spacer); _heroStats.MoveChild(spacer, 1);
+        armor.TooltipText = "护甲：优先抵扣普通伤害与灼伤伤害"; regen.TooltipText = "生命再生：每秒恢复，不超过最大生命";
+        armor.FocusMode = regen.FocusMode = FocusModeEnum.All;
+        _heroStats.Reparent(_hero.GetNode<ResourceBar>("HealthBar"));
+        _heroRegen = new Label(); MatchTheme.Text(_heroRegen, 15, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen), true); regen.AddChild(_heroRegen);
         _navigation = Add(this, new HBoxContainer { Name = "StageNavigation", MouseFilter = MouseFilterEnum.Ignore });
         _navigation.AddThemeConstantOverride("separation", 24);
         foreach (var title in new[] { "商店", "遭遇", "战斗" })
@@ -129,8 +139,15 @@ public sealed partial class MatchShell : Control
         _menu.SettingsRequested += OpenSettings; _menu.CardsRequested += OpenCatalog; _menu.SkillsRequested += OpenSkillCatalog;
         _menu.AbandonRequested += Abandon;
         _economy = Add(this, new EconomyView { Name = "Economy" });
+        _benchToggle = Add(this, new Button { Name = "BenchToggle", Text = "打开备战\n0 / 10", ZIndex = 4 });
+        _benchToggle.AddThemeFontSizeOverride("font_size", 13);
+        _benchToggle.Pressed += ToggleBench;
+        _benchClose = Add(this, new Button { Name = "CloseBench", Text = "×", TooltipText = "收起备战区", ZIndex = 5 });
+        _benchClose.Pressed += CloseBench;
+        _contextAvatar = Add(this, new TextureRect { Name = "ContextAvatar", MouseFilter = MouseFilterEnum.Ignore,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/RoundIcon.gdshader") } });
         _settings = Add(this, new DisplaySettingsView { Name = "DisplaySettings", ZIndex = 50 });
-        _settings.PaletteChanged += SetDesktopPalette;
         _encounters = Add(host, new EncounterSelectionView { Name = "EncounterChoiceView" });
         _events = Add(host, new KeyedActionView { Name = "EventView" });
         _shop = Add(host, new ShopView { Name = "ShopView" });
@@ -141,8 +158,8 @@ public sealed partial class MatchShell : Control
         _enemy = Add(host, new BoardZoneView { Name = "EnemyBoard", ShowHeading = false });
         _battleStage = Add(host, new BattleStageView { Name = "BattleStage" });
         _battleStage.Requested += RequestAction;
-        _battlefield = Add(GetNode<Control>("BattlefieldRow/Content"), new BoardZoneView { Name = "Board" });
-        _bench = Add(GetNode<Control>("BenchRow/Content"), new BoardZoneView { Name = "Board" });
+        _battlefield = Add(GetNode<Control>("BattlefieldRow/Content"), new BoardZoneView { Name = "Board", ShowHeading = false });
+        _bench = Add(GetNode<Control>("BenchRow/Content"), new BoardZoneView { Name = "Board", ShowHeading = false });
         _details = Add(this, new CardDetailsView { Name = "CardDetails", ZIndex = 40 });
         _cardPreview = Add(this, new CardPreviewView { Name = "CardPreview", ZIndex = 55 });
         _secondary = Add(this, new HeroDetailsView { Name = "HeroDetails", ZIndex = 9 });
@@ -153,6 +170,9 @@ public sealed partial class MatchShell : Control
         _toastText = new Label(); MatchTheme.Text(_toastText, 14, new Color("eedab1")); _toast.AddChild(_toastText);
         _sellDrop = Add(this, new SellDropZone { Name = "SellDropZone", ZIndex = 20 });
         _sellDrop.PreviewRequested = PreviewSale;
+        _sellDrop.Boards = new[] { _battlefield, _bench };
+        _sellDrop.Gems = _gemShop;
+        _sellDrop.BenchToggle = _benchToggle;
         _sellDrop.DropRequested += DropSale;
         _heroes.Selected += SelectHero; _encounters.Selected += SelectEncounter; _events.Selected += SelectEvent;
         _shop.BuyRequested += Buy; _leave.Requested += RequestAction;
@@ -172,6 +192,7 @@ public sealed partial class MatchShell : Control
     public void Render(MatchPageViewModel view)
     {
         var previousMessage = _view?.Message;
+        if (_page != view.Page || _view?.Player?.MatchId != view.Player?.MatchId) _benchOpen = false;
         if (_cardPreview.Visible && (_page != view.Page || _view?.Player?.MatchId != view.Player?.MatchId)) _cardPreview.Close();
         if (_view?.Player?.MatchId != view.Player?.MatchId) { _menu.Close(); _settings.Hide(); _catalog.Hide(); _skillCatalog.Hide(); }
         _view = view;
@@ -189,6 +210,11 @@ public sealed partial class MatchShell : Control
         _secondary.Render(view);
         _top.Render(view.Player, view.DisplayRound, view.DisplayTurn);
         _economy.Render(view.Player);
+        _benchToggle.Disabled = view.Page is MatchPage.Preparation or MatchPage.BattlePlayback || !view.BoardEnabled;
+        _benchToggle.Text = $"{(_benchOpen ? "收起备战" : "打开备战")}\n{view.Player?.BoardPlacements.Where(p => p.Zone == BoardZone.Bench).Sum(p => p.EndExclusive - p.Start) ?? 0} / {view.Player?.BenchCapacity ?? 10}";
+        _benchToggle.TooltipText = _benchToggle.Disabled ? "战斗中保持双方战场可见" : "打开备战 · 拖拽停留可展开 · Escape收起";
+        _contextAvatar.Texture = !view.ContextIllustration.IsEmpty && ResourceLoader.Exists(view.ContextIllustration.ToString())
+            ? GD.Load<Texture2D>(view.ContextIllustration.ToString()) : null;
         _portrait.Render(view.Playback is null ? view.Title : view.Enemy?.Hero?.DisplayName ?? "敌方",
             view.EncounterLevel, view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? view.Enemy?.Hero : null,
             view.Playback?.State.Opponent);
@@ -202,7 +228,7 @@ public sealed partial class MatchShell : Control
         _hero.RenderBattle(view.Playback?.State.Player, view.Playback);
         _hero.RenderSkills(view.Player?.Skills ?? Array.Empty<SkillSnapshot>(), view.Player?.Sets.Count ?? 0);
         _heroArmor.Text = (view.Playback?.State.Player.Armor ?? view.Player?.Hero?.CombatValues.GetValueOrDefault(Project_Star.Domain.Common.GameAttributeKeys.Armor) ?? 0).ToString();
-        _heroRegen.Text = (view.Player?.Hero?.CombatValues.GetValueOrDefault(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen) ?? 0).ToString();
+        _heroRegen.Text = "+" + (view.Player?.Hero?.CombatValues.GetValueOrDefault(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen) ?? 0).ToString();
         _heroes.Render(view.Message, view.Heroes);
         _encounters.Render(view.Message, view.Choices);
         _events.Render(view.Message, view.EventOptions, view.EventRevision, view.ContextIllustration, view.EncounterLevel);
@@ -224,7 +250,7 @@ public sealed partial class MatchShell : Control
         _battlefield.Render(view.Player, BoardZone.Battlefield, view.BoardEnabled, view.SelectedCardId, "战场");
         _bench.Render(view.Player, BoardZone.Bench, view.BoardEnabled, view.SelectedCardId, "备战");
         if (view.Page == MatchPage.GemShop)
-            _battlefield.TooltipText = _bench.TooltipText = "右侧砧板镶嵌 · 左侧英雄区出售 · Escape取消拖拽";
+            _battlefield.TooltipText = _bench.TooltipText = "拖至宝石镶嵌 · 移出棋盘出售 · Escape取消拖拽";
         _enemy.Render(view.EnemyVisible && view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? view.Enemy : null,
             BoardZone.Battlefield, false, null, view.Playback is null ? "敌方战场"
                 : $"战斗 {view.Playback.Tick / 10m:0.0}s{(view.Playback.Paused ? " · 暂停" : "")}{(view.Playback.State.Eclipse ? " · 日蚀" : "")}");
@@ -236,7 +262,7 @@ public sealed partial class MatchShell : Control
         if (_page != view.Page) { _battlefield.ClearFeedback(); _bench.ClearFeedback(); _enemy.ClearFeedback(); }
         var pageChanged = _page != view.Page;
         _page = view.Page;
-        if (pageChanged || capacityChanged) LayoutShell();
+        LayoutShell();
         if (view.Playback is not null) _progress.RenderPlayback(string.Join("\n", view.Playback.Feedback));
         var selected = view.Player?.Cards.FirstOrDefault(card => card.Id == view.SelectedCardId);
         if (selected is not null)
@@ -265,6 +291,7 @@ public sealed partial class MatchShell : Control
         _gemShop.PreviewRequested = null; _gemShop.DropRequested -= DropGem;
         GetTree().NodeAdded -= AddButtonFeedback;
         _desktopScroll.ValueChanged -= ScrollChanged;
+        _benchToggle.Pressed -= ToggleBench; _benchClose.Pressed -= CloseBench;
         _toastTween?.Kill();
         _battleStage.Requested -= RequestAction;
         Resized -= LayoutShell;
@@ -272,7 +299,6 @@ public sealed partial class MatchShell : Control
         _menuButton.Pressed -= OpenMenu;
         _menu.SettingsRequested -= OpenSettings; _menu.CardsRequested -= OpenCatalog; _menu.SkillsRequested -= OpenSkillCatalog;
         _menu.AbandonRequested -= Abandon;
-        _settings.PaletteChanged -= SetDesktopPalette;
         _heroes.Selected -= SelectHero; _encounters.Selected -= SelectEncounter; _events.Selected -= SelectEvent;
         _shop.BuyRequested -= Buy; _leave.Requested -= RequestAction;
         _shop.DetailsRequested -= ShowDetails; _details.SellRequested -= Sell; _details.Closed -= CloseDetails;
@@ -284,6 +310,19 @@ public sealed partial class MatchShell : Control
         _battlefield.DetailsRequested -= ShowDetails; _bench.DetailsRequested -= ShowDetails; _enemy.DetailsRequested -= ShowDetails;
         _sellDrop.PreviewRequested = null;
         _sellDrop.DropRequested -= DropSale;
+    }
+
+    private void ToggleBench() => SetBenchOpen(!_benchOpen);
+    private void CloseBench() => SetBenchOpen(false);
+    // 备战展开只改变视图；战斗时始终保留上方敌方战场。
+    internal void SetBenchOpen(bool open)
+    {
+        if (open && (_benchToggle.Disabled || _view?.Player is null)) return;
+        _benchOpen = open; _benchExitTime = 0; _benchHoverTime = 0;
+        _benchToggle.Text = (_benchOpen ? "收起备战" : "打开备战") + "\n" + _benchToggle.Text.Split('\n').Last();
+        _details.Hide(); _pinnedDetails = false;
+        LayoutShell();
+        if (!open) _benchToggle.GrabFocus();
     }
 
     private void SelectHero(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.HeroSelection, key, revision);
@@ -348,8 +387,8 @@ public sealed partial class MatchShell : Control
     public void ShowCardPreview(CardSnapshot card, Rect2 rect) => ShowDetails(card, rect);
     private void CloseDetails() { _pinnedDetails = false; CancelRequested?.Invoke(); }
     // 卡牌悬停立即复用固定详情的内容组件，定位依据卡牌可见边界。
-    public void ShowHoverCard(CardSnapshot card, Rect2 rect, CardBattleSnapshot? battle = null)
-    { if (!_pinnedDetails && !_cardPreview.Visible && !_menu.Visible && !_settings.Visible && !_skillCatalog.Visible && !GetViewport().GuiIsDragging()) { _details.SetPinned(false); _details.ShowNear(DescribeCard(card), new Rect2(rect.Position - GlobalPosition, rect.Size), Size, _catalog.Visible ? null : battle ?? BattleState(card)); } }
+    public void ShowHoverCard(CardSnapshot card, Rect2 rect, CardBattleSnapshot? battle = null, string interactionHint = "")
+    { if (!_pinnedDetails && !_cardPreview.Visible && !_menu.Visible && !_settings.Visible && !_skillCatalog.Visible && !GetViewport().GuiIsDragging()) { _details.SetPinned(false); _details.ShowNear(DescribeCard(card), new Rect2(rect.Position - GlobalPosition, rect.Size), Size, _catalog.Visible ? null : battle ?? BattleState(card)); _details.SetInteractionHint(interactionHint); } }
     // 固定详情不随卡牌离开而关闭。
     public void HideHoverCard(bool dragging = false)
     {
@@ -370,6 +409,8 @@ public sealed partial class MatchShell : Control
 
     public override void _UnhandledKeyInput(InputEvent input)
     {
+        if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _benchOpen)
+        { CloseBench(); GetViewport().SetInputAsHandled(); return; }
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape })
         { _pinnedDetails = false; _details.Hide(); _secondary.Hide(); CancelRequested?.Invoke(); GetViewport().SetInputAsHandled(); }
     }
@@ -392,80 +433,75 @@ public sealed partial class MatchShell : Control
     {
         if (_layingOut || _desktopScroll is null) return;
         _layingOut = true;
-        const float margin = 24;
+        const float margin = 32;
         var choosing = _page == MatchPage.HeroSelection;
         var width = Size.X - margin * 2;
-        var side = width * 440 / 1552;
-        const float gap = 24;
-        var mainLeft = margin + side + gap;
-        var mainWidth = width - side - gap;
-        const float top = 136;
-        var capacity = Math.Max(1, _capacity);
-        // 原棋盘按宽度保持小型1:2比例；阶段和两排棋盘不等分高度。
-        var boardHeight = 27 + 20 + (mainWidth - 20 - 6 * (capacity - 1)) / capacity * 2;
-        var enemyHeight = 20 + (mainWidth - 2 - 20 - 6 * (capacity - 1)) / capacity * 2;
+        var center = Size.X / 2;
         var battle = _battleStage.Visible;
-        var phaseHeight = battle ? enemyHeight + 2 : 214;
-        var heroTop = battle ? top + 258 : top;
-        var heroHeight = battle ? 279 : 245;
-        const float stageTitleWidth = 210;
-        var hostLeft = battle ? mainLeft : mainLeft + stageTitleWidth;
-        var hostWidth = battle ? mainWidth : mainWidth - stageTitleWidth;
         _documentHeight = Size.Y;
         _desktopScroll.MaxValue = _desktopScroll.Page = Size.Y;
         _desktopScroll.Value = 0; _desktopScroll.Hide();
-        _top.Position = new Vector2(margin, 0); _top.Size = new Vector2(width, 82);
-        _navigation.Position = new Vector2(margin, 89.5f); _navigation.Size = new Vector2(width, 39);
-        _stageRect = new Rect2(mainLeft, top, mainWidth, phaseHeight);
-        _heroRect = new Rect2(margin, heroTop, side, heroHeight);
+        _tableSurface.Position = new Vector2(center - 675, 130); _tableSurface.Size = new Vector2(1350, 720);
+        _tableSurface.Visible = !choosing; _tableSurface.Texture = MatchTheme.Skin.TableSurface;
+        _tableSurface.Material = MatchTheme.Skin.SurfaceEffect;
+        _top.Position = new Vector2(margin, 0); _top.Size = new Vector2(width, 64);
+        _navigation.Position = new Vector2(margin, 64); _navigation.Size = new Vector2(width, 36);
+        _stageRect = new Rect2(center - 560, 250, 1120, 230);
+        _heroRect = new Rect2(center - 600, 750, 1200, 124);
         foreach (var path in new[] { "ContextRow", "BattlefieldRow", "BenchRow" })
         {
             var row = GetNode<Control>(path); row.Position = Vector2.Zero; row.Size = Size;
             row.MouseFilter = MouseFilterEnum.Ignore;
             foreach (Control cell in row.GetChildren()) cell.MouseFilter = MouseFilterEnum.Ignore;
         }
-        Place("ContextRow/Portrait", mainLeft + 1, top + 1, stageTitleWidth - 1, phaseHeight - 2);
+        Place("ContextRow/Portrait", _stageRect.Position.X + 1, 251, 209, 228);
         _portrait.Size = GetNode<Control>("ContextRow/Portrait").Size;
-        Place("ContextRow/Leave", battle ? margin + 24 : mainLeft + 24,
-            battle ? heroTop + heroHeight + 56 : top + phaseHeight / 2 + 48, battle ? side - 48 : stageTitleWidth - 40, 76);
+        Place("ContextRow/Leave", _stageRect.Position.X + 24, 420, 170, 44);
         _leaveScroll.Size = GetNode<Control>("ContextRow/Leave").Size;
-        Place("ContextRow/ContextHost", hostLeft, top, hostWidth, phaseHeight);
-        Place("BattlefieldRow/Content", mainLeft, top + phaseHeight + 12, mainWidth, boardHeight);
-        Place("BenchRow/Content", mainLeft, top + phaseHeight + boardHeight + 24, mainWidth, boardHeight);
+        var hostLeft = battle ? _stageRect.Position.X : _stageRect.Position.X + 210;
+        Place("ContextRow/ContextHost", hostLeft, 250, battle ? 1120 : 910, 230);
+        Place("BattlefieldRow/Content", center - 523, 500, 1046, 230);
+        Place("BenchRow/Content", center - 523, 250, 1046, 230);
         foreach (var view in new Control[] { _heroes, _encounters, _events, _shop, _gemShop, _result })
         { view.Position = Vector2.Zero; view.Size = GetNode<Control>("ContextRow/ContextHost").Size; }
-        _enemy.Position = Vector2.One; _enemy.Size = new Vector2(mainWidth - 2, enemyHeight);
-        // 复用原怪物摘要，仅移至左上；敌方棋盘独立占据右上。
-        _battleStage.Position = new Vector2(margin - mainLeft, 0); _battleStage.Size = new Vector2(side, 242);
-        _battlefield.Size = _bench.Size = new Vector2(mainWidth, boardHeight);
-        Place("BenchRow/Hero", margin + 24, heroTop + 11, side - 48, 123);
+        _enemy.Position = new Vector2(37, 0); _enemy.Size = new Vector2(1046, 230);
+        _battleStage.Position = new Vector2(0, -140); _battleStage.Size = new Vector2(1120, 130);
+        _battlefield.Size = _bench.Size = new Vector2(1046, 230);
+        Place("BenchRow/Hero", center - 600, 750, 1200, 124);
         _hero.Size = GetNode<Control>("BenchRow/Hero").Size;
-        var extraStatusHeight = battle ? 33 : 0;
-        Place("BenchRow/Progress", margin + 155, heroTop + 131 + extraStatusHeight, side - 179, 16);
+        Place("BenchRow/Progress", center - 320, 800, 244, 36);
         _progress.Size = GetNode<Control>("BenchRow/Progress").Size;
-        _heroStats.Position = new Vector2(margin + 24, heroTop + 170 + extraStatusHeight); _heroStats.Size = new Vector2(side - 48, 22);
-        _footerActions.Position = new Vector2(margin + 24, heroTop + 199 + extraStatusHeight); _footerActions.Size = new Vector2(side - 48, 36);
-        _bottomLine.Position = new Vector2(margin, heroTop + heroHeight + 15); _bottomLine.Size = new Vector2(side, 22);
+        _heroStats.Position = new Vector2(7, 0); _heroStats.Size = new Vector2(230, 24);
+        _footerActions.Position = new Vector2(center + 592, 462); _footerActions.Size = new Vector2(160, 56); _footerActions.ZIndex = 7;
+        _bottomLine.Hide();
         GetNode<Control>("BattlefieldRow").Visible = GetNode<Control>("BenchRow").Visible = !choosing;
-        GetNode<Control>("ContextRow/Portrait").Visible = GetNode<Control>("ContextRow/Leave").Visible = !choosing;
-        _navigation.Visible = _footerActions.Visible = _bottomLine.Visible = _heroStats.Visible = !choosing;
+        GetNode<Control>("BenchRow/Content").Visible = _benchOpen && !choosing;
+        GetNode<Control>("ContextRow/ContextHost").Visible = !_benchOpen;
+        GetNode<Control>("ContextRow/Portrait").Visible = !choosing && !_benchOpen && !battle;
+        GetNode<Control>("ContextRow/Leave").Visible = !choosing && !_benchOpen && !battle;
+        _navigation.Visible = _footerActions.Visible = _heroStats.Visible = !choosing;
+        _benchToggle.Visible = !choosing; _benchClose.Visible = !choosing && _benchOpen;
+        _benchToggle.Position = new Vector2(center + 484, 760); _benchToggle.Size = new Vector2(100, 74);
+        var dock = MatchTheme.Plate("dock", 6);
+        _benchToggle.AddThemeStyleboxOverride("normal", dock);
+        _benchClose.Position = new Vector2(center + 495, 216); _benchClose.Size = new Vector2(28, 28);
+        _contextAvatar.Position = new Vector2(center - 45, 110); _contextAvatar.Size = new Vector2(90, 90);
+        _contextAvatar.Visible = !choosing && !battle && _contextAvatar.Texture is not null;
         if (choosing)
         {
             var host = GetNode<Control>("ContextRow/ContextHost"); host.Position = new Vector2(margin, 90);
             host.Size = new Vector2(width, Size.Y - 108); _heroes.Size = host.Size;
         }
-        _menuButton.Position = new Vector2(Size.X - margin - 96, 18); _menuButton.Size = new Vector2(96, 40);
+        _menuButton.Position = new Vector2(Size.X - margin - 96, 12); _menuButton.Size = new Vector2(96, 40);
         _menu.Position = Vector2.Zero; _menu.Size = Size;
-        _economy.Position = new Vector2(margin, Size.Y - 14 - 68); _economy.Size = new Vector2(side, 68);
+        _economy.Position = new Vector2(center - 584, 760); _economy.Size = new Vector2(100, 74);
         _settings.Position = Vector2.Zero; _settings.Size = Size;
         _catalog.Position = new Vector2(margin, margin); _catalog.Size = Size - Vector2.One * margin * 2;
         _cardPreview.Position = Vector2.Zero; _cardPreview.Size = Size;
         _skillCatalog.Position = _catalog.Position; _skillCatalog.Size = _catalog.Size;
         _details.ClampTo(Size); _secondary.ClampTo(Size);
-        // 宝石商店右侧砧板接收镶嵌，出售遮罩仅占左侧英雄区域。
-        var saleRect = _page == MatchPage.GemShop ? _heroRect : _stageRect;
-        _sellDrop.Position = saleRect.Position + Vector2.One * 8; _sellDrop.Size = saleRect.Size - Vector2.One * 16;
-        _portrait.Visible = !choosing && !_battleStage.Visible;
+        _sellDrop.Position = Vector2.Zero; _sellDrop.Size = Size;
+        _portrait.Visible = !choosing && !battle && !_benchOpen;
         _layingOut = false; QueueRedraw();
     }
 
@@ -485,6 +521,13 @@ public sealed partial class MatchShell : Control
     public override void _Process(double delta)
     {
         if (_toast.Visible) _toast.Position = new Vector2((Size.X - _toast.Size.X) / 2, Size.Y - 34 - _toast.Size.Y);
+        if (GetViewport().GuiIsDragging() && !_benchToggle.Disabled && !_benchOpen && _benchToggle.GetGlobalRect().HasPoint(GetGlobalMousePosition()))
+        { _benchHoverTime += delta; if (_benchHoverTime >= .35) SetBenchOpen(true); }
+        else _benchHoverTime = 0;
+        if (_benchOpen && GetViewport().GuiIsDragging() && !_bench.GetGlobalRect().Grow(24 * GetGlobalTransform().Scale.X).HasPoint(GetGlobalMousePosition())
+            && !_benchToggle.GetGlobalRect().HasPoint(GetGlobalMousePosition()))
+        { _benchExitTime += delta; if (_benchExitTime >= .15) SetBenchOpen(false); }
+        else _benchExitTime = 0;
         var focus = GetViewport().GuiGetFocusOwner();
         if (focus == _lastFocus) return; _lastFocus = focus;
         if (focus is null || !_desktopScroll.Visible || !IsAncestorOf(focus) || _details.IsAncestorOf(focus) || _secondary.IsAncestorOf(focus)) return;
@@ -493,15 +536,11 @@ public sealed partial class MatchShell : Control
         else if (rect.Position.Y < 0) _desktopScroll.Value += rect.Position.Y - 16;
     }
 
-    // 设置桌面配色；按钮和视觉夹具调用同一条表现路径。
-    public void SetDesktopPalette(bool blue)
+    // 皮肤资源仅改变材质与装饰，布局和输入区域继续使用同一组矩形。
+    public void ApplyBoardSkin(BoardSkin skin)
     {
-        MatchTheme.SetPalette(blue); Theme = MatchTheme.Create();
-        _menu.RefreshPalette();
-        _skillCatalog.RefreshPalette();
-        _leave.RefreshPalette();
-        foreach (var child in _footerActions.GetChildren().OfType<Button>()) MatchTheme.Accent(child);
-        if (_view is not null) Render(_view); QueueRedraw();
+        MatchTheme.SetSkin(skin); LayoutShell(); QueueRedraw();
+        _hero.QueueRedraw(); _battleStage.QueueRedraw();
     }
 
     private void Place(string path, float x, float y, float width, float height)
@@ -511,18 +550,12 @@ public sealed partial class MatchShell : Control
     {
         if (Theme is null) return;
         MatchTheme.DrawBackground(this);
+        if (_page != MatchPage.HeroSelection) MatchTheme.DrawTable(this);
         DrawLine(_top.Position + new Vector2(0, _top.Size.Y + 4), _top.Position + new Vector2(_top.Size.X, _top.Size.Y + 4), new Color(MatchTheme.Gold, .25f));
         if (_page != MatchPage.HeroSelection)
         {
-            // 原HTML的app伪元素先于面板绘制，装饰不得透过英雄底板。
-            if (Size.X > 1150)
-                foreach (var x in new[] { 29f, Size.X - 29 })
-                {
-                    var points = Enumerable.Range(0, 100).Select(i => new Vector2(x + 13 * Mathf.Cos(Mathf.Tau * i / 99), Size.Y / 2 + Mathf.Max(0, Size.Y - 240) / 2 * Mathf.Sin(Mathf.Tau * i / 99))).ToArray();
-                    DrawPolyline(points, new Color("c6aa6330"), 1, true);
-                }
-            MatchTheme.DrawSurface(this, _heroRect, "hero");
-            if (!_enemy.Visible) MatchTheme.DrawSurface(this, _stageRect, "stage");
+            if (!_enemy.Visible && !_benchOpen) MatchTheme.DrawRecess(this, _stageRect);
+            if (_contextAvatar.Visible) MatchTheme.DrawPortraitMount(this, _contextAvatar.GetRect(), true);
 
             if (_navigation.Visible)
                 foreach (Label label in _navigation.GetChildren())

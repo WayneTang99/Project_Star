@@ -11,6 +11,7 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class CardItemView : Button
 {
     public event Action<CardSnapshot, Rect2>? DetailsRequested;
+    public string InteractionHint { get; set; } = "";
     private CardFaceControl _face = null!;
     private CardSnapshot? _card;
     private Guid _matchId;
@@ -187,7 +188,7 @@ public sealed partial class CardItemView : Button
         _hovered = true; UpdateOutline(); _hoverTween?.Kill();
         _hoverTween = CreateTween();
         _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, -6f, .2);
-        if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState);
+        if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState, InteractionHint);
     }
     private void ExitHover()
     {
@@ -202,7 +203,7 @@ public sealed partial class CardItemView : Button
         ZIndex = 5;
         UpdateOutline(); _hoverTween?.Kill(); _hoverTween = CreateTween();
         _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, -6f, .2);
-        if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState);
+        if (_card is not null) FindShell()?.ShowHoverCard(_card, GetGlobalRect(), _battleState, InteractionHint);
     }
     private void ExitFocus()
     {
@@ -232,6 +233,19 @@ public sealed partial class CardItemView : Button
         _outline.Position = _face.Position; _outline.Size = faceSize;
         _battleOverlay.Position = _face.Position; _battleOverlay.Size = faceSize;
         _selectedMark.Position = new Vector2(4, Mathf.Max(0, Size.Y - 25));
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        if (_face is null || _face.Size.X <= 0) return;
+        var rect = _face.GetRect();
+        var shadow = MatchTheme.Surface(Colors.Transparent, Colors.Transparent);
+        shadow.ShadowColor = new Color(0, 0, 0, .48f); shadow.ShadowSize = _hovered ? 14 : 8;
+        shadow.ShadowOffset = new Vector2(_hovered ? 0 : 4, _hovered ? 15 : 9);
+        DrawStyleBox(shadow, rect);
+        DrawRect(new Rect2(rect.Position + new Vector2(0, rect.Size.Y), new Vector2(rect.Size.X, 3)), new Color("4b4931"));
+        DrawRect(new Rect2(rect.Position + new Vector2(0, rect.Size.Y + 3), new Vector2(rect.Size.X, 2)), new Color("0c1711"));
     }
 
     private static void IgnoreDecoration(Node node)

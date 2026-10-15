@@ -14,6 +14,7 @@ public sealed partial class CardDetailsView : PanelContainer
     public event Action? Closed;
     private CardDetailsContent _content = null!;
     private Button _sell = null!;
+    private Label _interactionHint = null!;
     private CardSnapshot? _selling;
     private Guid _matchId;
     private Button _close = null!;
@@ -45,14 +46,20 @@ public sealed partial class CardDetailsView : PanelContainer
         _close.Size = _close.GetCombinedMinimumSize();
         _close.Pressed += Close;
         _content = new CardDetailsContent { Name = "CardContent" }; column.AddChild(_content); Hide();
+        _interactionHint = new Label { Name = "InteractionHint", Visible = false, AutowrapMode = TextServer.AutowrapMode.WordSmart, MouseFilter = MouseFilterEnum.Ignore };
+        MatchTheme.Text(_interactionHint, 13, MatchTheme.Gold); column.AddChild(_interactionHint);
         _sell = new Button { Name = "Sell", Visible = false, ClipText = true }; column.AddChild(_sell);
         _sell.AddThemeFontSizeOverride("font_size", 16);
         _sell.Pressed += ConfirmSale;
     }
 
+    // 商品与奖励的操作说明只属于当前视图，不写入内容定义。
+    public void SetInteractionHint(string text) { _interactionHint.Text = text; _interactionHint.Visible = text.Length > 0; }
+
     // 展示完整卡牌语义，位置来自用户点击而非模型数据。
     public void ShowCard(CardSnapshot card, Vector2 position, Vector2 bounds, CardBattleSnapshot? battle = null)
     {
+        SetInteractionHint("");
         _placementVersion++;
         _fade?.Kill(); _revealOffset = 0; _anchor = null;
         CurrentCardId = card.Id;

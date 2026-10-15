@@ -171,12 +171,12 @@ internal static class SkillCatalogChecks
                 var selected = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills").FindChildren("*", "Button", true, false).OfType<SkillItemView>().Single();
                 foreach (var blue in new[] { true, false })
                 {
-                    shell.SetDesktopPalette(blue); await Frame(); await Frame();
+                    shell.ApplyBoardSkin(MatchTheme.Skin); await Frame(); await Frame();
                     if (!search.HasFocus() || search.Text != "至圣斩" || level.GetItemId(level.Selected) != selectedLevel
-                        || ((StyleBoxFlat)selected.GetThemeStylebox("normal")).BgColor != new Color(blue ? "314c57" : "354c38")
-                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color(blue ? "102432" : "10211b"))
+                        || ((StyleBoxFlat)selected.GetThemeStylebox("normal")).BgColor != new Color("354c38")
+                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color("262b34"))
                         throw new InvalidOperationException("配色切换未同步图鉴样式或丢失焦点、筛选、预览等级。");
-                    await Save(blue ? "palette-blue" : "palette-green-restored");
+                    await Save(blue ? "skin-refreshed" : "skin-restored");
                 }
                 search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, ""); KeyInput(Key.Escape); await Frame();
                 if (catalog.Visible || !shell.GetNode<Button>("OpenGameMenu").HasFocus()) throw new InvalidOperationException("技能图鉴返回焦点失败。");

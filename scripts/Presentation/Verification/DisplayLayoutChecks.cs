@@ -47,12 +47,7 @@ internal static class DisplayLayoutChecks
             if (window.Size != new Vector2I(1600, 900) || settings.Visible) return false;
             settings.Open(); choices.Select(0); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed); settings.Hide();
             if (window.Size != new Vector2I(1600, 900) || config.Load(path) != Error.Ok || (int)config.GetValue("display", "width") != 1600) return false;
-            var originalPalette = MatchTheme.BluePalette;
-            var palette = settings.FindChildren("Palette", "OptionButton", true, false).OfType<OptionButton>().Single();
-            settings.Open(); palette.Select(originalPalette ? 0 : 1); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
-            if (MatchTheme.BluePalette == originalPalette) return false;
-            Button("Cancel").EmitSignal(Godot.Button.SignalName.Pressed);
-            return MatchTheme.BluePalette == originalPalette;
+            return settings.FindChildren("Palette", "OptionButton", true, false).Count == 0;
         }
         finally
         { owner.RemoveChild(settings); settings.Free(); owner.RemoveChild(window); window.Free(); DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path)); }
@@ -88,24 +83,42 @@ internal static class DisplayLayoutChecks
                 var summary = shell.GetNode<Control>("ContextRow/ContextHost/BattleStage").GetGlobalRect();
                 var hero = shell.GetNode<Control>("BenchRow/Hero/PlayerHeroPanel").GetGlobalRect();
                 var own = shell.GetNode<Control>("BattlefieldRow/Content/Board").GetGlobalRect();
-                var bench = shell.GetNode<Control>("BenchRow/Content/Board").GetGlobalRect();
-                if (summary.End.Y >= hero.Position.Y || board.GetGlobalRect().End.Y >= own.Position.Y || own.End.Y >= bench.Position.Y
-                    || bench.End.Y > 900 || board.GetGlobalRect().Position.X <= summary.End.X || shell.GetNode<VScrollBar>("DesktopScroll").Visible
+                if (summary.End.Y >= board.GetGlobalRect().Position.Y || board.GetGlobalRect().End.Y >= own.Position.Y
+                    || own.End.Y >= hero.Position.Y || own.End.Y > 900 || shell.GetNode<VScrollBar>("DesktopScroll").Visible
                     || !originalItems.SequenceEqual(board.GetChildren().OfType<CardItemView>())) return false;
-                // 同宽棋盘遵循原型的自然比例与间距，怪物包装不占己方标题行。
-                if (board.ShowHeading || Mathf.Abs(board.GlobalPosition.Y - 137) > .05f
-                    || Mathf.Abs(own.Position.Y - 372.4f) > .05f || Mathf.Abs(bench.Position.Y - 634.2f) > .05f
-                    || Mathf.Abs(own.Size.Y - 249.8f) > .05f || Mathf.Abs(board.GetNode<Button>("Slot0").Size.Y - 202.4f) > .05f)
-                    return false;
+                if (board.ShowHeading || Mathf.Abs(board.GlobalPosition.Y - 250) > .05f
+                    || Mathf.Abs(own.Position.Y - 500) > .05f || Mathf.Abs(own.Size.Y - 230) > .05f
+                    || Mathf.Abs(board.GetNode<Button>("Slot0").Size.Y - 204) > .05f) return false;
+                shell.SetBenchOpen(true);
+                if (!board.IsVisibleInTree() || shell.GetNode<Control>("BenchRow/Content").IsVisibleInTree()
+                    || !shell.GetNode<Button>("BenchToggle").Disabled) return false;
             }
             shell.Render(view with { Page = MatchPage.Shop, EnemyVisible = false });
             var title = shell.GetNode<Control>("ContextRow/Portrait").GetGlobalRect();
             var shop = shell.GetNode<Control>("ContextRow/ContextHost").GetGlobalRect();
             var playerHero = shell.GetNode<Control>("BenchRow/Hero/PlayerHeroPanel").GetGlobalRect();
-            return !board.Visible && Mathf.Abs(title.End.X - shop.Position.X) < .1f && title.Position.Y == shop.Position.Y + 1
-                && Mathf.Abs(shell.GetNode<Control>("BattlefieldRow/Content").Position.Y - 362) < .05f
-                && Mathf.Abs(shell.GetNode<Control>("BenchRow/Content").Position.Y - 623.8f) < .05f
-                && playerHero.Position.X < title.Position.X && playerHero.Position.Y < 170
+            if (board.Visible || Mathf.Abs(title.End.X - shop.Position.X) > .1f || title.Position.Y != shop.Position.Y + 1
+                || playerHero.Position.Y != 750 || shell.GetNode<Control>("BenchRow/Content").IsVisibleInTree()) return false;
+            shell.SetBenchOpen(true);
+            if (!shell.GetNode<Control>("BenchRow/Content").IsVisibleInTree()
+                || shell.GetNode<Control>("ContextRow/ContextHost").IsVisibleInTree()
+                || shell.GetNode<Control>("BattlefieldRow/Content").GlobalPosition.Y != 500) return false;
+            shell.SetBenchOpen(false);
+            var nodes = new[] { "BattlefieldRow/Content", "BenchRow/Content", "BenchRow/Hero/PlayerHeroPanel", "BenchToggle", "Economy", "ContextRow/ContextHost" }
+                .Select(path => shell.GetNode<Control>(path)).ToArray();
+            var geometry = nodes.Select(node => node.GetGlobalRect()).ToArray();
+            var previousSkin = MatchTheme.Skin;
+            var variant = (BoardSkin)previousSkin.Duplicate();
+            variant.TableSurface = new GradientTexture2D { Gradient = new Gradient { Colors = new[] { Colors.White, Colors.Gray } } };
+            variant.SurfaceEffect = (ShaderMaterial)previousSkin.SurfaceEffect.Duplicate();
+            variant.SurfaceEffect.SetShaderParameter("grain_opacity", .12f);
+            shell.ApplyBoardSkin(variant);
+            var geometryStable = nodes.Select(node => node.GetGlobalRect()).SequenceEqual(geometry)
+                && MatchTheme.Skin.SurfaceEffect != previousSkin.SurfaceEffect
+                && shell.GetNode<TextureRect>("TableMaterial").Texture == variant.TableSurface
+                && shell.GetNode<Control>("TableMaterial").MouseFilter == Control.MouseFilterEnum.Ignore;
+            shell.ApplyBoardSkin(previousSkin);
+            return geometryStable && shell.GetNode<Control>("ContextRow/ContextHost").IsVisibleInTree()
                 && session.Random.State == random && opponent.Random.State == enemyRandom
                 && enemy.BoardPlacements.SequenceEqual(MatchSnapshot.From(opponent).BoardPlacements);
         }

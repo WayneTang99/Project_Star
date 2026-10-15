@@ -101,7 +101,7 @@ public sealed partial class MatchMenuView : Control
     {
         foreach (var panel in new[] { _items, _confirmation })
         {
-            var style = MatchTheme.Plate(MatchTheme.BluePalette ? "blue-surface" : "surface");
+            var style = MatchTheme.Plate("surface");
             style.ContentMarginLeft = style.ContentMarginRight = style.ContentMarginTop = style.ContentMarginBottom = 18;
             panel.AddThemeStyleboxOverride("panel", style);
         }

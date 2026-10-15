@@ -197,14 +197,17 @@ internal static class GemShopChecks
             var placements = presenter.View.Player!.BoardPlacements.ToArray();
             foreach (var (card, zone, index) in new[] { (field, "BattlefieldRow", 0), (bench, "BenchRow", 1) })
             {
+                shell.SetBenchOpen(zone == "BenchRow");
                 var item = shell.GetNode<CardItemView>($"{zone}/Content/Board/Card_{card.Id.Value:N}");
                 var press = item.GetGlobalRect().GetCenter();
                 var anvils = shell.GetNode<HBoxContainer>("ContextRow/ContextHost/GemShopView/Anvils");
                 var target = anvils.GetChild<GemAnvilDropZone>(index).GetGlobalRect().GetCenter();
                 var gemKey = presenter.View.GemOffers[index].Key;
                 await Send(Motion(press, Vector2.Zero, false)); await Send(Button(press, true));
+                await Send(Motion(press + new Vector2(0, 15), new Vector2(0, 15), true));
+                shell.SetBenchOpen(false);
                 await Send(Motion(target, target - press, true));
-                Require(viewport.GuiIsDragging() && sale.Visible && !sale.GetGlobalRect().Intersects(anvils.GetGlobalRect()), "出售遮罩不覆盖砧板");
+                Require(viewport.GuiIsDragging() && sale.Visible && sale._CanDropData(sale.GetGlobalTransform().AffineInverse() * target, viewport.GuiGetDragData()), "拖拽路由优先镶嵌");
                 Require(session.Board.Contains(card.Id) && session.Player.Wealth == wealth && card.GemSockets[0] is null, "原生预览不出售或扣费");
                 if (capture && card == bench)
                 {
@@ -229,7 +232,7 @@ internal static class GemShopChecks
                 }
             }
             var source = shell.GetNode<CardItemView>($"BattlefieldRow/Content/Board/Card_{field.Id.Value:N}");
-            var start = source.GetGlobalRect().GetCenter(); var sellTarget = sale.GetGlobalRect().GetCenter();
+            var start = source.GetGlobalRect().GetCenter(); var sellTarget = sale.GlobalPosition + new Vector2(40, 300);
             var value = field.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value);
             await Send(Motion(start, Vector2.Zero, false)); await Send(Button(start, true));
             await Send(Motion(sellTarget, sellTarget - start, true));
