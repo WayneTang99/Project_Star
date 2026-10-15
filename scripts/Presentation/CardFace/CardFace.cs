@@ -33,6 +33,8 @@ public sealed partial class CardFace : Control
 
     public override void _Ready()
     {
+        TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+        OversamplingWithScale = OversamplingWithScaleEnum.Enabled;
         _frame = GetNode<Panel>("Frame");
         _innerFrame = GetNode<Panel>("InnerFrame");
         _sockets = new Control { Name = "GemSockets", MouseFilter = MouseFilterEnum.Ignore, ZIndex = 3 };

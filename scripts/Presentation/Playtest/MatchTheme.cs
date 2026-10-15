@@ -38,20 +38,17 @@ internal static class MatchTheme
     // 肖像底座来自皮肤；上方底座倒置，保持上下镜像的金属受光层次。
     public static void DrawPortraitMount(Control canvas, Rect2 portrait, bool upper = false)
     {
-        var key = "portrait-mount/" + Skin.PortraitMount.ResourcePath;
-        if (!Panels.TryGetValue(key, out var mount))
-        {
-            using var source = Skin.PortraitMount.GetImage();
-            mount = new AtlasTexture { Atlas = Skin.PortraitMount, Region = source.GetUsedRect() }; Panels.Add(key, mount);
-        }
-        var target = new Rect2(portrait.GetCenter() - new Vector2(180, 66), new Vector2(360, 132));
+        var mount = Skin.PortraitMount;
+        var size = mount.GetSize() * (360f / mount.GetWidth());
+        // 透明留白不等于圆孔中心；保持原画比例，按皮肤标定的圆孔位置与头像对齐。
+        var local = new Rect2(-size * Skin.PortraitMountCenter, size);
         if (upper)
         {
             canvas.DrawSetTransform(portrait.GetCenter(), Mathf.Pi);
-            canvas.DrawTextureRect(mount, new Rect2(new Vector2(-180, -66), new Vector2(360, 132)), false);
+            canvas.DrawTextureRect(mount, local, false);
             canvas.DrawSetTransform(Vector2.Zero);
         }
-        else canvas.DrawTextureRect(mount, target, false);
+        else canvas.DrawTextureRect(mount, new Rect2(portrait.GetCenter() + local.Position, size), false);
     }
 
     // 与 HTML 共用系统字体，按控件角色缓存字重与字距。
@@ -59,7 +56,8 @@ internal static class MatchTheme
     {
         var key = $"{serif}/{bold}/{spacing}";
         if (Fonts.TryGetValue(key, out var font)) return font;
-        font = new FontVariation { BaseFont = new SystemFont { FontNames = new[] { serif ? "Georgia" : "Microsoft YaHei" }, FontWeight = bold ? 700 : 400 }, SpacingGlyph = spacing };
+        font = new FontVariation { BaseFont = new SystemFont { FontNames = new[] { serif ? "Georgia" : "Microsoft YaHei" }, FontWeight = bold ? 700 : 400,
+            MultichannelSignedDistanceField = true, MsdfSize = 64 }, SpacingGlyph = spacing };
         Fonts.Add(key, font); return font;
     }
 

@@ -56,7 +56,6 @@ public sealed partial class MatchShell : Control
     private MatchPage? _page;
     private int _capacity = 10;
     private VBoxContainer _footerActions = null!;
-    private HBoxContainer _navigation = null!;
     private Rect2 _stageRect;
     private Rect2 _heroRect;
     private VScrollBar _desktopScroll = null!;
@@ -86,6 +85,8 @@ public sealed partial class MatchShell : Control
     {
         // HTML 按 sRGB 合成透明层，纯界面视口使用相同的合成空间。
         GetViewport().UseHdr2D = false;
+        TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+        OversamplingWithScale = OversamplingWithScaleEnum.Enabled;
         Theme = MatchTheme.Create();
         var background = new ColorRect { Name = "Background", Color = MatchTheme.Background,
             MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true };
@@ -120,13 +121,6 @@ public sealed partial class MatchShell : Control
         armor.FocusMode = regen.FocusMode = FocusModeEnum.All;
         _heroStats.Reparent(_hero.GetNode<ResourceBar>("HealthBar"));
         _heroRegen = new Label(); MatchTheme.Text(_heroRegen, 15, AttributePalette.Find(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen), true); regen.AddChild(_heroRegen);
-        _navigation = Add(this, new HBoxContainer { Name = "StageNavigation", MouseFilter = MouseFilterEnum.Ignore });
-        _navigation.AddThemeConstantOverride("separation", 24);
-        foreach (var title in new[] { "商店", "遭遇", "战斗" })
-        {
-            var label = new Label { Text = title, CustomMinimumSize = new Vector2(36, 39), VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
-            MatchTheme.Text(label, 14, MatchTheme.Muted, spacing: 2); _navigation.AddChild(label);
-        }
         var host = GetNode<Control>("ContextRow/ContextHost");
         _heroes = Add(host, new HeroSelectionView { Name = "HeroSelectionView" });
         _catalog = Add(this, new CardCatalogView { Name = "CardCatalog", ZIndex = 30 });
@@ -146,7 +140,7 @@ public sealed partial class MatchShell : Control
         _benchClose.Pressed += CloseBench;
         _contextAvatar = Add(this, new TextureRect { Name = "ContextAvatar", MouseFilter = MouseFilterEnum.Ignore,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
-            Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/RoundIcon.gdshader") } });
+            Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/PortraitClip.gdshader") } });
         _settings = Add(this, new DisplaySettingsView { Name = "DisplaySettings", ZIndex = 50 });
         _encounters = Add(host, new EncounterSelectionView { Name = "EncounterChoiceView" });
         _events = Add(host, new KeyedActionView { Name = "EventView" });
@@ -220,10 +214,6 @@ public sealed partial class MatchShell : Control
             view.Playback?.State.Opponent);
         _portrait.SetContext(view.ContextIllustration, view.Message);
         _portrait.SetEyebrow($"第 {(view.DisplayTurn > 0 ? view.DisplayTurn : view.Player?.Turn ?? 0)} 回合 · {(view.Page is MatchPage.Shop or MatchPage.GemShop ? $"{view.ShopLevel} 级商店" : view.Page is MatchPage.Preparation or MatchPage.BattlePlayback ? "怪物遭遇" : "旅途抉择")}");
-        var activeNavigation = view.Page is MatchPage.Shop or MatchPage.GemShop ? 0
-            : view.Page is MatchPage.Preparation or MatchPage.BattlePlayback or MatchPage.BattleResult or MatchPage.MatchEnded ? 2 : 1;
-        for (var index = 0; index < _navigation.GetChildCount(); index++)
-            _navigation.GetChild<Label>(index).AddThemeColorOverride("font_color", index == activeNavigation ? MatchTheme.Gold : MatchTheme.Muted);
         _hero.Render(view.Player?.Hero); _progress.Render(view.Player); _leave.Render(view);
         _hero.RenderBattle(view.Playback?.State.Player, view.Playback);
         _hero.RenderSkills(view.Player?.Skills ?? Array.Empty<SkillSnapshot>(), view.Player?.Sets.Count ?? 0);
@@ -445,7 +435,6 @@ public sealed partial class MatchShell : Control
         _tableSurface.Visible = !choosing; _tableSurface.Texture = MatchTheme.Skin.TableSurface;
         _tableSurface.Material = MatchTheme.Skin.SurfaceEffect;
         _top.Position = new Vector2(margin, 0); _top.Size = new Vector2(width, 64);
-        _navigation.Position = new Vector2(margin, 64); _navigation.Size = new Vector2(width, 36);
         _stageRect = new Rect2(center - 560, 250, 1120, 230);
         _heroRect = new Rect2(center - 600, 750, 1200, 124);
         foreach (var path in new[] { "ContextRow", "BattlefieldRow", "BenchRow" })
@@ -469,7 +458,7 @@ public sealed partial class MatchShell : Control
         _battlefield.Size = _bench.Size = new Vector2(1046, 230);
         Place("BenchRow/Hero", center - 600, 750, 1200, 124);
         _hero.Size = GetNode<Control>("BenchRow/Hero").Size;
-        Place("BenchRow/Progress", center - 320, 800, 244, 36);
+        Place("BenchRow/Progress", center - 440, 800, 244, 36);
         _progress.Size = GetNode<Control>("BenchRow/Progress").Size;
         _heroStats.Position = new Vector2(7, 0); _heroStats.Size = new Vector2(230, 24);
         _footerActions.Position = new Vector2(center + 592, 462); _footerActions.Size = new Vector2(160, 56); _footerActions.ZIndex = 7;
@@ -479,7 +468,7 @@ public sealed partial class MatchShell : Control
         GetNode<Control>("ContextRow/ContextHost").Visible = !_benchOpen;
         GetNode<Control>("ContextRow/Portrait").Visible = !choosing && !_benchOpen && !battle;
         GetNode<Control>("ContextRow/Leave").Visible = !choosing && !_benchOpen && !battle;
-        _navigation.Visible = _footerActions.Visible = _heroStats.Visible = !choosing;
+        _footerActions.Visible = _heroStats.Visible = !choosing;
         _benchToggle.Visible = !choosing; _benchClose.Visible = !choosing && _benchOpen;
         _benchToggle.Position = new Vector2(center + 484, 760); _benchToggle.Size = new Vector2(100, 74);
         var dock = MatchTheme.Plate("dock", 6);
@@ -551,16 +540,12 @@ public sealed partial class MatchShell : Control
         if (Theme is null) return;
         MatchTheme.DrawBackground(this);
         if (_page != MatchPage.HeroSelection) MatchTheme.DrawTable(this);
-        DrawLine(_top.Position + new Vector2(0, _top.Size.Y + 4), _top.Position + new Vector2(_top.Size.X, _top.Size.Y + 4), new Color(MatchTheme.Gold, .25f));
+        DrawLine(new Vector2(_top.Position.X, 100), new Vector2(_top.Position.X + _top.Size.X, 100), new Color(MatchTheme.Gold, .25f));
         if (_page != MatchPage.HeroSelection)
         {
             if (!_enemy.Visible && !_benchOpen) MatchTheme.DrawRecess(this, _stageRect);
             if (_contextAvatar.Visible) MatchTheme.DrawPortraitMount(this, _contextAvatar.GetRect(), true);
 
-            if (_navigation.Visible)
-                foreach (Label label in _navigation.GetChildren())
-                    if (label.GetThemeColor("font_color").IsEqualApprox(MatchTheme.Gold))
-                        DrawLine(label.GlobalPosition - GlobalPosition + new Vector2(0, 38), label.GlobalPosition - GlobalPosition + new Vector2(34, 38), MatchTheme.Gold, 2);
         }
         foreach (var path in new[] { "ContextRow/ContextHost" })
         {

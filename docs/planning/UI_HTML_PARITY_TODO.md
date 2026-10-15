@@ -18,6 +18,10 @@
 
 ## 剩余检查
 
+2026-10-15后续：已完成设置全部五档分辨率下的位图／文字清晰度、三尺寸右键预览、头像框比例与衔接、技能折叠／完整列表、魔法再生与PvP英雄身份一致性检查。构建0警告0错误、387/387及原生窗口缩回／拖拽／菜单通过，见[统一渲染复查](../quality/UI_RENDER_QUALITY_2026_10_15.md)。完整人工对局、宝石专项及下表未覆盖边界仍待验收。
+
+2026-10-15续验：四档原生主布局、备战展开与双战场截图已重拍；修复用户指出的头像偏色、上方头像越框、导航文字压线及底部两栏与头像框重叠，构建0警告0错误、387/387及实际渲染输入专项通过，见[本轮反馈记录](../quality/UI_HTML_FEEDBACK_2026_10_15.md)。这些检查不代表下表所有边界场景或完整人工对局均已验收。
+
 | 范围 | 待验收内容 |
 |---|---|
 | 整体与主题 | 四档窗口及缩回下的上下棋盘、备战抽屉、居中HUD；默认砂石材质与浮层；后续皮肤不改变布局 |
@@ -34,6 +38,6 @@
 
 ## 复现与历史入口
 
-原生截图入口为 `ComponentShowcase.tscn --capture-html-parity`；验证入口为 `Main.tscn --verify`、`--verify-ui-windows`、`--verify-native-drag`。本地临时证据存入 `output/`，长期代表图在 `docs/quality/`。
+原生截图场景为 `res://scripts/Presentation/Playtest/ComponentShowcase.tscn`，用户参数 `--capture-html-parity` 捕获边界专项，追加 `--centered-overview` 捕获当前主布局至独立overview目录；验证入口为 `Main.tscn --verify`、`--verify-ui-windows`、`--verify-native-drag`。本地临时证据存入 `output/`，长期代表图在 `docs/quality/`。
 
 2026-10-10旧获批源文件保留于[备份](../quality/ui-16x9/approved-layout-source.zip)，旧摘要仅对应当时版本。[HTML专项计划](UI_HTML_PARITY_PLAN.md)保留背景与范围说明，当前执行清单以本文为准；[单一HTML计划](UI_UNIFIED_PROTOTYPE_PLAN.md)记录最新新增示例的边界。

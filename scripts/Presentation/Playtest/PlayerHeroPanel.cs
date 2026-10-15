@@ -27,9 +27,9 @@ public sealed partial class PlayerHeroPanel : Control
     private Label _name = null!;
     private Label _subtitle = null!;
     private HeroBattleStatusView _battle = null!;
-    private HFlowContainer _buttons = null!;
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
+    private Label _manaRegen = null!;
     private TextureRect _portrait = null!;
     private Control _identity = null!;
     private Label _level = null!;
@@ -59,11 +59,12 @@ public sealed partial class PlayerHeroPanel : Control
         _health = new ResourceBar("HealthBar", new Color("729c51")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("438fa2")); AddChild(_mana);
         _health.SetDisplayHeight(24); _mana.SetDisplayHeight(24);
+        _manaRegen = new Label { Name = "ManaRegen", Position = new Vector2(180, 0), Size = new Vector2(57, 24),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, TooltipText = "魔法再生：每秒恢复，不超过最大魔法" };
+        MatchTheme.Text(_manaRegen, 15, AttributePalette.Find(GameAttributeKeys.ManaRegen), true, true); _mana.AddChild(_manaRegen);
         _portrait.Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/PortraitClip.gdshader") };
         _battle = new HeroBattleStatusView { Name = "BattleResources", Visible = false, ShowArmor = false }; AddChild(_battle);
-        _buttons = new HFlowContainer(); AddChild(_buttons);
         _skillIcons = new HBoxContainer { Name = "SkillIcons" }; _skillIcons.AddThemeConstantOverride("separation", 7); AddChild(_skillIcons);
-        AddEntry("技能", HeroSection.Skills); AddEntry("套装", HeroSection.Sets); AddEntry("奖励", HeroSection.Rewards);
         Resized += LayoutPanel; LayoutPanel();
     }
     // 使用快照中的英雄身份，不持有实体引用。
@@ -72,18 +73,8 @@ public sealed partial class PlayerHeroPanel : Control
         _name.Text = hero?.DisplayName ?? "英雄";
         _subtitle.Text = hero?.Title ?? "";
         _level.Text = hero?.Level.ToString() ?? "";
-        _buttons.Visible = _health.Visible = _mana.Visible = hero is not null;
-        _portrait.Texture = hero is not null && !hero.Illustration.IsEmpty && ResourceLoader.Exists(hero.Illustration.ToString())
-            ? GD.Load<Texture2D>(hero.Illustration.ToString()) : null;
-        if (_portrait.Texture is { } texture && hero is not null && PortraitCrops.TryGetValue(hero.Key, out var crop))
-        {
-            // 对应HTML小头像的放大倍数与背景定位，仅裁显示区域，原画资源保持完整。
-            var side = texture.GetWidth() / crop.X;
-            _portrait.Texture = new AtlasTexture { Atlas = texture, Region = new Rect2(
-                (texture.GetWidth() - side) * crop.Y, (texture.GetHeight() - side) * crop.Z, side, side) };
-        }
-        else if (_portrait.Texture is { } tallTexture && tallTexture.GetHeight() > tallTexture.GetWidth())
-            _portrait.Texture = new AtlasTexture { Atlas = tallTexture, Region = new Rect2(0, (tallTexture.GetHeight() - tallTexture.GetWidth()) * .22f, tallTexture.GetWidth(), tallTexture.GetWidth()) };
+        _skillIcons.Visible = _health.Visible = _mana.Visible = hero is not null;
+        _portrait.Texture = PortraitTexture(hero);
         _portrait.Visible = _portrait.Texture is not null;
         LayoutPanel();
         if (hero is null) return;
@@ -91,6 +82,22 @@ public sealed partial class PlayerHeroPanel : Control
         _health.Render("生命", health, health);
         _mana.Render("魔法", hero.CombatValues.GetValueOrDefault(GameAttributeKeys.Mana),
             hero.CombatValues.GetValueOrDefault(GameAttributeKeys.MaxMana));
+        _manaRegen.Text = "+" + hero.CombatValues.GetValueOrDefault(GameAttributeKeys.ManaRegen);
+    }
+
+    // 双方英雄小头像使用同一取景，怪物保留其正式插画。
+    internal static Texture2D? PortraitTexture(HeroSnapshot? hero)
+    {
+        if (hero is null || hero.Illustration.IsEmpty || !ResourceLoader.Exists(hero.Illustration.ToString())) return null;
+        var texture = GD.Load<Texture2D>(hero.Illustration.ToString());
+        if (PortraitCrops.TryGetValue(hero.Key, out var crop))
+        {
+            // 对应HTML小头像的放大倍数与背景定位，仅裁显示区域，原画资源保持完整。
+            var side = texture.GetWidth() / crop.X;
+            return new AtlasTexture { Atlas = texture, Region = new Rect2(
+                (texture.GetWidth() - side) * crop.Y, (texture.GetHeight() - side) * crop.Z, side, side) };
+        }
+        return texture;
     }
     // 组件展示可调整肖像高度，横向英雄栏仍以自身可用高度约束。
     public void SetPortraitHeight(float height)
@@ -107,7 +114,7 @@ public sealed partial class PlayerHeroPanel : Control
             _health.Show(); _mana.Show();
             _health.Render("生命", hero.Health, hero.MaxHealth);
             _mana.Render("魔法", hero.Mana, hero.MaxMana);
-            _buttons.Hide();
+            _manaRegen.Text = "+" + hero.ManaRegen;
         }
         LayoutPanel();
     }
@@ -120,7 +127,7 @@ public sealed partial class PlayerHeroPanel : Control
         {
             _skillSignature = signature;
             foreach (var child in _skillIcons.GetChildren()) { _skillIcons.RemoveChild(child); child.QueueFree(); }
-            foreach (var skill in skills)
+            foreach (var skill in skills.Take(skills.Count > 6 ? 5 : 6))
             {
                 var button = new Button { CustomMinimumSize = new Vector2(28, 28), TooltipText = Project_Star.Presentation.CardFace.CardDisplayAdapter.SkillDetails(skill) };
                 var style = MatchTheme.Surface(Colors.Transparent, new Color("c1aa76")); style.SetCornerRadiusAll(12);
@@ -136,24 +143,16 @@ public sealed partial class PlayerHeroPanel : Control
                 }
                 button.Pressed += () => SectionRequested?.Invoke(HeroSection.Skills);
             }
+            if (skills.Count > 6)
+            {
+                var more = new Button { Name = "MoreSkills", Text = "展开", TooltipText = $"查看全部 {skills.Count} 项技能",
+                    CustomMinimumSize = new Vector2(36, 28) };
+                more.AddThemeFontSizeOverride("font_size", 10);
+                more.Pressed += () => SectionRequested?.Invoke(HeroSection.Skills);
+                _skillIcons.AddChild(more);
+            }
         }
-        _buttons.GetChild<Button>(0).TooltipText = $"技能 · {skills.Count}项"; _buttons.GetChild<Button>(1).TooltipText = $"套装 · {setCount}个";
         LayoutPanel();
-    }
-    private void AddEntry(string text, HeroSection section)
-    {
-        var key = section == HeroSection.Skills ? new StringName("skills")
-            : section == HeroSection.Sets ? new StringName("sets") : new StringName("rewards");
-        var button = new Button { Icon = MatchTheme.Icon(key), TooltipText = text, CustomMinimumSize = new Vector2(24, 28) };
-        button.AddThemeConstantOverride("icon_max_width", 16);
-        button.AddThemeFontSizeOverride("font_size", 10);
-        button.AddThemeColorOverride("font_color", new Color("889d8f"));
-        var style = MatchTheme.Surface(Colors.Transparent, Colors.Transparent);
-        style.ContentMarginLeft = style.ContentMarginRight = 4;
-        button.AddThemeStyleboxOverride("normal", style);
-        _buttons.AddThemeConstantOverride("h_separation", 6);
-        _buttons.AddChild(button);
-        button.Pressed += () => SectionRequested?.Invoke(section);
     }
 
     public override void _ExitTree() => Resized -= LayoutPanel;
@@ -163,15 +162,12 @@ public sealed partial class PlayerHeroPanel : Control
         if (_portrait is null) return;
         _identity.Size = Size;
         _portrait.CustomMinimumSize = Vector2.Zero;
-        _portrait.Position = new Vector2(Size.X / 2 - 45, 30); _portrait.Size = new Vector2(90, 90);
+        _portrait.Position = new Vector2(Size.X / 2 - 45, 42); _portrait.Size = new Vector2(90, 90);
         _name.Hide(); _subtitle.Hide(); _level.Hide();
-        _health.Position = new Vector2(280, 14); _health.Size = new Vector2(244, 24);
-        _mana.Position = new Vector2(676, 14); _mana.Size = new Vector2(244, 24);
-        _skillIcons.Position = new Vector2(686, 54); _skillIcons.Size = new Vector2(132, 28);
-        // 技能过多时沿用技能详情入口，常态栏仅显示可用宽度内的图标。
-        for (var index = 0; index < _skillIcons.GetChildCount(); index++) _skillIcons.GetChild<Control>(index).Visible = index < 3;
-        _buttons.Position = new Vector2(824, 54); _buttons.Size = new Vector2(90, 28);
-        _battle.Position = new Vector2(676, -16); _battle.Size = new Vector2(244, 24);
+        _health.Position = new Vector2(160, 14); _health.Size = new Vector2(244, 24);
+        _mana.Position = new Vector2(796, 14); _mana.Size = new Vector2(244, 24);
+        _skillIcons.Position = new Vector2(806, 54); _skillIcons.Size = new Vector2(224, 28);
+        _battle.Position = new Vector2(796, -16); _battle.Size = new Vector2(244, 24);
         QueueRedraw();
     }
 
@@ -179,6 +175,6 @@ public sealed partial class PlayerHeroPanel : Control
     {
         if (_portrait is null || !_portrait.Visible) return;
         MatchTheme.DrawPortraitMount(this, _portrait.GetRect());
-        DrawStyleBox(MatchTheme.Plate("hud-inset", 6), new Rect2(676, 50, 244, 36));
+        DrawStyleBox(MatchTheme.Plate("hud-inset", 6), new Rect2(796, 50, 244, 36));
     }
 }

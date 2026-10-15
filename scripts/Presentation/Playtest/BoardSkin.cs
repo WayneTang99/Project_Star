@@ -10,5 +10,6 @@ public partial class BoardSkin : Resource
     [Export] public Texture2D BoardTrack { get; set; } = null!;
     [Export] public Texture2D TableSurface { get; set; } = null!;
     [Export] public Texture2D PortraitMount { get; set; } = null!;
+    [Export] public Vector2 PortraitMountCenter { get; set; } = new(.5f, .5f);
     [Export] public ShaderMaterial SurfaceEffect { get; set; } = null!;
 }

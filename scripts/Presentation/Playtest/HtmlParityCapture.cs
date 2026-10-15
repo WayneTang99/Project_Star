@@ -33,6 +33,7 @@ internal static class HtmlParityCapture
         owner.GetViewport().GuiDisableInput = true;
         var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
         shell.SetCatalog(CardCatalogQuery.Capture(registry)); shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
+        shell.SetCardPreview(new CardPreviewQuery(registry));
         var snapshot = MatchSnapshot.From(new CreateMatchService(new EntityFactory()).Create(42, 34, new PaladinHeroDefinition()));
         CardSnapshot Sample(CardDefinition definition, int level, int value) => MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level)) with { Id = EntityId.New(), Value = value };
         var hammer = Sample(new JudgmentHammerCardDefinition(), 3, 24) with { DescriptionEntries = Array.AsReadOnly(new[] { new CardDescriptionEntry(CardKeywords.Activate, "对敌方英雄造成其最大生命 20% 的普通伤害。") }) };
@@ -56,7 +57,7 @@ internal static class HtmlParityCapture
             if (index == 6) start = 0;
             placements.Add(new(cards[index].Id, index < 6 ? BoardZone.Battlefield : BoardZone.Bench, start, start + (int)cards[index].Size)); start += (int)cards[index].Size;
         }
-        var heroValues = new Dictionary<StringName, int>(snapshot.Hero!.CombatValues) { [GameAttributeKeys.MaxHealth] = 600, [GameAttributeKeys.Mana] = 80, [GameAttributeKeys.MaxMana] = 100, [GameAttributeKeys.Armor] = 25, [GameAttributeKeys.HealthRegen] = 10 };
+        var heroValues = new Dictionary<StringName, int>(snapshot.Hero!.CombatValues) { [GameAttributeKeys.MaxHealth] = 600, [GameAttributeKeys.Mana] = 80, [GameAttributeKeys.MaxMana] = 100, [GameAttributeKeys.Armor] = 25, [GameAttributeKeys.HealthRegen] = 10, [GameAttributeKeys.ManaRegen] = 5 };
         snapshot = snapshot with { Cards = Array.AsReadOnly(cards), BoardPlacements = placements.AsReadOnly(), BattlefieldCount = 6, BenchCount = 3,
             Round = 2, Turn = 3, Wealth = 34, Income = 5, Experience = 6, Reputation = 18, PvpWins = 3,
             Hero = snapshot.Hero with { Level = 4, CombatValues = heroValues },
@@ -69,12 +70,72 @@ internal static class HtmlParityCapture
         shell.Render(view);
         if (OS.GetCmdlineUserArgs().Contains("--centered-overview"))
         {
+            // 主布局跟随当前 HTML 的尺寸组合；护腕与长详情仍由下方专项夹具覆盖。
+            var griffin = Sample(new HolyGriffinCardDefinition(), 2, 6);
+            var ascendant = Sample(new AscendantCardDefinition(), 1, 2);
+            var overviewCards = new[] { griffin, ascendant, boar, toad, mace, potion, berries, cauldron };
+            var overviewPlacements = new List<BoardPlacementSnapshot>();
+            var slot = 0;
+            for (var index = 0; index < overviewCards.Length; index++)
+            {
+                if (index == 5) slot = 0;
+                var card = overviewCards[index];
+                overviewPlacements.Add(new(card.Id, index < 5 ? BoardZone.Battlefield : BoardZone.Bench, slot, slot + (int)card.Size));
+                slot += (int)card.Size;
+            }
+            view = view with
+            {
+                Player = snapshot with { Cards = Array.AsReadOnly(overviewCards), BoardPlacements = overviewPlacements.AsReadOnly(), BattlefieldCount = 5 },
+                Offers = Array.AsReadOnly(new[] { mace, ascendant, hammer }.Select((card, index) =>
+                    new ShopItemViewModel(index, 1, new UiAction("购买"), card) { Price = new[] { 8, 12, 20 }[index] }).ToArray()),
+            };
+            shell.Render(view);
             shell.GetNode<PlayerHeroPanel>("BenchRow/Hero/PlayerHeroPanel").GetNode<ResourceBar>("HealthBar").Render("生命", 450, 600);
             await Save("shop"); shell.SetBenchOpen(true); await Save("bench-open"); shell.SetBenchOpen(false);
+            if (OS.GetCmdlineUserArgs().Contains("--render-quality"))
+            {
+                foreach (var card in new[] { mace, ascendant, griffin })
+                {
+                    shell.ShowCardPreview(card, default);
+                    await Save($"preview-{card.Size}");
+                    var preview = shell.GetNode<CardPreviewView>("CardPreview");
+                    var panel = preview.GetNode<Control>("Panel");
+                    if (preview.DisplayedCard?.Id != card.Id || panel.Position.X < 0 || panel.Position.Y < 0
+                        || panel.GetRect().End.X > shell.Size.X || panel.GetRect().End.Y > shell.Size.Y)
+                        throw new InvalidOperationException("右键预览身份丢失或面板越出画布。");
+                    preview.Close();
+                }
+                var crowdedSkills = registry.Skills.Values.Take(10)
+                    .Select(definition => MatchDisplayQuery.FromSkill(definition, definition.InitialLevel)).ToArray();
+                shell.Render(view with { Player = view.Player! with { Skills = Array.AsReadOnly(crowdedSkills) } });
+                await Save("skills-overflow");
+                var shelf = shell.GetNode<HBoxContainer>("BenchRow/Hero/PlayerHeroPanel/SkillIcons");
+                if (shelf.GetChildCount() != 6 || shelf.GetChildren().OfType<Control>().Any(icon => icon.GetRect().End.X > shelf.Size.X + 1))
+                    throw new InvalidOperationException("多技能栏未折叠或图标超出栏宽。");
+                shelf.GetNode<Button>("MoreSkills").EmitSignal(Button.SignalName.Pressed);
+                await Save("skills-expanded");
+                var expanded = shell.GetNode<HeroDetailsView>("HeroDetails");
+                if (!expanded.Visible || expanded.GetNode<VBoxContainer>("Content/Scroll/Items").GetChildren().OfType<HBoxContainer>().Count() != crowdedSkills.Length)
+                    throw new InvalidOperationException("技能展开列表遗漏内容。");
+                expanded.Hide(); shell.Render(view);
+                GD.Print("三尺寸右键预览、技能折叠与全部技能展开检查通过。");
+            }
             var opponent = MatchSnapshot.From(new Project_Star.Infrastructure.Encounters.LocalTestOpponentProvider(registry)
                 .CreateMonsterOpponent(42, registry.Monsters["monster.boar"]));
             shell.Render(view with { Page = MatchPage.Preparation, Enemy = opponent, EnemyVisible = true, Title = "战斗准备",
+                ContextIllustration = new StringName("res://art/ui/encounters/artwork/boar-illustration.png"), EncounterLevel = 1,
                 Battle = new UiAction("开始战斗"), Continue = new UiAction("继续", false) }); await Save("battle");
+            if (OS.GetCmdlineUserArgs().Contains("--render-quality"))
+            {
+                var pvp = MatchSnapshot.From(new Project_Star.Infrastructure.Encounters.LocalTestOpponentProvider(registry).CreateOpponent(42));
+                shell.Render(view with { Page = MatchPage.Preparation, Enemy = pvp, EnemyVisible = true, Title = "异步对战 · " + pvp.Hero!.DisplayName });
+                await Save("pvp-hero");
+                var portrait = shell.GetNode<TextureRect>("ContextRow/ContextHost/BattleStage/EnemyPortrait").Texture;
+                if ((portrait is AtlasTexture atlas ? atlas.Atlas.ResourcePath : portrait.ResourcePath) != pvp.Hero.Illustration.ToString())
+                    throw new InvalidOperationException("PvP头像未读取当前敌方英雄。");
+                var manaRegen = shell.GetNode<Label>("BenchRow/Hero/PlayerHeroPanel/ManaBar/ManaRegen");
+                if (manaRegen.Text != "+5" || !manaRegen.IsVisibleInTree()) throw new InvalidOperationException("魔法再生未显示冻结数值。");
+            }
             owner.GetTree().Quit(); return;
         }
         if (OS.GetCmdlineUserArgs().Contains("--attribute-colors"))
@@ -242,11 +303,13 @@ internal static class HtmlParityCapture
                 || menuButton.End.X > shell.Size.X || menuButton.Position.Y < 0)
                 throw new InvalidOperationException("经济区或菜单入口溢出固定画布。");
             await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            DirAccess.MakeDirRecursiveAbsolute("res://output/ui-html-parity/native");
+            var directory = OS.GetCmdlineUserArgs().Contains("--render-quality") ? "res://output/ui-render-quality/native"
+                : OS.GetCmdlineUserArgs().Contains("--centered-overview") ? "res://output/ui-html-parity/overview" : "res://output/ui-html-parity/native";
+            DirAccess.MakeDirRecursiveAbsolute(directory);
             using var image = owner.GetViewport().GetTexture().GetImage();
             var window = owner.GetWindow().Size;
             var suffix = window == new Vector2I(image.GetWidth(), image.GetHeight()) ? "" : $"-window-{window.X}x{window.Y}";
-            if (image.SavePng($"res://output/ui-html-parity/native/{name}-{image.GetWidth()}x{image.GetHeight()}{suffix}.png") != Error.Ok) throw new InvalidOperationException("视觉对照截图保存失败。");
+            if (image.SavePng($"{directory}/{name}-{image.GetWidth()}x{image.GetHeight()}{suffix}.png") != Error.Ok) throw new InvalidOperationException("视觉对照截图保存失败。");
         }
     }
 

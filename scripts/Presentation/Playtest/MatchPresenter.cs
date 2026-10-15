@@ -113,6 +113,9 @@ public sealed class MatchPresenter
         _encounterLevel = 0;
         var result = _game.GenerateEncounterChoices(_player);
         var snapshot = Snapshot(_player);
+        // 对手只在生成本批PvP候选时请求一次，候选图卡与战斗复用同一身份。
+        if (result.IsSuccess && snapshot.EncounterChoices.Any(choice => choice.Kind == EncounterKind.Pvp))
+            _enemy = _opponents.CreateOpponent(_player.Random.State);
         _title = "选择遭遇";
         _message = result.IsFailure ? result.Failure!.Message : "选择一处前往";
     }
@@ -152,7 +155,12 @@ public sealed class MatchPresenter
                 _page = MatchPage.Preparation;
                 _enemy = choice.Kind == EncounterKind.Monster
                     ? _opponents.CreateMonsterOpponent(_player.Random.State, _registry.Monsters[key])
-                    : _opponents.CreateOpponent(_player.Random.State);
+                    : _enemy ?? _opponents.CreateOpponent(_player.Random.State);
+                if (choice.Kind == EncounterKind.Pvp && Snapshot(_enemy).Hero is { } opponentHero)
+                {
+                    _encounterIllustration = opponentHero.Illustration;
+                    _title = $"{choice.DisplayName} · {opponentHero.DisplayName}";
+                }
                 _battleKind = choice.Kind == EncounterKind.Pvp ? MatchBattleKind.Pvp : MatchBattleKind.Monster;
                 _message = "可以调整双棋盘，然后开始战斗；空战场也允许开始。";
                 break;
@@ -398,8 +406,8 @@ public sealed class MatchPresenter
                 { Illustration = hero.Attributes.Identity.Illustration, Hero = HeroSelectionDetails.From(hero) }).ToArray();
         var choices = _page != MatchPage.EncounterChoice || player is null ? Array.Empty<KeyedAction>()
             : player.EncounterChoices.Select(choice => new KeyedAction(choice.Key,
-                new UiAction(choice.DisplayName))
-                { Illustration = choice.Illustration, ShopLevel = choice.ShopLevel, Level = choice.Level,
+                new UiAction(choice.Kind == EncounterKind.Pvp && enemy?.Hero is { } hero ? $"{choice.DisplayName} · {hero.DisplayName}" : choice.DisplayName))
+                { Illustration = choice.Kind == EncounterKind.Pvp && enemy?.Hero is { } opponent ? opponent.Illustration : choice.Illustration, ShopLevel = choice.ShopLevel, Level = choice.Level,
                     Subtitle = choice.Summary.Length > 0 ? choice.Summary : PlaytestText.KindName(choice.Kind) }).ToArray();
         var offers = new List<ShopItemViewModel>();
         if (_page == MatchPage.Shop && _stock is not null && _player is not null)

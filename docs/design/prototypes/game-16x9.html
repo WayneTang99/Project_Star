@@ -907,18 +907,18 @@ body.layout-only .hero-panel .hero-skills{left:740px;width:300px}
 .hero-panel .bars .resource-symbol{position:absolute;left:-27px;top:1px;width:20px;height:20px;color:var(--attr-health)}
 .hero-panel .bars .mana .resource-symbol{top:-1px;color:var(--attr-mana)}
 body.layout-only .hero-panel{top:750px;width:1200px;height:124px;border:0;border-radius:0;background:none;box-shadow:none;isolation:isolate;z-index:3}
-body.layout-only .hero-panel .portrait{top:30px}
+body.layout-only .hero-panel .portrait{top:42px}
 .hero-panel>.portrait+div,.hero-panel .bars{display:contents}
 .hero-panel .hero-name{position:absolute;top:7px;left:530px;width:140px;justify-content:center;margin:0;font-size:13px;color:#493b2d;letter-spacing:2px;text-shadow:0 1px 0 #ead9b577}
 .hero-panel .hero-name span{display:none}
-.hero-panel .bars .bar{position:absolute;left:280px;top:32px;width:244px;height:24px;margin:0;border-color:#ad936a;border-radius:4px;box-shadow:0 0 0 3px #403c36,0 0 0 4px #b69d71,inset 0 2px 3px #0008,0 5px 7px #493b2a88}
-.hero-panel .bars .bar.mana{left:676px;top:32px;width:244px;height:24px}
+.hero-panel .bars .bar{position:absolute;left:160px;top:32px;width:244px;height:24px;margin:0;border-color:#ad936a;border-radius:4px;box-shadow:0 0 0 3px #403c36,0 0 0 4px #b69d71,inset 0 2px 3px #0008,0 5px 7px #493b2a88}
+.hero-panel .bars .bar.mana{left:796px;top:32px;width:244px;height:24px}
 .hero-panel .bars .mana .bar-label{font:bold 14px/22px Georgia}
 .hero-panel .bars .resource-symbol,.hero-panel .bars .mana .resource-symbol{top:1px}
-.hero-panel .hero-meta{position:absolute;left:280px;top:74px;width:244px;justify-content:space-between;gap:12px;margin:0}
+.hero-panel .hero-meta{position:absolute;left:160px;top:74px;width:244px;justify-content:space-between;gap:12px;margin:0}
 .hero-panel .hero-meta svg{width:18px;height:18px}
 .hero-panel .hero-meta b{color:#55422f;text-shadow:0 1px 0 #e3d2b377}
-body.layout-only .hero-panel .hero-skills{left:676px;top:74px;width:244px;gap:14px;justify-content:center}
+body.layout-only .hero-panel .hero-skills{left:796px;top:74px;width:244px;gap:14px;justify-content:center}
 .hero-panel .hero-skills .skill{width:32px;height:32px;border-radius:50%;box-shadow:0 0 0 2px #4c4437,0 3px 5px #473a2d88}
 .hero-panel .hero-skills small{display:none}
 body.layout-only .hero-panel .hero-right{left:1140px;top:-325px;width:132px}
@@ -936,7 +936,7 @@ body.layout-only .hero-panel .economy-dock{left:16px;top:32px;bottom:auto;width:
 .hero-panel:before,.layout-enemy:before,.upper-identity:before{content:'';position:absolute;left:calc(50% - 156px);top:8px;width:312px;height:102px;background:linear-gradient(180deg,#dbc38e,#6b5942 35%,#b69a6b 54%,#5a4a38);clip-path:polygon(0 52%,29% 36%,35% 7%,50% 0,65% 7%,71% 36%,100% 52%,95% 74%,71% 84%,62% 100%,38% 100%,29% 84%,5% 74%);filter:drop-shadow(0 5px 2px #30251d88);z-index:-1}
 .layout-enemy,.upper-identity{isolation:isolate}
 .layout-enemy:before,.upper-identity:before{top:-6px;transform:rotate(180deg)}
-.hero-panel:before{top:24px}
+.hero-panel:before{top:36px}
 body.blue .hero-panel{background:none}
 body.blue .hero-panel .hero-name,body.blue .hero-panel .hero-meta b,body.blue .hero-panel #layout-preview-tools{color:#dbdac7;text-shadow:0 1px 2px #14242d}
 /* 卡面保持正式宽高比；10格仅决定位置，不拉伸卡面填满格宽。 */
@@ -1097,6 +1097,7 @@ document.querySelectorAll('.hero-meta > span').forEach((item,index)=>{
 });
 document.querySelectorAll('.hero-panel .bars .bar').forEach((bar,index)=>bar.insertAdjacentHTML('beforeend',`<svg class="resource-symbol" aria-hidden="true"><use href="#i-${index===0?'health':'mana'}"/></svg>`));
 document.querySelector('.hero-panel .bars .bar').append(document.querySelector('.hero-panel .stats'));
+document.querySelector('.hero-panel .bars .mana').insertAdjacentHTML('beforeend','<span class="mana-regeneration hud-hint" tabindex="0" data-hint="魔法再生：每秒恢复显示数值的魔法，不超过最大魔法。" aria-label="魔法再生5">+5</span>');
 layoutApp.append(stageAction);
 const playerField=document.querySelector('#battlefield').parentElement;
 playerField.classList.add('player-field');
@@ -1123,7 +1124,7 @@ benchDrawer.querySelector('.drawer-close').onclick=()=>toggleBench(false);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!benchDrawer.hidden&&!document.querySelector('dialog[open]'))toggleBench(false)});
 const previewTools=document.createElement('dialog');previewTools.className='ui-dialog layout-tools-dialog';previewTools.setAttribute('aria-label','预览工具');
 previewTools.innerHTML='<button class="detail-close" aria-label="关闭预览工具">×</button><h2>预览工具</h2>';
-previewTools.append(layoutTools);document.body.append(previewTools);
+previewTools.append(document.querySelector('.modebar'),layoutTools);document.body.append(previewTools);
 previewTools.querySelector('.detail-close').onclick=()=>previewTools.close();
 document.querySelector('#layout-preview-tools').onclick=()=>previewTools.showModal();
 previewTools.addEventListener('click',e=>{if(e.target.closest('.case-buttons button,.scenario-list button'))previewTools.close()});
@@ -1143,4 +1144,24 @@ const centeredMode=setMode;setMode=function(next){toggleBench(false);centeredMod
 new MutationObserver(refreshCenteredLayout).observe(document.querySelector('#stage'),{childList:true});
 document.querySelector('.previewtag').textContent='上下等分 · 中轴布局';
 drawStage();refreshCenteredLayout();fitLayout();
+</script>
+<style>
+.hero-skills .skills-more{height:28px;min-width:32px;padding:0 5px;font-size:10px}
+.layout-tools-dialog .modebar{position:static;width:100%;height:auto;min-height:44px;flex-wrap:wrap}
+.mana-regeneration{position:absolute;right:7px;top:0;height:24px;line-height:24px;font:bold 14px/24px Georgia;color:var(--attr-mana)}
+.hero-skills .skill[hidden],.hero-skills .skills-more[hidden]{display:none}
+#skills-expanded .skill{display:inline-block;width:48px;height:48px;margin:8px;background:var(--skill-art) center/cover;border:1px solid var(--gold);border-radius:50%}
+</style>
+<script>
+// 技能栏只显示技能，超过一行时通过独立列表展开，不改变桌面布局。
+const skillShelf=document.querySelector('#hero-skills');
+const moreSkills=document.createElement('button');moreSkills.className='subtlebtn skills-more';moreSkills.textContent='展开';moreSkills.hidden=true;moreSkills.setAttribute('aria-label','展开全部技能');skillShelf.append(moreSkills);
+document.body.insertAdjacentHTML('beforeend','<dialog class="ui-dialog compact-dialog" id="skills-expanded"><h2>技能</h2><div class="skills-list"></div><button class="subtlebtn" data-close-skills>关闭</button></dialog>');
+const skillsExpanded=document.querySelector('#skills-expanded');
+function fitSkills(){const items=[...skillShelf.querySelectorAll('.skill')];moreSkills.hidden=items.length<=6;items.forEach((item,index)=>item.hidden=items.length>6&&index>=5);}
+moreSkills.onclick=()=>{skillsExpanded.querySelector('.skills-list').replaceChildren(...[...skillShelf.querySelectorAll('.skill')].map(item=>{const clone=item.cloneNode(true);clone.hidden=false;return clone}));skillsExpanded.showModal()};
+skillsExpanded.querySelector('[data-close-skills]').onclick=()=>skillsExpanded.close();
+new MutationObserver(fitSkills).observe(skillShelf,{childList:true});fitSkills();
+const pvpSample=document.createElement('button');pvpSample.className='subtlebtn';pvpSample.textContent='异步对战示例';
+pvpSample.onclick=()=>{setMode('battle');const portrait=document.querySelector('.layout-enemy .enemy-portrait');portrait.style.setProperty('--enemy-art',"url('../../../art/ui/heroes/jiyun-illustration.png')");portrait.setAttribute('aria-label','对手英雄：姬云');portrait.title='对手英雄 · 姬云';portrait.querySelector('strong').textContent='姬云';document.querySelector('#monster-battlefield').setAttribute('aria-label','姬云的战场区');previewTools.close()};previewTools.append(pvpSample);
 </script>

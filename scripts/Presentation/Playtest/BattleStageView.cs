@@ -18,6 +18,7 @@ public sealed partial class BattleStageView : Control
     private Label _vs = null!;
     private ResourceBar _health = null!;
     private ResourceBar _mana = null!;
+    private Label _manaRegen = null!;
     private HeroBattleStatusView _statuses = null!;
     private int _level;
     private Label _armorValue = null!;
@@ -37,6 +38,9 @@ public sealed partial class BattleStageView : Control
         _description = new Label { Text = "伤害、护甲与中毒，组合出你的制胜之道。", ClipText = true }; MatchTheme.Text(_description, 11, new Color("9aaa9b")); AddChild(_description);
         _health = new ResourceBar("EnemyHealth", new Color("86b25d")); _health.SetDisplayHeight(24); AddChild(_health);
         _mana = new ResourceBar("EnemyMana", new Color("438fa2")); _mana.SetDisplayHeight(24); AddChild(_mana);
+        _manaRegen = new Label { Name = "ManaRegen", Position = new Vector2(180, 0), Size = new Vector2(57, 24),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, TooltipText = "敌方魔法再生" };
+        MatchTheme.Text(_manaRegen, 15, AttributePalette.Find(GameAttributeKeys.ManaRegen), true, true); _mana.AddChild(_manaRegen);
         _armorValue = new Label { Name = "ArmorValue", Position = new Vector2(7, 0), Size = new Vector2(55, 24), TooltipText = "敌方当前护甲", VerticalAlignment = VerticalAlignment.Center };
         MatchTheme.Text(_armorValue, 15, AttributePalette.Find(GameAttributeKeys.Armor), true, true); _health.AddChild(_armorValue);
         _regenValue = new Label { Name = "RegenValue", Position = new Vector2(180, 0), Size = new Vector2(57, 24), HorizontalAlignment = HorizontalAlignment.Right,
@@ -54,10 +58,12 @@ public sealed partial class BattleStageView : Control
     {
         _playing = view.Playback is not null;
         _level = view.EncounterLevel;
-        var path = !view.ContextIllustration.IsEmpty ? view.ContextIllustration : view.Enemy?.Hero?.Illustration ?? new StringName("");
-        _portrait.Texture = !path.IsEmpty && ResourceLoader.Exists(path.ToString()) ? GD.Load<Texture2D>(path.ToString()) : null;
+        var path = view.Enemy?.Hero?.Illustration ?? new StringName("");
+        if (path.IsEmpty) path = view.ContextIllustration;
+        _portrait.Texture = PlayerHeroPanel.PortraitTexture(view.Enemy?.Hero)
+            ?? (!path.IsEmpty && ResourceLoader.Exists(path.ToString()) ? GD.Load<Texture2D>(path.ToString()) : null);
         _name.Text = view.Enemy?.Hero?.DisplayName ?? view.Title;
-        _portrait.Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/RoundIcon.gdshader") };
+        _portrait.Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/PortraitClip.gdshader") };
         _eyebrow.Text = $"战斗 · 第 {view.DisplayRound} 轮";
         _title.Text = _playing ? view.Playback!.Paused ? "交锋暂停" : "交锋中" : "准备迎战";
         var maximum = view.Playback?.State.Opponent.MaxHealth ?? view.Enemy?.Hero?.CombatValues.GetValueOrDefault(GameAttributeKeys.MaxHealth) ?? 1;
@@ -66,6 +72,7 @@ public sealed partial class BattleStageView : Control
             view.Playback?.State.Opponent.MaxMana ?? view.Enemy?.Hero?.CombatValues.GetValueOrDefault(GameAttributeKeys.MaxMana) ?? 0);
         _armorValue.Text = (view.Playback?.State.Opponent.Armor ?? view.Enemy?.Hero?.CombatValues.GetValueOrDefault(GameAttributeKeys.Armor) ?? 0).ToString();
         _regenValue.Text = "+" + (view.Enemy?.Hero?.CombatValues.GetValueOrDefault(GameAttributeKeys.HealthRegen) ?? 0);
+        _manaRegen.Text = "+" + (view.Playback?.State.Opponent.ManaRegen ?? view.Enemy?.Hero?.CombatValues.GetValueOrDefault(GameAttributeKeys.ManaRegen) ?? 0);
         _statuses.Render(view.Playback?.State.Opponent, view.Playback, SideId.Opponent);
         _portrait.TooltipText = _level > 0 ? $"{_name.Text} · 等级 {_level}" : _name.Text;
 

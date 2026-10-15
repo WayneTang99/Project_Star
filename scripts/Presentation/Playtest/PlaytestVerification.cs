@@ -277,9 +277,9 @@ internal static class PlaytestVerification
             var wealth = presenter.View.Player.Wealth;
             sale.EmitSignal(Button.SignalName.Pressed); sale.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Player!.Cards.Count != 0 || presenter.View.Player.Wealth != wealth + card.Value || details.Visible) return false;
-            var hero = scene.GetNode<PlayerHeroPanel>("MatchShell/BenchRow/Hero/PlayerHeroPanel");
-            hero.GetChildren().OfType<HFlowContainer>().Single().GetChild<Button>(2).EmitSignal(Button.SignalName.Pressed);
             var rewards = scene.GetNode<HeroDetailsView>("MatchShell/HeroDetails");
+            // HUD已移除奖励入口，继续验证结果页使用的既有奖励浮层。
+            rewards.ShowSection(HeroSection.Rewards, scene.GetNode<MatchShell>("MatchShell").Size);
             if (!rewards.Visible) return false;
             var session = (MatchSession)typeof(MatchPresenter).GetField("_player", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(presenter)!;
             var skill = Registry().Skills.Values.First();
@@ -902,11 +902,15 @@ internal static class PlaytestVerification
         {
             var choice = presenter.View.Choices.First(item => turn is 4 or 8
                 || item.Key.ToString().StartsWith("encounter.shop.", StringComparison.Ordinal));
+            if (turn == 8 && (choice.Illustration != presenter.View.Enemy?.Hero?.Illustration
+                || !choice.Action.Text.Contains(presenter.View.Enemy!.Hero!.DisplayName, StringComparison.Ordinal))) return false;
             presenter.ChooseEncounter(choice.Key);
             if (turn is 4 or 8)
             {
                 if (presenter.View.Page != MatchPage.Preparation || presenter.View.Enemy?.Wealth != 777) return false;
+                if (turn == 8 && presenter.View.ContextIllustration != presenter.View.Enemy.Hero!.Illustration) return false;
                 presenter.StartBattle();
+                if (turn == 8 && presenter.View.ContextIllustration != presenter.View.Enemy!.Hero!.Illustration) return false;
                 presenter.SkipPlayback();
             }
             presenter.ContinueMatch();
