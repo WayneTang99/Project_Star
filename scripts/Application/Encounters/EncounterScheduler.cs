@@ -89,7 +89,7 @@ public sealed class EncounterScheduler
             selected.AddRange(SelectMany(available, 2, session, random));
         }
 
-        var choices = selected.Select(definition => ToChoice(definition, random)).ToList().AsReadOnly();
+        var choices = selected.Select(definition => ToChoice(definition, random, maximumInitialLevel)).ToList().AsReadOnly();
         session.EncounterSchedule.SetChoices(choices);
         session.Random.State = random.State;
         session.Events.Add(new EncounterChoicesGeneratedEvent(session.Progress.Round, session.Progress.Turn, choices.Count));
@@ -151,9 +151,9 @@ public sealed class EncounterScheduler
         throw new InvalidOperationException("Weighted selection did not produce an encounter.");
     }
 
-    private EncounterChoice ToChoice(EncounterDefinition definition, SeededRandom random)
+    private EncounterChoice ToChoice(EncounterDefinition definition, SeededRandom random, int maximumInitialLevel)
     {
-        var level = VisitLevel(definition, random);
+        var level = VisitLevel(definition, random, maximumInitialLevel);
         return new(definition.Attributes.Identity.Key, definition.Attributes.Identity.DisplayName, definition.Kind)
         {
             Illustration = definition.Attributes.Identity.Illustration,
@@ -172,15 +172,16 @@ public sealed class EncounterScheduler
         _ => definition.Kind == EncounterKind.Pvp ? 0 : 1,
     };
 
-    private int VisitLevel(EncounterDefinition definition, SeededRandom random)
+    private int VisitLevel(EncounterDefinition definition, SeededRandom random, int maximumInitialLevel)
     {
         var initialLevel = InitialLevel(definition);
         // 5级仅来自初始5级的特殊遭遇；等级覆盖不降低初始等级。
         if (initialLevel == 0) return _encounterLevelOverride ?? 0;
+        var maximumLevel = Math.Min(maximumInitialLevel, 4);
         return initialLevel >= 5 ? initialLevel
             : _encounterLevelOverride is int levelOverride
                 ? Math.Max(initialLevel, Math.Min(levelOverride, 4))
-                : initialLevel == 4 ? 4 : random.NextInt(initialLevel, 5);
+                : initialLevel == maximumLevel ? initialLevel : random.NextInt(initialLevel, maximumLevel + 1);
     }
 
     private static Result<IReadOnlyList<EncounterChoice>> Fail(StringName code, string message) =>

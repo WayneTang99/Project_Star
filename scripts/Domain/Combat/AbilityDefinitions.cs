@@ -221,7 +221,8 @@ public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount
 public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus Status, int Amount, int TargetCount = 1) : EffectDefinition;
 
 // 随机对一张存活己方战场卡牌累加持续状态，包含来源自身（领域战斗层）。
-public sealed record ApplyStatusToRandomAlliedCardEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+public sealed record ApplyStatusToRandomAlliedCardEffectDefinition(
+    BattleStatus Status, int Amount, StringName? RequiredTag = null) : EffectDefinition;
 
 // 按双方存活战场指定元素卡牌数量动态延长来源冷却（领域战斗层）。
 public sealed record IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition(
@@ -295,6 +296,9 @@ public sealed record MultiplySourceAttributePerDestroyedTaggedCardEffectDefiniti
 // 敌方英雄当前有护甲时倍增来源有效属性，不写回基础值（领域战斗层）。
 public sealed record MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition(
     StringName AttributeKey, int Multiplier = 2) : EffectDefinition;
+
+// 对来源卡牌新获得的指定持续状态贡献应用倍率（领域战斗层）。
+public sealed record MultiplyReceivedCardStatusDurationEffectDefinition(BattleStatus Status, int Multiplier = 2) : EffectDefinition;
 
 public sealed record IncreaseSourceCooldownEffectDefinition(int AmountTicks, bool FirstActivationOnly = false)
     : EffectDefinition;
@@ -527,6 +531,11 @@ public sealed class AbilityDefinition
                     || activation is not AbilityActivation.Active and not AbilityActivation.PassiveOnBattleStart
                     || target != AbilityTarget.SelfCard || allowsBench))
                 throw new ArgumentException("Adjacent summon requires a card, side and battlefield active or start self ability.", nameof(effects));
+            if (effect is MultiplyReceivedCardStatusDurationEffectDefinition durationMultiplier
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || durationMultiplier.Multiplier < 1 || durationMultiplier.Status is not BattleStatus.HasteDuration
+                        and not BattleStatus.SlowDuration and not BattleStatus.ImmobilizeDuration))
+                throw new ArgumentException("Received card status duration multiplier requires a battlefield self aura and a duration status.", nameof(effects));
             if (effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition armorMultiplier
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard
                     || allowsBench || armorMultiplier.AttributeKey.IsEmpty || armorMultiplier.Multiplier < 1))
@@ -629,7 +638,8 @@ public sealed class AbilityDefinition
                 throw new ArgumentException("Random enemy card status requires a duration status.", nameof(effects));
             if (effect is ApplyStatusToRandomAlliedCardEffectDefinition alliedStatus
                 && (alliedStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
-                    and not BattleStatus.ImmobilizeDuration || activation == AbilityActivation.PassiveAura))
+                    and not BattleStatus.ImmobilizeDuration || activation == AbilityActivation.PassiveAura
+                    || alliedStatus.RequiredTag is { IsEmpty: true }))
                 throw new ArgumentException("Random allied card status requires a duration status and executed ability.", nameof(effects));
             if (effect is SetSourceCardStateEffectDefinition state
                 && (state.StateKey != GameAttributeKeys.Flying && state.StateKey != GameAttributeKeys.Berserk

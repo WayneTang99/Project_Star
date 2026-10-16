@@ -17,7 +17,7 @@ public sealed class MountedArcherCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却5秒，魔法消耗0，对敌方英雄造成80/160/320伤害。"),
-                    new(CardKeywords.Aura, "此卡牌与坐骑相邻时，发动时左右直接相邻的己方战场坐骑获得1秒疾速。"),
+                    new(CardKeywords.Aura, "此卡牌与载具相邻时，发动时左右直接相邻的己方战场载具获得1秒疾速。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {
@@ -32,6 +32,6 @@ public sealed class MountedArcherCardDefinition : CardDefinition
             [
                 new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage),
                 new ApplyStatusToAdjacentAlliedCardsEffectDefinition(BattleStatus.HasteDuration, 10,
-                    GameTags.Mount, BonusMultiplier: 1, RequiredTag: GameTags.Mount),
+                    GameTags.Vehicle, BonusMultiplier: 1, RequiredTag: GameTags.Vehicle),
             ])]);
 }

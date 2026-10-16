@@ -29,7 +29,7 @@ public sealed class HolyGriffinCardDefinition : CardDefinition
                     [GameAttributeKeys.AttackDamage] = 0,
                     [GameAttributeKeys.CooldownTicks] = 50,
                 })),
-            new TagSet([GameTags.Beast, GameTags.Mount]),
+            new TagSet([GameTags.Beast, GameTags.Vehicle]),
             initialLevel: 2,
             levels:
             [

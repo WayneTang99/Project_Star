@@ -12,7 +12,7 @@ public sealed class AscendantCardDefinition : CardDefinition
     public AscendantCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
             new StringName("card.ascendant"), "飞升者", new StringName("paladin"), CardSize.Medium, [GameElements.General],
-            illustration: new StringName("res://art/ui/card-face/artwork/ascendant-illustration-human-ascension-v2.png"), descriptionEntries:
+            illustration: new StringName("res://art/ui/card-face/artwork/ascendant-illustration-redraw-20261016.png"), descriptionEntries:
             [
                 new(CardKeywords.Activate, "冷却3秒，魔法消耗0，造成此卡牌攻击力的伤害（初始攻击力1）。"),
                 new(CardKeywords.Echo, "当此卡牌发动后，攻击力永久增加1/2/3/4；包含多重的额外发动。"),

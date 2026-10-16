@@ -15,14 +15,20 @@ public sealed partial class CardEffectRow : HBoxContainer
         _value = GetNode<Label>("Value");
     }
 
-    private string _kind = "damage";
-    public override void _Draw() => DrawStyleBox(MatchTheme.Plate("effect-" + _kind, 3), new Rect2(new Vector2(-5, 0), Size + new Vector2(12, 0)));
+    private StyleBoxTexture? _plate;
+    public override void _Draw()
+    {
+        if (_plate is not null) DrawStyleBox(_plate, new Rect2(new Vector2(-5, 0), Size + new Vector2(12, 0)));
+    }
 
     // 按效果语义选择图标与显示值。
     public void Configure(CardFaceEffect effect)
     {
-        _kind = effect.Kind == CardFaceEffectKind.ManaCost ? "mana" : effect.Kind.ToString().ToLowerInvariant();
-        _icon.Texture = MatchTheme.Icon(new StringName(_kind));
+        var kind = effect.Kind == CardFaceEffectKind.ManaCost ? "mana" : effect.Kind.ToString().ToLowerInvariant();
+        // 保持样式及纹理的强引用，避免GC后已有绘制命令引用失效纹理。
+        _plate = MatchTheme.Plate("effect-" + kind, 3);
+        QueueRedraw();
+        _icon.Texture = MatchTheme.Icon(new StringName(kind));
         _value.Text = effect.Value;
         _icon.Modulate = AttributePalette.Effect(effect.Kind);
         _icon.Material = AttributePalette.IconMaterial;

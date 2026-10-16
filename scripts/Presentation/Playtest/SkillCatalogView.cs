@@ -63,7 +63,11 @@ public sealed partial class SkillCatalogView : PanelContainer
     // 入口注入应用查询结果，视图不访问内容定义。
     public void SetEntries(IReadOnlyList<SkillCatalogEntry> entries)
     {
-        _entries = entries; _factions = Array.AsReadOnly(entries.Select(entry => entry.InitialSkill.FactionKey).Distinct().ToArray());
+        _entries = Array.AsReadOnly(entries.OrderBy(entry => FactionDisplayOrder.Rank(entry.InitialSkill.FactionKey))
+            .ThenBy(entry => entry.InitialSkill.FactionKey.ToString(), StringComparer.Ordinal)
+            .ThenBy(entry => entry.InitialLevel)
+            .ThenBy(entry => entry.InitialSkill.Key.ToString(), StringComparer.Ordinal).ToArray());
+        _factions = Array.AsReadOnly(_entries.Select(entry => entry.InitialSkill.FactionKey).Distinct().ToArray());
         _faction.Clear(); _faction.AddItem("全部归属");
         foreach (var faction in _factions) _faction.AddItem(entries.First(entry => entry.InitialSkill.FactionKey == faction).FactionName);
         _initialLevel.Clear(); _initialLevel.AddItem("全部初始等级", 0);

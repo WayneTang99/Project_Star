@@ -503,7 +503,7 @@ internal static class CardCombatChecks
             || !definition.Attributes.Identity.ElementKeys.Contains(GameElements.Wind)
             || !definition.Attributes.Identity.ElementKeys.Contains(GameElements.Light)
             || !definition.Tags.Contains(GameTags.Beast)
-            || !definition.Tags.Contains(GameTags.Mount)
+            || !definition.Tags.Contains(GameTags.Vehicle)
             || levelTwo.Abilities[0].Activation != AbilityActivation.Active
             || levelTwo.Abilities[0].CooldownTicks != 50
             || activeEffect is null

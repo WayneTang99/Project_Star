@@ -81,7 +81,7 @@ public sealed class ShopCardPoolService
         var check = CheckRefresh(session, stock);
         if (check.IsFailure) return Result<IReadOnlyList<ShopOffer>>.Fail(check.Failure!);
         session.Player.TrySpendWealth(stock.RefreshCost);
-        var offers = DrawOffers(session, ExcludeOwnedMaxLevelCards(session, stock.EligibleCards), stock.ShopLevel);
+        var offers = DrawOffers(session, GetRefreshCards(session, stock), stock.ShopLevel);
         stock.ReplaceOffers(offers);
         return Result<IReadOnlyList<ShopOffer>>.Success(offers);
     }
@@ -89,7 +89,7 @@ public sealed class ShopCardPoolService
     // 费用与剩余次数条件由应用查询提供，提交复用同一校验。
     public Result CheckRefresh(MatchSession session, ShopStock stock)
     {
-        if (!stock.CanRefresh || ExcludeOwnedMaxLevelCards(session, stock.EligibleCards).Count <= OfferCount)
+        if (!stock.CanRefresh || GetRefreshCards(session, stock).Count == 0)
             return Result.Fail(new Failure(
                 RefreshUnavailable,
                 "本次商店不可刷新。"));
@@ -133,6 +133,13 @@ public sealed class ShopCardPoolService
             .OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList()
             .AsReadOnly();
+    }
+
+    private static IReadOnlyList<CardDefinition> GetRefreshCards(MatchSession session, ShopStock stock)
+    {
+        var previous = stock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key).ToHashSet();
+        return ExcludeOwnedMaxLevelCards(session, stock.EligibleCards)
+            .Where(card => !previous.Contains(card.Attributes.Identity.Key)).ToList().AsReadOnly();
     }
 
     private static IReadOnlyList<ShopOffer> DrawOffers(

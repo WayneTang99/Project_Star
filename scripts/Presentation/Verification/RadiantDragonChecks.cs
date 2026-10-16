@@ -22,7 +22,7 @@ internal static class RadiantDragonChecks
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Fire, GameElements.Light })
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
             || definition.Tags.Count != 3 || !definition.Tags.Contains(GameTags.Large)
-            || !definition.Tags.Contains(GameTags.Mount) || !definition.Tags.Contains(GameTags.Dragon)
+            || !definition.Tags.Contains(GameTags.Vehicle) || !definition.Tags.Contains(GameTags.Dragon)
             || TagDisplayNames.Get(GameTags.Dragon) != "龙族"
             || !identity.DescriptionEntries.Select(entry => entry.KeywordKey)
                 .SequenceEqual(new[] { CardKeywords.Activate, CardKeywords.Aura })
@@ -58,7 +58,7 @@ internal static class RadiantDragonChecks
         var trainer = new CardBattleSetup(EntityId.New(), 3, 0, 20,
             [new AbilityDefinition(new StringName("verification.dragon.flight"), AbilityActivation.Active,
                 AbilityTarget.SelfCard, 0, 20,
-                [new SetRandomAdjacentAlliedTaggedCardStateEffectDefinition(GameTags.Mount, GameAttributeKeys.Flying, true)])],
+                [new SetRandomAdjacentAlliedTaggedCardStateEffectDefinition(GameTags.Vehicle, GameAttributeKeys.Flying, true)])],
             UseLegacyAttack: false);
         var setup = Battle([card, trainer], 80);
         var entered = new CombatSimulator().Simulate(setup);

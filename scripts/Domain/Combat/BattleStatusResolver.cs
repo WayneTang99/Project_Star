@@ -45,6 +45,11 @@ internal static class BattleStatusResolver
     // 累加英雄或来源卡牌的对应状态贡献。
     internal static int ApplyStatus(IBattleAbilitySource source, HeroBattleState hero, ApplyStatusEffectDefinition effect)
     {
+        if (source is CardBattleState { Destroyed: false, IsOnBench: false } recipient)
+            foreach (var aura in recipient.Abilities.Where(a => a.Definition.Activation == AbilityActivation.PassiveAura))
+                foreach (var multiplier in aura.Definition.Effects.OfType<MultiplyReceivedCardStatusDurationEffectDefinition>())
+                    if (multiplier.Status == effect.Status)
+                        effect = effect with { Amount = checked(effect.Amount * multiplier.Multiplier) };
         var amount = source is CardBattleState { IsFlying: true }
             && effect.Status is BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration
                 ? effect.Amount / 2 : effect.Amount;
@@ -117,7 +122,8 @@ internal static class BattleStatusResolver
     internal static void ApplyStatusToRandomAlliedCard(BattleRuntime runtime, PendingAbility pending,
         ApplyStatusToRandomAlliedCardEffectDefinition effect)
     {
-        var candidates = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
+        var candidates = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
+            && (effect.RequiredTag is not { } tag || BattleEffectResolver.HasEffectiveTag(runtime, card, tag))).ToArray();
         if (candidates.Length == 0) return;
         ApplyCardStatus(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)], effect.Status,
             DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount));

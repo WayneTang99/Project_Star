@@ -12,7 +12,7 @@ public sealed class SiegeBallistaCardDefinition : CardDefinition
     public SiegeBallistaCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
             new StringName("card.siege_ballista"), "攻城弩车", new StringName("paladin"), CardSize.Large, [GameElements.General],
-            illustration: new StringName("res://art/ui/card-face/artwork/siege_ballista-illustration.png"),
+            illustration: new StringName("res://art/ui/card-face/artwork/siege_ballista-illustration-action-v3.png"),
             descriptionEntries:
             [
                 new(CardKeywords.Activate, "冷却7秒，魔法消耗0，对敌方英雄造成160/320伤害。"),

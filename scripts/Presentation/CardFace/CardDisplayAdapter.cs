@@ -173,11 +173,14 @@ public sealed class CardDisplayAdapter
         foreach (var ability in card.Abilities)
         {
             var effects = new List<string>();
+            var manaArmor = ability.Effects.Any(effect => effect is GainArmorEqualToManaSpentEffectDefinition);
+            var armorBonus = manaArmor ? ability.Effects.OfType<GainSourceHeroArmorFromAttributeEffectDefinition>().FirstOrDefault() : null;
             var frozen = ability.Activation != AbilityActivation.PassiveWhileEnabled && !MatchAbilityRules.IsMatchTrigger(ability.Activation);
             foreach (var effect in ability.Effects)
             {
                 var amount = frozen && index < card.EffectAmounts.Count ? card.EffectAmounts[index] : null;
                 if (frozen) index++;
+                if (ReferenceEquals(effect, armorBonus)) continue;
                 if (effect is DestroyCardEffectDefinition destroy && ability.Activation == AbilityActivation.Active)
                 { lines.Add($"消耗　发动后{(destroy.Permanent ? "永久" : "")}摧毁此卡牌。"); continue; }
                 if (effect is ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition reaction)
@@ -187,6 +190,8 @@ public sealed class CardDisplayAdapter
                 }
                 var text = (effect, amount) switch
                 {
+                    (GainArmorEqualToManaSpentEffectDefinition, _) => "获得等同于本场累计魔法消耗的护甲（包含本次消耗）"
+                        + (armorBonus is null ? "" : $" {Value(card, armorBonus.AttributeKey):+ 0;− 0;+ 0}"),
                     (AttributeDamageEffectDefinition damage, { } value) => $"造成 {value} 伤害{(damage.Percent == 100 ? "" : $"（此卡牌{AttributeName(damage.AttributeKey)}的{damage.Percent}%）")}",
                     (SourceHeroHealthScaledAttributeDamageEffectDefinition damage, _) => $"造成此卡牌{AttributeName(damage.AttributeKey)}×己方英雄当前生命比例的伤害",
                     (SourceHeroArmorDamageEffectDefinition, _) => Describe(card, effect),
@@ -396,6 +401,7 @@ public sealed class CardDisplayAdapter
         SetRandomAdjacentAlliedTaggedCardStateEffectDefinition value => $"随机1张己方相邻{TagDisplayNames.Get(value.RequiredTag)}卡牌{(value.Enabled ? "获得" : "失去")}{AttributeName(value.StateKey)}",
         SetRandomOtherAlliedCardStateEffectDefinition value => $"己方随机1张其他卡牌{(value.Enabled ? "进入" : "失去")}{AttributeName(value.StateKey)}",
         MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition value => $"敌方英雄有护甲时，此卡牌{AttributeName(value.AttributeKey)} ×{value.Multiplier}",
+        MultiplyReceivedCardStatusDurationEffectDefinition value => $"此卡牌每次获得的{DurationStatusName(value.Status)}时长 ×{value.Multiplier}（包含施加来源的时长加成）",
         ApplyPrimaryEffectPercentStatusEffectDefinition value => $"发动时额外向敌方施加主属性值{value.Percent}%的{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}",
         SocketRandomSourceGemEffectDefinition => "为此卡牌随机镶嵌一颗宝石，孔满时跳过",
         GrantExperienceEffectDefinition value => $"获得{value.Amount}经验",
@@ -439,7 +445,7 @@ public sealed class CardDisplayAdapter
         ApplyStatusEffectDefinition { Status: BattleStatus.Burn } value => $"施加灼伤 {BurnAmount(card, value)}",
         ApplyStatusEffectDefinition value => StatusText(value.Status, value.Amount + (value.Status == BattleStatus.Poison ? Value(card, GameAttributeKeys.PoisonBonus) : 0)),
         ApplyStatusToRandomEnemyCardEffectDefinition value => $"敌方随机{value.TargetCount}张战场卡牌获得 {DurationStatusName(value.Status)} {value.Amount / 10m:0.##}秒",
-        ApplyStatusToRandomAlliedCardEffectDefinition value => $"己方随机1张战场卡牌获得 {DurationStatusName(value.Status)} {value.Amount / 10m:0.##}秒",
+        ApplyStatusToRandomAlliedCardEffectDefinition value => $"己方随机1张战场{(value.RequiredTag is { } tag ? TagDisplayNames.Get(tag) : "")}卡牌获得 {DurationStatusName(value.Status)} {value.Amount / 10m:0.##}秒",
         ApplyAttributeStatusEffectDefinition { Status: BattleStatus.Burn } value => $"施加灼伤 {BurnAmount(card, value)}",
         ApplyAttributeStatusEffectDefinition value => StatusText(value.Status, Value(card, value.AttributeKey) + (value.Status == BattleStatus.Poison ? Value(card, GameAttributeKeys.PoisonBonus) : 0)),
         ApplySourceAttributePercentStatusEffectDefinition value =>

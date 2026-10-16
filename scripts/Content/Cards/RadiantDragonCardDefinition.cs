@@ -22,7 +22,7 @@ public sealed class RadiantDragonCardDefinition : CardDefinition
                 {
                     [GameAttributeKeys.AttackDamage] = 100,
                     [GameAttributeKeys.CooldownTicks] = 80,
-                })), new TagSet([GameTags.Mount, GameTags.Dragon]), initialLevel: 3,
+                })), new TagSet([GameTags.Vehicle, GameTags.Dragon]), initialLevel: 3,
             levels: [CreateLevel(3, 100), CreateLevel(4, 200)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int damage) => new(level,

@@ -41,6 +41,10 @@ public sealed partial class PhaseOneVerification : Control
             ("重锤兵分级伤害、最大生命与当前生命累加及多重", HeavyHammerInfantryChecks.LevelsAndCombat),
             ("枪矛手四级伤害、相邻人类发动成长与战斗隔离", SpearmanChecks.LevelsAndCombat),
             ("农夫四级冷却与双方随机人类充能、即时发动", FarmerChecks.LevelsAndCharge),
+            ("战舰舵手四级冷却、载具疾速、到期与实际加速", WarshipHelmsmanChecks.LevelsAndHaste),
+            ("战舰炮手三级伤害、全体载具强化及发动回响", WarshipGunnerChecks.LevelsAndCombat),
+            ("战舰炮手多来源累加、目标边界与战斗隔离", WarshipGunnerChecks.FiltersAndLifetime),
+            ("战舰舵手随机筛选、空目标、多重及疾速累加", WarshipHelmsmanChecks.FiltersAndStacking),
             ("农夫排除自身、非人类、备战、摧毁与就绪目标，多重及随机确定性", FarmerChecks.FiltersAndMulticast),
             ("破晓长弓分级伤害、累计冷却与全局一秒下限", DawnLongbowChecks.LevelsAndCooldown),
             ("多重每隔0.2秒逐次发动及回响，仅支付一次魔法", DawnLongbowChecks.DelayedMulticast),
@@ -276,6 +280,12 @@ public sealed partial class PhaseOneVerification : Control
             ("宝石手套三级攻击、身份及升级文案正确", GemGloveChecks.DefinitionAndAttack),
             ("英雄升级随机宝石覆盖战场备战、连续升级、合并与冻结正确", GemGloveChecks.UpgradeAndSockets),
             ("猛犸近卫两级护甲、敌方发动充能与筛选正确", MammothGuardChecks.ArmorAndCharge),
+            ("大天使号两级伤害、20秒冷却、双方分类充能与回响截断正确", ArchangelChecks.LevelsAndCharge),
+            ("苍穹塔4级身份、护甲治疗、双方人类充能及光属性独立成长正确", SkyvaultTowerChecks.IdentityAndCombat),
+            ("护手四级护甲、多重及双方相邻装备伤害回响正确", GauntletChecks.LevelsAndCombat),
+            ("守护十字四级、无主动冷却及双方相邻卡牌回响护甲正确", GuardianCrossChecks.LevelsAndCombat),
+            ("手弩四级伤害、4秒冷却及疾速翻倍提前发动正确", HandCrossbowChecks.LevelsAndHaste),
+            ("手弩状态入口、来源加成、多重叠加、衰减与非法配置正确", HandCrossbowChecks.RoutesAndStacking),
             ("魔源发电机分级、无重复充能、魔法支付与双方筛选正确", ManaSourceGeneratorChecks.LevelsAndCharge),
             ("征服者堡垒身份、两级光环、零攻击人类成长与真实伤害正确", ConquerorFortressChecks.LevelsAndGrowth),
             ("冰剑鱼身份、三级伤害、自身冰回响与多重正确", IceSwordfishChecks.LevelsAndDamage),
@@ -402,14 +412,14 @@ public sealed partial class PhaseOneVerification : Control
             ("满盘卡牌奖励保留且可选择后续技能", PlaytestVerification.FullBoardRewardSelection),
             ("真实卡面购买、出售确认、奖励浮层与重开", () => PlaytestVerification.TransactionScene(this)),
             ("真实遭遇原画图卡选择、商店晶体与旧按钮解绑", () => PlaytestVerification.EncounterArtworkScene(this)),
-            ("测试关卡各类遭遇默认4级，正式排程等级保持不变", () => PlaytestVerification.TestEncounterLevels(this)),
+            ("试玩商店按轮次限制等级，首批与付费刷新沿用候选上限", () => PlaytestVerification.TestEncounterLevels(this)),
             ("宝石空孔、镶嵌校验、合并出售、冻结快照与真实卡面正确", () => GemSocketChecks.Lifecycle(this)),
             ("宝石首效果取值、敌方状态、多重升级与冻结正确", GemShopChecks.ActivationAndPrimary),
             ("机关重弩身份、原画、三级伤害与多重共用冷却正确", MechanismHeavyCrossbowChecks.LevelsAndMulticast),
             ("机关重弩相邻机械筛选、双侧不重复与动态冷却正确", MechanismHeavyCrossbowChecks.AdjacencyAndTransitions),
             ("短刃斥候身份、原画、三级疾速伤害与冷却正确", ShortbladeScoutChecks.LevelsAndCooldown),
             ("双截棍身份、三级充能、多重伤害与相邻筛选正确", NunchakuChecks.LevelsAndCombat),
-            ("弓骑兵身份、三级伤害及相邻坐骑筛选正确", MountedArcherChecks.LevelsAndTargets),
+            ("弓骑兵身份、三级伤害及相邻载具筛选正确", MountedArcherChecks.LevelsAndTargets),
             ("弓骑兵疾速累计、到期、冷却加速与确定性正确", MountedArcherChecks.StackingAndCooldown),
             ("信鸽身份、三级疾速与己方战场首尾筛选正确", CarrierPigeonChecks.LevelsAndFilters),
             ("信鸽多重累加、到期、实际加速与首尾失效重选正确", CarrierPigeonChecks.StackingAndTransitions),
@@ -665,6 +675,54 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await GemGloveChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-card-artwork-redraw"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardArtworkRedrawCapture.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-warship-gunner"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WarshipGunnerChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-warship-helmsman"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WarshipHelmsmanChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-hand-crossbow"))
+            Callable.From((Action)(async () =>
+            {
+                try { await HandCrossbowChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-guardian-cross"))
+            Callable.From((Action)(async () =>
+            {
+                try { await GuardianCrossChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-gauntlet"))
+            Callable.From((Action)(async () =>
+            {
+                try { await GauntletChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-skyvault-tower"))
+            Callable.From((Action)(async () =>
+            {
+                try { await SkyvaultTowerChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-archangel"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ArchangelChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-mammoth-guard"))

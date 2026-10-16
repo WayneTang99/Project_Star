@@ -140,8 +140,9 @@ internal static class EconomyChecks
         ];
         var stock = service.CreateStock(refreshSession, smallShop, refreshCards);
         var initialUnique = stock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key).Distinct().Count() == 3;
+        var previousKeys = stock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key).ToHashSet();
         var refreshed = service.Refresh(refreshSession, stock);
-        var refreshedUnique = stock.Offers.Select(offer => offer.Definition.Attributes.Identity.Key).Distinct().Count() == 3;
+        var refreshedUnique = stock.Offers.All(offer => !previousKeys.Contains(offer.Definition.Attributes.Identity.Key));
         var repeatedRefresh = service.Refresh(refreshSession, stock);
 
         var limitedSession = new MatchSession(3, 10);
@@ -174,7 +175,7 @@ internal static class EconomyChecks
             && medium.Any(card => card.Attributes.Identity.Key == new StringName("card.light_cavalry"))
             && !medium.Any(card => card.Attributes.Identity.Key == new StringName("card.arcane_shield"))
             && large.Count == 0
-            && stock.Offers.Count == 3
+            && stock.Offers.Count == 1
             && initialUnique
             && refreshed.IsSuccess
             && refreshedUnique
@@ -216,8 +217,9 @@ internal static class EconomyChecks
                 || stock.Offers.Any(offer => offer.Level > shopLevel || offer.Level < offer.Definition.InitialLevel
                     || !offer.Definition.SupportsLevel(offer.Level))
                 || service.CreateOffer(session, shop, cards) is not { } offer || offer.Level > shopLevel) return false;
+            var previous = stock.Offers.Select(item => item.Definition.Attributes.Identity.Key).ToHashSet();
             var refresh = service.Refresh(session, stock);
-            if (refresh.IsFailure || stock.Offers.Any(item => item.Level > shopLevel)
+            if (stock.Offers.Any(item => previous.Contains(item.Definition.Attributes.Identity.Key)) || refresh.IsFailure || stock.Offers.Any(item => item.Level > shopLevel)
                 || session.Player.Wealth != 100 - ShopCardPoolService.GetRefreshCost(shopLevel)) return false;
             // 等级恰好等于上限可以出现，高于上限的卡池为空且不推进随机状态。
             var boundary = cards[shopLevel - 1];
@@ -274,7 +276,8 @@ internal static class EconomyChecks
         var refresh = service.Refresh(session, stock);
         if (refresh.IsFailure || stock.Offers.Any(offer => offer.Definition == cards[0] || offer.Definition == cards[2])) return false;
         var limited = service.CreateStock(session, shop, cards);
-        session.Player.Inventory.Add(factory.CreateCard(cards[3], 4));
+        foreach (var card in cards.Where(card => !limited.Offers.Any(offer => offer.Definition == card)))
+            session.Player.Inventory.Add(factory.CreateCard(card, 4));
         var wealth = session.Player.Wealth;
         var random = session.Random.State;
         if (service.Refresh(session, limited).IsSuccess || session.Player.Wealth != wealth || session.Random.State != random) return false;

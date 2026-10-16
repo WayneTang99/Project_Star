@@ -17,7 +17,7 @@ public static class TagDisplayNames
         [GameTags.Beast] = "野兽",
         [GameTags.Aquatic] = "水生物",
         [GameTags.Insect] = "虫族",
-        [GameTags.Mount] = "坐骑",
+        [GameTags.Vehicle] = "载具",
         [GameTags.Dragon] = "龙族",
         [GameTags.Mechanical] = "机械",
         [GameTags.Demon] = "恶魔",

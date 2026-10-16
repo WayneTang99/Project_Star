@@ -86,6 +86,17 @@ internal static class SkillCatalogChecks
             open.EmitSignal(Button.SignalName.Pressed);
             if (!catalog.Visible || open.IsVisibleInTree() || shell.GetNode<Control>("CardCatalog").Visible
                 || shell.GetNode<Control>("ContextRow/ContextHost/HeroSelectionView").Visible) return Fail("页面互斥");
+            var factionKeys = new[] { "neutral", "paladin", "mona", "robin", "harla", "valos", "jiyun" };
+            var ordered = SkillCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly))
+                .OrderBy(entry => Array.IndexOf(factionKeys, entry.InitialSkill.FactionKey.ToString()))
+                .ThenBy(entry => entry.InitialLevel)
+                .ThenBy(entry => entry.InitialSkill.Key.ToString(), StringComparer.Ordinal).ToArray();
+            if (!grid.GetChildren().OfType<VBoxContainer>().Select(cell => cell.GetChild<Label>(1).Text)
+                .SequenceEqual(ordered.Select(entry => entry.InitialSkill.DisplayName))) return Fail("归属与初始等级顺序");
+            var factionOptions = catalog.GetNode<OptionButton>("Content/Filters/Faction");
+            if (!Enumerable.Range(1, factionOptions.ItemCount - 1).Select(factionOptions.GetItemText)
+                .SequenceEqual(ordered.DistinctBy(entry => entry.InitialSkill.FactionKey).Select(entry => entry.FactionName)))
+                return Fail("归属筛选顺序");
             var old = grid.GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill");
             Search("突袭"); OpenDetail();
             if (grid.GetChildCount() != 1 || !name.Text.Contains("突袭") || level.ItemCount != 4) return Fail("搜索");
@@ -98,7 +109,7 @@ internal static class SkillCatalogChecks
             Search("至圣斩"); OpenDetail();
             if (level.ItemCount != 1 || level.GetItemId(0) != 4) return Fail("固定等级");
             Search("护甲"); OpenDetail();
-            var armorNames = SkillCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly))
+            var armorNames = ordered
                 .Where(entry => entry.Levels.Any(skill => CardDisplayAdapter.SkillDetails(skill).Contains("护甲")))
                 .Select(entry => entry.InitialSkill.DisplayName).ToArray();
             if (grid.GetChildCount() != armorNames.Length || !grid.GetChildren().OfType<VBoxContainer>()

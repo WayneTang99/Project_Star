@@ -23,7 +23,7 @@ internal static class RuinStoneStatueChecks
         if (!registry.Cards.ContainsKey(identity.Key) || identity.DisplayName != "遗迹石像"
             || identity.FactionKey != new StringName("robin") || identity.Size != CardSize.Large || identity.SetKey is not null
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Earth })
-            || !definition.Tags.ToArray().ToHashSet().SetEquals(new[] { GameTags.Large, GameTags.Mount })
+            || !definition.Tags.ToArray().ToHashSet().SetEquals(new[] { GameTags.Large, GameTags.Vehicle })
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
             || texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3) return false;
         foreach (var (level, amount) in new[] { (3, 100), (4, 200) })
@@ -55,7 +55,7 @@ internal static class RuinStoneStatueChecks
                 || result.Events.OfType<ManaChangedEvent>().Any() || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             var session = new CreateMatchService(factory).Create(1, 0, new RobinHeroDefinition()); session.Player.Inventory.Add(instance);
             var snapshot = MatchSnapshot.From(session).Cards.Single(); var face = CardDisplayAdapter.FaceEffects(snapshot);
-            if (!snapshot.Tags.ToHashSet().SetEquals(new[] { GameTags.Large, GameTags.Mount })
+            if (!snapshot.Tags.ToHashSet().SetEquals(new[] { GameTags.Large, GameTags.Vehicle })
                 || !face.Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == amount.ToString())
                 || !face.Any(effect => effect.Kind == CardFaceEffectKind.Armor && effect.Value == amount.ToString())
                 || face.Any(effect => effect.Kind == CardFaceEffectKind.Healing)

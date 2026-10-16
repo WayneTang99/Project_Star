@@ -15,7 +15,7 @@ using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.Verification;
 
-// 弓骑兵身份、分级伤害与相邻坐骑疾速验证（表现层）。
+// 弓骑兵身份、分级伤害与相邻载具疾速验证（表现层）。
 internal static class MountedArcherChecks
 {
     internal static bool LevelsAndTargets()
@@ -34,11 +34,11 @@ internal static class MountedArcherChecks
         foreach (var opposite in new[] { false, true })
         {
             var archer = Archer(level);
-            var left = Fixture(0, GameTags.Mount);
-            var right = Fixture(3, GameTags.Mount);
-            var distant = Fixture(5, GameTags.Mount);
-            var bench = Fixture(3, GameTags.Mount) with { IsOnBench = true };
-            var enemy = Fixture(3, GameTags.Mount);
+            var left = Fixture(0, GameTags.Vehicle);
+            var right = Fixture(3, GameTags.Vehicle);
+            var distant = Fixture(5, GameTags.Vehicle);
+            var bench = Fixture(3, GameTags.Vehicle) with { IsOnBench = true };
+            var enemy = Fixture(3, GameTags.Vehicle);
             var result = Run([left, archer, right, distant, bench], [enemy], 50, opposite);
             var hit = result.Events.OfType<DamageDealtEvent>().Single();
             if (hit.SourceCardId != archer.EntityId || hit.Tick.Value != 50 || hit.RawDamage != (80 << (level - 2))
@@ -59,7 +59,7 @@ internal static class MountedArcherChecks
     internal static bool StackingAndCooldown()
     {
         var archer = Archer(2) with { Multicast = 1 };
-        var mount = Fixture(3, GameTags.Mount);
+        var mount = Fixture(3, GameTags.Vehicle);
         var result = Run([archer, mount], [], 52);
         if (Haste(result, mount) != 18 || result.Events.OfType<DamageDealtEvent>().Count() != 2) return false;
         var result2 = Run([archer, mount], [], 52);

@@ -120,6 +120,41 @@ internal static class CardCatalogChecks
         var canonical = new[] { GameElements.General, GameElements.Fire, GameElements.Water, GameElements.Wind,
             GameElements.Earth, GameElements.Lightning, GameElements.Wood, GameElements.Ice, GameElements.Light, GameElements.Dark };
         Pick(faction, 0);
+        var tagOptions = catalog.GetNode<HFlowContainer>("Content/TagOptions");
+        var tagMatch = catalog.GetNode<OptionButton>("Content/TagFilters/TagMatch");
+        var clearTags = catalog.GetNode<Button>("Content/TagFilters/ClearTags");
+        var availableTags = entries.SelectMany(entry => entry.InitialCard.Tags).Distinct().ToArray();
+        if (tagOptions.GetChildCount() != availableTags.Length || !clearTags.Disabled || tagMatch.Selected != 0) return false;
+        foreach (var tag in availableTags)
+        {
+            var button = tagOptions.GetNode<Button>(tag.ToString());
+            button.ButtonPressed = true;
+            if (!Matches(entries.Where(entry => entry.InitialCard.Tags.Contains(tag)))) return false;
+            button.ButtonPressed = false;
+        }
+        var mechanical = tagOptions.GetNode<Button>(GameTags.Mechanical.ToString());
+        var vehicle = tagOptions.GetNode<Button>(GameTags.Vehicle.ToString());
+        mechanical.ButtonPressed = true; vehicle.ButtonPressed = true;
+        foreach (var mode in new[] { 0, 1 })
+        {
+            Pick(tagMatch, mode);
+            var expected = entries.Where(entry => mode == 0
+                ? entry.InitialCard.Tags.Contains(GameTags.Mechanical) && entry.InitialCard.Tags.Contains(GameTags.Vehicle)
+                : entry.InitialCard.Tags.Contains(GameTags.Mechanical) || entry.InitialCard.Tags.Contains(GameTags.Vehicle)).ToArray();
+            if (expected.Length == 0 || !Matches(expected)) return false;
+            var tagSearch = catalog.GetNode<LineEdit>("Content/Filters/Search");
+            tagSearch.Text = expected[0].InitialCard.DisplayName; tagSearch.EmitSignal(LineEdit.SignalName.TextChanged, tagSearch.Text);
+            if (!Matches(expected.Where(entry => entry.InitialCard.DisplayName.Contains(tagSearch.Text)))) return false;
+            tagSearch.Text = ""; tagSearch.EmitSignal(LineEdit.SignalName.TextChanged, "");
+            Pick(size, (int)CardSize.Large);
+            if (!Matches(expected.Where(entry => entry.InitialCard.Size == CardSize.Large))) return false;
+            catalog.Close(); catalog.Open(); catalog.SetEntries(entries);
+            if (tagMatch.Selected != mode || !mechanical.ButtonPressed || !vehicle.ButtonPressed
+                || !Matches(expected.Where(entry => entry.InitialCard.Size == CardSize.Large))) return false;
+            Pick(size, 0);
+        }
+        clearTags.EmitSignal(Button.SignalName.Pressed); Pick(tagMatch, 0);
+        if (!clearTags.Disabled || mechanical.ButtonPressed || vehicle.ButtonPressed || !Matches(entries)) return false;
         var setKeys = entries.Where(entry => entry.InitialCard.SetKey is not null)
             .Select(entry => entry.InitialCard.SetKey!).Distinct()
             .OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray();
@@ -239,6 +274,41 @@ internal static class CardCatalogChecks
             var shell = root.GetNode<MatchShell>("MatchShell");
             var catalog = shell.GetNode<CardCatalogView>("CardCatalog");
             var search = catalog.GetNode<LineEdit>("Content/Filters/Search");
+            if (OS.GetCmdlineUserArgs().Contains("--effect-scroll"))
+            {
+                catalog.Open(); await Frame(); await Frame();
+                var scroll = catalog.GetNode<ScrollContainer>("Content/Body/Browser/CardsScroll");
+                await Save("effects-before");
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                await Frame(); await Frame();
+                var point = scroll.GetGlobalRect().GetCenter();
+                for (var step = 0; step < 5; step++)
+                {
+                    owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.WheelDown, Pressed = true }, true);
+                    owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.WheelDown, Pressed = false }, true);
+                    await Frame();
+                }
+                if (scroll.ScrollVertical == 0) throw new InvalidOperationException("滚轮未推进图鉴。");
+                await Save("effects-scrolled");
+                search.Text = "萤火吉丁虫"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
+                await Frame(); await Frame();
+                var texture = GD.Load<Texture2D>("res://art/ui/card-face/artwork/fireglow_jewel_beetle-illustration.png");
+                using var pixels = texture.GetImage();
+                if (!pixels.HasMipmaps()) throw new InvalidOperationException("萤火吉丁虫运行时纹理缺少mipmap。");
+                GD.Print($"萤火吉丁虫 mipmap：{pixels.HasMipmaps()}，层数 {pixels.GetMipmapCount()}");
+                foreach (var name in new[] { "dawnlight_gate", "venom_bride" })
+                {
+                    using var imported = GD.Load<Texture2D>($"res://art/ui/card-face/artwork/{name}-illustration.png").GetImage();
+                    if (!imported.HasMipmaps()) throw new InvalidOperationException($"{name}重新导入后仍缺少mipmap。");
+                    GD.Print($"{name} mipmap层数：{imported.GetMipmapCount()}");
+                }
+                await Save("beetle-mipmaps");
+                var beetle = catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChild<VBoxContainer>(0).GetNode<CardItemView>("Card");
+                beetle._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
+                await Frame(); await Frame(); await Save("beetle-preview-mipmaps");
+                GD.Print("强制GC后真实滚轮与缩小原画截图完成。");
+                return;
+            }
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
             {
                 owner.GetWindow().Size = size; owner.GetTree().Root.ContentScaleSize = size;
@@ -281,6 +351,28 @@ internal static class CardCatalogChecks
                     throw new InvalidOperationException("套装筛选结果为空或控件越界。");
                 await Save("set-filter");
                 setFilter.Select(0); setFilter.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
+                var mechanical = catalog.GetNode<Button>("Content/TagOptions/Mechanical");
+                var vehicle = catalog.GetNode<Button>("Content/TagOptions/Vehicle");
+                Click(mechanical); await Frame();
+                vehicle.GrabFocus(); KeyInput(Key.Space); await Frame(); await Frame();
+                var tagMatch = catalog.GetNode<OptionButton>("Content/TagFilters/TagMatch");
+                var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
+                foreach (var mode in new[] { 0, 1 })
+                {
+                    tagMatch.Select(mode); tagMatch.EmitSignal(OptionButton.SignalName.ItemSelected, mode);
+                    await Frame(); await Frame();
+                    var expectedCount = formal.Count(entry => mode == 0
+                        ? entry.InitialCard.Tags.Contains(GameTags.Mechanical) && entry.InitialCard.Tags.Contains(GameTags.Vehicle)
+                        : entry.InitialCard.Tags.Contains(GameTags.Mechanical) || entry.InitialCard.Tags.Contains(GameTags.Vehicle));
+                    if (!mechanical.ButtonPressed || !vehicle.ButtonPressed
+                        || catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount() != expectedCount
+                        || catalog.GetNode<HFlowContainer>("Content/TagOptions").GetChildren().OfType<Button>()
+                            .Any(button => !catalog.GetGlobalRect().Encloses(button.GetGlobalRect())))
+                        throw new InvalidOperationException("标签筛选鼠标／键盘选择、且或逻辑或按钮换行越界。");
+                    await Save(mode == 0 ? "tags-and" : "tags-or");
+                }
+                Click(catalog.GetNode<Button>("Content/TagFilters/ClearTags")); await Frame();
+                tagMatch.Select(0); tagMatch.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
                 var sort = catalog.GetNode<OptionButton>("Content/Classification/Sort");
                 var direction = catalog.GetNode<Button>("Content/Classification/Direction");
                 sort.GrabFocus(); KeyInput(Key.Enter); await Frame(); KeyInput(Key.Down); KeyInput(Key.Enter);

@@ -57,14 +57,23 @@ internal static class CardFinalValueChecks
         Require(Values(bag).Single() == "+10", "hero level aura numeric");
         var shield = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ArcaneShieldCardDefinition()));
         Require(Values(shield).SequenceEqual(new[] { "累计魔法" }), "zero armor bonus merged");
+        var shieldRule = CardDisplayAdapter.Rules(shield).Single();
+        Require(shieldRule.Contains("本场累计魔法消耗的护甲（包含本次消耗）")
+            && shieldRule.Contains("） + 0")
+            && !shieldRule.Contains("获得护甲 0"), "mana armor rule preserves formula without separate zero armor");
         var enhanced = shield with { CurrentValues = new Dictionary<StringName, int>(shield.CurrentValues)
             { [GameAttributeKeys.Armor] = 7 } };
         Require(Values(enhanced).SequenceEqual(new[] { "累计魔法+7" }), "nonzero armor bonus merged");
+        Require(CardDisplayAdapter.Rules(enhanced).Single() == shieldRule.Replace(" + 0", " + 7"), "mana armor rule includes current bonus without replacing formula");
+        Require(CardDisplayAdapter.Rules(shield with { CurrentValues = new Dictionary<StringName, int>(shield.CurrentValues)
+            { [GameAttributeKeys.Armor] = -3 } }).Single() == shieldRule.Replace(" + 0", " − 3"), "mana armor rule displays negative bonus");
         var ability = shield.Abilities.Single();
         var replay = enhanced with { Abilities = new[] { new AbilityDefinition(ability.Key, ability.Activation,
             ability.Target, ability.ManaCost, ability.CooldownTicks,
             [.. ability.Effects, new RestoreManaEffectDefinition(3)]) }, EffectAmounts = new int?[] { 30, 9, 3 } };
         Require(Values(replay).SequenceEqual(new[] { "39", "3" }), "frozen armor sum and subsequent effect index");
+        Require(CardDisplayAdapter.Rules(replay).Single().Contains("包含本次消耗")
+            && CardDisplayAdapter.Rules(replay).Single().Contains("恢复 3 魔法"), "mana armor replay preserves formula and subsequent effect");
         return true;
     }
 

@@ -18,7 +18,7 @@ public sealed class HolySlashingBladeCardDefinition : CardDefinition
                     new StringName("paladin"),
                     CardSize.Large,
                     [GameElements.Light],
-                    illustration: new StringName("res://art/ui/card-face/artwork/holy_slashing_blade-illustration-rework-20261011-goldwhite.png"),
+                    illustration: new StringName("res://art/ui/card-face/artwork/holy_slashing_blade-illustration-redraw-20261016.png"),
                     descriptionEntries:
                     [
                         new(CardKeywords.Activate, "冷却10秒，对敌方英雄造成200伤害，并随机本场摧毁敌方1张小型恶魔或亡灵卡牌"),

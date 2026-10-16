@@ -317,6 +317,36 @@ internal static class EncounterChecks
 
     internal static bool CheckEncounterVisitLevelLimits()
     {
+        // 覆盖各轮边界、商品首批与付费刷新，并确认同种子可复现。
+        foreach (var (round, maximum) in new[] { (1, 1), (2, 1), (3, 2), (4, 2), (5, 3), (7, 3), (8, 4), (9, 4), (10, 4) })
+        {
+            var shop = new SmallShopEncounterDefinition();
+            var catalog = DefinitionRegistry.Scan(typeof(EncounterChecks).Assembly);
+            var shopRegistry = DefinitionRegistry.Create([shop, new TrainingGroundEncounterDefinition()]);
+            var levels = new System.Collections.Generic.HashSet<int>();
+            for (ulong seed = 1; seed <= 128; seed++)
+            {
+                var session = new CreateMatchService(new EntityFactory()).Create(seed, 100, new PaladinHeroDefinition());
+                session.Progress.Round = round;
+                var repeated = new CreateMatchService(new EntityFactory()).Create(seed, 100, new PaladinHeroDefinition());
+                repeated.Progress.Round = round;
+                var scheduler = new EncounterScheduler(shopRegistry);
+                var choices = scheduler.Generate(session).Value!;
+                var repeatedChoices = scheduler.Generate(repeated).Value!;
+                if (!choices.SequenceEqual(repeatedChoices) || choices.Any(item => item.Level < 1 || item.Level > maximum)) return false;
+                var choice = choices.Single(item => item.Kind == EncounterKind.Shop);
+                if (choice != repeatedChoices.Single(item => item.Kind == EncounterKind.Shop) || session.Random.State != repeated.Random.State
+                    || choice.Level < 1 || choice.Level > maximum || choice.ShopLevel != choice.Level) return false;
+                levels.Add(choice.Level);
+                var service = new ShopCardPoolService();
+                var stock = service.CreateStock(session, shop, catalog.Cards.Values, choice.ShopLevel);
+                if (stock.RefreshCost != ShopCardPoolService.GetRefreshCost(choice.Level)
+                    || stock.Offers.Any(offer => offer.Level > choice.Level)) return false;
+                if (stock.CanRefresh && (service.Refresh(session, stock).IsFailure
+                    || stock.Offers.Any(offer => offer.Level > choice.Level))) return false;
+            }
+            if (levels.Count != maximum) return false;
+        }
         var special = new LevelVerificationShop(5);
         var registry = DefinitionRegistry.Create([new SmallShopEncounterDefinition(), special]);
         foreach (var levelOverride in new[] { 1, 4, 5 })

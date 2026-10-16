@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Godot;
-using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Playtest;
 
@@ -30,8 +29,7 @@ public sealed partial class EncounterSelectionView : Control
             var button = new Button { Name = $"Choice{_bindings.Count}", Visible = choice.Action.Visible,
                 Disabled = !choice.Action.Enabled,
                 ClipContents = true, TooltipText = choice.Action.Text + "\n" + choice.Action.Reason
-                    + (choice.Level > 0 ? $"\n遭遇等级 {choice.Level}" : "")
-                    + (choice.ShopLevel > 0 ? $"\n{choice.ShopLevel}级商店 · 商品等级不高于{choice.ShopLevel}级" : "") };
+ };
             _choices.AddChild(button);
             var art = new TextureRect { Name = "Illustration", MouseFilter = MouseFilterEnum.Ignore,
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered };
@@ -52,16 +50,6 @@ public sealed partial class EncounterSelectionView : Control
             MatchTheme.Text(subtitle, 10, new Color("b7c7b6"));
             button.AddChild(subtitle); subtitle.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
             subtitle.OffsetLeft = 17; subtitle.OffsetRight = -17; subtitle.OffsetTop = -32; subtitle.OffsetBottom = -15;
-            if (choice.Level > 0)
-            {
-                var badge = new Control { Position = new Vector2(12, 10), Size = new Vector2(92, 26), MouseFilter = MouseFilterEnum.Ignore };
-                button.AddChild(badge);
-                var level = new Label { Name = "EncounterLevel", Text = choice.ShopLevel > 0 ? $"{choice.Level}级商店" : $"等级 {choice.Level}",
-                    Size = new Vector2(92, 26), MouseFilter = MouseFilterEnum.Ignore };
-                level.AddThemeColorOverride("font_color", Colors.White); badge.AddChild(level);
-                MatchTheme.Text(level, 11, CardLevelGem.LevelColor(choice.Level));
-                level.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("11211adb"), Colors.Transparent));
-            }
             LevelPresentation.Frame(button, choice.Level);
             // 焦点与悬停边框绘制在原画之上。
             var outline = new Panel { Name = "Outline", MouseFilter = MouseFilterEnum.Ignore };

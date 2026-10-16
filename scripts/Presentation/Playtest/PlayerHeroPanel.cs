@@ -88,9 +88,15 @@ public sealed partial class PlayerHeroPanel : Control
     // 双方英雄小头像使用同一取景，怪物保留其正式插画。
     internal static Texture2D? PortraitTexture(HeroSnapshot? hero)
     {
-        if (hero is null || hero.Illustration.IsEmpty || !ResourceLoader.Exists(hero.Illustration.ToString())) return null;
-        var texture = GD.Load<Texture2D>(hero.Illustration.ToString());
-        if (PortraitCrops.TryGetValue(hero.Key, out var crop))
+        return hero is null ? null : PortraitTexture(hero.Key, hero.Illustration);
+    }
+
+    // 选角名册和对局头像复用同一面部取景，不修改原画。
+    internal static Texture2D? PortraitTexture(StringName key, StringName illustration)
+    {
+        if (illustration.IsEmpty || !ResourceLoader.Exists(illustration.ToString())) return null;
+        var texture = GD.Load<Texture2D>(illustration.ToString());
+        if (PortraitCrops.TryGetValue(key, out var crop))
         {
             // 对应HTML小头像的放大倍数与背景定位，仅裁显示区域，原画资源保持完整。
             var side = texture.GetWidth() / crop.X;

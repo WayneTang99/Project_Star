@@ -24,7 +24,7 @@ public sealed class FlyingBroomCardDefinition : CardDefinition
                 {
                     [GameAttributeKeys.CooldownTicks] = 50,
                 })),
-            new TagSet([GameTags.Equipment, GameTags.Mount]),
+            new TagSet([GameTags.Equipment, GameTags.Vehicle]),
             initialLevel: 1,
             levels: [CreateLevel(1, 50), CreateLevel(2, 40), CreateLevel(3, 30), CreateLevel(4, 20)])
     {

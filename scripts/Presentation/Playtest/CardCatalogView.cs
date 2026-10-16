@@ -22,6 +22,12 @@ public sealed partial class CardCatalogView : PanelContainer
     private readonly OptionButton _set = new() { Name = "Set", CustomMinimumSize = new Vector2(130, 0) };
     private readonly OptionButton _sort = new() { Name = "Sort", CustomMinimumSize = new Vector2(130, 0) };
     private readonly Button _direction = new() { Name = "Direction", Text = "升序 ↑", ToggleMode = true };
+    private readonly OptionButton _tagMatch = new() { Name = "TagMatch" };
+    private readonly Button _clearTags = new() { Name = "ClearTags", Text = "清空标签" };
+    private readonly HFlowContainer _tagOptions = new() { Name = "TagOptions" };
+    private readonly HashSet<StringName> _selectedTags = new();
+    private readonly Dictionary<StringName, Button> _tagButtons = new();
+    private StringName[] _tags = [];
     private readonly Label _count = new() { Name = "Count" };
     private readonly ScrollContainer _scroll = new() { Name = "CardsScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
     private readonly GridContainer _grid = new() { Name = "Cards", SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -31,8 +37,6 @@ public sealed partial class CardCatalogView : PanelContainer
     private IReadOnlyList<CardCatalogEntry> _entries = Array.Empty<CardCatalogEntry>();
     private IReadOnlyList<StringName> _factions = Array.Empty<StringName>();
     private IReadOnlyList<StringName> _sets = Array.Empty<StringName>();
-    private static readonly StringName[] FactionOrder =
-    [GameFactions.Neutral, new("paladin"), new("mona"), new("robin"), new("harla"), new("valos"), new("jiyun")];
     private static readonly (StringName Key, string Name)[] Elements =
     [
         (GameElements.General, "通用"), (GameElements.Fire, "火"), (GameElements.Water, "水"),
@@ -53,6 +57,11 @@ public sealed partial class CardCatalogView : PanelContainer
         foreach (var control in new Control[] { _faction, _size, _element, _initialLevel, _set }) classification.AddChild(control);
         classification.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
         classification.AddChild(new Label { Text = "排序" }); classification.AddChild(_sort); classification.AddChild(_direction);
+        var tagFilters = new HFlowContainer { Name = "TagFilters" }; column.AddChild(tagFilters);
+        tagFilters.AddChild(new Label { Text = "标签" }); tagFilters.AddChild(_tagMatch); tagFilters.AddChild(_clearTags);
+        tagFilters.AddChild(new Label { Text = "可单选或多选；未选择时显示全部" });
+        _tagMatch.AddItem("且 · 包含全部"); _tagMatch.AddItem("或 · 包含任一");
+        column.AddChild(_tagOptions);
         _size.AddItem("全部尺寸", 0);
         foreach (var size in Enum.GetValues<CardSize>()) _size.AddItem(TagDisplayNames.Get(GameTags.FromSize(size)), (int)size);
         _element.AddItem("全部元素");
@@ -72,6 +81,7 @@ public sealed partial class CardCatalogView : PanelContainer
         _search.TextChanged += SearchChanged;
         foreach (var filter in new[] { _faction, _size, _element, _initialLevel, _set, _sort }) filter.ItemSelected += FilterChanged;
         _direction.Toggled += DirectionChanged;
+        _tagMatch.ItemSelected += FilterChanged; _clearTags.Pressed += ClearTags;
         _body.Resized += LayoutColumns; _scroll.Resized += LayoutColumns;
         Hide();
     }
@@ -84,7 +94,7 @@ public sealed partial class CardCatalogView : PanelContainer
         var previousSet = _set.Selected > 0 ? _sets[_set.Selected - 1] : (StringName?)null;
         var initialLevel = _initialLevel.Selected > 0 ? _initialLevel.GetItemId(_initialLevel.Selected) : 0;
         _factions = Array.AsReadOnly(entries.Select(entry => entry.InitialCard.FactionKey).Distinct()
-            .OrderBy(FactionRank)
+            .OrderBy(FactionDisplayOrder.Rank)
             .ThenBy(key => key.ToString(), StringComparer.Ordinal).ToArray());
         _faction.Clear(); _faction.AddItem("全部归属");
         foreach (var faction in _factions) _faction.AddItem(entries.First(entry => entry.InitialCard.FactionKey == faction).FactionName);
@@ -101,6 +111,27 @@ public sealed partial class CardCatalogView : PanelContainer
             _initialLevel.AddItem($"初始 {level} 级", level);
         for (var index = 0; index < _initialLevel.ItemCount; index++)
             if (_initialLevel.GetItemId(index) == initialLevel) _initialLevel.Select(index);
+        var tags = entries.SelectMany(entry => entry.InitialCard.Tags).Distinct()
+            .OrderBy(tag => tag == GameTags.Small ? 0 : tag == GameTags.Medium ? 1 : tag == GameTags.Large ? 2 : 3)
+            .ThenBy(TagDisplayNames.Get, StringComparer.Ordinal).ToArray();
+        _selectedTags.IntersectWith(tags);
+        if (!_tags.SequenceEqual(tags))
+        {
+            _tags = tags;
+            foreach (var child in _tagOptions.GetChildren()) { _tagOptions.RemoveChild(child); child.QueueFree(); }
+            _tagButtons.Clear();
+            foreach (var tag in tags)
+            {
+                var button = new Button { Name = tag.ToString(), Text = TagDisplayNames.Get(tag), ToggleMode = true,
+                    ButtonPressed = _selectedTags.Contains(tag) };
+                button.Toggled += selected =>
+                {
+                    if (selected) _selectedTags.Add(tag); else _selectedTags.Remove(tag);
+                    RefreshList();
+                };
+                _tagButtons.Add(tag, button); _tagOptions.AddChild(button);
+            }
+        }
         RefreshList();
     }
 
@@ -114,10 +145,18 @@ public sealed partial class CardCatalogView : PanelContainer
     private void FilterChanged(long _) => RefreshList();
     private void DirectionChanged(bool descending) { _direction.Text = descending ? "降序 ↓" : "升序 ↑"; RefreshList(); }
 
+    private void ClearTags()
+    {
+        _selectedTags.Clear();
+        foreach (var button in _tagButtons.Values) button.SetPressedNoSignal(false);
+        RefreshList();
+    }
+
     private void RefreshList()
     {
         (GetParent() as MatchShell)?.HideHoverCard();
         ClearButtons();
+        _clearTags.Disabled = _selectedTags.Count == 0;
         var query = _search.Text.Trim();
         var factionIndex = _faction.Selected - 1;
         var size = _size.GetItemId(_size.Selected);
@@ -129,6 +168,9 @@ public sealed partial class CardCatalogView : PanelContainer
             && (elementIndex < 0 || entry.InitialCard.ElementKeys.Contains(Elements[elementIndex].Key))
             && (initialLevel == 0 || entry.InitialLevel == initialLevel)
             && (setIndex < 0 || entry.InitialCard.SetKey == _sets[setIndex])
+            && (_selectedTags.Count == 0 || (_tagMatch.Selected == 0
+                ? _selectedTags.All(entry.InitialCard.Tags.Contains)
+                : _selectedTags.Any(entry.InitialCard.Tags.Contains)))
             && (query.Length == 0 || SearchText(entry).Contains(query, StringComparison.OrdinalIgnoreCase)));
         var sorting = _direction.ButtonPressed ? filtered.OrderByDescending(SortValue) : filtered.OrderBy(SortValue);
         if (_sort.Selected == 0)
@@ -162,12 +204,6 @@ public sealed partial class CardCatalogView : PanelContainer
 
     private static int ElementOrder(StringName key) => Array.FindIndex(Elements, element => element.Key == key);
 
-    private static int FactionRank(StringName key)
-    {
-        var rank = Array.IndexOf(FactionOrder, key);
-        return rank < 0 ? FactionOrder.Length : rank;
-    }
-
     private static string SearchText(CardCatalogEntry entry) => entry.InitialCard.DisplayName + " " + entry.FactionName
         + " " + string.Join(" ", entry.InitialCard.Tags.Select(Project_Star.Domain.Definitions.TagDisplayNames.Get))
         + " " + string.Join(" ", entry.InitialCard.DescriptionEntries.Select(description =>
@@ -198,6 +234,7 @@ public sealed partial class CardCatalogView : PanelContainer
         _back.Pressed -= Close; _search.TextChanged -= SearchChanged;
         foreach (var filter in new[] { _faction, _size, _element, _initialLevel, _set, _sort }) filter.ItemSelected -= FilterChanged;
         _direction.Toggled -= DirectionChanged;
+        _tagMatch.ItemSelected -= FilterChanged; _clearTags.Pressed -= ClearTags;
         _body.Resized -= LayoutColumns; _scroll.Resized -= LayoutColumns; ClearButtons();
     }
 }

@@ -106,7 +106,7 @@ public sealed partial class ComponentShowcase : Control
         AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var shell = root.GetNode<MatchShell>("MatchShell");
         if (OS.GetCmdlineUserArgs().Contains("--capture-layout")) await Save("heroes");
-        var presenter = PlaytestVerification.CreatePresenter(encounterLevelOverride: 4);
+        var presenter = PlaytestVerification.CreatePresenter();
         shell.Render(presenter.View);
         await Save("selection");
         presenter.ChooseEncounter(presenter.View.Choices.First(choice => choice.ShopLevel > 0).Key);
@@ -218,17 +218,17 @@ public sealed partial class ComponentShowcase : Control
         {
             GetWindow().Size = size; GetTree().Root.ContentScaleSize = size;
             await Frame(); await Frame();
-            Click(selector.GetNode<Button>("Roster/Entries/Hero4"));
+            Click(selector.GetNode<Button>("Roster/Entries/Hero2"));
             await Frame(); await Frame();
             if (selector.GetNode<Label>("HeroName").Text != "罗宾" || submitted != 0)
                 throw new InvalidOperationException("名册鼠标切换未刷新或提前创建对局。");
             await Save("robin");
-            Click(selector.GetNode<Button>("Roster/Entries/Hero5"));
+            Click(selector.GetNode<Button>("Roster/Entries/Hero4"));
             await Frame(); await Frame();
             if (selector.GetNode<Label>("HeroName").Text != "瓦洛斯" || submitted != 0)
                 throw new InvalidOperationException("女性潜行者预览未刷新。");
             var roster = selector.GetNode<ScrollContainer>("Roster");
-            var last = selector.GetNode<Button>("Roster/Entries/Hero5");
+            var last = selector.GetNode<Button>("Roster/Entries/Hero4");
             var portrait = selector.GetNode<TextureRect>("CurrentPortrait");
             var confirm = selector.GetNode<Button>("Choose");
             if (last.GetGlobalRect().End.Y > roster.GetGlobalRect().End.Y + 1
@@ -236,18 +236,19 @@ public sealed partial class ComponentShowcase : Control
                 || confirm.GetGlobalRect().End.Y > selector.GetGlobalRect().End.Y + 1)
                 throw new InvalidOperationException("名册、原画或确认按钮越界。");
             await Save("valos");
-            KeyInput(Key.Left); await Frame();
+            KeyInput(Key.Left); KeyInput(Key.Left); await Frame();
             if (selector.GetNode<Label>("HeroName").Text != "罗宾" || submitted != 0)
                 throw new InvalidOperationException("方向键切换异常。");
         }
-        var catalogButton = shell.GetNode<Button>("OpenCardCatalog");
+        var catalogButton = shell.GetNode<Button>("GameMenu/ItemsPanel/Items/OpenCardCatalog");
+        shell.GetNode<Button>("OpenGameMenu").EmitSignal(Button.SignalName.Pressed);
         catalogButton.GrabFocus(); KeyInput(Key.Enter); await Frame();
         if (!shell.GetNode<CardCatalogView>("CardCatalog").Visible || submitted != 0)
             throw new InvalidOperationException("图鉴Enter被选角截获。");
         KeyInput(Key.Escape); await Frame();
         if (!selector.Visible || selector.GetNode<Label>("HeroName").Text != "罗宾")
             throw new InvalidOperationException("返回图鉴后未保留英雄。");
-        selector.GetNode<Button>("Roster/Entries/Hero4").GrabFocus(); KeyInput(Key.Enter); await Frame();
+        selector.GetNode<Button>("Roster/Entries/Hero2").GrabFocus(); KeyInput(Key.Enter); await Frame();
         if (submitted != 1 || selector.Visible) throw new InvalidOperationException("Enter未仅确认一次或未进入对局。");
         await Save("selected");
         GD.Print("选角四种窗口及缩回、鼠标预览、方向键、图鉴焦点与Enter确认通过。");

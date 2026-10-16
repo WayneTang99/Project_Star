@@ -71,12 +71,11 @@ internal static class PlaytestVerification
             {
                 var tile = buttons.GetChild<Button>(item);
                 if (!tile.GetNode<Panel>("LevelBorder").Visible
-                    || !tile.FindChild("EncounterLevel", true, false)!.Get("text").AsString()
-                        .Contains(presenter.View.Choices[item].Level.ToString())) return false;
+                    || tile.FindChild("EncounterLevel", true, false) is not null) return false;
             }
             var button = buttons.GetChild<Button>(index);
             if (button.GetNode<TextureRect>("Illustration").Texture is null
-                || !button.TooltipText.Contains($"{choice.ShopLevel}级商店")) return false;
+                || button.TooltipText.Contains("级商店") || button.TooltipText.Contains("遭遇等级")) return false;
             button.EmitSignal(Button.SignalName.Pressed);
             if (presenter.View.Page is not (MatchPage.Shop or MatchPage.GemShop) || presenter.View.ShopLevel != choice.ShopLevel
                 || !scene.GetNode<Panel>("MatchShell/ContextRow/Portrait/ContextPortrait/LevelBorder").Visible) return false;
@@ -87,7 +86,7 @@ internal static class PlaytestVerification
         finally { owner.RemoveChild(scene); scene.Free(); }
     }
 
-    // 真实测试入口各类遭遇固定4级，普通排程与正式定义继续使用原等级。
+    // 真实试玩入口按轮次生成商店等级，选择与付费刷新沿用同次访问上限。
     public static bool TestEncounterLevels(Control owner)
     {
         var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
@@ -101,16 +100,22 @@ internal static class PlaytestVerification
             for (var turn = 1; turn <= 8; turn++)
             {
                 var choices = presenter.View.Player!.EncounterChoices;
-                if (choices.Count == 0 || choices.Any(choice => choice.Level != 4
-                    || choice.Kind == EncounterKind.Shop && choice.ShopLevel != 4)) return false;
+                if (choices.Count == 0 || choices.Any(choice => choice.Kind != EncounterKind.Pvp
+                    && (choice.Level != 1 || (choice.Kind == EncounterKind.Shop && choice.ShopLevel != 1)))) return false;
                 var selected = choices.FirstOrDefault(choice => turn == 2 && choice.Kind == EncounterKind.Other)
                     ?? choices.FirstOrDefault(choice => choice.Kind == EncounterKind.Shop) ?? choices[0];
                 kinds.Add(selected.Kind); presenter.ChooseEncounter(selected.Key);
-                if (presenter.View.EncounterLevel != 4) return false;
+                if (presenter.View.EncounterLevel != selected.Level) return false;
                 if (presenter.View.Page == MatchPage.Shop)
                 {
-                    if (presenter.View.ShopLevel != 4 || !presenter.View.Refresh.Text.Contains("8 金币")
-                        || presenter.View.Offers.Any(offer => offer.Card.Level > 4)) return false;
+                    if (presenter.View.ShopLevel != 1
+                        || presenter.View.Offers.Any(offer => offer.Card.Level != 1)) return false;
+                    if (presenter.View.Refresh.Enabled)
+                    {
+                        if (!presenter.View.Refresh.Text.Contains("2 金币")) return false;
+                        presenter.RefreshShop();
+                        if (presenter.View.ShopLevel != 1 || presenter.View.Offers.Any(offer => offer.Card.Level != 1)) return false;
+                    }
                 }
                 else if (presenter.View.Page == MatchPage.Event)
                     presenter.ResolveEventOption(presenter.View.EventOptions[0].Key, presenter.View.EventRevision);
@@ -1129,10 +1134,15 @@ internal static class PlaytestVerification
     {
         var presenter = CreatePresenter();
         presenter.ChooseEncounter(new StringName("encounter.shop.small"));
-        var offer = presenter.View.Offers.FirstOrDefault(item => item.Card.Abilities
-            .Any(ability => ability.Effects.Any(effect => effect is AttributeDamageEffectDefinition)));
-        if (offer is null) return false;
-        presenter.BuyCard(offer.Index, offer.Revision);
+        var session = (MatchSession)typeof(MatchPresenter).GetField("_player",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(presenter)!;
+        // 用明确攻击卡建立校场前置条件，避免正式卡池扩充改变随机商店后使检查失效。
+        var factory = new EntityFactory();
+        var board = new BoardService(new BoardPlacementSolver(), Registry().Sets);
+        var acquired = new CardEconomyService(factory, board).AcquireCard(session, new ArmguardCardDefinition(), 1,
+            CardAcquisitionSource.Reward);
+        if (acquired.IsFailure || board.PlaceCard(session, acquired.Value!.Id, BoardZone.Battlefield, 0).IsFailure) return false;
+        presenter.RefreshView();
         var before = presenter.View.Player!.Cards.Single();
         presenter.ContinueMatch();
         presenter.ChooseEncounter(new StringName("encounter.training_ground"));

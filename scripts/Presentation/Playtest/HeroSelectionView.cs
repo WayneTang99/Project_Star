@@ -5,14 +5,15 @@ using Godot;
 
 namespace Project_Star.Presentation.Playtest;
 
-// 英雄名册、完整原画和只读初始属性；确认后才提交英雄key（表现层）。
+// 大幅原画、底部横向英雄名册与只读初始属性；确认后才提交英雄key（表现层）。
 public sealed partial class HeroSelectionView : Control
 {
     public event Action<StringName, long>? Selected;
     private readonly Label _heading = new() { Text = "选择你的英雄", MouseFilter = MouseFilterEnum.Ignore };
     private readonly Label _rosterHeading = new() { MouseFilter = MouseFilterEnum.Ignore };
-    private readonly ScrollContainer _roster = new() { Name = "Roster", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-    private readonly VBoxContainer _entries = new() { Name = "Entries", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+    private readonly ScrollContainer _roster = new() { Name = "Roster", VerticalScrollMode = ScrollContainer.ScrollMode.Disabled };
+    private readonly HBoxContainer _entries = new() { Name = "Entries", SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        Alignment = BoxContainer.AlignmentMode.Center };
     private readonly TextureRect _center = new() { Name = "CurrentPortrait", MouseFilter = MouseFilterEnum.Ignore,
         ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
     private readonly Label _title = new() { Name = "HeroTitle", MouseFilter = MouseFilterEnum.Ignore };
@@ -52,8 +53,9 @@ public sealed partial class HeroSelectionView : Control
             _attributes, _stats, _otherAttributes, _hint, _message, _choose }) AddChild(control);
         AddChild(_selectionVoice);
         _selectionVoiceRandom.Randomize();
-        _roster.AddChild(_entries); _entries.AddThemeConstantOverride("separation", 6);
-        _heading.AddThemeFontSizeOverride("font_size", 24); _name.AddThemeFontSizeOverride("font_size", 36);
+        _roster.AddChild(_entries); _entries.AddThemeConstantOverride("separation", 12);
+        _heading.AddThemeFontSizeOverride("font_size", 20); _heading.AddThemeColorOverride("font_color", MatchTheme.Muted);
+        _name.AddThemeFontSizeOverride("font_size", 44);
         _title.AddThemeFontSizeOverride("font_size", 18); _title.AddThemeColorOverride("font_color", MatchTheme.Gold);
         _hint.AddThemeFontSizeOverride("font_size", 16); _message.AddThemeFontSizeOverride("font_size", 16);
         _otherAttributes.AddThemeFontSizeOverride("font_size", 16);
@@ -85,7 +87,8 @@ public sealed partial class HeroSelectionView : Control
     public void Render(string message, IReadOnlyList<KeyedAction> heroes, long revision = 0)
     {
         var key = _heroes.Count == 0 ? new StringName("") : _heroes[_index].Key;
-        var visible = heroes.Where(hero => hero.Action.Visible).ToArray();
+        var visible = heroes.Where(hero => hero.Action.Visible).OrderBy(hero => FactionDisplayOrder.Rank(hero.Key))
+            .ThenBy(hero => hero.Key.ToString(), StringComparer.Ordinal).ToArray();
         var changed = !_heroes.SequenceEqual(visible);
         _heroes = Array.AsReadOnly(visible);
         _index = Math.Max(0, Array.FindIndex(visible, hero => hero.Key == key));
@@ -132,24 +135,26 @@ public sealed partial class HeroSelectionView : Control
         for (var index = 0; index < _heroes.Count; index++)
         {
             var item = _heroes[index]; var captured = index;
-            var button = new Button { Name = $"Hero{index}", CustomMinimumSize = new Vector2(0, 72),
-                SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = item.Action.Text };
-            var row = new HBoxContainer { Name = "Content", MouseFilter = MouseFilterEnum.Ignore };
+            var button = new Button { Name = $"Hero{index}", CustomMinimumSize = new Vector2(132, 118),
+                TooltipText = item.Action.Text };
+            var row = new VBoxContainer { Name = "Content", MouseFilter = MouseFilterEnum.Ignore };
             button.AddChild(row); row.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
             row.OffsetLeft = row.OffsetTop = 8; row.OffsetRight = row.OffsetBottom = -8;
-            row.AddThemeConstantOverride("separation", 10);
-            row.AddChild(new TextureRect { Texture = Thumbnail(item), CustomMinimumSize = new Vector2(52, 52),
+            row.AddThemeConstantOverride("separation", 0);
+            row.AddChild(new TextureRect { Texture = Thumbnail(item), CustomMinimumSize = new Vector2(58, 58),
+                SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
                 MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
             var caption = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Alignment = BoxContainer.AlignmentMode.Center, MouseFilter = MouseFilterEnum.Ignore };
             row.AddChild(caption);
             var name = new Label { Text = item.Hero?.DisplayName ?? item.Action.Text.Replace("选择：", ""),
-                ClipText = true, MouseFilter = MouseFilterEnum.Ignore };
-            name.AddThemeFontSizeOverride("font_size", 18); caption.AddChild(name);
-            var title = new Label { Text = item.Hero?.Title ?? "", ClipText = true, MouseFilter = MouseFilterEnum.Ignore };
-            title.AddThemeFontSizeOverride("font_size", 16); caption.AddChild(title);
-            row.AddChild(new Label { Name = "SelectedMark", CustomMinimumSize = new Vector2(18, 0),
+                ClipText = true, HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
+            name.AddThemeFontSizeOverride("font_size", 15); caption.AddChild(name);
+            var title = new Label { Text = item.Hero?.Title ?? "", ClipText = true,
+                HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
+            title.AddThemeFontSizeOverride("font_size", 11); title.AddThemeColorOverride("font_color", MatchTheme.Muted); caption.AddChild(title);
+            button.AddChild(new Label { Name = "SelectedMark", Position = new Vector2(110, 2),
                 VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore });
             Action handler = () => SelectPreview(captured);
             button.Pressed += handler; _buttons.Add((button, handler)); _entries.AddChild(button);
@@ -202,15 +207,15 @@ public sealed partial class HeroSelectionView : Control
         if (hero is not null)
         {
             _values[0].Text = hero.MaxHealth.ToString(); _values[1].Text = hero.MaxMana.ToString(); _values[2].Text = hero.Income.ToString();
-            _otherAttributes.Text = $"初始等级 {hero.Level}\n初始魔法 {hero.Mana} · 魔法再生 {hero.ManaRegen}";
-            _otherAttributes.TooltipText = $"初始护甲 {hero.Armor}\n生命再生 {hero.HealthRegen}";
+            _otherAttributes.Text = $"初始等级 {hero.Level} · 魔法再生 {hero.ManaRegen}";
+            _otherAttributes.TooltipText = $"初始魔法 {hero.Mana}\n初始护甲 {hero.Armor}\n生命再生 {hero.HealthRegen}";
         }
         for (var index = 0; index < _buttons.Count; index++)
         {
             var button = _buttons[index].Button; var current = index == _index;
             button.AddThemeStyleboxOverride("normal", MatchTheme.Surface(current ? new Color("294138") : MatchTheme.SurfaceColor,
                 current ? MatchTheme.Blue : new Color("756847")));
-            button.GetNode<Label>("Content/SelectedMark").Text = current ? "✓" : "";
+            button.GetNode<Label>("SelectedMark").Text = current ? "✓" : "";
         }
         QueueRedraw();
     }
@@ -249,38 +254,42 @@ public sealed partial class HeroSelectionView : Control
 
     private void Layout()
     {
-        var bodyHeight = Mathf.Max(1, Size.Y - 84);
-        var rosterWidth = Mathf.Clamp(Size.X * .19f, 190, 250);
-        var detailsWidth = Mathf.Clamp(Size.X * .25f, 250, 300);
-        const float gap = 24;
-        var main = Mathf.Max(1, Mathf.Min(bodyHeight - 12, Size.X - rosterWidth - detailsWidth - gap * 2 - 32));
-        var total = rosterWidth + detailsWidth + main + gap * 2;
-        var left = (Size.X - total) / 2; const float top = 48;
-        _heading.Position = new Vector2(left, 4); _heading.Size = new Vector2(total, 36);
-        _rosterRect = new Rect2(left, top, rosterWidth, bodyHeight);
-        _rosterHeading.Position = new Vector2(left + 12, top + 8); _rosterHeading.Size = new Vector2(rosterWidth - 24, 28);
-        _roster.Position = new Vector2(left + 8, top + 44); _roster.Size = new Vector2(rosterWidth - 16, bodyHeight - 52);
-        _center.Position = new Vector2(left + rosterWidth + gap, top + (bodyHeight - main) / 2); _center.Size = Vector2.One * main;
-        var right = left + rosterWidth + gap + main + gap;
-        _detailsRect = new Rect2(right, top, detailsWidth, bodyHeight);
+        var bodyHeight = Mathf.Max(1, Mathf.Min(540, Size.Y - 258));
+        var detailsWidth = Mathf.Clamp(Size.X * .27f, 270, 330);
+        const float gap = 64;
+        var main = Mathf.Max(1, Mathf.Min(bodyHeight, Size.X - detailsWidth - gap - 64));
+        var total = Mathf.Min(Size.X - 32, Mathf.Max(900, main + detailsWidth + gap));
+        var left = (Size.X - total) / 2;
+        var top = 52 + Mathf.Max(0, (Size.Y - 258 - bodyHeight) / 2);
+        _heading.Position = new Vector2(left, top - 48); _heading.Size = new Vector2(total, 36);
+        var rosterTop = top + bodyHeight + 20;
+        _rosterRect = new Rect2(left, rosterTop, total, 154);
+        _rosterHeading.Position = new Vector2(left + 8, rosterTop + 4); _rosterHeading.Size = new Vector2(total - 16, 24);
+        _rosterHeading.AddThemeFontSizeOverride("font_size", 13);
+        _rosterHeading.AddThemeColorOverride("font_color", MatchTheme.Muted);
+        _roster.Position = new Vector2(left, rosterTop + 28); _roster.Size = new Vector2(total, 134);
+        var artWidth = total - detailsWidth - gap;
+        _center.Position = new Vector2(left + (artWidth - main) / 2, top + (bodyHeight - main) / 2); _center.Size = Vector2.One * main;
+        var right = left + artWidth + gap;
+        var infoTop = top + Mathf.Max(0, (bodyHeight - 354) / 2);
+        _detailsRect = new Rect2(right, infoTop, detailsWidth, 354);
         var contentWidth = detailsWidth - 32;
-        _title.Position = new Vector2(right + 16, top + 20); _title.Size = new Vector2(contentWidth, 26);
-        _name.Position = new Vector2(right + 16, top + 48); _name.Size = new Vector2(contentWidth, 54);
-        _attributes.Position = new Vector2(right + 16, top + 122); _attributes.Size = new Vector2(contentWidth, 32);
-        _stats.Position = new Vector2(right + 16, top + 172); _stats.Size = new Vector2(contentWidth, 116);
-        _otherAttributes.Position = new Vector2(right + 16, top + 310); _otherAttributes.Size = new Vector2(contentWidth, 52);
-        _choose.Position = new Vector2(right + 16, top + bodyHeight - 92); _choose.Size = new Vector2(contentWidth, 48);
-        _hint.Position = new Vector2(right + 8, top + bodyHeight - 36); _hint.Size = new Vector2(detailsWidth - 16, 24);
-        _message.Position = new Vector2(left, top + bodyHeight + 6); _message.Size = new Vector2(total, 30);
+        _title.Position = new Vector2(right + 16, infoTop + 8); _title.Size = new Vector2(contentWidth, 26);
+        _name.Position = new Vector2(right + 16, infoTop + 38); _name.Size = new Vector2(contentWidth, 54);
+        _attributes.Position = new Vector2(right + 16, infoTop + 106); _attributes.Size = new Vector2(contentWidth, 32);
+        _stats.Position = new Vector2(right + 16, infoTop + 148); _stats.Size = new Vector2(contentWidth, 108);
+        _otherAttributes.Position = new Vector2(right + 16, infoTop + 264); _otherAttributes.Size = new Vector2(contentWidth, 24);
+        _choose.Position = new Vector2(right + 16, infoTop + 294); _choose.Size = new Vector2(contentWidth, 44);
+        _hint.Position = new Vector2(right + 8, infoTop + 340); _hint.Size = new Vector2(detailsWidth - 16, 24);
+        _message.Position = new Vector2(left, rosterTop + 164); _message.Size = new Vector2(total, 22);
         QueueRedraw();
     }
 
-    // 面板和原画边框复用项目主题；不把装饰写入图片。
+    // 分隔线复用项目主题，原画保持完整且不写入装饰。
     public override void _Draw()
     {
-        MatchTheme.DrawSurface(this, _rosterRect); MatchTheme.DrawSurface(this, _detailsRect);
-        MatchTheme.DrawSurface(this, new Rect2(_center.Position - Vector2.One * 5, _center.Size + Vector2.One * 10));
-        DrawLine(_detailsRect.Position + new Vector2(16, 110), _detailsRect.Position + new Vector2(_detailsRect.Size.X - 16, 110),
+        DrawLine(_rosterRect.Position, _rosterRect.Position + new Vector2(_rosterRect.Size.X, 0), new Color(MatchTheme.Gold, .3f));
+        DrawLine(_detailsRect.Position + new Vector2(16, 100), _detailsRect.Position + new Vector2(_detailsRect.Size.X - 16, 100),
             new Color(MatchTheme.Gold, .4f));
     }
 
@@ -290,7 +299,7 @@ public sealed partial class HeroSelectionView : Control
     private static Texture2D? Thumbnail(KeyedAction hero)
     {
         if (Thumbnails.TryGetValue(hero.Illustration, out var cached)) return cached;
-        var original = Load(hero);
+        var original = PlayerHeroPanel.PortraitTexture(hero.Key, hero.Illustration);
         if (original is null) return null;
         using var image = original.GetImage();
         image.Resize(104, Math.Max(1, image.GetHeight() * 104 / image.GetWidth()), Image.Interpolation.Lanczos);

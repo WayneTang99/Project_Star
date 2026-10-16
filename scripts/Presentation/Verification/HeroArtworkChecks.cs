@@ -31,7 +31,7 @@ internal static class HeroArtworkChecks
         {
             selection.Render("配音", choices);
             var player = selection.GetNode<AudioStreamPlayer>("SelectionVoice");
-            var entries = selection.GetNode<VBoxContainer>("Roster/Entries");
+            var entries = selection.GetNode<BoxContainer>("Roster/Entries");
             var voiceRandom = (RandomNumberGenerator)typeof(HeroSelectionView).GetField("_selectionVoiceRandom",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(selection)!;
             voiceRandom.Seed = 42;
@@ -122,8 +122,8 @@ internal static class HeroArtworkChecks
             if (portrait.Material is not null || selection.IsProcessing()) return false;
             selection.Render("返回", [paladin]);
             if (!selection.IsProcessing() || Clock() != 0 || submitted != 0) return false;
-            var thumbnail = selection.GetNode<VBoxContainer>("Roster/Entries").GetChild<Button>(0)
-                .GetNode<HBoxContainer>("Content").GetChild<TextureRect>(0);
+            var thumbnail = selection.GetNode<BoxContainer>("Roster/Entries").GetChild<Button>(0)
+                .GetNode<BoxContainer>("Content").GetChild<TextureRect>(0);
             if (thumbnail.Material is not null) return false;
             selection.Render("空名单", []);
             return portrait.Material is null && !selection.IsProcessing();
@@ -142,8 +142,8 @@ internal static class HeroArtworkChecks
         {
             var shell = root.GetNode<MatchShell>("MatchShell");
             var selection = shell.GetNode<HeroSelectionView>("ContextRow/ContextHost/HeroSelectionView");
-            var entries = selection.GetNode<VBoxContainer>("Roster/Entries");
-            entries.GetChild<Button>(3).EmitSignal(Button.SignalName.Pressed);
+            var entries = selection.GetNode<BoxContainer>("Roster/Entries");
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
             await owner.ToSignal(owner.GetTree().CreateTimer(.3), SceneTreeTimer.SignalName.Timeout);
             var portrait = selection.GetNode<TextureRect>("CurrentPortrait");
             if (portrait.Material is not ShaderMaterial material) throw new InvalidOperationException("圣骑士原画没有动效材质。");
@@ -159,7 +159,7 @@ internal static class HeroArtworkChecks
             if (!selection.IsProcessing() || Clock() == paused) throw new InvalidOperationException("图鉴返回后动效未继续。");
             entries.GetChild<Button>(2).EmitSignal(Button.SignalName.Pressed);
             if (portrait.Material is not null || selection.IsProcessing()) throw new InvalidOperationException("其他英雄没有停用动效。");
-            entries.GetChild<Button>(3).EmitSignal(Button.SignalName.Pressed);
+            entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
             await owner.ToSignal(owner.GetTree().CreateTimer(.3), SceneTreeTimer.SignalName.Timeout);
             selection.SetProcess(false);
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
@@ -229,8 +229,11 @@ internal static class HeroArtworkChecks
                 .Select(hero => new KeyedAction(hero.Attributes.Identity.Key, new UiAction(hero.Attributes.Identity.DisplayName))
                     { Illustration = hero.Attributes.Identity.Illustration, Hero = HeroSelectionDetails.From(hero) }).ToArray();
             selection.Render("选择", choices);
-            var entries = selection.GetNode<VBoxContainer>("Roster/Entries");
+            var entries = selection.GetNode<BoxContainer>("Roster/Entries");
             if (entries.GetChildCount() != choices.Length) return false;
+            var expectedNames = new[] { "帕拉帝恩", "莫娜", "罗宾", "哈尔拉", "瓦洛斯", "极云" };
+            if (!entries.GetChildren().OfType<Button>().Select(button => button.GetNode<BoxContainer>("Content").GetChild<BoxContainer>(1).GetChild<Label>(0).Text)
+                .SequenceEqual(expectedNames)) return false;
             entries.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
             var initial = selection.GetNode<TextureRect>("CurrentPortrait").Texture;
             var submitted = 0;
@@ -245,7 +248,7 @@ internal static class HeroArtworkChecks
             selection._Input(new InputEventKey { Keycode = Key.Left, Pressed = true });
             if (selection.GetNode<TextureRect>("CurrentPortrait").Texture != initial) return false;
             selection._Input(new InputEventKey { Keycode = Key.Enter, Pressed = true });
-            if (submitted != 1 || submittedKey != choices[0].Key || submittedRevision != 7) return false;
+            if (submitted != 1 || submittedKey != new StringName("hero.paladin") || submittedRevision != 7) return false;
             var custom = choices[1] with { Hero = choices[1].Hero! with { MaxHealth = 321, Income = 9 } };
             selection.Render("属性副本", [custom]);
             if (selection.GetNode<GridContainer>("Stats").GetChild<Label>(1).Text != "321"
