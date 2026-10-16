@@ -245,6 +245,14 @@ public sealed partial class PhaseOneVerification : Control
             ("萤火吉丁虫各等级发动与出售最左侧灼伤成长、冻结正确", FireglowJewelBeetleChecks.LevelsAndSales),
             ("萤火吉丁虫支持固定、属性、百分比灼伤及狂暴多重", FireglowJewelBeetleChecks.ClassificationAndPercent),
             ("萤火吉丁虫永久累加、合并升级保留、空目标与溢出拒绝", FireglowJewelBeetleChecks.StackingAndFailures),
+            ("毒新妇各等级发动与出售最左侧中毒成长、冻结正确", VenomBrideChecks.LevelsAndSales),
+            ("毒新妇支持固定、属性、百分比中毒及狂暴多重", VenomBrideChecks.ClassificationAndPercent),
+            ("毒新妇永久累加、合并升级保留、空目标与溢出拒绝", VenomBrideChecks.StackingAndFailures),
+            ("全卡各级回响完整触发条件、方向与事件目标文案正确", EchoDescriptionChecks.AllCards),
+            ("状态、标签、双侧相邻与事件式光环的回响文案正确", EchoDescriptionChecks.SpecificConditions),
+            ("辰光之门身份、3/4级充能及双方回响正确", DawnlightGateChecks.LevelsAndCharge),
+            ("辰光之门随机光属性筛选、发动者排除与多重正确", DawnlightGateChecks.FiltersAndRandom),
+            ("回响充能立即发动不再连锁且保留冷却、多重与后续正常回响", DawnlightGateChecks.ImmediateChargeAndEchoCutoff),
             ("冒险者猎弓身份、四等级6秒攻击、原画及套装快照正确", AdventurerHuntingBowChecks.IdentityAndDamage),
             ("猎弓怪物胜利同级兽皮，参战筛选、冻结、合并及满盘保留正确", AdventurerHuntingBowChecks.RewardsAndPlacement),
             ("冒险者套装去重、每轮及胜利经验、阈值累积与冻结正确", AdventurerHuntingBowChecks.SetExperience),
@@ -711,6 +719,18 @@ public sealed partial class PhaseOneVerification : Control
             Callable.From((Action)(async () =>
             {
                 try { await FarmerChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-venom-bride"))
+            Callable.From((Action)(async () =>
+            {
+                try { await VenomBrideChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-dawnlight-gate"))
+            Callable.From((Action)(async () =>
+            {
+                try { await DawnlightGateChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-apocalypse"))

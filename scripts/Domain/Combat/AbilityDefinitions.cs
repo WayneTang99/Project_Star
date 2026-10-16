@@ -168,7 +168,8 @@ public sealed record GrantMulticastToAlliedElementCardsEffectDefinition(StringNa
 // 随机充能己方另一件指定属性卡牌（领域战斗层）。
 public sealed record ChargeRandomOtherAlliedElementCardEffectDefinition(
     StringName ElementKey,
-    int AmountTicks) : EffectDefinition;
+    int AmountTicks,
+    bool ExcludeEventCard = false) : EffectDefinition;
 
 // 缩短来源卡牌主动能力的剩余冷却（领域战斗层）。
 public sealed record ChargeSourceCardEffectDefinition(int AmountTicks) : EffectDefinition;
@@ -698,7 +699,8 @@ public sealed class AbilityDefinition
                 throw new ArgumentException("Multicast aura element key cannot be empty.", nameof(effects));
             }
             if (effect is ChargeRandomOtherAlliedElementCardEffectDefinition charge
-                && (charge.ElementKey.IsEmpty || charge.AmountTicks < 1))
+                && (charge.ElementKey.IsEmpty || charge.AmountTicks < 1
+                    || charge.ExcludeEventCard && activation != AbilityActivation.EchoOnMatchingAlliedCardActivated))
             {
                 throw new ArgumentException("Random card charge configuration is invalid.", nameof(effects));
             }

@@ -16,7 +16,7 @@ public sealed class FlyingPotionCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/flying_potion-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却6秒，魔法消耗0，己方随机一张其他卡牌进入飞行。"),
+                    new(CardKeywords.Activate, "冷却6秒，魔法消耗0，己方随机1张其他卡牌进入飞行。"),
                     new(CardKeywords.Consume, "使用后摧毁此卡牌，仅本场战斗生效。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>

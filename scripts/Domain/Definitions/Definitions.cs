@@ -108,6 +108,18 @@ public sealed record IncreaseLeftmostBurnCardOnSellDefinition : CardOnSellReward
     public int Amount { get; }
 }
 
+// 出售后给战场最左侧施加中毒的卡牌累加永久施加量（领域定义层）。
+public sealed record IncreaseLeftmostPoisonCardOnSellDefinition : CardOnSellRewardDefinition
+{
+    public IncreaseLeftmostPoisonCardOnSellDefinition(int amount)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        Amount = amount;
+    }
+
+    public int Amount { get; }
+}
+
 // 出售后给战场最左侧施加疾速的卡牌累加永久时长贡献，以Tick配置。
 public sealed record IncreaseLeftmostHasteCardOnSellDefinition : CardOnSellRewardDefinition
 {

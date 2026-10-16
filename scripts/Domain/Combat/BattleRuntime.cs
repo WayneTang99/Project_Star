@@ -244,6 +244,7 @@ internal sealed record PendingAbility(
     CardBattleState? EventCard = null)
 {
     public int PrimaryValue { get; init; }
+    public bool SuppressEchoes { get; init; }
 }
 
 internal sealed class AbilityQueue

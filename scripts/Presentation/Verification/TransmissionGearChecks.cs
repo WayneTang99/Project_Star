@@ -132,13 +132,13 @@ internal static class TransmissionGearChecks
             if (activations.Length != 1 || activations[0].Tick.Value != 20 || activations[0].IsEcho
                 || result.States[^1].Cards.Single(card => card.Id == charged.EntityId).CooldownUnits.Single() != 50) return false;
         }
-        // 充能至零后的正常发动仍可驱动下一张齿轮。
+        // 回响充能至零后照常发动，但按统一截断规则不再驱动下一张齿轮。
         var source = Gear(new TransmissionGearAssemblyCardDefinition(), 3, 1);
         var receiver = ActiveCard(3, 25);
         var next = Gear(new TransmissionGearCardDefinition(), 1, 4);
         var end = ActiveCard(5, 100);
         var chain = Simulate([ActiveCard(0, 20), source, receiver, next, end], [], 20);
-        if (EchoCount(chain, next) != 1 || chain.States[^1].Cards.Single(card => card.Id == end.EntityId).Haste != 10) return false;
+        if (EchoCount(chain, next) != 0 || chain.States[^1].Cards.Single(card => card.Id == end.EntityId).Haste != 0) return false;
         // 通用机制同样支持右侧发动、左侧目标。
         var reverse = gear with { Abilities = [new AbilityDefinition(new StringName("verification.gear.reverse"),
             AbilityActivation.EchoOnAdjacentAlliedCardActivated, AbilityTarget.LeftAdjacentAlliedCard, 0, 0,

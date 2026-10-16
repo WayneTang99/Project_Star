@@ -16,7 +16,7 @@ public sealed class HeavyCavalryCardDefinition : CardDefinition
             descriptionEntries:
             [
                 new(CardKeywords.Activate, "冷却8秒，魔法消耗0，对敌方英雄造成80/160伤害，己方英雄获得160/320护甲。"),
-                new(CardKeywords.Aura, "此卡牌每与一张己方存活战场装备卡牌直接相邻，攻击和护甲各增加60/120。"),
+                new(CardKeywords.Aura, "此卡牌每与己方1张存活战场装备卡牌直接相邻，攻击和护甲各增加60/120。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.AttackDamage] = 80, [GameAttributeKeys.Armor] = 160, [GameAttributeKeys.CooldownTicks] = 80 })),
             new TagSet([GameTags.Human]), initialLevel: 3,

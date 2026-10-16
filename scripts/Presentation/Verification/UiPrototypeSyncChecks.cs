@@ -33,6 +33,16 @@ internal static class UiPrototypeSyncChecks
                 + "\n" + CardDisplayAdapter.SetDetails(query.Describe(level.Card, null));
             if (text.Contains("基础 ") || System.Text.RegularExpressions.Regex.IsMatch(text, @"\d+/\d+/\d+|MaxHealth|HealthRegen|MaxMana|ManaRegen|Small型|Medium型|Large型")) return false;
         }
+        // 改变冻结结果只改变卡面，动态机制的详情公式保持稳定。
+        foreach (var name in new[] { "野猪", "碧玉蟾", "冒险者大剑" })
+        {
+            var card = catalog.Single(entry => entry.InitialCard.DisplayName == name).InitialCard;
+            var first = card with { EffectAmounts = new int?[] { 17 } };
+            var second = card with { EffectAmounts = new int?[] { 999 } };
+            if (!CardDisplayAdapter.Rules(first).SequenceEqual(CardDisplayAdapter.Rules(second))
+                || CardDisplayAdapter.FaceEffects(first).First().Value != "17"
+                || CardDisplayAdapter.FaceEffects(second).First().Value != "999") return false;
+        }
         return AttributePalette.Find(AttributePalette.Health) == AttributePalette.Find(GameAttributeKeys.HealthRegen)
             && AttributePalette.Find(GameAttributeKeys.HealthRegen) == AttributePalette.Find(GameAttributeKeys.HealingBonus)
             && AttributePalette.Find(GameAttributeKeys.Mana) == AttributePalette.Find(GameAttributeKeys.ManaRegen)
@@ -115,6 +125,11 @@ internal static class UiPrototypeSyncChecks
             CardKeywordText.RenderRule(label, "己方大型机械光属性卡牌冷却 -2秒，随机小型人类获得疾速1秒。");
             if (label.GetParsedText() != "己方[大型][机械][光属性]卡牌冷却 -2秒，随机[小型][人类]获得疾速1秒。") return false;
             origin.GrabFocus(); preview.Open(sample, null, null);
+            var details = preview.FindChild("Details", true, false) as CardDetailsContent;
+            if (details is null || !details.GetNode<Control>("HeaderMargin").Visible) return false;
+            var labels = details.FindChild("Tags", true, false)!.GetChildren().OfType<Label>().Select(item => item.Text).ToArray();
+            if (sample.Tags.Any(tag => !labels.Contains(TagDisplayNames.Get(tag)))
+                || details.GetNode<Control>("HeaderMargin/Header/Cooldown").CustomMinimumSize != new Vector2(68, 68)) return false;
             var levels = preview.GetNode<Control>("Panel").FindChildren("Level*", "Button", true, false).OfType<Button>().ToArray();
             var four = levels.Single(button => button.Text == "4级"); four.EmitSignal(Button.SignalName.Pressed);
             if (!preview.Visible || preview.DisplayedCard?.Level != 4 || preview.DisplayedCard.Value != 24) return false;
@@ -186,6 +201,18 @@ internal static class UiPrototypeSyncChecks
             await Save("native-arcane-shield-bonus");
             preview.Open(entries.Single(entry => entry.InitialCard.DisplayName == "随军牧师").InitialCard, null, null);
             await Save("native-mana-cost");
+            preview.Open(entries.Single(entry => entry.InitialCard.DisplayName == "野猪").InitialCard, null, null);
+            await Save("native-formula-boar");
+            preview.Open(entries.Single(entry => entry.InitialCard.DisplayName == "碧玉蟾").InitialCard, null, null);
+            await Save("native-formula-toad");
+            preview.Open(entries.Single(entry => entry.InitialCard.DisplayName == "辰光之门").InitialCard, null, null);
+            await Save("native-passive-gate");
+            foreach (var (name, file) in new[] { ("飞天扫帚", "echo-state"), ("传动齿轮", "echo-direction"), ("神圣狮鹫", "echo-reaction"), ("小天使", "echo-enemy-tags"), ("枪矛手", "echo-both-sides") })
+            {
+                preview.Open(entries.Single(entry => entry.InitialCard.DisplayName == name).InitialCard, null, null);
+                await Save(file);
+            }
+
             preview.Open(entries.First(entry => entry.InitialCard.SetKey is not null).InitialCard, null, null);
             await Save("native-set-preview");
             preview.Close();

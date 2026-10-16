@@ -270,6 +270,21 @@ public sealed class CardEconomyService
                 return Result<int>.Fail(new Failure(InvalidValue, "Sale burn amount bonus would overflow."));
         }
 
+        if (card.OnSellReward is IncreaseLeftmostPoisonCardOnSellDefinition poisonBonus
+            && FindLeftmostPoisonCard(session, cardId) is { } poisonTarget)
+        {
+            var pending = poisonTarget.SaleAttributeBonuses
+                .Where(bonus => bonus.AttributeKey == GameAttributeKeys.PoisonBonus && card.Tags.Contains(bonus.RequiredTag))
+                .Sum(bonus => (long)bonus.Amount) + poisonBonus.Amount;
+            var finalBonus = (long)poisonTarget.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.PoisonBonus) + pending;
+            long PendingValue(StringName key) => (long)poisonTarget.Attributes.BaseCombat.GetFinalValue(key)
+                + poisonTarget.SaleAttributeBonuses.Where(bonus => bonus.AttributeKey == key && card.Tags.Contains(bonus.RequiredTag))
+                    .Sum(bonus => (long)bonus.Amount);
+            if (finalBonus > int.MaxValue || CardAbilityComposer.Compose(poisonTarget).SelectMany(ability => ability.Effects)
+                .Where(PoisonEffectRules.AppliesPoison).Any(effect => PoisonEffectRules.BaseAmount(effect, PendingValue) + finalBonus > int.MaxValue))
+                return Result<int>.Fail(new Failure(InvalidValue, "Sale poison amount bonus would overflow."));
+        }
+
         if (card.OnSellReward is IncreaseLeftmostHasteCardOnSellDefinition hasteBonus
             && FindLeftmostHasteCard(session, cardId) is { } hasteTarget)
         {
@@ -356,6 +371,13 @@ public sealed class CardEconomyService
             .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
                 .Any(ability => ability.Effects.Any(BurnEffectRules.AppliesBurn)));
 
+    private static CardInstance? FindLeftmostPoisonCard(MatchSession session, EntityId excludedCardId) =>
+        session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
+            .Where(placement => placement.CardId != excludedCardId)
+            .Select(placement => session.Player.Inventory.Find(placement.CardId))
+            .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
+                .Any(ability => ability.Effects.Any(PoisonEffectRules.AppliesPoison)));
+
     private static CardInstance? FindLeftmostHasteCard(MatchSession session, EntityId excludedCardId) =>
         session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
             .Where(placement => placement.CardId != excludedCardId)
@@ -393,6 +415,12 @@ public sealed class CardEconomyService
         {
             FindLeftmostBurnCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
                 ModifierId.New(), soldCard.Id, GameAttributeKeys.BurnBonus, burnBonus.Amount));
+            return;
+        }
+        if (soldCard.OnSellReward is IncreaseLeftmostPoisonCardOnSellDefinition poisonBonus)
+        {
+            FindLeftmostPoisonCard(session, soldCard.Id)?.Attributes.BaseCombat.ApplyModifier(new StatModifier(
+                ModifierId.New(), soldCard.Id, GameAttributeKeys.PoisonBonus, poisonBonus.Amount));
             return;
         }
         if (soldCard.OnSellReward is IncreaseLeftmostHasteCardOnSellDefinition hasteBonus)

@@ -15,7 +15,7 @@ public sealed class FarmerCardDefinition : CardDefinition
                 CardSize.Small, [GameElements.General],
                 illustration: new StringName("res://art/ui/card-face/artwork/farmer-illustration.png"),
                 descriptionEntries:
-                [new(CardKeywords.Activate, "冷却9/8/7/6秒，魔法消耗0，己方其他随机一张人类卡牌获得1秒充能。")]),
+                [new(CardKeywords.Activate, "冷却9/8/7/6秒，魔法消耗0，己方随机1张其他人类卡牌获得1秒充能。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 90 })),
             new TagSet([GameTags.Human]), initialLevel: 1,

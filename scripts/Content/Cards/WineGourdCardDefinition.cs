@@ -15,7 +15,7 @@ public sealed class WineGourdCardDefinition : CardDefinition
                 CardSize.Small, [GameElements.Wood],
                 illustration: new StringName("res://art/ui/card-face/artwork/wine_gourd-illustration.png"),
                 descriptionEntries:
-                [new(CardKeywords.Activate, "冷却3秒，魔法消耗0，治疗己方英雄40/80/160/360生命，并给予随机一张己方战场卡牌1秒迟缓。")]),
+                [new(CardKeywords.Activate, "冷却3秒，魔法消耗0，治疗己方英雄40/80/160/360生命，并给予己方随机1张战场卡牌1秒迟缓。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {
                 [GameAttributeKeys.CooldownTicks] = 30,

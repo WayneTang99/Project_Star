@@ -16,7 +16,7 @@ public sealed class BlackRhinocerosBeetleCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/black_rhinoceros_beetle-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却4秒，魔法消耗0，随机使一张敌方战场卡牌获得1秒迟缓。"),
+                    new(CardKeywords.Activate, "冷却4秒，魔法消耗0，使敌方随机1张战场卡牌获得1秒迟缓。"),
                     new(CardKeywords.Sell, "出售此卡牌后，从己方战场区最左侧向右查找第一张土属性卡牌，使其冷却永久缩减1/2/3/4%；战场区没有土属性卡牌时不生效。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>

@@ -279,12 +279,12 @@ internal static class BattleEffectResolver
             case ChargeRandomOtherAlliedElementCardEffectDefinition charge:
                 if (pending.Source is not CardBattleState chargeSource)
                     throw new InvalidOperationException("Random card charge requires a card source.");
-                ChargeRandomOtherAlliedElementCard(runtime, chargeSource, charge);
+                ChargeRandomOtherAlliedElementCard(runtime, pending, chargeSource, charge);
                 break;
             case ChargeSourceCardEffectDefinition sourceCharge:
                 if (pending.Source is not CardBattleState selfChargeSource)
                     throw new InvalidOperationException("Source card charge requires a card source.");
-                ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks);
+                ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case ChargeRandomOtherAlliedCardsEffectDefinition randomCharge:
                 if (pending.Source is not CardBattleState randomChargeSource)
@@ -297,7 +297,7 @@ internal static class BattleEffectResolver
                 for (var i = 0; i < randomCharge.TargetCount && chargeCandidates.Count > 0; i++)
                 {
                     var index = runtime.NextRandomIndex(chargeCandidates.Count);
-                    ChargeCard(runtime, randomChargeSource, chargeCandidates[index], randomCharge.AmountTicks);
+                    ChargeCard(runtime, randomChargeSource, chargeCandidates[index], randomCharge.AmountTicks, pending.IsEcho || pending.SuppressEchoes);
                     chargeCandidates.RemoveAt(index);
                 }
                 break;
@@ -306,13 +306,13 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Card charge requires a card source.");
                 var chargeTarget = GetTargetCard(runtime, pending);
                 if (chargeTarget is not null)
-                    ChargeCard(runtime, cardChargeSource, chargeTarget, cardCharge.AmountTicks);
+                    ChargeCard(runtime, cardChargeSource, chargeTarget, cardCharge.AmountTicks, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case ChargeTaggedAlliedCardsEffectDefinition taggedCharge:
                 foreach (var target in runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed
                     && !card.IsOnBench && HasEffectiveTag(runtime, card, taggedCharge.RequiredTag)
                     && (!taggedCharge.ExcludeEventCard || card.EntityId != pending.EventCard?.EntityId)).ToArray())
-                    ChargeCard(runtime, pending.Source, target, taggedCharge.AmountTicks);
+                    ChargeCard(runtime, pending.Source, target, taggedCharge.AmountTicks, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case RepairRandomDestroyedAlliedCardEffectDefinition repair:
                 RepairRandomDestroyedAlliedCard(runtime, pending, repair);
@@ -704,6 +704,7 @@ internal static class BattleEffectResolver
 
     private static void ChargeRandomOtherAlliedElementCard(
         BattleRuntime runtime,
+        PendingAbility pending,
         CardBattleState source,
         ChargeRandomOtherAlliedElementCardEffectDefinition effect)
     {
@@ -711,6 +712,7 @@ internal static class BattleEffectResolver
         foreach (var card in runtime.Cards)
         {
             if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench
+                || effect.ExcludeEventCard && card.EntityId == pending.EventCard?.EntityId
                 || !card.ElementKeys.Contains(effect.ElementKey)
                 || !card.Abilities.Any(ability =>
                     ability.Definition.Activation == AbilityActivation.Active
@@ -722,7 +724,7 @@ internal static class BattleEffectResolver
         }
         if (candidates.Count == 0) return;
         var target = candidates[runtime.NextRandomIndex(candidates.Count)];
-        ChargeCard(runtime, source, target, effect.AmountTicks);
+        ChargeCard(runtime, source, target, effect.AmountTicks, pending.IsEcho || pending.SuppressEchoes);
     }
 
     private static CardBattleState? GetTargetCard(BattleRuntime runtime, PendingAbility pending)
@@ -740,7 +742,7 @@ internal static class BattleEffectResolver
     }
 
     // 共用充能结算，降至零时只对原本尚在冷却的主动能力排队。
-    private static void ChargeCard(BattleRuntime runtime, IBattleAbilitySource source, CardBattleState target, int amountTicks)
+    private static void ChargeCard(BattleRuntime runtime, IBattleAbilitySource source, CardBattleState target, int amountTicks, bool suppressEchoes)
     {
         foreach (var ability in target.Abilities)
         {
@@ -753,7 +755,7 @@ internal static class BattleEffectResolver
                 0,
                 ability.RemainingCooldownUnits - amountTicks * 2);
             if (ability.RemainingCooldownUnits == 0)
-                CombatSimulator.Enqueue(runtime, target, ability, false);
+                CombatSimulator.Enqueue(runtime, target, ability, false, suppressEchoes: suppressEchoes);
         }
         runtime.Events.Add(new CardChargedEvent(
             runtime.Tick,

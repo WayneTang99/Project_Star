@@ -15,7 +15,7 @@ public sealed class ConquerorFortressCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/conqueror_fortress-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Aura, "当敌方战场卡牌发动后，己方所有存活战场人类卡牌攻击增加40/80，可累计，包含零攻击卡牌；多重发动分别触发。此卡牌被摧毁后停止触发，已获得的攻击加成本场保留。"),
+                    new(CardKeywords.Echo, "当敌方战场卡牌发动后，己方所有存活战场人类卡牌攻击增加40/80，可累计，包含零攻击卡牌；多重发动分别触发。此卡牌被摧毁后停止触发，已获得的攻击加成本场保留。"),
                 ])), new TagSet([GameTags.Location]), initialLevel: 3,
             levels: [CreateLevel(3, 40), CreateLevel(4, 80)]) { }
 

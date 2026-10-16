@@ -17,7 +17,7 @@ public sealed class NunchakuCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却7秒，魔法消耗0，多重1，对敌方英雄造成5伤害。"),
-                    new(CardKeywords.Echo, "当相邻己方战场卡牌发动后，此卡牌获得1/2/3秒充能；多重发动分别触发。"),
+                    new(CardKeywords.Echo, "当己方相邻战场卡牌发动后，此卡牌获得1/2/3秒充能；多重发动分别触发。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
                     [GameAttributeKeys.AttackDamage] = 5,

@@ -17,7 +17,7 @@ public sealed class IceSwordfishCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却6秒，魔法消耗0，对敌方英雄造成40/80/160伤害。"),
-                    new(CardKeywords.Echo, "己方冰属性卡牌发动时，己方随机一张攻击卡牌攻击增加5/10/20，仅本场战斗生效。"),
+                    new(CardKeywords.Echo, "己方冰属性卡牌发动时，己方随机1张攻击卡牌攻击增加5/10/20，仅本场战斗生效。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.AttackDamage] = 40, [GameAttributeKeys.CooldownTicks] = 60 })),
             new TagSet([GameTags.Equipment, GameTags.Aquatic]), initialLevel: 2,

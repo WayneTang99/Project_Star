@@ -15,7 +15,7 @@ public sealed class NightThiefGarbCardDefinition : CardDefinition
                 CardSize.Medium, [GameElements.General],
                 illustration: new StringName("res://art/ui/card-face/artwork/night_thief_garb-illustration.png"),
                 descriptionEntries:
-                [new(CardKeywords.Activate, "冷却4秒，魔法消耗0，随机一张己方存活战场卡牌获得1/2/3/4秒疾速，可选中自身。"),
+                [new(CardKeywords.Activate, "冷却4秒，魔法消耗0，己方随机1张存活战场卡牌获得1/2/3/4秒疾速，可选中自身。"),
                  new(CardKeywords.RoundStart, "轮初，随机获得一张当前英雄以外的同级小型卡牌（含无阵营）；仅在战场区生效。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             { [GameAttributeKeys.CooldownTicks] = 40 })),

@@ -106,7 +106,7 @@ public sealed class CombatSimulator
         foreach (var item in due)
             if (!item.Ability.Source.Destroyed && !item.Ability.Source.IsOnBench
                 && item.Ability.Source is CardBattleState card && runtime.Cards.Contains(card))
-                Enqueue(runtime, card, item.Ability.Ability, false, true);
+                Enqueue(runtime, card, item.Ability.Ability, false, true, suppressEchoes: item.Ability.SuppressEchoes);
     }
 
     // 将发动追加到 FIFO，并按原顺序记录排队事件。
@@ -116,9 +116,10 @@ public sealed class CombatSimulator
         BattleAbilityState ability,
         bool echo,
         bool multicast = false,
-        CardBattleState? eventCard = null)
+        CardBattleState? eventCard = null,
+        bool suppressEchoes = false)
     {
-        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick, eventCard));
+        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick, eventCard) { SuppressEchoes = suppressEchoes });
         runtime.Events.Add(new AbilityQueuedEvent(
             runtime.Tick,
             card.EntityId,
@@ -166,7 +167,7 @@ public sealed class CombatSimulator
                 var multicast = BattleEffectResolver.GetEffectiveMulticast(runtime, cardSource);
                 for (var repeat = 0; repeat < multicast; repeat++)
                     runtime.ScheduledMulticasts.Add((runtime.Tick + new BattleTick(checked((repeat + 1) * 2)),
-                        new PendingAbility(cardSource, pending.Ability, false, true, runtime.Tick)));
+                        new PendingAbility(cardSource, pending.Ability, false, true, runtime.Tick) { SuppressEchoes = pending.SuppressEchoes }));
             }
             if (definition.Effects.Any(effect => effect is ApplyPrimaryEffectPercentStatusEffectDefinition))
                 pending = pending with { PrimaryValue = BattleEffectResolver.PrimaryValue(runtime, pending) };
@@ -185,7 +186,7 @@ public sealed class CombatSimulator
                     ability.Definition.Effects.Any(effect => effect is AttributeDamageEffectDefinition { FirstActivationMultiplier: > 1 })))
                     BattleStateRecorder.CaptureState(runtime);
             }
-            if (!pending.IsEcho) EnqueueEchoes(runtime, pending, activatesLeftmostCard);
+            if (!pending.IsEcho && !pending.SuppressEchoes) EnqueueEchoes(runtime, pending, activatesLeftmostCard);
             if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
                 && pending.Source is CardBattleState questCard && questCard.Quests.Count > 0
                 && runtime.Cards.Contains(questCard))
@@ -249,7 +250,7 @@ public sealed class CombatSimulator
                 && (ability.Definition.TriggerCardTag is null && ability.Definition.TriggerCardElement is null
                     || ability.Definition.TriggerCardTag is { } tag && originCard.Tags.Contains(tag)
                     || ability.Definition.TriggerCardElement is { } element && originCard.ElementKeys.Contains(element)))
-                Enqueue(runtime, source, ability, true);
+                Enqueue(runtime, source, ability, true, eventCard: originCard);
             if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
                 && !ability.Triggered
                 && source.Side == origin.Source.Side

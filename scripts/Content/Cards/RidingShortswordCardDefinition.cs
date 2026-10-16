@@ -15,7 +15,7 @@ public sealed class RidingShortswordCardDefinition : CardDefinition
                 CardSize.Small, [GameElements.General],
                 illustration: new StringName("res://art/ui/card-face/artwork/riding_shortsword-illustration.png"), descriptionEntries:
                 [
-                    new(CardKeywords.Echo, "当相邻己方人类攻击卡牌发动后，对敌方英雄造成10/20/40伤害（随此卡牌攻击加成提高，包含多重的额外发动）。"),
+                    new(CardKeywords.Echo, "当己方相邻人类攻击卡牌发动后，对敌方英雄造成10/20/40伤害（随此卡牌攻击加成提高，包含多重的额外发动）。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.AttackDamage] = 10 })), new TagSet([GameTags.Equipment]), initialLevel: 2,
             levels: [CreateLevel(2, 10), CreateLevel(3, 20), CreateLevel(4, 40)]) { }

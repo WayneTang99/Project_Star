@@ -21,8 +21,8 @@ public sealed class HolySlashingBladeCardDefinition : CardDefinition
                     illustration: new StringName("res://art/ui/card-face/artwork/holy_slashing_blade-illustration-rework-20261011-goldwhite.png"),
                     descriptionEntries:
                     [
-                        new(CardKeywords.Activate, "冷却10秒，对敌方英雄造成200伤害，并随机本场摧毁敌方一件小型恶魔或亡灵卡牌"),
-                        new(CardKeywords.Aura, "本场战斗双方每有一件已被摧毁的恶魔或亡灵卡牌，此卡牌攻击翻倍（本次发动摧毁的卡牌立即计数）。"),
+                        new(CardKeywords.Activate, "冷却10秒，对敌方英雄造成200伤害，并随机本场摧毁敌方1张小型恶魔或亡灵卡牌"),
+                        new(CardKeywords.Aura, "本场战斗双方每有1张已被摧毁的恶魔或亡灵卡牌，此卡牌攻击翻倍（本次发动摧毁的卡牌立即计数）。"),
                     ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {

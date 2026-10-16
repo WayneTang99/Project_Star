@@ -14,7 +14,7 @@ public sealed class OrderPlateArmorCardDefinition : CardDefinition
             new CardIdentityAttributes(new StringName("card.order_plate_armor"), "秩序板甲", new StringName("paladin"),
                 CardSize.Medium, [GameElements.General],
                 illustration: new StringName("res://art/ui/card-face/artwork/order_plate_armor-illustration.png"), descriptionEntries:
-                [new(CardKeywords.Activate, "冷却5秒，魔法消耗0，己方英雄获得40/60/80/100护甲（随此卡牌护甲加成提高），随机使一张敌方存活战场卡牌获得1/2/3/4秒迟缓。")]),
+                [new(CardKeywords.Activate, "冷却5秒，魔法消耗0，己方英雄获得40/60/80/100护甲（随此卡牌护甲加成提高），使敌方随机1张存活战场卡牌获得1/2/3/4秒迟缓。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {
                 [GameAttributeKeys.Armor] = 40,

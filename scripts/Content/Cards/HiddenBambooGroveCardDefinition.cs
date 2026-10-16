@@ -14,7 +14,7 @@ public sealed class HiddenBambooGroveCardDefinition : CardDefinition
                 CardSize.Large, [GameElements.Wood],
                 illustration: new StringName("res://art/ui/card-face/artwork/hidden_bamboo_grove-illustration.png"),
                 descriptionEntries:
-                [new(CardKeywords.Echo, "当己方木属性卡牌发动后，给予随机一张敌方战场卡牌1/2/3秒迟缓。")])),
+                [new(CardKeywords.Echo, "当己方木属性卡牌发动后，给予敌方随机1张战场卡牌1/2/3秒迟缓。")])),
             new TagSet([GameTags.Plant, GameTags.Location]), initialLevel: 2,
             levels: [CreateLevel(2, 10), CreateLevel(3, 20), CreateLevel(4, 30)]) { }
 

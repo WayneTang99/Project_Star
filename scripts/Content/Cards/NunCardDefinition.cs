@@ -21,7 +21,7 @@ public sealed class NunCardDefinition : CardDefinition
                     illustration: new StringName("res://art/ui/card-face/artwork/nun-illustration-rework-20261011-goldwhite.png"),
                     descriptionEntries:
                     [
-                        new(CardKeywords.Activate, "冷却6秒，消耗10魔法，治疗己方英雄10/20/40/80生命，并随机充能己方另一件光属性卡牌1秒（不包括此卡牌）。"),
+                        new(CardKeywords.Activate, "冷却6秒，消耗10魔法，治疗己方英雄10/20/40/80生命，并己方随机1张其他光属性卡牌获得1秒充能（不包括此卡牌）。"),
                     ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {

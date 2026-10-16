@@ -15,8 +15,8 @@ public sealed class IceLotusCardDefinition : CardDefinition
             illustration: new StringName("res://art/ui/card-face/artwork/ice_lotus-illustration.png"),
             descriptionEntries:
             [
-                new(CardKeywords.Activate, "冷却3秒，魔法消耗0，给予随机一张己方和随机一张敌方存活战场卡牌各1秒迟缓。"),
-                new(CardKeywords.Echo, "当己方卡牌受到迟缓后，给予敌方随机一张存活战场卡牌1/2秒迟缓。"),
+                new(CardKeywords.Activate, "冷却3秒，魔法消耗0，给予己方随机1张和敌方随机1张存活战场卡牌各1秒迟缓。"),
+                new(CardKeywords.Echo, "当己方卡牌受到迟缓后，给予敌方随机1张存活战场卡牌1/2秒迟缓。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 30 })), new TagSet([GameTags.Plant]), initialLevel: 3,
             levels: [CreateLevel(3, 10), CreateLevel(4, 20)]) { }

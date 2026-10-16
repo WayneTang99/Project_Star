@@ -16,8 +16,8 @@ public sealed class MoonshadowCatCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/moonshadow_cat-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却9/8/7/6秒，魔法消耗0，给予敌方随机一张未被摧毁的战场卡牌1秒禁锢。"),
-                    new(CardKeywords.Aura, "此卡牌每与一张己方存活战场人类卡牌直接相邻，冷却增加1秒。"),
+                    new(CardKeywords.Activate, "冷却9/8/7/6秒，魔法消耗0，给予敌方随机1张未被摧毁的战场卡牌1秒禁锢。"),
+                    new(CardKeywords.Aura, "此卡牌每与己方1张存活战场人类卡牌直接相邻，冷却增加1秒。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 90 })),
             new TagSet([GameTags.Beast]), initialLevel: 1,

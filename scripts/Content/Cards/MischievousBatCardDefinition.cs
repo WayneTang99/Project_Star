@@ -16,7 +16,7 @@ public sealed class MischievousBatCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/mischievous_bat-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却2秒，魔法消耗0，对敌方英雄造成1伤害，并使敌方随机一张未被摧毁的战场卡牌获得1/2/3秒迟缓。"),
+                    new(CardKeywords.Activate, "冷却2秒，魔法消耗0，对敌方英雄造成1伤害，并使敌方随机1张未被摧毁的战场卡牌获得1/2/3秒迟缓。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.AttackDamage] = 1, [GameAttributeKeys.CooldownTicks] = 20 })),
             new TagSet([GameTags.Beast]), initialLevel: 2,

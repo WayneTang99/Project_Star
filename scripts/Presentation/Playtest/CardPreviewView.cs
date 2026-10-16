@@ -111,7 +111,7 @@ public sealed partial class CardPreviewView : Control
         _meta.Text = $"{DisplayedCard.Level}级 · 价值 {DisplayedCard.Value}" + (DisplayedCard.Abilities.Any(ability => ability.Activation == Project_Star.Domain.Combat.AbilityActivation.Active) ? $" · 冷却 {seconds:0.##}秒" : "");
         foreach (var button in _levels.GetChildren().OfType<Button>()) button.SetPressedNoSignal(button.Text == _level + "级");
         _details.Render(DisplayedCard, Math.Max(1, _right.CustomMinimumSize.X), Math.Max(80, _panel.Size.Y - 530));
-        _details.GetNode<Control>("HeaderMargin").Hide(); _details.GetNode<Control>("Footer").Hide(); LayoutArt();
+        (_details.FindChild("CardName", true, false) as CanvasItem)?.Hide(); _details.GetNode<Control>("Footer").Hide(); LayoutArt();
     }
     private void LayoutPreview()
     {

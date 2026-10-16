@@ -15,7 +15,7 @@ public sealed class ManaSourceGeneratorCardDefinition : CardDefinition
                 CardSize.Medium, [GameElements.Lightning],
                 illustration: new StringName("res://art/ui/card-face/artwork/mana_source_generator-illustration.png"),
                 descriptionEntries:
-                [new(CardKeywords.Activate, "冷却5秒，消耗80魔法，己方其他随机1/2/3张卡牌获得1秒充能。")]),
+                [new(CardKeywords.Activate, "冷却5秒，消耗80魔法，己方随机1/2/3张其他卡牌获得1秒充能。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 50 })),
             new TagSet([GameTags.Mechanical]), initialLevel: 2,

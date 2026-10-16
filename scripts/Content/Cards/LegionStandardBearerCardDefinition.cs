@@ -15,7 +15,7 @@ public sealed class LegionStandardBearerCardDefinition : CardDefinition
                 CardSize.Small, [GameElements.General],
                 illustration: new StringName("res://art/ui/card-face/artwork/legion_standard_bearer-illustration-rework-20261011-goldwhite.png"), descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却6秒，随机一张具备攻击能力的己方存活战场人类卡牌攻击+10/20/40，可叠加，仅本场战斗有效。"),
+                    new(CardKeywords.Activate, "冷却6秒，己方随机1张存活战场人类攻击卡牌攻击+10/20/40，可叠加，仅本场战斗有效。"),
                     new(CardKeywords.Summon, "战斗开始时，若左侧紧邻空位可用，随机召唤一张同级战意旗帜、守护旗帜或怜悯旗帜。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 60 })), new TagSet([GameTags.Human]), initialLevel: 2,

@@ -20,7 +20,7 @@ public sealed class TreasureChestCardDefinition : CardDefinition
                     illustration: new StringName("res://art/ui/card-face/artwork/treasure_chest-illustration-refresh.png"),
                     descriptionEntries:
                     [
-                        new(CardKeywords.Sell, "当出售此卡牌后，获得3件与此卡牌同等级的随机小型材料；每件奖励独立结算自动放置与合并，无法创建时跳过该件。"),
+                        new(CardKeywords.Sell, "当出售此卡牌后，获得3张与此卡牌同等级的随机小型材料；每张卡牌奖励独立结算自动放置与合并，无法创建时跳过该张卡牌。"),
                     ]),
                 baseCombat: new ModifiableAttributeSet()),
             new TagSet(),

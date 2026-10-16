@@ -16,7 +16,7 @@ public sealed class PolymorphWandCardDefinition : CardDefinition
                     new StringName("mona"), CardSize.Medium, [GameElements.General],
                     illustration: new StringName("res://art/ui/card-face/artwork/polymorph_wand-illustration.png"),
                     descriptionEntries:
-                    [new(CardKeywords.Activate, "冷却8/7/6秒，魔法消耗0，转变：使随机一张存活的敌方战场小型卡牌转变为同等级的“咩咩羊”；仅本场战斗生效，清除原能力、属性加成和状态，重新开始完整冷却。")]),
+                    [new(CardKeywords.Activate, "冷却8/7/6秒，魔法消耗0，转变：使敌方随机1张存活战场小型卡牌转变为同等级的“咩咩羊”；仅本场战斗生效，清除原能力、属性加成和状态，重新开始完整冷却。")]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 80 })),
             new TagSet([GameTags.Equipment]), initialLevel: 2,
