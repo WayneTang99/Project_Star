@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -710,7 +710,7 @@ internal static class PlaytestVerification
             details.RefreshCard(detailCard, shell.Size, state);
             var paragraphs = details.GetNode<VBoxContainer>("Content/CardContent/BodyScroll/Paragraphs");
             var status = paragraphs.GetNode<RichTextLabel>("BattleState").GetParsedText();
-            if (new[] { "飞行", "狂暴", "禁锢 3.0s", "疾速 1.5s", "迟缓 2.0s", "已摧毁" }.Any(text => !status.Contains(text))
+            if (new[] { "飞行", "狂暴", "禁锢 3.0秒", "疾速 1.5秒", "迟缓 2.0秒", "已摧毁" }.Any(text => !status.Contains(text))
                 || paragraphs.GetNode<Label>("Quests/ui_verify_quest/Column/Meter/Count").Text != "3 / 5") return false;
             details.RefreshCard(detailCard, shell.Size, state with { Destroyed = false, Haste = 0, Slow = 0, Immobilize = 0,
                 IsFlying = false, IsBerserk = false,
@@ -815,7 +815,7 @@ internal static class PlaytestVerification
                                         .GetNode<Button>("Card_" + card.Id.Value.ToString("N"));
                                     if (!slot.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single()
                                         .GetNode<Control>("Effects").GetChildren().OfType<CardEffectRow>()
-                                        .Any(effect => effect.GetNode<Label>("Value").Text == damage.ToString())) return false;
+                                        .Any(effect => effect.GetNode<Label>("Value").Text == CardDisplayAdapter.FaceEffects(card).First(value => value.Kind == CardFaceEffectKind.Damage).Value)) return false;
                                     sawModifier = true;
                                 }
                             }
@@ -990,7 +990,7 @@ internal static class PlaytestVerification
                 || !face.Any(effect => effect.Kind == CardFaceEffectKind.Burn && effect.Value == (attack / 10 + burnBonus).ToString())) return false;
         }
         return CardDisplayAdapter.FaceEffects(nun).Any(effect => effect.Kind == CardFaceEffectKind.Healing && effect.Value == "10")
-            && CardDisplayAdapter.FaceEffects(hammer).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == "20%")
+            && CardDisplayAdapter.FaceEffects(hammer).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == "0")
             && CardDisplayAdapter.Details(hammer).Contains("目标最大生命的 20%")
             && adapter.Artwork(nun.Illustration).ResourcePath == nun.Illustration.ToString()
             && adapter.Artwork(hammer.Illustration).ResourcePath == hammer.Illustration.ToString()
@@ -1005,22 +1005,22 @@ internal static class PlaytestVerification
                 new JewelryBagCardDefinition(), new TreasureChestCardDefinition() })
         {
             var text = CardDisplayAdapter.Details(MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)));
-            if (text.Contains("\n攻击：") || text.Contains("\n冷却：")) return false;
+            if (text.Contains("\n攻击　") || text.Contains("\n冷却　")) return false;
         }
         foreach (var definition in new CardDefinition[]
             { new HolyGriffinCardDefinition(), new BlacksmithCardDefinition(), new NunCardDefinition() })
         {
             var text = CardDisplayAdapter.Details(MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)));
-            if (text.Contains("\n攻击：") || !text.Contains("\n冷却：")) return false;
+            if (text.Contains("\n攻击　") || !text.Contains("\n冷却　")) return false;
         }
         var boar = MatchDisplayQuery.FromOffer(ShopOffer.Create(new BoarCardDefinition()));
         var zeroAttack = boar with { CurrentValues = new System.Collections.Generic.Dictionary<StringName, int>
             { [GameAttributeKeys.AttackDamage] = 0, [GameAttributeKeys.CooldownTicks] = 60 } };
         var thorn = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ThornArmorCardDefinition()));
-        return CardDisplayAdapter.Details(zeroAttack).Contains("攻击：基础 20 / 当前 0")
-            && CardDisplayAdapter.Details(zeroAttack).Contains("冷却：基础 6秒 / 当前 6秒")
-            && CardDisplayAdapter.Details(thorn).Contains("攻击：基础 0 / 当前 0")
-            && CardDisplayAdapter.Details(thorn).Contains("护甲：基础 10 / 当前 10");
+        return CardDisplayAdapter.Details(zeroAttack).Contains("攻击　基础 20 / 当前 0")
+            && CardDisplayAdapter.Details(zeroAttack).Contains("冷却　基础 6秒 / 当前 6秒")
+            && CardDisplayAdapter.Details(thorn).Contains("攻击　基础 0 / 当前 0")
+            && CardDisplayAdapter.Details(thorn).Contains("护甲　基础 10 / 当前 10");
     }
 
     // 定义中的有序词条贯穿所有等级的实例、报价、对局快照与详情。
@@ -1034,7 +1034,7 @@ internal static class PlaytestVerification
             var identity = definition.Attributes.Identity;
             var expected = identity.DescriptionEntries;
             if (expected.Count == 0) return false;
-            var text = string.Join("\n", expected.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}：{entry.Text}"));
+            var text = string.Join("\n", expected.Select(entry => $"{CardKeywords.DisplayName(entry.KeywordKey)}　{entry.Text}"));
             foreach (var level in Enumerable.Range(1, 5).Where(definition.SupportsLevel))
             {
                 var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
@@ -1043,11 +1043,11 @@ internal static class PlaytestVerification
                     || !CardDisplayAdapter.Details(offer).Contains(text)) return false;
                 var markers = Array.AsReadOnly(new CardDescriptionEntry[]
                 {
-                    new(CardKeywords.Echo, "当验证事件完成后，显示快照描述；发动：正文不分段。"),
+                    new(CardKeywords.Echo, "当验证事件完成后，显示快照描述；发动　正文不分段。"),
                     new(CardKeywords.Echo, "第二条回响。"),
                 });
                 if (!CardDisplayAdapter.Details(offer with { DescriptionEntries = markers }).Contains(
-                    "回响：当验证事件完成后，显示快照描述；发动：正文不分段。\n回响：第二条回响。")) return false;
+                    "回响　当验证事件完成后，显示快照描述；发动　正文不分段。\n回响　第二条回响。")) return false;
                 try { ((System.Collections.Generic.IList<CardDescriptionEntry>)offer.DescriptionEntries).Clear(); return false; }
                 catch (NotSupportedException) { }
             }

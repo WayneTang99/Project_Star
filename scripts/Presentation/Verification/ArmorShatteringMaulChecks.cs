@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -15,7 +15,7 @@ using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.Verification;
 
-// 碎甲重锤护甲消耗、伤害倍率与冻结回放验证（表现层）。
+// 破碎之星护甲消耗、伤害倍率与冻结回放验证（表现层）。
 internal static class ArmorShatteringMaulChecks
 {
     internal static bool ConsumptionAndDamage()
@@ -23,7 +23,7 @@ internal static class ArmorShatteringMaulChecks
         var definition = new ArmorShatteringMaulCardDefinition(); var identity = definition.Attributes.Identity;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
         if (definition.InitialLevel != 4 || definition.SupportsLevel(3) || definition.SupportsLevel(5)
-            || identity.DisplayName != "碎甲重锤" || identity.FactionKey != new StringName("paladin")
+            || identity.DisplayName != "破碎之星" || identity.FactionKey != new StringName("paladin")
             || identity.Size != CardSize.Large || !definition.Tags.Contains(GameTags.Equipment)
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Light })
             || texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3
@@ -46,7 +46,7 @@ internal static class ArmorShatteringMaulChecks
         }
         var display = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition));
         return CardDisplayAdapter.Details(display).Contains("失去") && CardDisplayAdapter.Details(display).Contains("×5")
-            && CardDisplayAdapter.FaceEffects(display).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value.Contains("×5"));
+            && CardDisplayAdapter.FaceEffects(display).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == "0");
     }
 
     internal static bool OrderingAndBoundaries()
@@ -116,7 +116,7 @@ internal static class ArmorShatteringMaulChecks
             await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             using var image = viewport.GetTexture().GetImage();
             if (image.SavePng("res://output/armor-shattering-maul/card-face.png") != Error.Ok)
-                throw new InvalidOperationException("碎甲重锤卡面截图失败。");
+                throw new InvalidOperationException("破碎之星卡面截图失败。");
         }
         finally { owner.RemoveChild(viewport); viewport.Free(); }
     }

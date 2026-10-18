@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -56,14 +56,14 @@ internal static class CardFinalValueChecks
         var bag = MatchDisplayQuery.Capture(session, NoSets).Cards.Single(card => card.Id == backpack.Id);
         Require(Values(bag).Single() == "+10", "hero level aura numeric");
         var shield = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ArcaneShieldCardDefinition()));
-        Require(Values(shield).SequenceEqual(new[] { "累计魔法" }), "zero armor bonus merged");
+        Require(Values(shield).SequenceEqual(new[] { "0" }), "zero armor bonus merged");
         var shieldRule = CardDisplayAdapter.Rules(shield).Single();
         Require(shieldRule.Contains("本场累计魔法消耗的护甲（包含本次消耗）")
             && shieldRule.Contains("） + 0")
             && !shieldRule.Contains("获得护甲 0"), "mana armor rule preserves formula without separate zero armor");
         var enhanced = shield with { CurrentValues = new Dictionary<StringName, int>(shield.CurrentValues)
             { [GameAttributeKeys.Armor] = 7 } };
-        Require(Values(enhanced).SequenceEqual(new[] { "累计魔法+7" }), "nonzero armor bonus merged");
+        Require(Values(enhanced).SequenceEqual(new[] { "7" }), "known armor bonus retained");
         Require(CardDisplayAdapter.Rules(enhanced).Single() == shieldRule.Replace(" + 0", " + 7"), "mana armor rule includes current bonus without replacing formula");
         Require(CardDisplayAdapter.Rules(shield with { CurrentValues = new Dictionary<StringName, int>(shield.CurrentValues)
             { [GameAttributeKeys.Armor] = -3 } }).Single() == shieldRule.Replace(" + 0", " − 3"), "mana armor rule displays negative bonus");
@@ -74,6 +74,46 @@ internal static class CardFinalValueChecks
         Require(Values(replay).SequenceEqual(new[] { "39", "3" }), "frozen armor sum and subsequent effect index");
         Require(CardDisplayAdapter.Rules(replay).Single().Contains("包含本次消耗")
             && CardDisplayAdapter.Rules(replay).Single().Contains("恢复 3 魔法"), "mana armor replay preserves formula and subsequent effect");
+        return true;
+    }
+
+    internal static bool NumericFallbacks()
+    {
+        var registry = Project_Star.Infrastructure.Definitions.DefinitionRegistry.Scan(typeof(CardFinalValueChecks).Assembly);
+        foreach (var definition in registry.Cards.Values)
+        for (var level = definition.InitialLevel; level <= 5; level++)
+        {
+            if (!definition.SupportsLevel(level)) continue;
+            var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
+            Require(Values(card).All(value => int.TryParse(value, out _)), $"{card.DisplayName} {level} numeric face");
+        }
+        foreach (var level in new[] { 1, 2, 3, 4 })
+        {
+            var boar = MatchDisplayQuery.FromOffer(ShopOffer.Create(new BoarCardDefinition(), level));
+            var attack = new[] { 20, 30, 50, 100 }[level - 1];
+            Require(Values(boar).Single() == attack.ToString(), "standalone boar defaults full health");
+            var enhanced = boar with { CurrentValues = new Dictionary<StringName, int>(boar.CurrentValues)
+                { [GameAttributeKeys.AttackDamage] = attack + 7 } };
+            Require(Values(enhanced).Single() == (attack + 7).ToString(), "known attack bonus retained");
+            Require(string.Join("", CardDisplayAdapter.Rules(enhanced)).Contains($"攻击 {attack + 7}")
+                && !string.Join("", CardDisplayAdapter.Rules(enhanced)).Contains("默认满血"), "formula includes current attack without preview policy text");
+            var active = enhanced.Abilities.Single();
+            var gemmed = enhanced with { Abilities = new[] { new AbilityDefinition(active.Key, active.Activation, active.Target,
+                active.ManaCost, active.CooldownTicks, [.. active.Effects, new ApplyPrimaryEffectPercentStatusEffectDefinition(BattleStatus.Burn, 10)]) } };
+            Require(Values(gemmed).SequenceEqual(new[] { (attack + 7).ToString(), ((attack + 7) / 10).ToString() }),
+                "known primary supports numeric gem preview");
+            Require(Values(enhanced with { EffectAmounts = new int?[] { attack / 2 } }).Single() == (attack / 2).ToString(),
+                "real health context overrides standalone default");
+        }
+        foreach (var definition in new CardDefinition[] { new FallenAngelCardDefinition(), new JudgmentHammerCardDefinition(),
+            new ArmorShatteringMaulCardDefinition(), new ArcaneShieldCardDefinition(), new StarPatternAngelCardDefinition() })
+        {
+            var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition));
+            Require(Values(card).All(value => value == "0"), $"{card.DisplayName} missing context zero");
+            var supplied = card with { EffectAmounts = card.Abilities.SelectMany(a => a.Effects).Select(_ => (int?)123).ToArray() };
+            Require(Values(supplied).All(value => int.TryParse(value, out var number) && number > 0), $"{card.DisplayName} frozen numeric evidence");
+            Require(CardDisplayAdapter.Rules(card).Count > 0, "details retained");
+        }
         return true;
     }
 

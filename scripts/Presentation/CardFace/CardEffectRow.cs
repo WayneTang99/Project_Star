@@ -37,10 +37,10 @@ public sealed partial class CardEffectRow : HBoxContainer
     }
 
     // 缩小装饰留白并保留文字下限，长值完整内容由详情承载。
-    public void SetDisplayMetrics(int font, float height)
+    public void SetDisplayMetrics(int font, float height, int iconSize = 12)
     {
         CustomMinimumSize = new Vector2(0, height);
-        _icon.CustomMinimumSize = new Vector2(12, 12);
+        _icon.CustomMinimumSize = new Vector2(iconSize, iconSize);
         _icon.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         AddThemeConstantOverride("separation", 4);
         _value.CustomMinimumSize = Vector2.Zero;
@@ -50,5 +50,5 @@ public sealed partial class CardEffectRow : HBoxContainer
     }
 
     // 两位数使用真实字体宽度，长公式超过可用宽度时才省略。
-    public float PreferredWidth(int font) => Mathf.Max(40, 5 + 12 + 4 + MatchTheme.Font(true, true).GetStringSize(_value.Text, fontSize: font).X + 7);
+    public float PreferredWidth(int font, int iconSize = 12) => Mathf.Max(40, 5 + iconSize + 4 + MatchTheme.Font(true, true).GetStringSize(_value.Text, fontSize: font).X + 7);
 }

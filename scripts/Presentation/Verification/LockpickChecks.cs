@@ -62,7 +62,7 @@ internal static class LockpickChecks
                 || !HasteAmounts(frozen).SequenceEqual(new[] { 10, 10 })
                 || !HasteAmounts(next).SequenceEqual(new[] { 10 + amount, 10 })
                 || snapshot.CurrentValues[GameAttributeKeys.HasteDurationBonus] != amount
-                || !CardDisplayAdapter.Details(snapshot).Contains($"疾速时长加成：基础 0秒 / 当前 {amount / 10m:0.##}秒")
+                || !CardDisplayAdapter.Details(snapshot).Contains($"疾速时长加成　基础 0秒 / 当前 {amount / 10m:0.##}秒")
                 || !new CombatSimulator().Simulate(next).Events.SequenceEqual(new CombatSimulator().Simulate(next).Events)) return false;
         }
         return true;
@@ -126,9 +126,9 @@ internal static class LockpickChecks
             || adjacent.Session.Player.Wealth != wealth || adjacent.Session.Player.Inventory.Find(overflow.Id) is null) return false;
 
         var echo = Fixture();
-        Add(echo, new FlangedMaceCardDefinition(), 1, BoardZone.Battlefield, 0);
+        Add(echo, new HasteFixtureDefinition(new HealEffectDefinition(1), mechanical: true), 1, BoardZone.Battlefield, 0);
         var gear = Add(echo, new TransmissionGearCardDefinition(), 1, BoardZone.Battlefield, 1);
-        var receiver = Add(echo, new BeastHideCardDefinition(), 1, BoardZone.Battlefield, 2);
+        var receiver = Add(echo, new TransmissionGearCardDefinition(), 1, BoardZone.Battlefield, 2);
         SellLock(echo, 2);
         var result = new CombatSimulator().Simulate(Setup(echo));
         if (Bonus(gear) != 5 || Bonus(receiver) != 0 || !HasteAmounts(Setup(echo)).SequenceEqual(new[] { 15 })
@@ -191,11 +191,11 @@ internal static class LockpickChecks
     // 非正式内容：分别覆盖随机疾速、纯状态监听和任务赋予的疾速能力。
     private sealed class HasteFixtureDefinition : CardDefinition
     {
-        internal HasteFixtureDefinition(EffectDefinition? effect, bool passive = false)
+        internal HasteFixtureDefinition(EffectDefinition? effect, bool passive = false, bool mechanical = false)
             : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(new StringName("verification.haste_source"),
                 "疾速验证", new StringName("valos"), CardSize.Small, [GameElements.General]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 50 })),
-                new TagSet(), effect is null ? Array.Empty<AbilityDefinition>()
+                mechanical ? new TagSet([GameTags.Mechanical]) : new TagSet(), effect is null ? Array.Empty<AbilityDefinition>()
                     : [new AbilityDefinition(new StringName("verification.haste"), passive ? AbilityActivation.PassiveAura : AbilityActivation.Active,
                         AbilityTarget.SelfCard, 0, passive ? 0 : 50, [effect])],
                 quests: effect is null

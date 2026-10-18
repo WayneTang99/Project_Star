@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Combat;
@@ -206,7 +207,8 @@ public sealed class CardLevelDefinition
         IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null,
         CardOnSellRewardDefinition? onSellReward = null,
         IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null,
-        int battleValueBonus = 0)
+        int battleValueBonus = 0,
+        IReadOnlyList<TaggedCardAcquisitionAttributeBonus>? acquisitionAttributeBonuses = null)
     {
         if (level is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(level));
         ArgumentNullException.ThrowIfNull(abilities);
@@ -226,6 +228,8 @@ public sealed class CardLevelDefinition
         BattleVictoryBonuses = battleVictoryBonuses is null ? Array.Empty<BattleVictoryAttributeBonus>()
             : new List<BattleVictoryAttributeBonus>(battleVictoryBonuses).AsReadOnly();
         BattleValueBonus = battleValueBonus;
+        AcquisitionAttributeBonuses = acquisitionAttributeBonuses is null ? Array.Empty<TaggedCardAcquisitionAttributeBonus>()
+            : new List<TaggedCardAcquisitionAttributeBonus>(acquisitionAttributeBonuses).AsReadOnly();
     }
 
     public int Level { get; }
@@ -237,6 +241,7 @@ public sealed class CardLevelDefinition
     public int? InitialValue { get; }
 
     public int AcquiredValueBonus { get; }
+    public IReadOnlyList<TaggedCardAcquisitionAttributeBonus> AcquisitionAttributeBonuses { get; }
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; }
     public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; }
     public int BattleValueBonus { get; }
@@ -267,6 +272,10 @@ public abstract class EncounterDefinition
     public int MaximumRound { get; }
     public EncounterKind Kind { get; }
     public int BaseWeight { get; }
+
+    // 所有遭遇共用允许英雄列表，资格不依赖具体遭遇类型或key。
+    public bool CanAppearFor(HeroIdentityAttributes? hero) => Attributes.Identity.AllowedHeroKeys.Count == 0
+        || hero is not null && Attributes.Identity.AllowedHeroKeys.Contains(hero.Key);
 }
 
 public enum EncounterKind

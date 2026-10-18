@@ -15,12 +15,15 @@ namespace Project_Star.Presentation.Verification;
 // 三张重绘卡牌的实际mipmap、紧凑卡面与放大预览验收（表现层）。
 internal static class CardArtworkRedrawCapture
 {
-    internal static async Task Capture(Node owner)
+    internal static async Task Capture(Node owner, bool paladin = false, bool judgmentHammer = false)
     {
-        const string directory = "res://output/card-artwork-redraw-20261016";
+        var directory = judgmentHammer ? "res://output/judgment-hammer-20261017"
+            : paladin ? "res://output/paladin-redraw-20261016" : "res://output/card-artwork-redraw-20261016";
         DirAccess.MakeDirRecursiveAbsolute(directory);
-        CardDefinition[] definitions = [new AscendantCardDefinition(), new ArcaneShieldCardDefinition(), new SiegeBallistaCardDefinition()];
-        string[] names = ["ascendant", "arcane_shield", "siege_ballista"];
+        CardDefinition[] definitions = judgmentHammer ? [new JudgmentHammerCardDefinition()] : paladin
+            ? [new TemplarKnightCardDefinition(), new HolySlashingBladeCardDefinition(), new ArmorShatteringMaulCardDefinition()]
+            : [new AscendantCardDefinition(), new ArcaneShieldCardDefinition(), new SiegeBallistaCardDefinition()];
+        string[] names = judgmentHammer ? ["judgment_hammer"] : paladin ? ["templar_knight", "holy_slashing_blade", "shattered_star"] : ["ascendant", "arcane_shield", "siege_ballista"];
         var adapter = new CardDisplayAdapter();
         var viewport = new SubViewport { Size = new Vector2I(640, 210), Disable3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.Always }; owner.AddChild(viewport);

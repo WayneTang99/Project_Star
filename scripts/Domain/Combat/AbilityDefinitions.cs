@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -35,6 +35,7 @@ public enum AbilityActivation
     PassiveOnEclipseStart = 21,
     EchoOnLeftmostAlliedCardActivated = 24,
     EchoOnAlliedCardStatusGained = 25,
+    EchoOnSourceDestroyed = 26,
 }
 
 public enum AbilityTarget
@@ -73,6 +74,9 @@ public sealed record IncreaseHeroMaxHealthPercentEffectDefinition(int Percent) :
 // 固定增加英雄本场生命上限及等量当前生命，可组合进敌方目标的发动。
 public sealed record IncreaseHeroMaxHealthEffectDefinition(int Amount, bool TargetsSourceHero = false) : EffectDefinition;
 
+// 按己方存活战场标签卡牌数量提供英雄最大生命光环（领域战斗层）。
+public sealed record IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition(StringName RequiredTag, int Amount) : EffectDefinition;
+
 // 仅在日蚀期间倍增目标英雄受到的日蚀伤害。
 public sealed record MultiplyReceivedEclipseDamageEffectDefinition(int Multiplier) : EffectDefinition;
 
@@ -85,7 +89,11 @@ public enum AdjacentCardSide { Left = 0, Right = 1 }
 public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, AdjacentCardSide Side) : EffectDefinition;
 
 // 为己方匹配元素的战场卡牌提供可撤销的冷却百分比缩减。
-public sealed record ReduceAlliedElementCardCooldownAuraEffectDefinition(StringName ElementKey, int Percent) : EffectDefinition;
+public sealed record ReduceAlliedElementCardCooldownAuraEffectDefinition(StringName ElementKey, int Percent,
+    StringName? RequiredTag = null) : EffectDefinition;
+
+// 在来源有效期间为己方匹配元素卡牌提供可撤销的有效标签。
+public sealed record GrantTagToAlliedElementCardsEffectDefinition(StringName ElementKey, StringName Tag) : EffectDefinition;
 
 // 为当前英雄归属以外（含无阵营）的己方战场卡牌缩减冷却（领域战斗层）。
 public sealed record ReduceOtherHeroCardCooldownAuraEffectDefinition(int Percent) : EffectDefinition;
@@ -102,7 +110,7 @@ public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, in
 // 为己方存活战场卡牌持续提供属性加成（领域战斗层）。
 public sealed record IncreaseAlliedCardAttributeAuraEffectDefinition(
     StringName AttributeKey, int Amount, int HeroLevelMultiplier = 0, AdjacentCardSide? ExtremeSide = null,
-    int SourceValueMultiplier = 0, bool AttackCardsOnly = false) : EffectDefinition;
+    int SourceValueMultiplier = 0, bool AttackCardsOnly = false, StringName? RequiredTag = null) : EffectDefinition;
 
 // 倍增己方指定元素卡牌的有效属性，可要求敌方存在任一标签的存活战场卡牌。
 public sealed record MultiplyAlliedElementCardAttributeAuraEffectDefinition(
@@ -139,7 +147,8 @@ public sealed record SourceHeroArmorDamageEffectDefinition(
     bool BypassArmor = false,
     StringName? BonusAttributeKey = null, int Multiplier = 1, bool ConsumeArmor = false) : EffectDefinition;
 
-public sealed record HealEffectDefinition(int Amount, bool TargetsSourceHero = false) : EffectDefinition;
+public sealed record HealEffectDefinition(int Amount, bool TargetsSourceHero = false, StringName? UnlessEnemyTag = null,
+    StringName? PerAlliedElementKey = null) : EffectDefinition;
 
 // 按目标英雄最大生命百分比治疗，向下取整后累加治疗加成（领域战斗层）。
 public sealed record HealMaxHealthPercentEffectDefinition(int Percent) : EffectDefinition;
@@ -218,7 +227,8 @@ public sealed record IncreaseSourceAttributePerCooldownSecondEffectDefinition(
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
 // 随机对一张存活敌方战场卡牌累加持续状态（领域战斗层）。
-public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus Status, int Amount, int TargetCount = 1) : EffectDefinition;
+public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(
+    BattleStatus Status, int Amount, int TargetCount = 1, StringName? RequiredTag = null) : EffectDefinition;
 
 // 随机对一张存活己方战场卡牌累加持续状态，包含来源自身（领域战斗层）。
 public sealed record ApplyStatusToRandomAlliedCardEffectDefinition(
@@ -252,6 +262,9 @@ public sealed record ApplySourceAttributePercentStatusEffectDefinition(
     BattleStatus Status, StringName AttributeKey, int Percent) : EffectDefinition;
 
 // 直接设置来源卡牌的布尔状态，不影响其他卡牌。
+public sealed record TriggerOtherAlliedElementActivesEffectDefinition(StringName ElementKey) : EffectDefinition;
+public sealed record ActivateSourceCardEffectDefinition() : EffectDefinition;
+
 public sealed record SetSourceCardStateEffectDefinition(StringName StateKey, bool Enabled) : EffectDefinition;
 
 // 随机选择一张己方其他存活战场卡牌，设置其布尔战斗状态（领域战斗层）。
@@ -335,9 +348,15 @@ public sealed class AbilityDefinition
         CardSize? triggerCardSize = null,
         BattleStatus? triggerStatus = null,
         int? triggerHeroHealthPercent = null,
-        IReadOnlyList<StringName>? triggerCardAnyTags = null)
+        IReadOnlyList<StringName>? triggerCardAnyTags = null,
+        StringName? targetCardTag = null)
     {
         ArgumentNullException.ThrowIfNull(effects);
+        if (activation == AbilityActivation.EchoOnSourceDestroyed && (allowsBench || target != AbilityTarget.SelfCard || manaCost != 0 || cooldownTicks != 0))
+            throw new ArgumentException("Destruction trigger requires a battlefield self target without mana or cooldown.");
+        if (targetCardTag is not null && (targetCardTag.IsEmpty
+            || target is not AbilityTarget.LeftAdjacentAlliedCard and not AbilityTarget.RightAdjacentAlliedCard))
+            throw new ArgumentException("Target tag requires an adjacent card target and a nonempty tag.", nameof(targetCardTag));
         if (triggerCardAnyTags is not null
             && (activation != AbilityActivation.EchoOnEnemyCardActivated || triggerCardAnyTags.Count == 0
                 || HasEmptyKey(triggerCardAnyTags)))
@@ -455,6 +474,10 @@ public sealed class AbilityDefinition
             if (effect is EnterEclipseEffectDefinition
                 && (activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled || allowsBench))
                 throw new ArgumentException("Eclipse entry requires an executed battlefield ability.", nameof(effects));
+            if (effect is IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition taggedHealth
+                && (taggedHealth.RequiredTag.IsEmpty || taggedHealth.Amount < 1
+                    || activation != AbilityActivation.PassiveAura || target != AbilityTarget.AlliedHero || allowsBench))
+                throw new ArgumentException("Tagged max health requires a battlefield allied hero aura, a tag and positive amount.", nameof(effects));
             if (effect is IncreaseHeroMaxHealthPercentEffectDefinition healthGrowth
                 && (healthGrowth.Percent < 1 || target != AbilityTarget.AlliedHero
                     || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
@@ -497,7 +520,7 @@ public sealed class AbilityDefinition
                 throw new ArgumentException("Tagged allied charge requires a tag, positive amount and an executed ability.", nameof(effects));
             if (effect is ReduceAlliedElementCardCooldownAuraEffectDefinition reduction
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
-                    || reduction.ElementKey.IsEmpty || reduction.Percent is < 1 or > 100))
+                    || reduction.ElementKey.IsEmpty || reduction.Percent is < 1 or > 100 || reduction.RequiredTag is { IsEmpty: true }))
                 throw new ArgumentException("Element cooldown reduction requires a battlefield self aura and a percentage from 1 to 100.", nameof(effects));
             if (effect is ReduceOtherHeroCardCooldownAuraEffectDefinition otherHeroReduction
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
@@ -633,14 +656,20 @@ public sealed class AbilityDefinition
                 && (sourceCharge.AmountTicks < 1 || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Source card charge requires a positive amount and an executed ability.", nameof(effects));
             if (effect is ApplyStatusToRandomEnemyCardEffectDefinition randomStatus
-                && randomStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
-                    and not BattleStatus.ImmobilizeDuration)
+                && (randomStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
+                    and not BattleStatus.ImmobilizeDuration || randomStatus.TargetCount < 1 || randomStatus.RequiredTag is { IsEmpty: true }))
                 throw new ArgumentException("Random enemy card status requires a duration status.", nameof(effects));
+            if (effect is HealEffectDefinition { PerAlliedElementKey.IsEmpty: true })
+                throw new ArgumentException("Healing element filter cannot be empty.", nameof(effects));
+            if (effect is HealEffectDefinition { UnlessEnemyTag.IsEmpty: true })
+                throw new ArgumentException("Conditional healing requires a nonempty enemy tag.", nameof(effects));
             if (effect is ApplyStatusToRandomAlliedCardEffectDefinition alliedStatus
                 && (alliedStatus.Status is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration
                     and not BattleStatus.ImmobilizeDuration || activation == AbilityActivation.PassiveAura
                     || alliedStatus.RequiredTag is { IsEmpty: true }))
                 throw new ArgumentException("Random allied card status requires a duration status and executed ability.", nameof(effects));
+            if (effect is TriggerOtherAlliedElementActivesEffectDefinition { ElementKey.IsEmpty: true })
+                throw new ArgumentException("额外发动的元素不能为空。");
             if (effect is SetSourceCardStateEffectDefinition state
                 && (state.StateKey != GameAttributeKeys.Flying && state.StateKey != GameAttributeKeys.Berserk
                     || activation == AbilityActivation.PassiveAura))
@@ -717,6 +746,11 @@ public sealed class AbilityDefinition
             if (effect is ChargeRandomOtherAlliedCardsEffectDefinition randomCharge
                 && (randomCharge.AmountTicks < 1 || randomCharge.TargetCount < 1 || randomCharge.RequiredTag is { IsEmpty: true }))
                 throw new ArgumentException("Random allied cards charge configuration is invalid.", nameof(effects));
+            if (effect is GrantTagToAlliedElementCardsEffectDefinition alliedTagAura
+                && (activation != AbilityActivation.PassiveAura || allowsBench
+                    || target is not (AbilityTarget.AlliedHero or AbilityTarget.SelfCard)
+                    || alliedTagAura.ElementKey.IsEmpty || alliedTagAura.Tag.IsEmpty))
+                throw new ArgumentException("Allied element tag requires a battlefield aura, element and tag.", nameof(effects));
             if (effect is GrantTagToEnemySizeCardsEffectDefinition tagAura
                 && (!Enum.IsDefined(tagAura.Size) || tagAura.Tag.IsEmpty))
             {
@@ -776,6 +810,7 @@ public sealed class AbilityDefinition
         TriggerStatus = triggerStatus;
         TriggerHeroHealthPercent = triggerHeroHealthPercent;
         TriggerCardAnyTags = triggerCardAnyTags is null ? null : Array.AsReadOnly(triggerCardAnyTags.ToArray());
+        TargetCardTag = targetCardTag;
     }
 
     public StringName Key { get; }
@@ -793,6 +828,7 @@ public sealed class AbilityDefinition
     public BattleStatus? TriggerStatus { get; }
     public int? TriggerHeroHealthPercent { get; }
     public IReadOnlyList<StringName>? TriggerCardAnyTags { get; }
+    public StringName? TargetCardTag { get; }
 
     private static bool HasEmptyKey(IReadOnlyList<StringName> keys)
     {

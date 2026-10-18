@@ -66,7 +66,7 @@ internal static class BonebreakerMageChecks
             if (!CardDisplayAdapter.FaceEffects(offer).Any(effect => effect.Kind == CardFaceEffectKind.Damage
                     && effect.Value == (level == 3 ? "80" : "160"))
                 || !new CardDisplayAdapter().Build(offer).Effects.Any(effect => effect.Kind == CardFaceEffectKind.ManaCost && effect.Value == "−40")
-                || !CardDisplayAdapter.Details(offer).Contains("攻击：")) return false;
+                || !CardDisplayAdapter.Details(offer).Contains("攻击　")) return false;
         }
         var empty = new CombatSimulator().Simulate(Battle([Mage(3)], [], 180));
         if (empty.Events.OfType<DamageDealtEvent>().Any() || empty.Events.OfType<CardDestroyedEvent>().Any()) return false;

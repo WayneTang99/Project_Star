@@ -21,13 +21,13 @@ internal static class SiegeBallistaChecks
         var definition = new SiegeBallistaCardDefinition(); var identity = definition.Attributes.Identity;
         if (identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Large
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General }) || !definition.Tags.Contains(GameTags.Mechanical)
-            || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)) return false;
+            || definition.InitialLevel != 2 || definition.SupportsLevel(1) || definition.SupportsLevel(5)) return false;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
         if (texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3) return false;
-        foreach (var level in new[] { 3, 4 })
+        foreach (var level in new[] { 2, 3, 4 })
         foreach (var reverse in new[] { false, true })
         {
-            var card = Ballista(level); var damage = level == 3 ? 160 : 320; var bonus = level == 3 ? 20 : 40;
+            var card = Ballista(level); var damage = 80 << (level - 2); var bonus = 10 << (level - 2);
             var normal = Run([card], [], 140, reverse);
             var hits = Hits(normal, card);
             if (hits.Length != 2 || !hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { 70, 140 })

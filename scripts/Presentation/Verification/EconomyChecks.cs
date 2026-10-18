@@ -161,11 +161,11 @@ internal static class EconomyChecks
         var poorRefresh = service.Refresh(poorSession, poorStock);
 
         return smallShop.Kind == EncounterKind.Shop
-            && smallShop.CardSize == CardSize.Small
+            && smallShop.RequiredSize == CardSize.Small
             && smallShop.Level == 1
-            && mediumShop.CardSize == CardSize.Medium
+            && mediumShop.RequiredSize == CardSize.Medium
             && mediumShop.Level == 1
-            && largeShop.CardSize == CardSize.Large
+            && largeShop.RequiredSize == CardSize.Large
             && largeShop.Level == 2
             && small.Count == 2
             && small.All(card => card.Attributes.Identity.FactionKey == new StringName("paladin")

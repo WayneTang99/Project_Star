@@ -14,7 +14,7 @@ public sealed class TransmissionGearCardDefinition : CardDefinition
                 CardSize.Small, [GameElements.General],
                 illustration: new StringName("res://art/ui/card-face/artwork/transmission_gear-illustration-rework-20261011.png"),
                 descriptionEntries:
-                [new(CardKeywords.Echo, "当左侧直接相邻的己方战场卡牌发动后，右侧直接相邻的己方战场卡牌获得1/2/3/4秒疾速。")])),
+                [new(CardKeywords.Echo, "当己方左侧直接相邻的战场机械卡牌发动后，己方右侧直接相邻的战场机械卡牌获得1/2/3/4秒疾速。")])),
             new TagSet([GameTags.Mechanical]), initialLevel: 1,
             levels: [CreateLevel(1), CreateLevel(2), CreateLevel(3), CreateLevel(4)]) { }
 
@@ -22,5 +22,6 @@ public sealed class TransmissionGearCardDefinition : CardDefinition
         [new AbilityDefinition(new StringName("ability.adjacent_activation_haste"),
             AbilityActivation.EchoOnAdjacentAlliedCardActivated, AbilityTarget.RightAdjacentAlliedCard, 0, 0,
             [new ApplyStatusEffectDefinition(BattleStatus.HasteDuration, level * 10)],
-            triggerCardSide: AdjacentCardSide.Left)]);
+            triggerCardTag: GameTags.Mechanical, triggerCardSide: AdjacentCardSide.Left,
+            targetCardTag: GameTags.Mechanical)]);
 }

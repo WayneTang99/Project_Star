@@ -9,6 +9,8 @@ public sealed partial class CardElementBadge : Control
 {
     private StringName _elementKey = GameElements.General;
     private static readonly Texture2D WindRune = GD.Load<Texture2D>("res://art/ui/card-face/wind-rune.svg");
+    public override void _Ready() => Resized += QueueRedraw;
+    public override void _ExitTree() => Resized -= QueueRedraw;
     // 根据快照元素刷新徽章。
     public void SetElement(StringName elementKey) { _elementKey = elementKey; QueueRedraw(); }
     public override void _Draw()
@@ -37,8 +39,9 @@ public sealed partial class CardElementBadge : Control
             DrawTextureRect(WindRune, new Rect2(center - runeSize / 2, runeSize), false);
             return;
         }
-        var font = MatchTheme.Font(true); var textWidth = font.GetStringSize(glyph, fontSize: 15).X;
+        var runeFont = Mathf.RoundToInt(15 * Size.X / 23);
+        var font = MatchTheme.Font(true); var textWidth = font.GetStringSize(glyph, fontSize: runeFont).X;
         var runeColor = _elementKey == GameElements.Light ? "b38427" : _elementKey == GameElements.Lightning ? "594500" : "fff9e0";
-        DrawString(font, new Vector2((Size.X - textWidth) / 2, center.Y + 5), glyph, fontSize: 15, modulate: new Color(runeColor));
+        DrawString(font, new Vector2((Size.X - textWidth) / 2, center.Y + 5 * Size.Y / 23), glyph, fontSize: runeFont, modulate: new Color(runeColor));
     }
 }

@@ -46,7 +46,7 @@ internal static class BattleStateRecorder
                     card.QuestProgress[quest.Key], quest.RequiredCount, card.QuestProgress[quest.Key] >= quest.RequiredCount)).ToArray()),
                 QuestDefinitions = Array.AsReadOnly(card.Quests.ToArray()),
                 QuestElementKeys = Array.AsReadOnly(card.ElementKeys.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
-                QuestTags = Array.AsReadOnly(card.Tags.OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
+                QuestTags = Array.AsReadOnly(BattleEffectResolver.EffectiveTags(runtime, card).OrderBy(key => key.ToString(), StringComparer.Ordinal).ToArray()),
                 QuestAbilities = card.Quests.Count == 0 ? Array.Empty<AbilityDefinition>()
                     : Array.AsReadOnly(card.Abilities.Select(ability => ability.Definition).ToArray()),
                 TransformedTags = card.TransformedIdentity is null ? Array.Empty<StringName>()

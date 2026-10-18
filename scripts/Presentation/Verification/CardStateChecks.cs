@@ -89,7 +89,7 @@ internal static class CardStateChecks
         var frozen = playback.Capture().State.Cards.Single();
         var displayed = playback.Project(SideId.Player).Cards.Single();
         if (initial.IsFlying || initial.IsBerserk || !displayed.IsFlying || !displayed.IsBerserk
-            || !CardDisplayAdapter.Details(displayed).Contains("状态：飞行、狂暴")) return false;
+            || !CardDisplayAdapter.Details(displayed).Contains("状态　飞行、狂暴")) return false;
         var item = new CardItemView(); owner.AddChild(item);
         try
         {
@@ -100,7 +100,7 @@ internal static class CardStateChecks
             playback.Skip();
             var cleared = playback.Project(SideId.Player).Cards.Single();
             item.Render(cleared, new CardDisplayAdapter()); item.RenderBattle(playback.Capture().State.Cards.Single(), false);
-            return !cleared.IsFlying && !cleared.IsBerserk && !CardDisplayAdapter.Details(cleared).Contains("状态：")
+            return !cleared.IsFlying && !cleared.IsBerserk && !CardDisplayAdapter.Details(cleared).Contains("状态　")
                 && !flying.Visible && !berserk.Visible && frozen.IsFlying && frozen.IsBerserk;
         }
         finally { owner.RemoveChild(item); item.Free(); }

@@ -17,9 +17,9 @@ public sealed class LogStaffCardDefinition : CardDefinition
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却8秒，消耗10魔法，对敌方英雄造成10/20/40/80伤害。"),
-                    new(CardKeywords.Quest, "拾取5张火属性卡牌，解锁：发动时额外施加8/12/20/32灼伤。"),
-                    new(CardKeywords.Quest, "拾取5张木属性卡牌，解锁：发动时额外施加8/12/20/32中毒。"),
-                    new(CardKeywords.Quest, "拾取10张无属性卡牌，解锁：此卡牌冷却减少3秒。"),
+                    new(CardKeywords.Quest, "拾取5张火属性卡牌，解锁，发动时额外施加8/12/20/32灼伤。"),
+                    new(CardKeywords.Quest, "拾取5张木属性卡牌，解锁，发动时额外施加8/12/20/32中毒。"),
+                    new(CardKeywords.Quest, "拾取10张无属性卡牌，解锁，此卡牌冷却减少3秒。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             {

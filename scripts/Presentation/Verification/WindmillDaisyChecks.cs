@@ -27,7 +27,7 @@ internal static class WindmillDaisyChecks
     {
         var definition = new WindmillDaisyCardDefinition();
         var identity = definition.Attributes.Identity;
-        if (identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Small
+        if (identity.FactionKey != GameFactions.Neutral || identity.Size != CardSize.Small
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Wind, GameElements.Wood })
             || !definition.Tags.Contains(GameTags.Plant) || definition.InitialLevel != 1 || definition.SupportsLevel(5)) return false;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());

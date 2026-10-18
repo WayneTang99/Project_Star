@@ -128,6 +128,11 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         ValidateSummons(cards);
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
+        foreach (var encounter in encounters.Values)
+        foreach (var heroKey in encounter.Attributes.Identity.AllowedHeroKeys)
+            if (!heroes.ContainsKey(heroKey))
+                throw new DefinitionValidationException($"Encounter '{encounter.Attributes.Identity.Key}' references unknown hero '{heroKey}'.");
+
         foreach (var encounter in encounters.Values.OfType<ChoiceEncounterDefinition>())
             foreach (var effect in encounter.Options.SelectMany(option => option.Effects))
                 ValidateEncounterCardRewards(effect, cards);

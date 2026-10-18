@@ -26,8 +26,9 @@ internal static class UiPrototypeSyncChecks
             var rules = CardDisplayAdapter.Rules(level.Card);
             var described = query.Describe(level.Card, null);
             if (described.Set?.Key == new StringName("set.apocalypse")
-                && !CardDisplayAdapter.SetDetails(described).Contains("敌方英雄：日蚀时间内，受到的日蚀伤害 ×2")) return false;
-            if (rules.Count(rule => rule.StartsWith("交易　", StringComparison.Ordinal)) != level.Card.SaleAttributeBonuses.Count
+                && !CardDisplayAdapter.SetDetails(described).Contains("敌方英雄在日蚀时间内，受到的日蚀伤害 ×2")) return false;
+            if (rules.Count(rule => rule.StartsWith("交易　", StringComparison.Ordinal))
+                != level.Card.SaleAttributeBonuses.Count + level.Card.AcquisitionAttributeBonuses.Count
                 || rules.Count(rule => rule.StartsWith("出售　", StringComparison.Ordinal)) != (level.Card.OnSellReward is null ? 0 : 1)) return false;
             var text = string.Join("\n", CardDisplayAdapter.Rules(level.Card)) + "\n" + CardDisplayAdapter.CurrentDetails(level.Card)
                 + "\n" + CardDisplayAdapter.SetDetails(query.Describe(level.Card, null));

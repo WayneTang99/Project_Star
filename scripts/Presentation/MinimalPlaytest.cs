@@ -27,7 +27,7 @@ public sealed partial class MinimalPlaytest : Control
     private MatchPresenter _presenter = null!;
     private MatchShell _shell = null!;
     // 真实时间仅用于推进回放游标，不驱动战斗计算。
-    public override void _Process(double delta) => _presenter?.AdvancePlayback(delta);
+    public override void _Process(double delta) { if (_shell?.IsLobbyNavigationActive != true) _presenter?.AdvancePlayback(delta); }
     public override void _Ready()
     {
         GetWindow().MinSize = new Vector2I(1280, 720);
@@ -46,6 +46,7 @@ public sealed partial class MinimalPlaytest : Control
         _shell = GetNode<MatchShell>("MatchShell");
         if (!OS.GetCmdlineUserArgs().Any(argument => argument.StartsWith("--verify") || argument.StartsWith("--capture")))
             _shell.LoadDisplaySettings();
+        _shell.SetWorldCatalog(WorldCatalogQuery.Capture(registry));
         _shell.SetCardPreview(new CardPreviewQuery(registry));
         _shell.SetCatalog(CardCatalogQuery.Capture(registry));
         _shell.SetSkillCatalog(SkillCatalogQuery.Capture(registry));
@@ -64,13 +65,18 @@ public sealed partial class MinimalPlaytest : Control
         _shell.SellPreviewRequested += PreviewSale;
         _shell.ClaimRequested += _presenter.ClaimReward;
         _presenter.ViewChanged += Render;
+        _shell.NewJourneyRequested += _presenter.Reset;
         _presenter.Reset();
+        // 组件与既有事务夹具显式从选角开始；大厅有独立的真实入口捕获。
+        if (!OS.GetCmdlineUserArgs().Any(argument => argument.StartsWith("--verify") || argument.StartsWith("--capture"))
+            || OS.GetCmdlineUserArgs().Contains("--capture-lobby")) _shell.EnableLobby();
     }
     public override void _ExitTree()
     {
         if (_presenter is not null) _presenter.ViewChanged -= Render;
         if (_shell is not null && _presenter is not null)
         {
+            _shell.NewJourneyRequested -= _presenter.Reset;
             _shell.ChoiceSelected -= Choose;
             _shell.BuyRequested -= _presenter.BuyCard;
             _shell.GemSocketRequested -= SocketGem;

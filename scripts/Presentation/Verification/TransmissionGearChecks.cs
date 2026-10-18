@@ -39,6 +39,8 @@ internal static class TransmissionGearChecks
                 var instance = new EntityFactory().CreateCard(definition, level);
                 var frozenAbilities = MatchSnapshot.CopyAbilities(instance.Abilities);
                 if (frozenAbilities.Single().TriggerCardSide != AdjacentCardSide.Left
+                    || frozenAbilities.Single().TriggerCardTag != GameTags.Mechanical
+                    || frozenAbilities.Single().TargetCardTag != GameTags.Mechanical
                     || frozenAbilities.Single().Target != AbilityTarget.RightAdjacentAlliedCard) return false;
                 if (instance.Abilities.Any(ability => ability.Activation == AbilityActivation.Active
                     || ability.ManaCost != 0 || ability.CooldownTicks != 0)) return false;
@@ -69,7 +71,9 @@ internal static class TransmissionGearChecks
                         || charges.Length != 2 || charges.Any(e => e.SourceCardId != gear.EntityId
                             || e.TargetCardId != right.EntityId || e.AmountTicks != (level - 2) * 10)) return false;
                 }
-                if (CardDisplayAdapter.AbilityDetails(instance.Abilities).Contains("ChargeCardEffectDefinition")) return false;
+                var details = CardDisplayAdapter.AbilityDetails(instance.Abilities);
+                if (details.Contains("ChargeCardEffectDefinition") || !details.Contains("左侧直接相邻的机械卡牌")
+                    || !details.Contains("右侧直接相邻的战场机械卡牌")) return false;
             }
         }
         return true;
@@ -88,6 +92,7 @@ internal static class TransmissionGearChecks
             // 非左邻、失败发动、战斗开始及回响均不触发；辅助发动正常触发。
             foreach (var excluded in new[]
             {
+                left with { Tags = new TagSet([GameTags.Human]) },
                 left with { OccupiedSlots = 2 }, left with { IsOnBench = true },
                 left with { Abilities = [Active(20, 1)] }, left with { Abilities = [startPassive] },
                 left with { Abilities = [new AbilityDefinition(new StringName("verification.gear.echo"),
@@ -99,6 +104,7 @@ internal static class TransmissionGearChecks
                 if (EchoCount(Simulate([left, inactive, right], [], 20), gear) != 0) return false;
             // 空位不跨越，备战与摧毁目标不接收效果，敌方同位置也不接收。
             foreach (var unavailable in new[] { right with { BoardStart = right.BoardStart + 1 },
+                right with { Tags = new TagSet([GameTags.Human]) },
                 right with { IsOnBench = true }, DestroyAtStart(right) })
             {
                 var result = Simulate([left, gear, unavailable], [right with { EntityId = EntityId.New() }], 20);
@@ -106,6 +112,9 @@ internal static class TransmissionGearChecks
             }
             var noTarget = Simulate([left, gear], [], 20);
             if (EchoCount(noTarget, gear) != 1 || HasTransferredEffect(noTarget)) return false;
+            var blocked = Simulate([left, gear, right with { Tags = new TagSet([GameTags.Human]) },
+                ActiveCard(right.BoardStart + 1, 100)], [], 20);
+            if (EchoCount(blocked, gear) != 1 || HasTransferredEffect(blocked)) return false;
             if (EchoCount(Simulate([gear with { BoardStart = 0 }, ActiveCard(gear.OccupiedSlots, 20)], [], 20), gear) != 0)
                 return false;
         }
@@ -151,6 +160,10 @@ internal static class TransmissionGearChecks
     {
         Action[] invalid =
         [
+            () => _ = new AbilityDefinition("verification.gear.invalid", AbilityActivation.PassiveOnBattleStart,
+                AbilityTarget.SelfCard, 0, 0, [new ChargeCardEffectDefinition(10)], targetCardTag: GameTags.Mechanical),
+            () => _ = new AbilityDefinition("verification.gear.invalid", AbilityActivation.PassiveOnBattleStart,
+                AbilityTarget.RightAdjacentAlliedCard, 0, 0, [new ChargeCardEffectDefinition(10)], targetCardTag: new StringName("")),
             () => _ = new AbilityDefinition("verification.gear.invalid", AbilityActivation.EchoOnAdjacentAlliedCardActivated,
                 AbilityTarget.SelfCard, 0, 0, [new ApplyStatusEffectDefinition(BattleStatus.HasteDuration, 10)]),
             () => _ = new AbilityDefinition("verification.gear.invalid", AbilityActivation.EchoOnAdjacentAlliedCardActivated,
@@ -179,7 +192,8 @@ internal static class TransmissionGearChecks
             Tags: definition.Tags, OccupiedSlots: (int)definition.Attributes.Identity.Size, ElementKeys: [GameElements.General]) { Level = level };
     private static AbilityDefinition Active(int ticks, int mana = 0) => new(new StringName("verification.gear.active"),
         AbilityActivation.Active, AbilityTarget.AlliedHero, mana, ticks, [new HealEffectDefinition(1)]);
-    private static CardBattleSetup ActiveCard(int start, int ticks) => new(EntityId.New(), start, 0, ticks, [Active(ticks)], UseLegacyAttack: false);
+    private static CardBattleSetup ActiveCard(int start, int ticks) => new(EntityId.New(), start, 0, ticks, [Active(ticks)],
+        UseLegacyAttack: false, Tags: new TagSet([GameTags.Mechanical]));
     private static CardBattleSetup DestroyAtStart(CardBattleSetup card) => card with
     {
         Abilities = card.Abilities!.Append(new AbilityDefinition(new StringName("verification.gear.destroy"),

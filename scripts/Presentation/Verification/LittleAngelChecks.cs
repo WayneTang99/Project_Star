@@ -24,6 +24,7 @@ internal static class LittleAngelChecks
         for (var level = 1; level <= 4; level++)
         {
             var entity = new EntityFactory().CreateCard(definition, level);
+            if (entity.Abilities.Single(ability => ability.Activation == AbilityActivation.Active).ManaCost != 10) return false;
             var angel = new CardBattleSetup(entity.Id, 0, 0, 50, entity.Abilities, UseLegacyAttack: false);
             var healing = 10 << (level - 1);
             var bonus = level * 5;
@@ -52,12 +53,22 @@ internal static class LittleAngelChecks
             var bench = new CombatSimulator().Simulate(Battle(angel,
                 human with { IsOnBench = true, Tags = new TagSet([GameTags.Demon]) }));
             if (bench.Events.OfType<CardAttributeChangedEvent>().Any()) return false;
+            foreach (var mana in new[] { 9, 10 })
+            {
+                var multiAngel = angel with { Multicast = 1 };
+                var budget = Battle(multiAngel, human, mana: mana);
+                var limited = new CombatSimulator().Simulate(budget);
+                if (limited.Events.OfType<AbilityActivatedEvent>().Count(item => item.SourceCardId == angel.EntityId && !item.IsEcho)
+                    != (mana == 10 ? 2 : 0)
+                    || limited.Events.OfType<ManaChangedEvent>().Where(item => item.Side == SideId.Player && item.Amount < 0)
+                        .Sum(item => -item.Amount) != (mana == 10 ? 10 : 0)) return false;
+            }
         }
         return true;
     }
 
-    private static BattleSetup Battle(CardBattleSetup angel, CardBattleSetup enemy, SkillBattleSetup[]? skills = null) => new(
-        new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0, ManaRegen: 0), [angel], skills),
+    private static BattleSetup Battle(CardBattleSetup angel, CardBattleSetup enemy, SkillBattleSetup[]? skills = null, int mana = 100) => new(
+        new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0, InitialMana: mana, ManaRegen: 0), [angel], skills),
         new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0, ManaRegen: 0), [enemy]),
-        42, new BattleTick(51), new BattleTick(52));
+        42, new BattleTick(53), new BattleTick(54));
 }

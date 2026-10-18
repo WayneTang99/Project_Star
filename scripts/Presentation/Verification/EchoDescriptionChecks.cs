@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text;
 using Godot;
@@ -24,7 +24,7 @@ internal static class EchoDescriptionChecks
         {
             if (!definition.SupportsLevel(level)) continue;
             var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
-            var echoes = card.Abilities.Where(ability => ability.Activation.ToString().StartsWith("Echo", StringComparison.Ordinal)
+            var echoes = card.Abilities.Where(ability => (ability.Activation != AbilityActivation.EchoOnSourceDestroyed && ability.Activation.ToString().StartsWith("Echo", StringComparison.Ordinal))
                 || ability.Activation == AbilityActivation.PassiveOnEclipseStart
                 || ability.Effects.Any(effect => effect is ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition)).ToArray();
             if (echoes.Length == 0) continue;
@@ -58,7 +58,7 @@ internal static class EchoDescriptionChecks
             && Check(new ShortbladeScoutCardDefinition(), "当此卡牌获得疾速后")
             && Check(new LittleAngelCardDefinition(), "当敌方存活战场恶魔或亡灵卡牌发动后", "此卡牌", "仅本场战斗生效")
             && Check(new ArmyPriestCardDefinition(), "当己方战场（光属性或人类）卡牌发动后", "此卡牌充能")
-            && Check(new TransmissionGearCardDefinition(), "当己方左侧直接相邻的卡牌发动后", "右侧直接相邻", "1秒疾速")
+            && Check(new TransmissionGearCardDefinition(), "当己方左侧直接相邻的机械卡牌发动后", "右侧直接相邻的战场机械卡牌", "1秒疾速")
             && Check(new SpearmanCardDefinition(), "左侧直接相邻的人类卡牌发动后", "右侧直接相邻的人类卡牌发动后")
             && Check(new ShadowCloakCardDefinition(), "每场战斗", "首次低于最大生命的50%")
             && Check(new HolyGriffinCardDefinition(), "回响　当己方直接相邻的人类卡牌获得疾速后，该卡牌攻击", "仅本场战斗生效")

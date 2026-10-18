@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Godot;
 
 namespace Project_Star.Domain.Definitions;
@@ -8,6 +8,7 @@ public static class CardKeywords
 {
     public static readonly StringName Upgrade = new("keyword.upgrade");
     public static readonly StringName Activate = new("keyword.activate");
+    public static readonly StringName Deathrattle = new("keyword.deathrattle");
     public static readonly StringName Echo = new("keyword.echo");
     public static readonly StringName Aura = new("keyword.aura");
     public static readonly StringName Quest = new("keyword.quest");
@@ -23,7 +24,7 @@ public static class CardKeywords
     public static readonly StringName RoundStart = new("keyword.round_start");
 
     public static string DisplayName(StringName key) => key == Activate ? "发动"
-        : key == Echo ? "回响" : key == Aura ? "光环" : key == Quest ? "任务"
+        : key == Deathrattle ? "亡语" : key == Echo ? "回响" : key == Aura ? "光环" : key == Quest ? "任务"
         : key == Pickup ? "拾取" : key == Sell ? "出售" : key == Consume ? "消耗" : key == Passive ? "被动"
         : key == Upgrade ? "升级" : key == Summon ? "召唤" : key == RoundStart ? "轮初"
         : key == Opening ? "开战" : key == Trade ? "交易" : key == AfterBattle ? "历战" : key == Victory ? "凯旋"

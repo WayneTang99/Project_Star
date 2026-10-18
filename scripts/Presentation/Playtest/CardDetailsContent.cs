@@ -13,6 +13,7 @@ namespace Project_Star.Presentation.Playtest;
 // 悬停与固定详情共用结构化内容，全部信息来自冻结卡牌快照。
 public sealed partial class CardDetailsContent : VBoxContainer
 {
+    public int RuleFontSize { get; set; } = 18;
     private HFlowContainer _tags = null!;
     private Label _name = null!;
     private PanelContainer _cooldown = null!;
@@ -106,15 +107,15 @@ public sealed partial class CardDetailsContent : VBoxContainer
             {
                 battle.IsFlying ? "飞行" : "",
                 battle.IsBerserk ? "狂暴" : "",
-                battle.Immobilize > 0 ? $"禁锢 {battle.Immobilize / 10m:0.0}s" : "",
-                battle.Haste > 0 ? $"疾速 {battle.Haste / 10m:0.0}s" : "",
-                battle.Slow > 0 ? $"迟缓 {battle.Slow / 10m:0.0}s" : "",
+                battle.Immobilize > 0 ? $"禁锢 {battle.Immobilize / 10m:0.0}秒" : "",
+                battle.Haste > 0 ? $"疾速 {battle.Haste / 10m:0.0}秒" : "",
+                battle.Slow > 0 ? $"迟缓 {battle.Slow / 10m:0.0}秒" : "",
                 battle.Destroyed ? "已摧毁" : "",
             }.Where(value => value.Length > 0));
             if (status.Length > 0)
             {
-                AddParagraph("BattleState", $"战斗状态：{status}", width, new Color("e6c784"));
-                height += Math.Max(28, MatchTheme.Font().GetMultilineStringSize($"战斗状态：{status}", width: width, fontSize: 18).Y * 1.3f) + 8;
+                AddParagraph("BattleState", $"战斗状态　{status}", width, new Color("e6c784"));
+                height += Math.Max(28, MatchTheme.Font().GetMultilineStringSize($"战斗状态　{status}", width: width, fontSize: 18).Y * 1.3f) + 8;
             }
         }
         var quests = CardQuestViewModel.From(card, battle);
@@ -122,7 +123,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         if (!preserveExpansion) _scroll.CustomMinimumSize = new Vector2(0, Mathf.Min(maximumBodyHeight, Mathf.Max(22, height - 8)));
         _identity.Text = $"{card.Level}级 · {string.Join(" / ", card.ElementKeys.Select(element => element == GameElements.General ? "无属性" : CardDisplayAdapter.ElementName(element) + "属性"))}"; _value.Text = card.Value.ToString();
         CardKeywordText.RenderRule(_attributes, CardDisplayAdapter.CurrentDetails(card) + "\n" + string.Join("\n",
-            card.GemSockets.Select((gem, index) => $"孔{index + 1}：{gem?.DisplayName ?? "空孔"}{(gem is null ? "" : " · " + gem.Description)}")));
+            card.GemSockets.Select((gem, index) => $"孔{index + 1}　{gem?.DisplayName ?? "空孔"}{(gem is null ? "" : " · " + gem.Description)}")));
         _attributes.CustomMinimumSize = new Vector2(0, Mathf.Min(160, maximumBodyHeight / 2));
         if (!preserveExpansion) { _attributes.Hide(); _scroll.ScrollVertical = 0; _attributes.GetVScrollBar().Value = 0; }
         UpdateBodyHeight();
@@ -208,13 +209,13 @@ public sealed partial class CardDetailsContent : VBoxContainer
             var reward = new RichTextLabel { Name = "Reward", FitContent = true, ScrollActive = false, Size = new Vector2(Mathf.Max(1, width - 26), 0),
                 MouseFilter = MouseFilterEnum.Ignore };
             reward.AddThemeFontSizeOverride("normal_font_size", 16); reward.AddThemeColorOverride("default_color", new Color("d5dac7")); column.AddChild(reward);
-            CardKeywordText.RenderRule(reward, $"解锁奖励：{quest.Reward}");
+            CardKeywordText.RenderRule(reward, $"解锁奖励　{quest.Reward}");
         }
     }
     private RichTextLabel AddParagraph(string name, string paragraph, float width, Color? color = null)
     {
         var text = new RichTextLabel { Name = name, FitContent = true, ScrollActive = false, Size = new Vector2(width, 0), MouseFilter = MouseFilterEnum.Ignore };
-        text.AddThemeFontSizeOverride("normal_font_size", 18); text.AddThemeColorOverride("default_color", color ?? new Color("d9dbc3"));
+        text.AddThemeFontSizeOverride("normal_font_size", RuleFontSize); text.AddThemeColorOverride("default_color", color ?? new Color("d9dbc3"));
         text.AddThemeFontOverride("normal_font", new FontVariation { BaseFont = MatchTheme.Font(), SpacingTop = 3, SpacingBottom = 2 });
         text.AddThemeFontOverride("bold_font", new FontVariation { BaseFont = MatchTheme.Font(bold: true), SpacingTop = 3, SpacingBottom = 2 });
         text.AddThemeConstantOverride("line_separation", 0);

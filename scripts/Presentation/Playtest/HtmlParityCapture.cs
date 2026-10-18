@@ -68,6 +68,60 @@ internal static class HtmlParityCapture
             new UiAction("刷新 · 8"), new UiAction("开始战斗", false), new UiAction("继续旅程　→"), new UiAction("奖励", false))
         { ShopLevel = 4, DisplayRound = 2, DisplayTurn = 3, ContextIllustration = new StringName("res://art/ui/encounters/artwork/large_shop-illustration.png") };
         shell.Render(view);
+        if (OS.GetCmdlineUserArgs().Contains("--related-preview"))
+        {
+            await Save("background");
+            var hover = shell.GetNode<CardDetailsView>("CardDetails");
+            hover.SetPinned(true); hover.ShowNear(cauldron, new Rect2(950, 500, 100, 200), shell.Size); await Save("related-hover"); hover.Hide();
+            var referenced = CardCatalogQuery.Capture(registry).First(entry => CardDisplayAdapter.Rules(entry.InitialCard).Any(rule => rule.Contains("【"))).InitialCard;
+            shell.ShowCardPreview(referenced, default); await Save("referenced-card"); shell.GetNode<CardPreviewView>("CardPreview").Close();
+            shell.ShowCardPreview(Sample(new AdventurerHuntingBowCardDefinition(), 1, 2), default); await Save("hunting-bow-details");
+            var bowPreview = shell.GetNode<CardPreviewView>("CardPreview");
+            var bowArt = bowPreview.FindChild("TiltCard", true, false) as CardPreviewArt;
+            var bowFace = bowArt!.GetChildren().OfType<SubViewport>().Single().GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single();
+            if (bowFace.GetNode<Label>("Set").GetThemeFontSize("font_size") != 15 || bowFace.GetNode<Control>("ElementLayer").GetChild<Control>(0).Size.X != 30) throw new InvalidOperationException("预览角落标识尺寸未放大。");
+            var physicalWidth = bowPreview.GetNode<Control>("Panel").GetGlobalRect().Size.X * owner.GetViewport().GetStretchTransform().Scale.X;
+            if (physicalWidth < owner.GetWindow().Size.X * .8f) throw new InvalidOperationException("整组详情占屏宽不足80%。");
+            bowPreview.Close();
+            foreach (var card in new[] { mace, cauldron, Sample(new SiegeBallistaCardDefinition(), 3, 16) })
+            {
+                shell.ShowCardPreview(card, default); await Save("floating-" + card.Size);
+                var preview = shell.GetNode<CardPreviewView>("CardPreview");
+                var art = preview.FindChild("TiltCard", true, false) as CardPreviewArt;
+                if (art is null || art.Size.X <= 0 || art.Size.Y <= 0) throw new InvalidOperationException("预览卡面尺寸无效。");
+                var faceViewport = art.GetChildren().OfType<SubViewport>().Single();
+                var previewFace = faceViewport.GetChildren().OfType<Project_Star.Presentation.CardFace.CardFace>().Single();
+                var expectedRatio = (int)card.Size / 2f;
+                if (Mathf.Abs(previewFace.Size.X / previewFace.Size.Y - expectedRatio) > .01f) throw new InvalidOperationException("卡面尺寸比例偏离HTML。");
+                foreach (var effect in previewFace.GetNode<Control>("Effects").GetChildren().OfType<CardEffectRow>().Where(row => row.Visible))
+                {
+                    if (effect.GetNode<Label>("Value").GetThemeFontSize("font_size") != 23 || !new Rect2(Vector2.Zero, faceViewport.Size).Encloses(effect.GetGlobalRect().Grow(8))) throw new InvalidOperationException("预览效果字号或纹理留白不完整。");
+                }
+                art._GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = art.Size / 2 });
+                art._Input(new InputEventMouseMotion { GlobalPosition = art.GetGlobalMousePosition() + new Vector2(100, 60) }); await Save("tilted-" + card.Size);
+                if (art.TiltAngle.Length() <= 0 || Mathf.Abs(art.TiltAngle.X) > 18 || Mathf.Abs(art.TiltAngle.Y) > 18) throw new InvalidOperationException("拖拽倾斜角度异常。");
+                art._Input(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false });
+                await owner.ToSignal(owner.GetTree().CreateTimer(.8), SceneTreeTimer.SignalName.Timeout);
+                if (art.TiltAngle.Length() > .1f) throw new InvalidOperationException("松开后未回正。");
+                preview.Close();
+                if (art.TiltAngle != Vector2.Zero) throw new InvalidOperationException("关闭预览未清除角度。");
+            }
+            shell.GetNode<CardCatalogView>("CardCatalog").Open(); await Save("catalog");
+            if (shell.GetNode<CardCatalogView>("CardCatalog").GetRect() != new Rect2(Vector2.Zero, shell.Size)) throw new InvalidOperationException("图鉴没有占满游戏窗口。");
+            shell.GetNode<CardCatalogView>("CardCatalog").Close();
+            var skillCatalog = shell.GetNode<SkillCatalogView>("SkillCatalog"); skillCatalog.Open();
+            if (skillCatalog.GetRect() != new Rect2(Vector2.Zero, shell.Size)) throw new InvalidOperationException("技能图鉴没有占满游戏窗口。");
+            var skillButton = skillCatalog.FindChildren("Skill", "Button", true, false).OfType<SkillItemView>().First();
+            skillButton._GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true }); await Save("skill-detail");
+            var detailPanel = skillCatalog.GetNode<Control>("DetailOverlay/DetailPanel");
+            if (detailPanel.Size.Y > 380 && detailPanel.GetCombinedMinimumSize().Y <= 360) throw new InvalidOperationException("技能详情未按内容收紧。");
+            skillCatalog.Close();
+            var heroSkill = shell.GetNode<HBoxContainer>("BenchRow/Hero/PlayerHeroPanel/SkillIcons").GetChild<Button>(0);
+            heroSkill.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true });
+            if (!shell.GetNode<HeroDetailsView>("HeroDetails").Visible) throw new InvalidOperationException("己方技能右键详情未打开。");
+            await Save("owned-skill-detail");
+            GD.Print("关联详情、三尺寸悬浮预览、倾斜范围与回正、图鉴及技能详情捕获通过。"); owner.GetTree().Quit(); return;
+        }
         if (OS.GetCmdlineUserArgs().Contains("--centered-overview"))
         {
             // 主布局跟随当前 HTML 的尺寸组合；护腕与长详情仍由下方专项夹具覆盖。
@@ -303,7 +357,7 @@ internal static class HtmlParityCapture
                 || menuButton.End.X > shell.Size.X || menuButton.Position.Y < 0)
                 throw new InvalidOperationException("经济区或菜单入口溢出固定画布。");
             await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            var directory = OS.GetCmdlineUserArgs().Contains("--render-quality") ? "res://output/ui-render-quality/native"
+            var directory = OS.GetCmdlineUserArgs().Contains("--related-preview") ? "res://output/related-preview" : OS.GetCmdlineUserArgs().Contains("--render-quality") ? "res://output/ui-render-quality/native"
                 : OS.GetCmdlineUserArgs().Contains("--centered-overview") ? "res://output/ui-html-parity/overview" : "res://output/ui-html-parity/native";
             DirAccess.MakeDirRecursiveAbsolute(directory);
             using var image = owner.GetViewport().GetTexture().GetImage();

@@ -70,7 +70,7 @@ public sealed class CardPreviewQuery
                 (level == source.Level ? ability.Effects.Take(Math.Max(0, ability.Effects.Count - originalGemCount))
                     : ability.Effects.Concat(quests.SelectMany(quest => quest.AdditionalActiveEffects))).Concat(gemEffects).ToArray()),
             ability.AllowsBench, ability.TriggerStateKey, ability.TriggerCardTag, ability.TriggerCardElement,
-            ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus, ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags)).ToArray();
+            ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus, ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags, ability.TargetCardTag)).ToArray();
         var preview = Describe(source with
         {
             Level = level, Value = checked(source.Value + target.Value - (entry!.Levels.First(item => item.Card.Level == source.Level).Card.Value)),
@@ -79,13 +79,14 @@ public sealed class CardPreviewQuery
             EffectAmounts = Array.Empty<int?>(), GemSockets = Array.AsReadOnly(selected), OnSellReward = target.OnSellReward,
             SaleAttributeBonuses = target.SaleAttributeBonuses, BattleVictoryBonuses = target.BattleVictoryBonuses,
             BattleValueBonus = target.BattleValueBonus,
+            AcquisitionAttributeBonuses = target.AcquisitionAttributeBonuses,
         }, context);
         var id = preview.Id == default ? new EntityId(new Guid("00000000-0000-0000-0000-000000000001")) : preview.Id;
         var player = Side(context, preview with { Id = id }, 2);
         var opponent = Side(enemy, null, 3);
         var state = new CombatSimulator().Preview(new BattleSetup(player, opponent, 1, new BattleTick(1)), enemy is not null)
             .Cards.FirstOrDefault(card => card.Id == id && card.Side == SideId.Player);
-        return state is null ? preview : preview with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
+        return state is null ? preview : preview with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts, Tags = state.QuestTags,
             CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null };
     }
 
@@ -109,7 +110,9 @@ public sealed class CardPreviewQuery
                 Tags: new TagSet(card.Tags), Multicast: own.GetValueOrDefault(GameAttributeKeys.Multicast),
                 OccupiedSlots: (int)card.Size, ElementKeys: card.ElementKeys,
                 ArmorAmount: own.GetValueOrDefault(GameAttributeKeys.Armor))
-                { Level = card.Level, CombatValues = own, CooldownMultiplier = card.CooldownMultiplier };
+                { Level = card.Level, CombatValues = new ReadOnlyDictionary<StringName, int>(
+                    new Dictionary<StringName, int>(own) { [GameAttributeKeys.Value] = card.Value }),
+                    CooldownMultiplier = card.CooldownMultiplier };
         }).ToArray();
         return new BattleSideSetup(new HeroBattleSetup(hero?.Id ?? new EntityId(new Guid($"00000000-0000-0000-0000-{heroId:000000000000}")),
             Value(GameAttributeKeys.MaxHealth, 200), Value(GameAttributeKeys.Armor), Value(GameAttributeKeys.MaxMana, 100),

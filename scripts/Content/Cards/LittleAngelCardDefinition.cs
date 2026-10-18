@@ -16,7 +16,7 @@ public sealed class LittleAngelCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/little_angel-illustration.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却5秒，魔法消耗0，治疗己方英雄10/20/40/80生命。"),
+                    new(CardKeywords.Activate, "冷却5秒，魔法消耗10，治疗己方英雄10/20/40/80生命，此卡牌进入飞行。"),
                     new(CardKeywords.Echo, "敌方存活战场恶魔或亡灵卡牌每次发动后，此卡牌治疗增加5/10/15/20，可累加，仅本场生效；多重分别触发，同时具有两种标签也只触发一次。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.CooldownTicks] = 50 })),
@@ -26,7 +26,7 @@ public sealed class LittleAngelCardDefinition : CardDefinition
     private static CardLevelDefinition CreateLevel(int level, int healing, int growth) => new(level, null,
         [
             new AbilityDefinition("ability.heal", AbilityActivation.Active, AbilityTarget.AlliedHero,
-                0, 50, [new HealEffectDefinition(healing)]),
+                10, 50, [new HealEffectDefinition(healing), new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true)]),
             new AbilityDefinition("ability.enemy_tag_healing_growth", AbilityActivation.EchoOnEnemyCardActivated,
                 AbilityTarget.SelfCard, 0, 0,
                 [new IncreaseSourceCardAttributeEffectDefinition(GameAttributeKeys.HealingBonus, growth)],

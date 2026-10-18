@@ -21,7 +21,7 @@ public sealed partial class SkillCatalogView : PanelContainer
     private readonly Label _empty = new() { Name = "Empty", Text = "没有符合条件的技能", Visible = false };
     private readonly VBoxContainer _detail = new() { Name = "Details" };
     private readonly Label _name = new() { Name = "SkillName", AutowrapMode = TextServer.AutowrapMode.WordSmart };
-    private readonly SkillItemView _preview = new() { Name = "Preview", CustomMinimumSize = new Vector2(0, 240), MouseFilter = MouseFilterEnum.Ignore, FocusMode = FocusModeEnum.None };
+    private readonly SkillItemView _preview = new() { Name = "Preview", CustomMinimumSize = new Vector2(76, 76), MouseFilter = MouseFilterEnum.Ignore, FocusMode = FocusModeEnum.None, SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
     private readonly OptionButton _level = new() { Name = "Level" };
     private readonly RichTextLabel _text = new() { Name = "Effects", SizeFlagsVertical = SizeFlags.ExpandFill };
     private readonly CardDisplayAdapter _adapter = new();
@@ -30,28 +30,36 @@ public sealed partial class SkillCatalogView : PanelContainer
     private IReadOnlyList<StringName> _factions = Array.Empty<StringName>();
     private SkillCatalogEntry? _selected;
     private PanelContainer _detailPanel = null!;
-    private readonly Control _overlay = new() { Name = "DetailOverlay", Visible = false, MouseFilter = MouseFilterEnum.Stop, ZIndex = 1 };
+    private readonly Control _overlay = new() { Name = "DetailOverlay", Visible = false, MouseFilter = MouseFilterEnum.Stop, TopLevel = true, ZAsRelative = false, ZIndex = 50 };
     private readonly Button _closeDetail = new() { Name = "Close", Text = "关闭 ×" };
     private Control? _returnFocus;
 
     public override void _Ready()
     {
-        var column = new VBoxContainer { Name = "Content" }; AddChild(column);
+        var page = MatchTheme.Surface(new Color("293139"), Colors.Transparent); page.SetBorderWidthAll(0); page.SetCornerRadiusAll(0);
+        page.ContentMarginLeft = page.ContentMarginRight = page.ContentMarginTop = page.ContentMarginBottom = 28; AddThemeStyleboxOverride("panel", page);
+        var column = new VBoxContainer { Name = "Content" }; column.AddThemeConstantOverride("separation", 18); AddChild(column);
         var header = new HBoxContainer { Name = "Header" }; column.AddChild(header);
         var title = new Label { Text = "技能图鉴", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        title.AddThemeFontSizeOverride("font_size", 24); header.AddChild(title); header.AddChild(_back);
+        title.AddThemeFontSizeOverride("font_size", 20); header.AddChild(title); header.AddChild(_back);
         var filters = new HBoxContainer { Name = "Filters" }; column.AddChild(filters);
         foreach (var control in new Control[] { _search, _faction, _initialLevel, _count }) filters.AddChild(control);
         _initialLevel.TooltipText = "按正式定义的初始等级筛选，不受详情预览等级影响";
         var body = new HBoxContainer { Name = "Body", SizeFlagsVertical = SizeFlags.ExpandFill }; column.AddChild(body);
         var browser = new VBoxContainer { Name = "Browser", SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddChild(browser);
         browser.AddChild(_empty); browser.AddChild(_scroll); _scroll.AddChild(_grid);
-        AddChild(_overlay); _overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(_overlay); _overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
         var shade = new ColorRect { Color = new Color("06110fe8"), MouseFilter = MouseFilterEnum.Stop };
         _overlay.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _detailPanel = new PanelContainer { Name = "DetailPanel" }; _overlay.AddChild(_detailPanel); _detailPanel.AddChild(_detail);
+        _detailPanel = new PanelContainer { Name = "DetailPanel" }; _overlay.AddChild(_detailPanel); _detailPanel.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold)); _detailPanel.AddChild(_detail);
         foreach (var control in new Control[] { _closeDetail, _name, _preview, _level, _text }) _detail.AddChild(control);
-        _name.AddThemeFontSizeOverride("font_size", 20);
+        var heading = new HBoxContainer { Name = "Heading" }; heading.AddThemeConstantOverride("separation", 18); _detail.AddChild(heading); _detail.MoveChild(heading, 1);
+        _preview.Reparent(heading); _name.Reparent(heading); _name.SizeFlagsHorizontal = SizeFlags.ExpandFill; _name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        _closeDetail.Text = "×"; _closeDetail.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        _name.AddThemeFontSizeOverride("font_size", 24); _text.SizeFlagsVertical = SizeFlags.Fill; _text.CustomMinimumSize = new Vector2(0, 120);
+        var effectPlate = MatchTheme.Surface(new Color("182129"), new Color("a88e6544")); effectPlate.ContentMarginLeft = effectPlate.ContentMarginRight = effectPlate.ContentMarginTop = effectPlate.ContentMarginBottom = 18; _text.AddThemeStyleboxOverride("normal", effectPlate);
+        var detailPlate = MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold); detailPlate.ContentMarginLeft = detailPlate.ContentMarginRight = detailPlate.ContentMarginTop = detailPlate.ContentMarginBottom = 30; detailPlate.SetCornerRadiusAll(10); _detailPanel.AddThemeStyleboxOverride("panel", detailPlate);
+        _grid.AddThemeConstantOverride("h_separation", 14); _grid.AddThemeConstantOverride("v_separation", 14);
         _search.AddThemeColorOverride("font_color", MatchTheme.Ink);
         _search.AddThemeColorOverride("font_placeholder_color", MatchTheme.Muted);
         _search.AddThemeColorOverride("caret_color", MatchTheme.Ink);
@@ -99,8 +107,8 @@ public sealed partial class SkillCatalogView : PanelContainer
         _count.Text = $"{filtered.Length} / {_entries.Count} 个"; _empty.Visible = filtered.Length == 0; _scroll.ScrollVertical = 0;
         foreach (var entry in filtered)
         {
-            var cell = new VBoxContainer { CustomMinimumSize = new Vector2(172, 0) }; _grid.AddChild(cell);
-            var button = new SkillItemView { Name = "Skill", CustomMinimumSize = new Vector2(172, 172) }; cell.AddChild(button);
+            var cell = new CatalogEntryView { CustomMinimumSize = new Vector2(205, 238), SizeFlagsHorizontal = SizeFlags.ExpandFill }; _grid.AddChild(cell);
+            var button = new SkillItemView { Name = "Skill", CustomMinimumSize = new Vector2(74, 74), SizeFlagsHorizontal = SizeFlags.ShrinkCenter }; cell.AddChild(button);
             button.Render(entry.InitialSkill, _adapter);
             Action select = () => Select(entry); button.DetailsRequested += select; _buttons.Add((button, select, entry.InitialSkill.Key));
             cell.AddChild(new Label { Text = entry.InitialSkill.DisplayName, HorizontalAlignment = HorizontalAlignment.Center });
@@ -120,7 +128,7 @@ public sealed partial class SkillCatalogView : PanelContainer
         _name.Text = $"{entry.InitialSkill.DisplayName} · {entry.FactionName}";
         foreach (var skill in entry.Levels) _level.AddItem($"{skill.Level}级{(skill.Level == entry.InitialLevel ? " · 初始等级" : "")}", skill.Level);
         var index = Math.Max(0, entry.Levels.ToList().FindIndex(skill => skill.Level == previousLevel));
-        _level.Select(index); ShowLevel(index); _overlay.Show(); LayoutColumns(); _closeDetail.GrabFocus();
+        _level.Select(index); ShowLevel(index); _overlay.Show(); LayoutColumns(); Callable.From(LayoutColumns).CallDeferred(); _closeDetail.GrabFocus();
     }
 
     private void ShowLevel(int index)
@@ -129,14 +137,21 @@ public sealed partial class SkillCatalogView : PanelContainer
         var skill = _selected.Levels[index]; _preview.Render(skill, _adapter);
         LevelPresentation.Frame(_detailPanel, skill.Level, 3);
         CardKeywordText.Render(_text, CardDisplayAdapter.SkillDetails(skill)); _text.ScrollToLine(0);
+        if (_overlay.Visible) Callable.From(LayoutColumns).CallDeferred();
     }
 
     private void LayoutColumns()
     {
         if (_detailPanel is null) return;
-        _detailPanel.Size = new Vector2(Mathf.Min(600, Size.X - 48), Mathf.Min(650, Size.Y - 48));
+        _overlay.GlobalPosition = GlobalPosition; _overlay.Size = Size;
+        _detailPanel.Size = new Vector2(Mathf.Min(540, Size.X - 48), Mathf.Min(360, Size.Y - 48));
         _detailPanel.Position = (Size - _detailPanel.Size) / 2;
-        _grid.Columns = Math.Max(1, (int)((_scroll.Size.X - 16) / 180));
+        _grid.Columns = Math.Max(1, (int)((_scroll.Size.X - 16) / 219));
+    }
+    public override void _Process(double delta)
+    {
+        var height = Mathf.Min(360, Size.Y - 48);
+        if (_overlay.Visible && _detailPanel.Size.Y > height && _detailPanel.GetCombinedMinimumSize().Y <= height) LayoutColumns();
     }
     private void CloseDetail()
     {

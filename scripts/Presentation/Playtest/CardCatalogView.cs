@@ -47,19 +47,21 @@ public sealed partial class CardCatalogView : PanelContainer
 
     public override void _Ready()
     {
-        var column = new VBoxContainer { Name = "Content" }; AddChild(column);
+        var page = MatchTheme.Surface(new Color("293139"), Colors.Transparent); page.SetBorderWidthAll(0); page.SetCornerRadiusAll(0);
+        page.ContentMarginLeft = page.ContentMarginRight = page.ContentMarginTop = page.ContentMarginBottom = 28; AddThemeStyleboxOverride("panel", page);
+        var column = new VBoxContainer { Name = "Content" }; column.AddThemeConstantOverride("separation", 18); AddChild(column);
         var header = new HBoxContainer { Name = "Header" }; column.AddChild(header);
         var title = new Label { Text = "卡牌图鉴", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        title.AddThemeFontSizeOverride("font_size", 24); header.AddChild(title); header.AddChild(_back);
+        title.AddThemeFontSizeOverride("font_size", 20); header.AddChild(title); header.AddChild(_back);
         var filters = new HBoxContainer { Name = "Filters" }; column.AddChild(filters);
         filters.AddChild(_search); filters.AddChild(_count);
-        var classification = new HBoxContainer { Name = "Classification" }; column.AddChild(classification);
+        var classification = new HFlowContainer { Name = "Classification" }; column.AddChild(classification);
         foreach (var control in new Control[] { _faction, _size, _element, _initialLevel, _set }) classification.AddChild(control);
-        classification.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
-        classification.AddChild(new Label { Text = "排序" }); classification.AddChild(_sort); classification.AddChild(_direction);
+
+        classification.AddChild(_sort); classification.AddChild(_direction);
         var tagFilters = new HFlowContainer { Name = "TagFilters" }; column.AddChild(tagFilters);
         tagFilters.AddChild(new Label { Text = "标签" }); tagFilters.AddChild(_tagMatch); tagFilters.AddChild(_clearTags);
-        tagFilters.AddChild(new Label { Text = "可单选或多选；未选择时显示全部" });
+
         _tagMatch.AddItem("且 · 包含全部"); _tagMatch.AddItem("或 · 包含任一");
         column.AddChild(_tagOptions);
         _size.AddItem("全部尺寸", 0);
@@ -83,6 +85,19 @@ public sealed partial class CardCatalogView : PanelContainer
         _direction.Toggled += DirectionChanged;
         _tagMatch.ItemSelected += FilterChanged; _clearTags.Pressed += ClearTags;
         _body.Resized += LayoutColumns; _scroll.Resized += LayoutColumns;
+        var sidebar = new PanelContainer { Name = "TagSidebar", CustomMinimumSize = new Vector2(230, 0) };
+        sidebar.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("191f27"), new Color("a88e6544"))); _body.AddChild(sidebar); _body.MoveChild(sidebar, 0);
+        var tagScroll = new ScrollContainer { Name = "Scroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; sidebar.AddChild(tagScroll);
+        var tagColumn = new VBoxContainer { Name = "Filters", SizeFlagsHorizontal = SizeFlags.ExpandFill }; tagScroll.AddChild(tagColumn);
+        tagFilters.Reparent(tagColumn); _tagOptions.Reparent(tagColumn);
+        _tagMatch.Reparent(tagColumn); _clearTags.Reparent(tagColumn);
+        filters.Reparent(browser); browser.MoveChild(filters, 0);
+        classification.Reparent(browser); browser.MoveChild(classification, 1);
+        var footer = new HBoxContainer { Name = "Footer" }; column.AddChild(footer); _count.Reparent(footer); _count.SizeFlagsHorizontal = SizeFlags.ExpandFill; _back.Reparent(footer);
+        var clear = new Button { Name = "ClearFilters", Text = "清空筛选" }; filters.AddChild(clear);
+        clear.Pressed += () => { _search.Text = ""; foreach (var filter in new[] { _faction, _size, _element, _initialLevel, _set, _sort, _tagMatch }) filter.Select(0); _direction.SetPressedNoSignal(false); _direction.Text = "升序 ↑"; ClearTags(); };
+        _tagOptions.Reparent(tagColumn);
+        _body.AddThemeConstantOverride("separation", 26); _grid.AddThemeConstantOverride("h_separation", 16); _grid.AddThemeConstantOverride("v_separation", 16);
         Hide();
     }
 
@@ -182,13 +197,17 @@ public sealed partial class CardCatalogView : PanelContainer
         _scroll.ScrollVertical = 0;
         foreach (var entry in ordered)
         {
-            var cell = new VBoxContainer { CustomMinimumSize = new Vector2(216, 0) }; _grid.AddChild(cell);
-            var button = new CardItemView { Name = "Card", CustomMinimumSize = new Vector2(216, 190) }; cell.AddChild(button);
+            var cell = new CatalogEntryView { CustomMinimumSize = new Vector2(205, 238), SizeFlagsHorizontal = SizeFlags.ExpandFill }; _grid.AddChild(cell);
+            cell.AddChild(new Control { CustomMinimumSize = new Vector2(0, 18), MouseFilter = MouseFilterEnum.Ignore });
+            var button = new CardItemView { Name = "Card", CustomMinimumSize = new Vector2(207, 138), SizeFlagsHorizontal = SizeFlags.ShrinkCenter }; cell.AddChild(button);
+            foreach (var state in new[] { "normal", "hover", "pressed", "focus" }) button.AddThemeStyleboxOverride(state, new StyleBoxEmpty());
             button.Render(entry.InitialCard, _adapter);
             Action select = () => { }; button.Pressed += select;
             _buttons.Add((button, select, entry.InitialCard.Key));
-            cell.AddChild(new Label { Text = $"{entry.InitialCard.DisplayName} · {entry.FactionName}",
+            cell.AddChild(new Label { Name = "Caption", Text = $"{entry.InitialCard.DisplayName} · {entry.InitialLevel}级",
                 HorizontalAlignment = HorizontalAlignment.Center, ClipText = true });
+            var tags = new Label { Text = string.Join(" · ", entry.InitialCard.Tags.Select(TagDisplayNames.Get)), HorizontalAlignment = HorizontalAlignment.Center, ClipText = true }; tags.AddThemeFontSizeOverride("font_size", 11); cell.AddChild(tags);
+            foreach (var label in cell.GetChildren().OfType<Label>().Take(1)) label.AddThemeFontSizeOverride("font_size", 14);
         }
         LayoutColumns();
     }
@@ -211,7 +230,7 @@ public sealed partial class CardCatalogView : PanelContainer
 
     private void LayoutColumns()
     {
-        _grid.Columns = Math.Max(1, (int)((_scroll.Size.X - 16) / 224));
+        _grid.Columns = Math.Max(1, (int)((_scroll.Size.X - 16) / 219));
     }
 
     private void ClearButtons()

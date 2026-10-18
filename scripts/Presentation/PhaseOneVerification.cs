@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -18,12 +18,15 @@ public sealed partial class PhaseOneVerification : Control
     private readonly List<VerificationGroup> _groups =
     [
         new("UI 数据与流程", [
+            ("全卡各级描述无英文、无冒号且引用标注完整", CardDescriptionChecks.AllLevels),
+            ("卡牌发动目标仅出现必要次数且召唤转变引用明确", CardDescriptionChecks.TargetsAndReferences),
+            ("引用卡名完整高亮且不拆分内部元素关键词", CardDescriptionChecks.ReferenceRendering),
             ("全卡护甲等级与宝石预览保留基值、成长及光环", UiPrototypeSyncChecks.PreviewArmor),
             ("图鉴包含全部正式卡牌及支持等级，不创建实体或触发获取", CardCatalogChecks.Definitions),
             ("战斗快照覆盖治疗、状态、冷却、充能、多重与摧毁", BattlePlaybackVerification.CapturedStates),
             ("回放暂停、倍速与跳过结果一致且冻结旧画面", BattlePlaybackVerification.ControlsAndIsolation),
             ("展示快照隔离实例变化并与出售现值一致", PlaytestVerification.SnapshotIsolation),
-            ("卡面保留治疗/百分比语义并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
+            ("卡面显示治疗与未知比例数值、详情保留公式并按插画字段加载", PlaytestVerification.EffectSemanticsAndArtwork),
             ("卡牌详情隐藏无关攻击/冷却并保留真实零值攻击", PlaytestVerification.RelevantDetailAttributes),
             ("插画从定义传入实例、快照和卡面，未配图使用占位", PlaytestVerification.FormalIllustrations),
             ("遭遇与怪物独立原画贯穿快照，商店等级在页面切换后正确保留", PlaytestVerification.EncounterArtwork),
@@ -90,6 +93,9 @@ public sealed partial class PhaseOneVerification : Control
             ("钻石固定为4级且获得后价值增加20", EconomyChecks.CheckDiamondDefinition),
             ("珠宝袋出售后自动获得同级材料卡", EconomyChecks.CheckJewelryBagSaleReward),
             ("百宝箱出售后获得三件同级小型材料", EconomyChecks.CheckTreasureChestSaleReward),
+            ("通用遭遇英雄白名单冻结、引用校验与普通／怪物／PvP排程正确", EquipmentShopEncounterChecks.GenericHeroEligibility),
+            ("装备商店仅圣骑士与机械师可遭遇，资格与排程一致", EquipmentShopEncounterChecks.EligibilityAndScheduling),
+            ("装备商店全职业全尺寸装备筛选、刷新与跨职业购买正确", EquipmentShopEncounterChecks.PoolRefreshAndPurchase),
             ("型号商店只提供当前英雄归属的对应尺寸卡牌", EconomyChecks.CheckSizeShopCardPools),
             ("商店商品不超过商店等级，首批及刷新共用上限且正确处理空池", EconomyChecks.CheckShopLevelLimit),
             ("购买按报价扣款并登记卡牌归属", EconomyChecks.CheckPurchase),
@@ -125,7 +131,7 @@ public sealed partial class PhaseOneVerification : Control
             ("风车菊四级治疗、出售永久生命与咩咩治愈叠加正确", WindmillDaisyChecks.LevelsHealingAndSales),
             ("冰莲两级双方迟缓、收到迟缓回响与双冰莲连锁截断", IceLotusChecks.LevelsAndCombat),
             ("冰莲己敌施加、多重、飞行零时长与备战摧毁筛选", IceLotusChecks.ReceivedStatusAndFilters),
-            ("攻城弩车两级七秒伤害与疾速逐次攻击成长", SiegeBallistaChecks.LevelsDamageAndHaste),
+            ("攻城弩车三级七秒伤害与疾速逐次攻击成长", SiegeBallistaChecks.LevelsDamageAndHaste),
             ("攻城弩车状态筛选、回响截断、来源失效与战斗隔离", SiegeBallistaChecks.FiltersAndIsolation),
             ("重骑兵两级双方八秒攻防与每侧装备分别贡献", HeavyCavalryChecks.LevelsAndNeighbors),
             ("重骑兵相邻边界、排除和撤销、原生数值投影冻结", HeavyCavalryChecks.RemovalAndPreview),
@@ -133,8 +139,8 @@ public sealed partial class PhaseOneVerification : Control
             ("狮王盾护甲光环、狂暴多重、失效与百分比边界", LionKingShieldChecks.AuraAndBerserk),
             ("训练木桩四级双方群体攻击、周期和多重累加", TrainingDummyChecks.LevelsAndGroupBuff),
             ("训练营分级人类群体训练、辅助目标、双方与本场隔离", TrainingCampChecks.LevelsAndTraining),
-            ("碎甲重锤身份、周期护甲消耗、五倍伤害及冻结回放", ArmorShatteringMaulChecks.ConsumptionAndDamage),
-            ("碎甲重锤多重宝石、狂暴、护甲补充、失效与隐身边界", ArmorShatteringMaulChecks.OrderingAndBoundaries),
+            ("破碎之星身份、周期护甲消耗、五倍伤害及冻结回放", ArmorShatteringMaulChecks.ConsumptionAndDamage),
+            ("破碎之星多重宝石、狂暴、护甲补充、失效与隐身边界", ArmorShatteringMaulChecks.OrderingAndBoundaries),
             ("训练营同级小型人类拾取、合并、满盘、空池与随机状态", TrainingCampChecks.PickupAndBoundaries),
             ("训练木桩攻击分类、目标排除、来源失效和本场隔离", TrainingDummyChecks.FiltersAndSourceLoss),
             ("越狱者1级60生命、默认属性、卡组排程与实际迟缓正确", JailbreakerChecks.DefinitionAndBattle),
@@ -232,6 +238,28 @@ public sealed partial class PhaseOneVerification : Control
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("弗兰肯特材料出售成长、多重完整发动、升级保留和原画正确", FrankentChecks.SaleGrowthAndBattle),
             ("黑市典当铺分级交易、价值光环、失效撤销、冻结与溢出预检", BlackMarketPawnshopChecks.SaleGrowthAndAura),
+            ("装备店铺三级交易、战场备战拾取成长与失败原子性", EquipmentShopChecks.AcquisitionAndLevels),
+            ("装备店铺及价值光环跨级预览保留价值、成长与卡面攻防", EquipmentShopChecks.LevelPreview),
+            ("光辉板甲两级、双方、自身及光属性多重回响成长与筛选", RadiantPlateArmorChecks.LevelsAndEcho),
+            ("普通商店本职业池与光属性商店跨职业元素池、刷新购买", OrdinaryAndLightShopChecks.PoolsAndRefresh),
+            ("光属性商店圣骑士资格和等级排程、普通商店通用资格", OrdinaryAndLightShopChecks.Scheduling),
+            ("全卡各级卡面只显示具体数字、未知上下文为0且保留详情", CardFinalValueChecks.NumericFallbacks),
+            ("卢克萨额外发动跳过魔法冷却、包含多重与触发链去重", PaladinActivationChecks.LuksaExtraActivation),
+            ("卢克萨摧毁时额外发动与永久摧毁", PaladinActivationChecks.LuksaDestruction),
+            ("堕天使分级暗属性计数治疗、随机禁锢与发动飞行", PaladinActivationChecks.FallenAngelHealing),
+            ("魔源火铳四级伤害灼伤和魔法边界", PaladinActivationChecks.FirelockLevelsAndMana),
+            ("正义天使、小天使发动飞行及星纹天使开战飞行", PaladinActivationChecks.AngelFlightTiming),
+            ("光辉剑盾4级、双方200伤害护甲、多重与自身冷却缩减", RadiantSetChecks.SwordShieldCombat),
+            ("光辉套装三种卡牌去重计数、光属性装备身份与腰带预览", RadiantSetChecks.SetCountingAndPreview),
+            ("光辉标签和冷却光环目标筛选、多来源撤销与永久身份隔离", RadiantSetChecks.AuraFiltersAndLifetime),
+            ("光辉腰带三级、双方、装备计数、动态生命与撤销最低1生命", RadiantBeltChecks.LevelsAndLifetime),
+            ("护腿四级、双方、4秒装备疾速及相邻多重护甲回响", GreavesChecks.LevelsAndCombat),
+            ("随军圣女四级、双方、魔法门槛、6秒周期及人类攻击累加", ArmySaintessChecks.LevelsManaAndTargets),
+            ("教团秘法师三级、双方、魔法边界、5秒伤害与己方治疗", OrderArcanistChecks.LevelsManaAndHealing),
+            ("火枪手四级、双方、7秒周期伤害与灼伤及原画", MusketeerChecks.LevelsAndFiring),
+            ("星纹天使分级、双方、恶魔随机不重复禁锢与无恶魔治疗", StarPatternAngelChecks.LevelsAndBranches),
+            ("星纹天使魔法边界、多重、来源失效、条件变化与显示", StarPatternAngelChecks.ManaLifetimeAndDisplay),
+            ("装备店铺标签攻防光环、双方、叠加、失效及冻结", EquipmentShopChecks.AuraFiltersAndLifetime),
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
             ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
@@ -496,6 +524,54 @@ public sealed partial class PhaseOneVerification : Control
                 catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
             })).CallDeferred();
         }
+        if (OS.GetCmdlineUserArgs().Contains("--capture-equipment-shop"))
+            Callable.From((Action)(async () =>
+            {
+                try { await EquipmentShopChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-radiant-plate-armor"))
+            Callable.From((Action)(async () =>
+            {
+                try { await RadiantPlateArmorChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-radiant-belt"))
+            Callable.From((Action)(async () =>
+            {
+                try { await RadiantBeltChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-greaves"))
+            Callable.From((Action)(async () =>
+            {
+                try { await GreavesChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-army-saintess"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ArmySaintessChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-order-arcanist"))
+            Callable.From((Action)(async () =>
+            {
+                try { await OrderArcanistChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-musketeer"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MusketeerChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-star-pattern-angel"))
+            Callable.From((Action)(async () =>
+            {
+                try { await StarPatternAngelChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-shadow-cloak"))
             Callable.From((Action)(async () =>
             {
@@ -683,6 +759,24 @@ public sealed partial class PhaseOneVerification : Control
                 try { await CardArtworkRedrawCapture.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-card-description-copy"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardDescriptionChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-judgment-hammer"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardArtworkRedrawCapture.Capture(this, judgmentHammer: true); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-paladin-redraw"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CardArtworkRedrawCapture.Capture(this, true); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-warship-gunner"))
             Callable.From((Action)(async () =>
             {
@@ -861,7 +955,6 @@ public sealed partial class PhaseOneVerification : Control
                 results.Add($"✗ {name}\n    {exception.GetType().Name}: {exception.Message}");
             }
         }
-
         var allPassed = passedCount == checks.Count;
         var title = GetNode<Label>("Margin/Panel/Margin/Content/Title");
         var output = GetNode<Label>("Margin/Panel/Margin/Content/Results/Output");

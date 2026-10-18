@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Project_Star.Application.Content;
 using Godot;
 using Project_Star.Presentation.CardFace;
 using Project_Star.Application.Match;
@@ -12,6 +14,8 @@ public sealed partial class CardDetailsView : PanelContainer
 {
     public event Action<Guid, Project_Star.Domain.Common.EntityId, int, int>? SellRequested;
     public event Action? Closed;
+    private CardRelatedEffectsView _related = null!;
+    private float RelatedWidth => _related.Visible ? _related.Size.X + 16 : 0;
     private CardDetailsContent _content = null!;
     private Button _sell = null!;
     private Label _interactionHint = null!;
@@ -35,6 +39,7 @@ public sealed partial class CardDetailsView : PanelContainer
         var column = new VBoxContainer { Name = "Content" }; AddChild(column);
         var plate = new StyleBoxEmpty { ContentMarginLeft = 22, ContentMarginRight = 22, ContentMarginTop = 22, ContentMarginBottom = 22 };
         AddThemeStyleboxOverride("panel", plate);
+        _related = new CardRelatedEffectsView { Name = "Related", TopLevel = true, ZAsRelative = false, ZIndex = ZIndex }; AddChild(_related);
         Resized += QueueRedraw;
         _close = new Button { Name = "Close", Text = "×", Alignment = HorizontalAlignment.Center, TopLevel = true, ZAsRelative = false, ZIndex = ZIndex + 1, Size = new Vector2(21.36f, 26) }; AddChild(_close);
         var closePlate = new StyleBoxEmpty { ContentMarginLeft = 4, ContentMarginRight = 4, ContentMarginTop = 4, ContentMarginBottom = 4 };
@@ -52,6 +57,9 @@ public sealed partial class CardDetailsView : PanelContainer
         _sell.AddThemeFontSizeOverride("font_size", 16);
         _sell.Pressed += ConfirmSale;
     }
+
+    // 关联卡牌只读取应用目录快照。
+    public void SetEntries(IReadOnlyList<CardCatalogEntry> entries) => _related.SetEntries(entries);
 
     // 商品与奖励的操作说明只属于当前视图，不写入内容定义。
     public void SetInteractionHint(string text) { _interactionHint.Text = text; _interactionHint.Visible = text.Length > 0; }
@@ -118,6 +126,7 @@ public sealed partial class CardDetailsView : PanelContainer
         var width = Mathf.Max(1, Mathf.Min(pixels.X - 24, pixels.X <= 650 ? pixels.X - 24 : pixels.X < 900 ? 340 : 440));
         _content.CustomMinimumSize = new Vector2(width - 44, 0);
         _content.Render(card, width - 44, Mathf.Max(60, pixels.Y - 280), battle, preserveExpansion);
+        _related.Render(card, Mathf.Min(310, Mathf.Max(210, pixels.X - width - 56)), Mathf.Max(100, pixels.Y - 40));
         SetPinned(_pinned);
         Size = new Vector2(width, GetCombinedMinimumSize().Y);
         if (resized && _anchor is { } anchor) PlaceNearAnchor(anchor);
@@ -129,7 +138,7 @@ public sealed partial class CardDetailsView : PanelContainer
     {
         _pinned = pinned;
         MouseFilter = pinned ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
-        SetInput(GetNode<VBoxContainer>("Content"));
+        SetInput(GetNode<VBoxContainer>("Content")); SetInput(_related);
         void SetInput(Control control)
         {
             control.MouseFilter = pinned && control is Button or ScrollContainer or RichTextLabel
@@ -145,6 +154,9 @@ public sealed partial class CardDetailsView : PanelContainer
         var height = GetCombinedMinimumSize().Y;
         if (!Mathf.IsEqualApprox(Size.Y, height)) Size = new Vector2(Size.X, height);
         ClampTo(_bounds);
+        _related.Scale = GetGlobalTransform().Scale;
+        _related.GlobalPosition = GlobalPosition + new Vector2(Size.X + 16, 0) * _related.Scale;
+        _related.Modulate = Modulate;
         _close.Scale = GetGlobalTransform().Scale;
         _close.GlobalPosition = GlobalPosition + new Vector2(Size.X - 9 - _close.Size.X, 7) * _close.Scale;
     }
@@ -165,7 +177,8 @@ public sealed partial class CardDetailsView : PanelContainer
         _bounds = bounds;
         var margin = 12 / _pixelScale;
         if (Size.X * Scale.X > bounds.X - margin * 2) Size = new Vector2(Mathf.Max(1, bounds.X * _pixelScale - 24), Size.Y);
-        var limit = bounds - Size * Scale - Vector2.One * margin;
+        var groupSize = new Vector2(Size.X + RelatedWidth, Mathf.Max(Size.Y, _related.Visible ? _related.Size.Y : 0));
+        var limit = bounds - groupSize * Scale - Vector2.One * margin;
         _placementPosition = new Vector2(Mathf.Clamp(_placementPosition.X, margin, Mathf.Max(margin, limit.X)),
             Mathf.Clamp(_placementPosition.Y, margin, Mathf.Max(margin, limit.Y)));
         Position = new Vector2(_placementPosition.X, Mathf.Min(_placementPosition.Y + _revealOffset / _pixelScale,
@@ -175,7 +188,7 @@ public sealed partial class CardDetailsView : PanelContainer
     private void PlaceNearAnchor(Rect2 anchor)
     {
         var left = anchor.End.X + 16 / _pixelScale;
-        if (left + Size.X * Scale.X > _bounds.X - 12 / _pixelScale) left = anchor.Position.X - Size.X * Scale.X - 16 / _pixelScale;
+        if (left + (Size.X + RelatedWidth) * Scale.X > _bounds.X - 12 / _pixelScale) left = anchor.Position.X - (Size.X + RelatedWidth) * Scale.X - 16 / _pixelScale;
         _placementPosition = new Vector2(left, anchor.Position.Y);
     }
 

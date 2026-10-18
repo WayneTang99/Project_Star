@@ -9,6 +9,7 @@ namespace Project_Star.Presentation.CardFace;
 // 卡面装饰组件（表现层），接受只读内容与可选实际显示尺寸。
 public sealed partial class CardFace : Control
 {
+    public bool PreviewMetrics { get; set; }
     private const float BaseHeight = 400;
     private const float WidthPerSize = 200;
 
@@ -121,7 +122,7 @@ public sealed partial class CardFace : Control
         var height = Size.Y;
         const float padding = 5;
         var compact = GetViewportRect().Size.X <= 1150;
-        var font = compact ? 13 : 15;
+        var font = PreviewMetrics ? 23 : compact ? 13 : 15;
         _artFrame.Position = Vector2.One * padding; _artwork.Position = Vector2.Zero;
         _artFrame.Size = _artwork.Size = Size - Vector2.One * padding * 2;
         _artInnerRim.Position = Vector2.One * padding;
@@ -135,8 +136,8 @@ public sealed partial class CardFace : Control
         // 宝石孔沿底边居中排列；等级仅通过整张卡框颜色表示。
         var sockets = _sockets.GetChildCount();
         var smallViewport = GetViewportRect().Size.X <= 650;
-        var socketDiameter = smallViewport ? 6f : 8f;
-        var socketGap = smallViewport ? 5f : 7f;
+        var socketDiameter = PreviewMetrics ? 13f : smallViewport ? 6f : 8f;
+        var socketGap = PreviewMetrics ? 12f : smallViewport ? 5f : 7f;
         var socketWidth = sockets * socketDiameter + Math.Max(0, sockets - 1) * socketGap;
         _sockets.Position = new Vector2((width - socketWidth) / 2, height - 4);
         _sockets.Size = new Vector2(socketWidth, socketDiameter);
@@ -150,32 +151,35 @@ public sealed partial class CardFace : Control
         }
         _elementLayer.Size = Size;
         var count = _elementLayer.GetChildCount();
-        const float diameter = 23;
-        var setWidth = Math.Min(Math.Max(1, width - 14 - count * diameter - Math.Max(0, count - 1) * 4 - 4),
-            MatchTheme.Font(true, true).GetStringSize(_setBadge.Text, fontSize: 11).X + 10);
-        _setBadge.Position = new Vector2(7, 7);
+        var diameter = PreviewMetrics ? 30f : 23f;
+        var inset = PreviewMetrics ? 12f : 7f;
+        var setFont = PreviewMetrics ? 15 : 11;
+        _setBadge.AddThemeFontSizeOverride("font_size", setFont);
+        var setWidth = Math.Min(Math.Max(1, width - inset * 2 - count * diameter - Math.Max(0, count - 1) * 4 - 4),
+            MatchTheme.Font(true, true).GetStringSize(_setBadge.Text, fontSize: setFont).X + (PreviewMetrics ? 16 : 10));
+        _setBadge.Position = new Vector2(inset, inset);
         _setBadge.ClipText = true; _setBadge.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        _setBadge.Size = new Vector2(setWidth, 22);
+        _setBadge.Size = new Vector2(setWidth, PreviewMetrics ? 30 : 22);
         for (var index = 0; index < count; index++)
         {
             var badge = _elementLayer.GetChild<Control>(index);
             badge.Size = Vector2.One * diameter; badge.Scale = Vector2.One;
-            badge.Position = new Vector2(width - 7 - count * diameter - (count - 1) * 4 + index * (diameter + 4), 7);
+            badge.Position = new Vector2(width - inset - count * diameter - (count - 1) * 4 + index * (diameter + 4), inset);
         }
 
-        const float rowHeight = 25;
-        var valueFont = compact ? 11 : 13;
+        var rowHeight = PreviewMetrics ? 36f : 25f;
+        var valueFont = PreviewMetrics ? 23 : compact ? 11 : 13;
         var valueWidth = Mathf.Max(35, MatchTheme.Font(true, true).GetStringSize(_viewModel!.CurrentValue.ToString(), fontSize: valueFont).X + 30);
         var valueLeft = width + 1 - valueWidth;
         var bottom = height - 7;
-        var top = bottom - 23;
+        var top = bottom - (PreviewMetrics ? 36 : 23);
         _valuePlate.Polygon = [new(valueLeft, bottom), new(valueLeft + 9, top), new(width + 1, top), new(width + 1, bottom)];
         _valueRim.Points = [_valuePlate.Polygon[0], _valuePlate.Polygon[1], _valuePlate.Polygon[2]];
         _valueRim.Width = Mathf.Clamp(height * .008f, 1, 3);
         _valueBadge.CustomMinimumSize = Vector2.Zero;
         _valueBadge.SetDisplayMetrics(valueFont);
         _valueBadge.Position = new Vector2(valueLeft + 11, top + 3);
-        _valueBadge.Size = new Vector2(valueWidth - 17, 17);
+        _valueBadge.Size = new Vector2(valueWidth - 17, PreviewMetrics ? 30 : 17);
         var rows = _effects.GetChildren();
         var visibleEffects = Math.Min(rows.Count, Math.Max(1, (int)(height * .6f / (rowHeight + 3))));
         var effectWidth = Mathf.Max(40, width - 35);
@@ -185,9 +189,9 @@ public sealed partial class CardFace : Control
         {
             var row = (CardEffectRow)rows[index];
             row.Visible = index < visibleEffects;
-            row.SetDisplayMetrics(font, rowHeight);
+            row.SetDisplayMetrics(font, rowHeight, PreviewMetrics ? 20 : 12);
             row.Position = new Vector2(5, index * (rowHeight + 3));
-            row.Size = new Vector2(Mathf.Min(row.PreferredWidth(font), effectWidth) - 12, rowHeight);
+            row.Size = new Vector2(Mathf.Min(row.PreferredWidth(font, PreviewMetrics ? 20 : 12), effectWidth) - 12, rowHeight);
         }
     }
 

@@ -75,7 +75,7 @@ internal static class SkillCatalogChecks
             var catalog = shell.GetNode<SkillCatalogView>("SkillCatalog");
             var search = catalog.GetNode<LineEdit>("Content/Filters/Search");
             var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/SkillsScroll/Skills");
-            var name = catalog.GetNode<Label>("DetailOverlay/DetailPanel/Details/SkillName");
+            var name = catalog.GetNode<Label>("DetailOverlay/DetailPanel/Details/Heading/SkillName");
             var level = catalog.GetNode<OptionButton>("DetailOverlay/DetailPanel/Details/Level");
             var text = catalog.GetNode<RichTextLabel>("DetailOverlay/DetailPanel/Details/Effects");
             void OpenDetail() => grid.GetChild<VBoxContainer>(0).GetNode<SkillItemView>("Skill")._GuiInput(

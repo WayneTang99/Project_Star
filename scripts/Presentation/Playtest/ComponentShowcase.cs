@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Linq;
 using Godot;
 using Project_Star.Application.Factories;
+using Project_Star.Application.Content;
 using Project_Star.Application.Match;
 using Project_Star.Application.Economy;
 using Project_Star.Content.Cards;
@@ -20,6 +21,22 @@ public sealed partial class ComponentShowcase : Control
     private CardDetailsView _details = null!;
     public override void _Ready()
     {
+        if (OS.GetCmdlineUserArgs().Contains("--capture-secondary-modal"))
+        {
+            Callable.From((Action)(async () => {
+                try { await Project_Star.Presentation.Verification.SecondaryModalChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred(); return;
+        }
+        if (OS.GetCmdlineUserArgs().Contains("--capture-radiant-set"))
+        {
+            Callable.From((Action)(async () => {
+                try { await Project_Star.Presentation.Verification.RadiantSetChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred(); return;
+        }
+        if (OS.GetCmdlineUserArgs().Contains("--capture-lobby"))
+        { Callable.From(CaptureLobby).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-html-parity"))
         { Callable.From(CaptureHtmlParity).CallDeferred(); return; }
         if (OS.GetCmdlineUserArgs().Contains("--capture-encounters") || OS.GetCmdlineUserArgs().Contains("--capture-layout"))
@@ -202,6 +219,122 @@ public sealed partial class ComponentShowcase : Control
             image.Convert(Image.Format.Rgba8);
             if (image.SavePng($"{directory}/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)
                 throw new InvalidOperationException("遭遇截图保存失败。");
+        }
+    }
+
+    // 大厅使用真实启动入口，核对导航不提交选角，确认后才建立旅程。
+    private async void CaptureLobby()
+    {
+        try
+        {
+            var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+            AddChild(root); root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            var shell = root.GetNode<MatchShell>("MatchShell");
+            var lobby = shell.GetNode<GameLobbyView>("GameLobby");
+            var atlas = shell.GetNode<AtlasHubView>("AtlasHub");
+            var selector = shell.GetNode<HeroSelectionView>("ContextRow/ContextHost/HeroSelectionView");
+            var submitted = 0; shell.ChoiceSelected += (_, _, _) => submitted++;
+            foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080), new Vector2I(2560, 1080) })
+            {
+                GetWindow().Size = size; GetTree().Root.ContentScaleSize = size;
+                await Save("camp");
+                var stage = lobby.GetNode<Control>("SceneStage");
+                if (!lobby.Visible || stage.GetGlobalRect().End.X > shell.Size.X + 1
+                    || stage.GetGlobalRect().End.Y > shell.Size.Y + 1 || selector.Visible)
+                    throw new InvalidOperationException("大厅场景越界或启动页仍露出选角。");
+            }
+            GetWindow().Size = new Vector2I(1600, 900); GetTree().Root.ContentScaleSize = new Vector2I(1600, 900); await Frame();
+            var settings = shell.GetNode<DisplaySettingsView>("DisplaySettings");
+            Press(lobby.GetNode<Button>("Settings")); await Save("settings-open");
+            if (!settings.Visible) throw new InvalidOperationException("大厅设置未打开。");
+            Press((Button)settings.FindChild("Cancel", true, false)); await Frame();
+            if (settings.Visible || GetViewport().GuiGetFocusOwner() != lobby.GetNode<Button>("Settings"))
+                throw new InvalidOperationException("大厅设置取消按钮被遮挡或未恢复焦点。");
+            Press(lobby.GetNode<Button>("Settings")); await Frame();
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = false }, true); await Frame();
+            if (!settings.IsAncestorOf(GetViewport().GuiGetFocusOwner())) throw new InvalidOperationException("设置Tab焦点泄漏到大厅。");
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = false }, true); await Frame();
+            if (settings.Visible) throw new InvalidOperationException("大厅设置Escape无法关闭。");
+            Press(lobby.GetNode<Button>("Settings")); await Frame();
+            var settingsSize = GetWindow().Size;
+            Press((Button)settings.FindChild("Apply", true, false)); await Frame();
+            if (!((Button)settings.FindChild("Confirm", true, false)).IsVisibleInTree())
+                throw new InvalidOperationException("设置应用预览未响应鼠标。");
+            await Save("settings-preview");
+            Press((Button)settings.FindChild("Cancel", true, false)); await Frame();
+            if (settings.Visible || GetWindow().Size != settingsSize) throw new InvalidOperationException("取消设置预览未恢复窗口。");
+            await Save("settings-returned");
+
+            Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
+            if (!selector.IsVisibleInTree() || lobby.Visible || submitted != 0)
+                throw new InvalidOperationException("进入选角提前提交或未显示。");
+            await Save("heroes");
+            Press(shell.GetNode<Button>("BackToLobby")); await Frame();
+            if (!lobby.Visible || submitted != 0) throw new InvalidOperationException("选角返回创建了对局。");
+            Press(lobby.GetNode<Button>("SceneStage/Atlas")); await Save("atlas");
+            foreach (var category in new[] { WorldCatalogQuery.Heroes, WorldCatalogQuery.Encounters, WorldCatalogQuery.Mentors, WorldCatalogQuery.Sets })
+            {
+                atlas.OpenCategory(category); await Frame();
+                var item = atlas.FindChildren("*", "Button", true, false).OfType<Button>()
+                    .First(button => button.IsVisibleInTree() && button.CustomMinimumSize.Y == 210);
+                Press(item); await Frame();
+                if (!((ScrollContainer)atlas.FindChild("EntryDetail", true, false)).Visible)
+                    throw new InvalidOperationException("分类条目未显示详情。");
+                await Save(category.ToString());
+            }
+            atlas.OpenCategory(WorldCatalogQuery.Monsters); await Save("monsters");
+            var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+            var entries = WorldCatalogQuery.Capture(registry);
+            foreach (var monster in registry.Monsters.Values)
+            {
+                var entry = entries.Single(entry => entry.Key == monster.Attributes.Identity.Key && entry.Category == WorldCatalogQuery.Monsters);
+                if (entry.Cards.Count != monster.Cards.Count || entry.Skills.Count != monster.Skills.Count)
+                    throw new InvalidOperationException("怪物目录丢失卡牌或重复卡牌。");
+            }
+            var monsterCard = atlas.FindChildren("*", "Button", true, false).OfType<CardItemView>().First();
+            Press(monsterCard); await Frame();
+            if (!shell.GetNode<CardPreviewView>("CardPreview").Visible) throw new InvalidOperationException("怪物卡牌未打开详情。");
+            await Save("monster-card"); shell.GetNode<CardPreviewView>("CardPreview").Close();
+            Press((Button)atlas.FindChild("Back", true, false)); await Frame();
+            atlas.OpenCategory(new StringName("cards")); await Frame();
+            if (!shell.GetNode<CardCatalogView>("CardCatalog").Visible) throw new InvalidOperationException("卡牌分类没有接入。");
+            shell.GetNode<CardCatalogView>("CardCatalog").Close(); await Frame();
+            if (!atlas.Visible) throw new InvalidOperationException("关闭图鉴未返回分类。");
+            shell.ShowLobby(); Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
+            Press(selector.GetNode<Button>("Choose")); await Frame();
+            if (submitted != 1 || lobby.Visible || selector.Visible) throw new InvalidOperationException("确认英雄未且仅提交一次。");
+            shell.ShowLobby(); await Frame();
+            if (!lobby.GetNode<Button>("SceneStage/Resume").Visible) throw new InvalidOperationException("进行中的旅程不可继续。");
+            Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
+            if (selector.GetParent().GetChildren().OfType<Control>().Any(control => control != selector && control.IsVisibleInTree()))
+                throw new InvalidOperationException("已有旅程的阶段界面穿透新选角。");
+            await Save("heroes-existing"); shell.ShowLobby();
+            if (submitted != 1 || !lobby.GetNode<Button>("SceneStage/Resume").Visible)
+                throw new InvalidOperationException("浏览新英雄覆盖了正在进行的旅程。");
+            Press(lobby.GetNode<Button>("SceneStage/Resume")); await Save("resumed");
+            if (lobby.Visible || shell.IsLobbyNavigationActive) throw new InvalidOperationException("继续旅程未恢复对局。");
+            GD.Print("大厅验证通过：设置鼠标取消、Tab焦点、Escape、预览恢复；启动、三种窗口、选角取消、图鉴分类、怪物卡牌与详情、确认一次及继续旅程。");
+            GetTree().Quit();
+        }
+        catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+        async System.Threading.Tasks.Task Frame() => await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        void Press(Button button)
+        {
+            var point = button.GetGlobalRect().GetCenter();
+            GetViewport().PushInput(new InputEventMouseButton { Position = point, GlobalPosition = point,
+                ButtonIndex = MouseButton.Left, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventMouseButton { Position = point, GlobalPosition = point,
+                ButtonIndex = MouseButton.Left, Pressed = false }, true);
+        }
+        async System.Threading.Tasks.Task Save(string name)
+        {
+            await Frame(); await Frame(); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            DirAccess.MakeDirRecursiveAbsolute("res://output/lobby");
+            using var image = GetViewport().GetTexture().GetImage();
+            if (image.SavePng($"res://output/lobby/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)
+                throw new InvalidOperationException("大厅截图保存失败。");
         }
     }
 

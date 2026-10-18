@@ -89,13 +89,13 @@ internal static class BattleStatusResolver
         {
             if (card.Side != source.Side || card.EntityId == source.EntityId || card.Destroyed || card.IsOnBench)
                 continue;
-            if (effect.RequiredTag is { IsEmpty: false } && !card.Tags.Contains(effect.RequiredTag))
+            if (effect.RequiredTag is { IsEmpty: false } && !BattleEffectResolver.HasEffectiveTag(runtime, card, effect.RequiredTag))
                 continue;
             var cardEnd = card.BoardStart + card.OccupiedSlots;
             if (cardEnd != source.BoardStart && card.BoardStart != sourceEnd)
                 continue;
             var baseAmount = DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount);
-            var amount = card.Tags.Contains(effect.BonusTag)
+            var amount = BattleEffectResolver.HasEffectiveTag(runtime, card, effect.BonusTag)
                 ? checked(baseAmount * effect.BonusMultiplier)
                 : baseAmount;
             ApplyCardStatus(runtime, pending, card, effect.Status, amount);
@@ -106,7 +106,8 @@ internal static class BattleStatusResolver
     internal static void ApplyStatusToRandomEnemyCard(BattleRuntime runtime, PendingAbility pending,
         ApplyStatusToRandomEnemyCardEffectDefinition effect)
     {
-        var candidates = runtime.Cards.Where(card => card.Side != pending.Source.Side && !card.Destroyed && !card.IsOnBench).ToArray();
+        var candidates = runtime.Cards.Where(card => card.Side != pending.Source.Side && !card.Destroyed && !card.IsOnBench
+            && (effect.RequiredTag is not { } tag || BattleEffectResolver.HasEffectiveTag(runtime, card, tag))).ToArray();
         if (candidates.Length == 0) return;
         for (var selected = 0; selected < Math.Min(effect.TargetCount, candidates.Length); selected++)
         {
@@ -144,6 +145,8 @@ internal static class BattleStatusResolver
     // 光环变动只加减自身贡献，同时调整当前剩余冷却，保留已走过的进度。
     internal static void RefreshCooldownAuras(BattleRuntime runtime)
     {
+        RefreshHeroMaxHealthAuras(runtime, SideId.Player);
+        RefreshHeroMaxHealthAuras(runtime, SideId.Opponent);
         foreach (var source in runtime.Cards)
         {
             var bonus = 0;
@@ -183,7 +186,8 @@ internal static class BattleStatusResolver
                 .SelectMany(ability => ability.Definition.Effects)
                 .Sum(effect => effect switch
                 {
-                    ReduceAlliedElementCardCooldownAuraEffectDefinition aura when source.ElementKeys.Contains(aura.ElementKey) => aura.Percent,
+                    ReduceAlliedElementCardCooldownAuraEffectDefinition aura when source.ElementKeys.Contains(aura.ElementKey)
+                        && (aura.RequiredTag is null || BattleEffectResolver.HasEffectiveTag(runtime, source, aura.RequiredTag)) => aura.Percent,
                     ReduceOtherHeroCardCooldownAuraEffectDefinition aura when source.Identity is { } identity
                         && runtime.GetHero(source.Side).Identity is { } heroIdentity
                         && identity.FactionKey != heroIdentity.FactionKey => aura.Percent,
@@ -202,6 +206,29 @@ internal static class BattleStatusResolver
                         + BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, source.CooldownBonusTicks, source.EffectiveCooldownMultiplier)
                         - BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, oldBonus, oldMultiplier));
         }
+    }
+
+    // 光环贡献按差值更新，保留损失生命；撤销贡献不造成死亡，也不复活已死亡英雄。
+    private static void RefreshHeroMaxHealthAuras(BattleRuntime runtime, SideId side)
+    {
+        var bonus = 0;
+        foreach (var source in runtime.AbilitySources)
+        {
+            if (source.Side != side || source.Destroyed || source.IsOnBench) continue;
+            foreach (var ability in source.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition aura)
+                    bonus = checked(bonus + runtime.Cards.Count(card => card.Side == side
+                        && !card.Destroyed && !card.IsOnBench
+                        && BattleEffectResolver.HasEffectiveTag(runtime, card, aura.RequiredTag)) * aura.Amount);
+        }
+        var hero = runtime.GetHero(side);
+        var delta = checked(bonus - hero.MaxHealthAuraBonus);
+        if (delta == 0) return;
+        hero.MaxHealth = checked(hero.MaxHealth + delta);
+        if (hero.Health > 0) hero.Health = Math.Clamp(checked(hero.Health + delta), 1, hero.MaxHealth);
+        hero.MaxHealthAuraBonus = bonus;
     }
 
     // 在真实状态获得后执行相邻光环的通用属性反应。
@@ -226,7 +253,7 @@ internal static class BattleStatusResolver
                 if (ability.Definition.Activation != AbilityActivation.PassiveAura
                     || effect is not ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition reaction
                     || reaction.Status != status
-                    || !target.Tags.Contains(reaction.RequiredTag)
+                    || !BattleEffectResolver.HasEffectiveTag(runtime, target, reaction.RequiredTag)
                     || !target.SupportsCombatAttribute(reaction.AttributeKey))
                 {
                     continue;

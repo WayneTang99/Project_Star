@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Linq;
+using System.Collections.Generic;
 using Godot;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
@@ -104,9 +105,10 @@ public sealed class CombatSimulator
             .OrderBy(item => item.Due.Value).ToArray();
         runtime.ScheduledMulticasts.RemoveAll(item => item.Due.Value <= runtime.Tick.Value);
         foreach (var item in due)
-            if (!item.Ability.Source.Destroyed && !item.Ability.Source.IsOnBench
+            if ((!item.Ability.Source.Destroyed || item.Ability.AllowDestroyedSource) && !item.Ability.Source.IsOnBench
                 && item.Ability.Source is CardBattleState card && runtime.Cards.Contains(card))
-                Enqueue(runtime, card, item.Ability.Ability, false, true, suppressEchoes: item.Ability.SuppressEchoes);
+                Enqueue(runtime, card, item.Ability.Ability, false, true, suppressEchoes: item.Ability.SuppressEchoes, triggeredActivation: item.Ability.IsTriggeredActivation,
+                    allowDestroyedSource: item.Ability.AllowDestroyedSource, triggerChain: item.Ability.TriggerChain);
     }
 
     // 将发动追加到 FIFO，并按原顺序记录排队事件。
@@ -117,9 +119,13 @@ public sealed class CombatSimulator
         bool echo,
         bool multicast = false,
         CardBattleState? eventCard = null,
-        bool suppressEchoes = false)
+        bool suppressEchoes = false,
+        bool triggeredActivation = false,
+        bool allowDestroyedSource = false,
+        HashSet<EntityId>? triggerChain = null)
     {
-        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick, eventCard) { SuppressEchoes = suppressEchoes });
+        runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick, eventCard) { SuppressEchoes = suppressEchoes, IsTriggeredActivation = triggeredActivation,
+            AllowDestroyedSource = allowDestroyedSource, TriggerChain = triggerChain });
         runtime.Events.Add(new AbilityQueuedEvent(
             runtime.Tick,
             card.EntityId,
@@ -132,14 +138,14 @@ public sealed class CombatSimulator
         while (runtime.Queue.Count > 0)
         {
             var pending = runtime.Queue.Dequeue();
-            if (pending.Source.Destroyed) continue;
+            if (pending.Source.Destroyed && !pending.AllowDestroyedSource) continue;
             if (pending.Source is CardBattleState queuedCard && !runtime.Cards.Contains(queuedCard)) continue;
             if (pending.Ability.Definition.Target == AbilityTarget.EventCard
                 && (pending.EventCard is null || pending.EventCard.Destroyed || pending.EventCard.IsOnBench
                     || !runtime.Cards.Contains(pending.EventCard))) continue;
             var hero = runtime.GetHero(pending.Source.Side);
             var definition = pending.Ability.Definition;
-            var paysMana = definition.Activation == AbilityActivation.Active && !pending.IsMulticast;
+            var paysMana = definition.Activation == AbilityActivation.Active && !pending.IsMulticast && !pending.IsTriggeredActivation;
             if (paysMana && hero.Mana < definition.ManaCost) continue;
             var activatesLeftmostCard = pending.Source is CardBattleState { IsOnBench: false } activatingCard
                 && !runtime.Cards.Any(card => card.Side == activatingCard.Side && !card.Destroyed && !card.IsOnBench
@@ -151,7 +157,7 @@ public sealed class CombatSimulator
             }
             if (definition.ManaCost > 0 && paysMana)
                 runtime.Events.Add(new ManaChangedEvent(runtime.Tick, pending.Source.Side, -definition.ManaCost, hero.Mana));
-            if (!pending.IsEcho && !pending.IsMulticast)
+            if (!pending.IsEcho && !pending.IsMulticast && !pending.IsTriggeredActivation)
                 pending.Ability.RemainingCooldownUnits = BattleCooldownRules.DurationUnits(definition.CooldownTicks,
                     pending.Source.CooldownBonusTicks,
                     pending.Source is CardBattleState cooldownCard ? cooldownCard.EffectiveCooldownMultiplier : 1m);
@@ -162,12 +168,14 @@ public sealed class CombatSimulator
                 pending.IsEcho,
                 BattleEffectResolver.GetAbilitySourceKind(pending.Source)));
             BattleStateRecorder.CaptureState(runtime);
+            if (pending.TriggerChain is null && definition.Effects.Any(effect => effect is TriggerOtherAlliedElementActivesEffectDefinition or ActivateSourceCardEffectDefinition))
+                pending = pending with { TriggerChain = new HashSet<EntityId> { pending.Source.EntityId } };
             if (!pending.IsEcho && !pending.IsMulticast && pending.Source is CardBattleState cardSource)
             {
                 var multicast = BattleEffectResolver.GetEffectiveMulticast(runtime, cardSource);
                 for (var repeat = 0; repeat < multicast; repeat++)
                     runtime.ScheduledMulticasts.Add((runtime.Tick + new BattleTick(checked((repeat + 1) * 2)),
-                        new PendingAbility(cardSource, pending.Ability, false, true, runtime.Tick) { SuppressEchoes = pending.SuppressEchoes }));
+                        pending with { IsMulticast = true, EnqueuedAt = runtime.Tick }));
             }
             if (definition.Effects.Any(effect => effect is ApplyPrimaryEffectPercentStatusEffectDefinition))
                 pending = pending with { PrimaryValue = BattleEffectResolver.PrimaryValue(runtime, pending) };
@@ -229,14 +237,14 @@ public sealed class CombatSimulator
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
                 && (adjacentSource.BoardStart + adjacentSource.OccupiedSlots == attackingCard.BoardStart
                     || attackingCard.BoardStart + attackingCard.OccupiedSlots == adjacentSource.BoardStart)
-                && (ability.Definition.TriggerCardTag is not { } requiredTag || attackingCard.Tags.Contains(requiredTag))
+                && (ability.Definition.TriggerCardTag is not { } requiredTag || BattleEffectResolver.HasEffectiveTag(runtime, attackingCard, requiredTag))
                 && attackingCard.IsAttackCard)
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnAdjacentAlliedCardActivated
                 && source is CardBattleState directionalSource && source.Side == origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } activatedCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
-                && (ability.Definition.TriggerCardTag is not { } adjacentTag || activatedCard.Tags.Contains(adjacentTag))
+                && (ability.Definition.TriggerCardTag is not { } adjacentTag || BattleEffectResolver.HasEffectiveTag(runtime, activatedCard, adjacentTag))
                 && (ability.Definition.TriggerCardSize is not { } adjacentSize || activatedCard.OccupiedSlots == (int)adjacentSize)
                 && (ability.Definition.TriggerCardSide == AdjacentCardSide.Left
                     ? activatedCard.BoardStart + activatedCard.OccupiedSlots == directionalSource.BoardStart
@@ -248,7 +256,7 @@ public sealed class CombatSimulator
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
                 && (ability.Definition.TriggerCardSize is not { } size || originCard.OccupiedSlots == (int)size)
                 && (ability.Definition.TriggerCardTag is null && ability.Definition.TriggerCardElement is null
-                    || ability.Definition.TriggerCardTag is { } tag && originCard.Tags.Contains(tag)
+                    || ability.Definition.TriggerCardTag is { } tag && BattleEffectResolver.HasEffectiveTag(runtime, originCard, tag)
                     || ability.Definition.TriggerCardElement is { } element && originCard.ElementKeys.Contains(element)))
                 Enqueue(runtime, source, ability, true, eventCard: originCard);
             if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
@@ -256,7 +264,7 @@ public sealed class CombatSimulator
                 && source.Side == origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } firstCard
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
-                && (ability.Definition.TriggerCardTag is not { } firstTag || firstCard.Tags.Contains(firstTag))
+                && (ability.Definition.TriggerCardTag is not { } firstTag || BattleEffectResolver.HasEffectiveTag(runtime, firstCard, firstTag))
                 && !origin.IsMulticast)
             {
                 ability.Triggered = true;

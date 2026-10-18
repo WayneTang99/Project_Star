@@ -6,12 +6,12 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 风车菊圣骑士双属性植物，治疗与出售永久生命均复用通用效果。
+// 风车菊无阵营双属性植物，治疗与出售永久生命均复用通用效果。
 public sealed class WindmillDaisyCardDefinition : CardDefinition
 {
     public WindmillDaisyCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
-            new StringName("card.windmill_daisy"), "风车菊", new StringName("paladin"),
+            new StringName("card.windmill_daisy"), "风车菊", GameFactions.Neutral,
             CardSize.Small, [GameElements.Wind, GameElements.Wood],
             illustration: new StringName("res://art/ui/card-face/artwork/windmill_daisy-illustration.png"),
             descriptionEntries:

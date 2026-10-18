@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -38,7 +38,7 @@ public sealed class ShopStock
     }
 }
 
-// 生成英雄专属型号商店的可售卡牌池（应用层）。
+// 根据商店的归属、尺寸与标签条件生成可售卡牌池（应用层）。
 public sealed class ShopCardPoolService
 {
     public const int OfferCount = 3;
@@ -127,8 +127,10 @@ public sealed class ShopCardPoolService
         if (hero is null) return Array.Empty<CardDefinition>();
 
         return ExcludeOwnedMaxLevelCards(session, definitions)
-            .Where(card => card.Attributes.Identity.FactionKey == hero.Attributes.Identity.FactionKey
-                && card.Attributes.Identity.Size == shop.CardSize
+            .Where(card => (!shop.OnlyHeroFaction || card.Attributes.Identity.FactionKey == hero.Attributes.Identity.FactionKey)
+                && (shop.RequiredSize is null || card.Attributes.Identity.Size == shop.RequiredSize)
+                && (shop.RequiredTag is null || card.Tags.Contains(shop.RequiredTag))
+                && (shop.RequiredElement is null || card.Attributes.Identity.ElementKeys.Contains(shop.RequiredElement))
                 && card.InitialLevel <= level)
             .OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList()

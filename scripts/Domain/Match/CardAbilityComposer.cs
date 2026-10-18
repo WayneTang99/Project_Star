@@ -22,7 +22,8 @@ public static class CardAbilityComposer
             .Select(ability => ability.Activation != AbilityActivation.Active ? ability : new AbilityDefinition(
                 ability.Key, ability.Activation, ability.Target, ability.ManaCost,
                 Math.Max(1, checked(ability.CooldownTicks + cooldownDelta)),
-                Array.AsReadOnly(ability.Effects.Concat(extraEffects).ToArray()), ability.AllowsBench, ability.TriggerStateKey))
+                Array.AsReadOnly(ability.Effects.Concat(extraEffects).ToArray()), ability.AllowsBench, ability.TriggerStateKey,
+                targetCardTag: ability.TargetCardTag))
             .ToArray());
     }
 }

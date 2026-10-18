@@ -24,11 +24,16 @@ public static class MatchDisplayQuery
             new BattleSetupFactory(sets).CreatePreview(session, opponent), opponent is not null);
         return snapshot with
         {
+            Hero = snapshot.Hero is { } hero && preview is not null ? hero with
+            {
+                CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
+                    new Dictionary<StringName, int>(hero.CombatValues) { [GameAttributeKeys.MaxHealth] = preview.Player.MaxHealth }),
+            } : snapshot.Hero,
             Cards = Array.AsReadOnly(snapshot.Cards.Select(card =>
             {
                 var state = preview?.Cards.FirstOrDefault(item => item.Id == card.Id && item.Side == SideId.Player);
                 return state is null || !placed.Contains(card.Id) ? card
-                    : card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
+                    : card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts, Tags = state.QuestTags,
                         CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null };
             }).ToArray()),
             Sets = Array.AsReadOnly(sets.Values.OrderBy(set => set.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
@@ -84,6 +89,7 @@ public static class MatchDisplayQuery
             SaleAttributeBonuses = level?.SaleAttributeBonuses ?? Array.Empty<TaggedCardSaleAttributeBonus>(),
             BattleVictoryBonuses = level?.BattleVictoryBonuses ?? Array.Empty<BattleVictoryAttributeBonus>(),
             BattleValueBonus = level?.BattleValueBonus ?? 0,
+            AcquisitionAttributeBonuses = level?.AcquisitionAttributeBonuses ?? Array.Empty<TaggedCardAcquisitionAttributeBonus>(),
             OwnValues = values.SnapshotFinalValues(),
             Illustration = identity.Illustration,
             GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),

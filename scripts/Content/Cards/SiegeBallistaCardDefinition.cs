@@ -15,12 +15,12 @@ public sealed class SiegeBallistaCardDefinition : CardDefinition
             illustration: new StringName("res://art/ui/card-face/artwork/siege_ballista-illustration-action-v3.png"),
             descriptionEntries:
             [
-                new(CardKeywords.Activate, "冷却7秒，魔法消耗0，对敌方英雄造成160/320伤害。"),
-                new(CardKeywords.Echo, "当此卡牌获得疾速后，此卡牌攻击增加20/40，仅本场战斗生效。"),
+                new(CardKeywords.Activate, "冷却7秒，魔法消耗0，对敌方英雄造成80/160/320伤害。"),
+                new(CardKeywords.Echo, "当此卡牌获得疾速后，此卡牌攻击增加10/20/40，仅本场战斗生效。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
-                { [GameAttributeKeys.AttackDamage] = 160, [GameAttributeKeys.CooldownTicks] = 70 })),
-            new TagSet([GameTags.Mechanical]), initialLevel: 3,
-            levels: [CreateLevel(3, 160, 20), CreateLevel(4, 320, 40)]) { }
+                { [GameAttributeKeys.AttackDamage] = 80, [GameAttributeKeys.CooldownTicks] = 70 })),
+            new TagSet([GameTags.Mechanical]), initialLevel: 2,
+            levels: [CreateLevel(2, 80, 10), CreateLevel(3, 160, 20), CreateLevel(4, 320, 40)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int damage, int bonus) => new(level,
         new Dictionary<StringName, int> { [GameAttributeKeys.AttackDamage] = damage },

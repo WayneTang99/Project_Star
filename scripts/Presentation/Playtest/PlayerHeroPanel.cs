@@ -24,6 +24,7 @@ public sealed partial class PlayerHeroPanel : Control
         [new("hero.valos")] = new(2.8f, .42f, .02f),
     };
     public event Action<HeroSection>? SectionRequested;
+    public event Action<SkillSnapshot>? SkillDetailsRequested;
     private Label _name = null!;
     private Label _subtitle = null!;
     private HeroBattleStatusView _battle = null!;
@@ -135,7 +136,7 @@ public sealed partial class PlayerHeroPanel : Control
             foreach (var child in _skillIcons.GetChildren()) { _skillIcons.RemoveChild(child); child.QueueFree(); }
             foreach (var skill in skills.Take(skills.Count > 6 ? 5 : 6))
             {
-                var button = new Button { CustomMinimumSize = new Vector2(28, 28), TooltipText = Project_Star.Presentation.CardFace.CardDisplayAdapter.SkillDetails(skill) };
+                var button = new Button { CustomMinimumSize = new Vector2(28, 28), TooltipText = skill.DisplayName };
                 var style = MatchTheme.Surface(Colors.Transparent, new Color("c1aa76")); style.SetCornerRadiusAll(12);
                 style.ContentMarginLeft = style.ContentMarginRight = style.ContentMarginTop = style.ContentMarginBottom = 0;
                 button.AddThemeStyleboxOverride("normal", style); _skillIcons.AddChild(button);
@@ -147,7 +148,13 @@ public sealed partial class PlayerHeroPanel : Control
                         Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/RoundIcon.gdshader") } };
                     button.AddChild(art); art.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); art.OffsetLeft = art.OffsetTop = 1; art.OffsetRight = art.OffsetBottom = -1;
                 }
-                button.Pressed += () => SectionRequested?.Invoke(HeroSection.Skills);
+                button.Pressed += () => SkillDetailsRequested?.Invoke(skill);
+                button.GuiInput += input =>
+                {
+                    if (input is InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true }
+                        || input is InputEventKey { Keycode: Key.F10, ShiftPressed: true, Pressed: true, Echo: false })
+                    { button.GrabFocus(); SkillDetailsRequested?.Invoke(skill); button.AcceptEvent(); }
+                };
             }
             if (skills.Count > 6)
             {

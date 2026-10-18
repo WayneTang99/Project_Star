@@ -16,7 +16,7 @@ public sealed class AngelOfJusticeCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/angel_of_justice-illustration-redraw.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却4秒，魔法消耗0，对敌方英雄造成60/120/240伤害。"),
+                    new(CardKeywords.Activate, "冷却4秒，魔法消耗0，对敌方英雄造成60/120/240伤害，此卡牌进入飞行。"),
                     new(CardKeywords.Aura, "敌方战场存在未被摧毁的恶魔或亡灵卡牌时，此卡牌获得多重1；同时满足或存在多张时不重复叠加。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 { [GameAttributeKeys.AttackDamage] = 60, [GameAttributeKeys.CooldownTicks] = 40 })),
@@ -27,7 +27,7 @@ public sealed class AngelOfJusticeCardDefinition : CardDefinition
         new Dictionary<StringName, int> { [GameAttributeKeys.AttackDamage] = damage },
         [
             new AbilityDefinition("ability.attribute_attack", AbilityActivation.Active, AbilityTarget.EnemyHero,
-                0, 40, [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage)]),
+                0, 40, [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage), new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true)]),
             new AbilityDefinition("ability.enemy_tag_source_multicast_aura", AbilityActivation.PassiveAura,
                 AbilityTarget.SelfCard, 0, 0,
                 [new GrantSourceMulticastWhileEnemyTaggedEffectDefinition([GameTags.Demon, GameTags.Undead], 1)]),

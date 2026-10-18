@@ -18,7 +18,7 @@ public sealed class AscendantCardDefinition : CardDefinition
                 new(CardKeywords.Echo, "当此卡牌发动后，攻击力永久增加1/2/3/4；包含多重的额外发动。"),
                 new(CardKeywords.Quest, "累计发动20次，攻击力+80。"),
                 new(CardKeywords.Quest, "累计发动60次，获得多重1，此卡牌改为光属性。"),
-                new(CardKeywords.Quest, "累计发动100次，发动时额外施加此卡牌当前攻击力的10%灼伤（向下取整），并解锁：战斗开始时，此卡牌进入飞行。"),
+                new(CardKeywords.Quest, "累计发动100次，发动时额外施加此卡牌当前攻击力的10%灼伤（向下取整），并解锁，战斗开始时，此卡牌进入飞行。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             { [GameAttributeKeys.AttackDamage] = 1, [GameAttributeKeys.CooldownTicks] = 30 })),
             new TagSet([GameTags.Human]), initialLevel: 1,

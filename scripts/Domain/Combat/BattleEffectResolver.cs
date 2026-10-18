@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Linq;
+using System.Collections.Generic;
 using Godot;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
@@ -171,7 +172,8 @@ internal static class BattleEffectResolver
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case HealEffectDefinition heal:
-                var healing = checked(heal.Amount + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.HealingBonus));
+                if (!CanHeal(runtime, pending.Source.Side, heal)) break;
+                var healing = HealingAmount(runtime, pending.Source, heal);
                 var healingHero = heal.TargetsSourceHero ? runtime.GetHero(pending.Source.Side) : hero;
                 healingHero.Health = (int)Math.Min(healingHero.MaxHealth, (long)healingHero.Health + healing);
                 break;
@@ -241,6 +243,24 @@ internal static class BattleEffectResolver
                 if (appliedAmount > 0 && status.Status == BattleStatus.SlowDuration && !pending.IsEcho)
                     CombatSimulator.EnqueueSlowAppliedEchoes(runtime, pending.Source.Side);
                 break;
+            case TriggerOtherAlliedElementActivesEffectDefinition trigger:
+                var chain = pending.TriggerChain ?? new HashSet<EntityId> { pending.Source.EntityId };
+                foreach (var candidate in runtime.Cards.Where(card => card.Side == pending.Source.Side
+                    && card.EntityId != pending.Source.EntityId && !card.Destroyed && !card.IsOnBench
+                    && card.ElementKeys.Contains(trigger.ElementKey)
+                    && card.Abilities.Any(ability => ability.Definition.Activation == AbilityActivation.Active)))
+                {
+                    if (!chain.Add(candidate.EntityId)) continue;
+                    foreach (var active in candidate.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.Active))
+                        CombatSimulator.Enqueue(runtime, candidate, active, false, triggeredActivation: true, triggerChain: chain);
+                }
+                break;
+            case ActivateSourceCardEffectDefinition:
+                if (pending.Source is CardBattleState sourceCard)
+                    foreach (var active in sourceCard.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.Active))
+                        CombatSimulator.Enqueue(runtime, sourceCard, active, false, triggeredActivation: true,
+                            allowDestroyedSource: pending.AllowDestroyedSource, triggerChain: pending.TriggerChain);
+                break;
             case SetSourceCardStateEffectDefinition state:
                 if (pending.Source is not CardBattleState stateSource)
                     throw new InvalidOperationException("Card state requires a card source.");
@@ -291,7 +311,7 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Random card charge requires a card source.");
                 var chargeCandidates = runtime.Cards.Where(card => card.Side == randomChargeSource.Side
                     && card.EntityId != randomChargeSource.EntityId && !card.Destroyed && !card.IsOnBench
-                    && (randomCharge.RequiredTag is null || card.Tags.Contains(randomCharge.RequiredTag))
+                    && (randomCharge.RequiredTag is null || HasEffectiveTag(runtime, card, randomCharge.RequiredTag))
                     && card.Abilities.Any(ability => ability.Definition.Activation == AbilityActivation.Active
                         && ability.RemainingCooldownUnits > 0)).ToList();
                 for (var i = 0; i < randomCharge.TargetCount && chargeCandidates.Count > 0; i++)
@@ -346,7 +366,7 @@ internal static class BattleEffectResolver
                 break;
             case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
                 var targets = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
-                    && card.Tags.Contains(modifier.RequiredTag) && (modifier.RequiresAttributeSupport
+                    && HasEffectiveTag(runtime, card, modifier.RequiredTag) && (modifier.RequiresAttributeSupport
                         ? card.SupportsCombatAttribute(modifier.AttributeKey)
                         : card.CombatAttributes.ContainsKey(modifier.AttributeKey))).ToArray();
                 if (modifier.RandomSingleTarget && targets.Length > 0)
@@ -395,6 +415,7 @@ internal static class BattleEffectResolver
         BattleAbilityState ability, EffectDefinition effect, bool hasOpponent)
     {
         if (!hasOpponent && (effect is MaxHealthPercentDamageEffectDefinition
+            || effect is HealEffectDefinition { UnlessEnemyTag: not null }
             || effect is ApplyPrimaryEffectPercentStatusEffectDefinition
                 && ability.Definition.Effects.FirstOrDefault() is MaxHealthPercentDamageEffectDefinition)) return null;
         var pending = new PendingAbility(card, ability, false, false, runtime.Tick);
@@ -432,7 +453,8 @@ internal static class BattleEffectResolver
             ApplyStatusEffectDefinition value => value.Amount + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
             DamageEffectDefinition value => value.Amount,
-            HealEffectDefinition value => checked(value.Amount + Value(GameAttributeKeys.HealingBonus)),
+            HealEffectDefinition value => CanHeal(runtime, pending.Source.Side, value)
+                ? HealingAmount(runtime, pending.Source, value) : 0,
             HealMaxHealthPercentEffectDefinition value => checked((int)((long)target.MaxHealth * value.Percent / 100)
                 + Value(GameAttributeKeys.HealingBonus)),
             ArmorEffectDefinition value => value.Amount,
@@ -455,6 +477,16 @@ internal static class BattleEffectResolver
             _ => null,
         };
     }
+
+    // 系数按己方存活战场匹配元素的卡牌数计算，治疗加成在乘积外累加。
+    private static int HealingAmount(BattleRuntime runtime, IBattleAbilitySource source, HealEffectDefinition effect) => checked(
+        effect.Amount * (effect.PerAlliedElementKey is { } element
+            ? runtime.Cards.Count(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench && card.ElementKeys.Contains(element)) : 1)
+        + GetEffectiveCombatAttribute(runtime, source, GameAttributeKeys.HealingBonus));
+
+    private static bool CanHeal(BattleRuntime runtime, SideId side, HealEffectDefinition effect) =>
+        effect.UnlessEnemyTag is not { } tag || !runtime.Cards.Any(card => card.Side != side
+            && !card.Destroyed && !card.IsOnBench && HasEffectiveTag(runtime, card, tag));
 
     private static int AttributeDamageAmount(BattleRuntime runtime, PendingAbility pending, AttributeDamageEffectDefinition effect)
     {
@@ -583,6 +615,7 @@ internal static class BattleEffectResolver
                     if (effect is IncreaseAlliedCardAttributeAuraEffectDefinition aura
                         && target.SupportsCombatAttribute(aura.AttributeKey)
                         && (!aura.AttackCardsOnly || target.IsAttackCard)
+                        && (aura.RequiredTag is not { IsEmpty: false } requiredTag || HasEffectiveTag(runtime, target, requiredTag))
                         && (aura.ExtremeSide is not { } side || !runtime.Cards.Any(candidate =>
                             candidate.Side == target.Side && !candidate.Destroyed && !candidate.IsOnBench
                             && candidate.SupportsCombatAttribute(aura.AttributeKey)
@@ -736,6 +769,7 @@ internal static class BattleEffectResolver
             return runtime.Cards.Where(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench)
                 .OrderByDescending(card => card.BoardStart).FirstOrDefault();
         return runtime.Cards.FirstOrDefault(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench
+            && (pending.Ability.Definition.TargetCardTag is not { } tag || HasEffectiveTag(runtime, card, tag))
             && (pending.Ability.Definition.Target == AbilityTarget.LeftAdjacentAlliedCard
                 ? card.BoardStart + card.OccupiedSlots == source.BoardStart
                 : card.BoardStart == source.BoardStart + source.OccupiedSlots));
@@ -797,23 +831,34 @@ internal static class BattleEffectResolver
     {
         if (card.Destroyed) return card.DestroyedTags.Contains(tag);
         if (card.Tags.Contains(tag)) return true;
+        if (card.IsOnBench) return false;
         foreach (var source in runtime.AbilitySources)
         {
-            if (source.Side == card.Side || source.Destroyed || source.IsOnBench) continue;
+            if (source.Destroyed || source.IsOnBench) continue;
             foreach (var ability in source.Abilities)
             foreach (var effect in ability.Definition.Effects)
             {
-                if (ability.Definition.Activation == AbilityActivation.PassiveAura
-                    && effect is GrantTagToEnemySizeCardsEffectDefinition aura
-                    && aura.Tag == tag
-                    && (int)aura.Size == card.OccupiedSlots)
-                {
-                    return true;
-                }
+                if (ability.Definition.Activation != AbilityActivation.PassiveAura) continue;
+                if (source.Side == card.Side && effect is GrantTagToAlliedElementCardsEffectDefinition allied
+                    && allied.Tag == tag && card.ElementKeys.Contains(allied.ElementKey)) return true;
+                if (source.Side != card.Side && effect is GrantTagToEnemySizeCardsEffectDefinition enemy
+                    && enemy.Tag == tag && (int)enemy.Size == card.OccupiedSlots) return true;
             }
         }
         return false;
     }
+
+    // 标签仅在查询与回放副本中合并，不改写卡牌原身份或永久标签。
+    internal static StringName[] EffectiveTags(BattleRuntime runtime, CardBattleState card) => card.Destroyed
+        ? card.DestroyedTags.ToArray()
+        : card.Tags.Concat(runtime.AbilitySources.Where(source => !source.Destroyed && !source.IsOnBench)
+            .SelectMany(source => source.Abilities).Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
+            .SelectMany(ability => ability.Definition.Effects).Select(effect => effect switch
+            {
+                GrantTagToAlliedElementCardsEffectDefinition allied => allied.Tag,
+                GrantTagToEnemySizeCardsEffectDefinition enemy => enemy.Tag,
+                _ => null,
+            }).Where(tag => tag is not null && HasEffectiveTag(runtime, card, tag)).Cast<StringName>()).Distinct().ToArray();
 
     // 先筛选空闲原位置，修复只操作已有Runtime，不重建身份或重放开战能力。
     private static void RepairRandomDestroyedAlliedCard(BattleRuntime runtime, PendingAbility pending,
@@ -841,25 +886,13 @@ internal static class BattleEffectResolver
     private static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent)
     {
         if (target.Destroyed) return;
-        foreach (var tag in target.Tags) target.DestroyedTags.Add(tag);
-        foreach (var source in runtime.AbilitySources)
-        {
-            if (source.Side == target.Side || source.Destroyed || source.IsOnBench) continue;
-            foreach (var ability in source.Abilities)
-            foreach (var effect in ability.Definition.Effects)
-            {
-                if (ability.Definition.Activation == AbilityActivation.PassiveAura
-                    && effect is GrantTagToEnemySizeCardsEffectDefinition aura
-                    && (int)aura.Size == target.OccupiedSlots)
-                {
-                    target.DestroyedTags.Add(aura.Tag);
-                }
-            }
-        }
+        foreach (var tag in EffectiveTags(runtime, target)) target.DestroyedTags.Add(tag);
         target.Destroyed = true;
         runtime.Queue.CancelSource(target);
         runtime.ScheduledMulticasts.RemoveAll(item => ReferenceEquals(item.Ability.Source, target));
         runtime.Events.Add(new CardDestroyedEvent(runtime.Tick, target.EntityId, target.Side, sourceId));
+        foreach (var ability in target.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.EchoOnSourceDestroyed))
+            CombatSimulator.Enqueue(runtime, target, ability, true, allowDestroyedSource: true);
         if (permanent && target.SummonedCard is null) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
     }
 

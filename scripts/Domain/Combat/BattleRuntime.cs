@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -20,6 +20,7 @@ internal sealed class HeroBattleState
     public EntityId EntityId { get; }
     public HeroIdentityAttributes? Identity { get; }
     public int MaxHealth { get; set; }
+    public int MaxHealthAuraBonus { get; set; }
     public int Level { get; }
     public int Health { get; set; }
     public int Armor { get; set; }
@@ -245,6 +246,9 @@ internal sealed record PendingAbility(
 {
     public int PrimaryValue { get; init; }
     public bool SuppressEchoes { get; init; }
+    public bool IsTriggeredActivation { get; init; }
+    public bool AllowDestroyedSource { get; init; }
+    public HashSet<EntityId>? TriggerChain { get; init; }
 }
 
 internal sealed class AbilityQueue

@@ -53,11 +53,13 @@ public sealed class EncounterScheduler
         var available = _registry.Encounters.Values
             .Where(value => value.MinimumRound <= session.Progress.Round
                 && session.Progress.Round <= value.MaximumRound
-                && InitialLevel(value) <= maximumInitialLevel)
+                && InitialLevel(value) <= maximumInitialLevel
+                && value.CanAppearFor(session.Player.Hero?.Attributes.Identity))
             .OrderBy(value => value.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList();
         var allDefinitions = _registry.Encounters.Values
             .Concat(_registry.Monsters.Values.Select(monster => new MonsterEncounterDefinition(monster)))
+            .Where(value => value.CanAppearFor(session.Player.Hero?.Attributes.Identity))
             .OrderBy(value => value.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .ToList();
         List<EncounterDefinition> selected;

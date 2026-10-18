@@ -1,4 +1,4 @@
-# 内容数据规范
+﻿# 内容数据规范
 
 正式内容统一维护在 [scripts/Content/](../../scripts/Content/) 的 C# Definition 中，是运行时与编辑时的唯一数据来源。玩法以 [游戏规则](GAME_DESIGN.md) 为准，命名以 [术语表](GLOSSARY.md) 为准。
 
@@ -13,6 +13,8 @@
 内容增删改查使用项目内的 [project-star-content-definition Skill](../../.codex/skills/project-star-content-definition/SKILL.md)：查询从当前定义读取数据，修改和删除追踪实际引用，内容变更执行构建与行为验证。查询结果可以临时展示或按需导出，内容数据仍统一维护在 Definition。
 
 ## 卡牌
+
+`IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition`按己方存活战场卡牌的有效标签数量提供英雄最大生命光环，包含符合标签的来源自身；备战、敌方和已摧毁卡牌排除。多个来源累加，数量或来源有效性变化时按总贡献差值更新最大生命和当前生命，保留已损失生命量，撤销加成时最低保留1生命，不复活已死亡英雄；仅本场有效，不回写对局。备战英雄展示复用领域层只读光环预览。
 
 `MultiplyReceivedCardStatusDurationEffectDefinition` 配置持续状态与正整数倍率，仅允许战场自身光环，可复用于疾速、迟缓、禁锢。目标每次实际获得状态时，将施加来源的时长加成及该次施加倍率计算后的新增贡献再乘目标光环倍率；多个目标倍率相乘，飞行减时长在其后处理。只影响新增贡献，已有时长继续自然衰减，不追溯放大或撤销，不写回对局；来源备战、摧毁或转变失去光环后不再提供倍率。
 
@@ -364,6 +366,14 @@
 
 ## 扩展与验证
 
+`ApplyStatusToRandomEnemyCardEffectDefinition.RequiredTag`可按当前有效标签筛选敌方存活战场卡牌，随机选择不重复，数量不足时选全部，无候选不推进随机。`HealEffectDefinition.UnlessEnemyTag`仅在敌方没有该标签的存活战场卡牌时治疗，包含治疗加成，并在每次实际发动及多重时重新判断；备战与摧毁卡牌不阻止治疗。未配置这些字段时保留原行为，未知敌方时保留条件提示，已知敌方时冻结当前治疗施加量。
+
+`TaggedCardAcquisitionAttributeBonus`在成功获得其他指定标签卡牌后，为战场区和备战区的来源累加永久属性；属于交易词条。购买、掉落、奖励与合并获得均每次结算一次，不补计历史库存，游离库存来源、合并消耗及失败获得不触发。各获得入口先校验全部成长贡献的基值和最终值溢出，再提交获得及成长；升级替换当前等级增量并保留已有成长。自身获得效果仍使用拾取词条。
+
+`IncreaseAlliedCardAttributeAuraEffectDefinition.RequiredTag`可限定受益卡牌的当前有效标签，未配置时沿用原范围；仍只增强目标已有对应属性能力，包含零基值但支持该能力的目标。`SourceValueMultiplier`读取开战冻结的来源当前价值，多来源累计，来源在备战或被摧毁时不提供贡献，旧战斗及回放不受后续价值成长影响。
+
+相邻发动回响使用 `TriggerCardTag` 筛选发动者；相邻效果目标可通过 `TargetCardTag` 独立限定标签。目标仍按完整占格边界选择直接相邻的己方存活战场卡牌，标签不匹配时跳过效果，不跨过该卡牌寻找其他目标；快照和等级预览保留两侧筛选条件。
+
 `ChargeRandomOtherAlliedElementCardEffectDefinition.ExcludeEventCard`可在匹配己方卡牌发动的回响中排除本次发动者；默认关闭，保留原有排除效果来源的行为。候选仅限己方存活战场、指定元素且有主动剩余冷却的卡牌，无候选不消耗随机数。回响充能至零产生的主动发动照常支付魔法、重置冷却与执行多重，但该发动及其多重不再触发回响；之后独立正常发动恢复回响。
 
 `IncreaseLeftmostPoisonCardOnSellDefinition`在成功出售后，为己方战场最左侧实际施加中毒的卡牌累加永久`PoisonBonus`；包含固定量、属性量、百分比、回响与已解锁能力，跳过备战区和出售来源。无目标时正常出售；加成在百分比取整后累加一次，再应用发动狂暴，升级保留，旧战斗与回放不受影响。出售前校验加成及施加量溢出。
@@ -394,3 +404,21 @@
 英雄升级词条使用`keyword.upgrade`与`PassiveOnHeroLevelUp`。各应用层经验渠道统一调用`HeroExperienceService.Grant`；一次经验连续升多级时逐级结算冻结来源。`SocketRandomSourceGemEffectDefinition`为来源第一个空孔随机镶嵌宝石，允许备战时由`AllowsBench`指定；从创建对局时注入的正式宝石池按key稳定排序等概率选择，允许重复，空池／孔满／无可镶嵌目标不消耗随机数。既有孔位不替换，卡牌合并不触发英雄升级；旧战斗输入与快照保持冻结。
 
 `GrantValuePercentExperienceOnSellDefinition`配置出售经验占最终价值的百分比（1～100），由出售用例向下取整后交给统一英雄经验结算；与常规金币回补同时执行，不从基础价值计算。提交前使用只读经验预检，校验升级等级、最大生命和最大魔法的溢出；英雄升级后的持续属性通过现有棋盘刷新重算。该奖励可在Definition或等级配置中复用，UI读取同一奖励定义生成出售说明。
+
+
+### 商店筛选与遭遇资格
+
+`CardShopEncounterDefinition.RequiredSize`为空时不限制卡牌尺寸；`OnlyHeroFaction`默认true，仅允许当前英雄归属，设为false时跨所有归属（含无阵营）；`RequiredTag`可选地限定卡牌必须具备的标签。型号商店沿用原有尺寸与归属限制。首批商品、单件抽取及付费刷新共享同一合格池和等级／满级排除规则，不按具体遭遇key分支。
+`EncounterIdentityAttributes.AllowedHeroKeys`是只读英雄key白名单；不传或空列表表示所有英雄，非空列表仅允许所列英雄（无英雄时不合格）。构造时复制并冻结，拒绝空key及重复项；注册时校验每个引用英雄存在。`EncounterDefinition.CanAppearFor`统一按英雄身份key判断，不需要子类覆写。普通、固定怪物和PvP排程均在抽选前调用，和商店商品池的跨职业条件独立。新增受限遭遇只需在自身Definition配置该列表。具体英雄、等级、轮次及权重只维护在对应Definition。
+
+### 元素计数、有效标签与额外发动
+
+`HealEffectDefinition.PerAlliedElementKey` 可按己方存活战场指定元素卡牌数量乘以治疗系数，包含来源自身，排除备战、敌方和已摧毁卡牌；治疗加成在乘积之后累加。卡面读取冻结最终治疗，详情保留公式与加成。
+
+`GrantTagToAlliedElementCardsEffectDefinition` 为持续光环，按元素向己方存活战场卡牌提供有效标签，不修改实例原始标签。筛选、标签计数和回放读取统一有效标签；来源失效只撤销自身贡献，多来源及原生标签保留。`ReduceAlliedElementCardCooldownAuraEffectDefinition.RequiredTag` 可进一步限定有效标签。
+
+`TriggerOtherAlliedElementActivesEffectDefinition` 按稳定战场顺序额外发动己方其他存活战场指定元素卡牌的主动能力，跳过魔法与剩余冷却检查，不修改目标原冷却，包含多重。一次触发链共享已发动卡牌集合，来源先加入集合，每张目标卡牌最多被额外发动一次；延迟多重继承同一集合。
+
+亡语使用 `keyword.deathrattle` 与 `EchoOnSourceDestroyed`，仅在战场来源真实被摧毁后结算一次，普通及永久摧毁均触发；摧毁仍取消原有排队和多重。`ActivateSourceCardEffectDefinition` 可组合为发动来源主动效果，只有亡语明确排入的能力允许已摧毁来源执行；不恢复卡牌、光环或正常冷却发动。
+
+`CardShopEncounterDefinition.RequiredElement` 可限制商品元素，与尺寸、标签和职业条件取交集；双元素卡包含目标元素即可。未配置时不限制元素，商品池、单件抽取和刷新共用此筛选。英雄刷新资格仍使用 `AllowedHeroKeys`，与跨职业商品池独立。

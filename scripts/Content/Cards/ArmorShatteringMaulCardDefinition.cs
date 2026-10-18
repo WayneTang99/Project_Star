@@ -6,13 +6,13 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 碎甲重锤圣骑士装备：将己方英雄当前护甲消耗为伤害（内容层）。
+// 破碎之星圣骑士长斧装备：将己方英雄当前护甲消耗为伤害（内容层）。
 public sealed class ArmorShatteringMaulCardDefinition : CardDefinition
 {
     public ArmorShatteringMaulCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
-            new StringName("card.armor_shattering_maul"), "碎甲重锤", new StringName("paladin"), CardSize.Large, [GameElements.Light],
-            illustration: new StringName("res://art/ui/card-face/artwork/armor_shattering_maul-illustration.png"),
+            new StringName("card.armor_shattering_maul"), "破碎之星", new StringName("paladin"), CardSize.Large, [GameElements.Light],
+            illustration: new StringName("res://art/ui/card-face/artwork/shattered_star-illustration-redraw-20261016.png"),
             descriptionEntries:
             [new(CardKeywords.Activate, "冷却6秒，魔法消耗0，己方英雄失去当前全部护甲，对敌方英雄造成等同于实际失去护甲值×5的伤害。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 60 })),

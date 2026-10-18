@@ -27,6 +27,12 @@ public sealed partial class MatchShell : Control
     public event Action<Guid, Project_Star.Domain.Common.EntityId, int, int>? DragSellRequested;
     public event Func<BoardDragData, Result<int>>? SellPreviewRequested;
     public event Action<Guid, int, long>? ClaimRequested;
+    public event Action? NewJourneyRequested;
+    private GameLobbyView _lobby = null!;
+    private AtlasHubView _atlas = null!;
+    private Button _heroBack = null!;
+    private bool _lobbyEnabled, _choosingFromLobby, _atlasBrowsing;
+    public bool IsLobbyNavigationActive => _lobbyEnabled && (_lobby.Visible || _choosingFromLobby || _atlasBrowsing);
     private TopBar _top = null!;
     private ContextPortrait _portrait = null!;
     private PlayerHeroPanel _hero = null!;
@@ -156,7 +162,7 @@ public sealed partial class MatchShell : Control
         _bench = Add(GetNode<Control>("BenchRow/Content"), new BoardZoneView { Name = "Board", ShowHeading = false });
         _details = Add(this, new CardDetailsView { Name = "CardDetails", ZIndex = 40 });
         _cardPreview = Add(this, new CardPreviewView { Name = "CardPreview", ZIndex = 55 });
-        _secondary = Add(this, new HeroDetailsView { Name = "HeroDetails", ZIndex = 9 });
+        _secondary = Add(this, new HeroDetailsView { Name = "HeroDetails", ZIndex = 45 });
         _toast = Add(this, new PanelContainer { Name = "Toast", ZIndex = 40, MouseFilter = MouseFilterEnum.Ignore, Visible = false });
         var toastPlate = MatchTheme.Surface(new Color("243a2f"), MatchTheme.Gold);
         toastPlate.ContentMarginLeft = toastPlate.ContentMarginRight = 24; toastPlate.ContentMarginTop = toastPlate.ContentMarginBottom = 12;
@@ -172,11 +178,22 @@ public sealed partial class MatchShell : Control
         _shop.BuyRequested += Buy; _leave.Requested += RequestAction;
         _shop.DetailsRequested += ShowDetails; _details.SellRequested += Sell; _details.Closed += CloseDetails;
         _result.ClaimRequested += Claim; _result.DetailsRequested += ShowDetails;
-        _hero.SectionRequested += ShowSection; _secondary.ClaimRequested += Claim; _secondary.DetailsRequested += ShowDetails;
+        _hero.SkillDetailsRequested += ShowSkill; _hero.SectionRequested += ShowSection; _secondary.ClaimRequested += Claim; _secondary.DetailsRequested += ShowDetails;
         _battlefield.SlotPressed += BattlefieldSlot; _bench.SlotPressed += BenchSlot;
         _battlefield.PreviewRequested = PreviewMove; _bench.PreviewRequested = PreviewMove;
         _battlefield.DropRequested += DropMove; _bench.DropRequested += DropMove;
         _battlefield.DetailsRequested += ShowDetails; _bench.DetailsRequested += ShowDetails; _enemy.DetailsRequested += ShowDetails;
+        _lobby = Add(this, new GameLobbyView { Name = "GameLobby", ZIndex = 20 });
+        _atlas = Add(this, new AtlasHubView { Name = "AtlasHub", ZIndex = 25 });
+        _heroBack = Add(this, new Button { Name = "BackToLobby", Text = "返回大厅", ZIndex = 10, Visible = false });
+        _lobby.StartRequested += OpenLobbyHeroes; _lobby.ResumeRequested += ResumeJourney;
+        _lobby.AtlasRequested += () => { _atlasBrowsing = true; _lobby.Hide(); _atlas.Open(); UpdateLobbyInput(); };
+        _lobby.SettingsRequested += OpenSettings;
+        _atlas.Closed += () => { _atlasBrowsing = false; _lobby.Open(_view?.Player?.Status == MatchStatus.InProgress); _lobby.GetNode<Button>("SceneStage/Atlas").GrabFocus(); UpdateLobbyInput(); };
+        _atlas.CardsRequested += OpenCatalog; _atlas.SkillsRequested += OpenSkillCatalog;
+        _atlas.CardRequested += ShowDetails; _atlas.SkillRequested += ShowSkill;
+        _heroBack.Pressed += ShowLobby;
+        _menu.LobbyRequested += ShowLobby;
         Resized += LayoutShell; LayoutShell();
         GetTree().NodeAdded += AddButtonFeedback;
         foreach (var button in FindChildren("*", "BaseButton", true, false).OfType<BaseButton>()) AddButtonFeedback(button);
@@ -226,7 +243,7 @@ public sealed partial class MatchShell : Control
         _gemShop.Render(view.Player, view.GemOffers);
         if (view.Page is MatchPage.BattleResult or MatchPage.MatchEnded) _result.Render(view);
         var browsing = _catalog.Visible || _skillCatalog.Visible;
-        _heroes.Visible = view.Page == MatchPage.HeroSelection && !browsing;
+        _heroes.Visible = (view.Page == MatchPage.HeroSelection || _choosingFromLobby) && !browsing && !(_lobbyEnabled && _lobby.Visible);
         _encounters.Visible = view.Page == MatchPage.EncounterChoice;
         _events.Visible = view.Page == MatchPage.Event;
         _shop.Visible = view.Page == MatchPage.Shop;
@@ -251,8 +268,12 @@ public sealed partial class MatchShell : Control
         _battlefield.RenderBattle(view.Playback); _enemy.RenderBattle(view.Playback); _bench.RenderBattle(view.Playback);
         if (_page != view.Page) { _battlefield.ClearFeedback(); _bench.ClearFeedback(); _enemy.ClearFeedback(); }
         var pageChanged = _page != view.Page;
+        if (_lobbyEnabled && view.Page == MatchPage.HeroSelection && _page != MatchPage.HeroSelection && !_choosingFromLobby)
+        {
+            _lobby.Open(false); _heroes.Hide();
+        }
         _page = view.Page;
-        LayoutShell();
+        LayoutShell(); UpdateLobbyInput();
         if (view.Playback is not null) _progress.RenderPlayback(string.Join("\n", view.Playback.Feedback));
         var selected = view.Player?.Cards.FirstOrDefault(card => card.Id == view.SelectedCardId);
         if (selected is not null)
@@ -293,7 +314,7 @@ public sealed partial class MatchShell : Control
         _shop.BuyRequested -= Buy; _leave.Requested -= RequestAction;
         _shop.DetailsRequested -= ShowDetails; _details.SellRequested -= Sell; _details.Closed -= CloseDetails;
         _result.ClaimRequested -= Claim; _result.DetailsRequested -= ShowDetails;
-        _hero.SectionRequested -= ShowSection; _secondary.ClaimRequested -= Claim; _secondary.DetailsRequested -= ShowDetails;
+        _hero.SkillDetailsRequested -= ShowSkill; _hero.SectionRequested -= ShowSection; _secondary.ClaimRequested -= Claim; _secondary.DetailsRequested -= ShowDetails;
         _battlefield.SlotPressed -= BattlefieldSlot; _bench.SlotPressed -= BenchSlot;
         _battlefield.PreviewRequested = null; _bench.PreviewRequested = null;
         _battlefield.DropRequested -= DropMove; _bench.DropRequested -= DropMove;
@@ -315,7 +336,50 @@ public sealed partial class MatchShell : Control
         if (!open) _benchToggle.GrabFocus();
     }
 
-    private void SelectHero(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.HeroSelection, key, revision);
+    private void SelectHero(StringName key, long revision)
+    {
+        if (_choosingFromLobby && _view?.Player is not null) NewJourneyRequested?.Invoke();
+        _choosingFromLobby = false; _lobby.Hide(); _heroBack.Hide(); UpdateLobbyInput();
+        ChoiceSelected?.Invoke(MatchPage.HeroSelection, key, revision);
+    }
+    public void EnableLobby()
+    {
+        _lobbyEnabled = true;
+        _menu.GetNode<Button>("ItemsPanel/Items/OpenCardCatalog").Hide();
+        _menu.GetNode<Button>("ItemsPanel/Items/OpenSkillCatalog").Hide();
+        ShowLobby();
+    }
+    public void SetWorldCatalog(IReadOnlyList<WorldCatalogEntry> entries) => _atlas.SetEntries(entries);
+    public void ShowLobby()
+    {
+        _benchOpen = false; _toast.Hide(); _toastTween?.Kill();
+        _choosingFromLobby = _atlasBrowsing = false; _atlas.Hide(); _catalog.Hide(); _skillCatalog.Hide();
+        _menu.Close(); _details.Hide(); _secondary.Hide(); _cardPreview.Close(); _settings.Hide();
+        _heroes.Hide(); _heroBack.Hide(); _lobby.Open(_view?.Player?.Status == MatchStatus.InProgress);
+        UpdateLobbyInput();
+    }
+    private void OpenLobbyHeroes()
+    {
+        _lobby.Hide(); _choosingFromLobby = true;
+        foreach (var view in new Control[] { _encounters, _events, _shop, _gemShop, _result, _battleStage, _enemy }) view.Hide();
+        _heroes.Show(); _heroBack.Show();
+        LayoutShell(); UpdateLobbyInput(); _heroes.GetNode<Button>("Choose").GrabFocus();
+    }
+    private void ResumeJourney()
+    { _lobby.Hide(); _choosingFromLobby = false; UpdateLobbyInput(); if (_view is not null) Render(_view); _menuButton.GrabFocus(); }
+    private void UpdateLobbyInput()
+    {
+        if (!_lobbyEnabled) return;
+        var blocked = _lobby.Visible || _atlasBrowsing;
+        foreach (var child in GetChildren().OfType<Control>())
+        {
+            if (child == _lobby || child == _atlas || child == _catalog || child == _skillCatalog || child == _settings
+                || child == _cardPreview || child == _details || child == _secondary) continue;
+            child.ProcessMode = blocked ? ProcessModeEnum.Disabled : ProcessModeEnum.Inherit;
+        }
+        _menuButton.Visible = !_lobby.Visible && !_choosingFromLobby && !_atlasBrowsing;
+        _heroBack.Visible = _choosingFromLobby;
+    }
     private void SelectEncounter(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.EncounterChoice, key, revision);
     private void SelectEvent(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.Event, key, revision);
     private void Buy(int index, long revision) => BuyRequested?.Invoke(index, revision);
@@ -328,16 +392,24 @@ public sealed partial class MatchShell : Control
     }
     public event Action<Guid>? AbandonRequested;
     private void Abandon(Guid matchId) => AbandonRequested?.Invoke(matchId);
-    private void OpenSettings() { if (!_catalog.Visible && !_skillCatalog.Visible) _settings.Open(); }
+    private void OpenSettings()
+    {
+        if (_catalog.Visible || _skillCatalog.Visible) return;
+        // Godot鼠标命中按场景树顺序；仅提高ZIndex无法越过后创建的大厅。
+        MoveChild(_settings, GetChildCount() - 1);
+        _settings.Open();
+    }
     // 入口在真正启动游戏时载入显示配置，验证夹具不修改用户窗口设置。
     public void LoadDisplaySettings() => _settings.LoadSaved();
     // 图鉴内容由入口的应用查询注入，不读取对局状态。
-    public void SetCatalog(IReadOnlyList<CardCatalogEntry> entries) => _catalog.SetEntries(entries);
+    public void SetCatalog(IReadOnlyList<CardCatalogEntry> entries) { _catalog.SetEntries(entries); _details.SetEntries(entries); _cardPreview.SetEntries(entries); }
 
     // 原生视图共享只读等级／宝石查询，卡面补充当前套装展示信息。
     public void SetCardPreview(CardPreviewQuery query) { _previewQuery = query; _cardPreview.SetQuery(query); }
-    public CardSnapshot DescribeCard(CardSnapshot card) => _catalog?.Visible == true ? card : _previewQuery?.Describe(card,
+    public CardSnapshot DescribeCard(CardSnapshot card) => (_catalog?.Visible == true || _atlasBrowsing) ? card : _previewQuery?.Describe(card,
         _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true ? _view.Enemy : _view?.Player) ?? card;
+    private void ShowSkill(SkillSnapshot skill) { _details.Hide(); _secondary.ShowSkill(skill, Size); }
+
     // 技能图鉴同样只接收应用查询的冻结条目。
     public void SetSkillCatalog(IReadOnlyList<SkillCatalogEntry> entries) => _skillCatalog.SetEntries(entries);
     private void OpenCatalog()
@@ -347,6 +419,7 @@ public sealed partial class MatchShell : Control
     }
     private void CloseCatalog()
     {
+        if (_atlasBrowsing) { _atlas.ReturnFromCatalog(new StringName("cards")); UpdateLobbyInput(); return; }
         _heroes.Visible = _page == MatchPage.HeroSelection; _menuButton.GrabFocus();
     }
     private void OpenSkillCatalog()
@@ -356,6 +429,7 @@ public sealed partial class MatchShell : Control
     }
     private void CloseSkillCatalog()
     {
+        if (_atlasBrowsing) { _atlas.ReturnFromCatalog(new StringName("skills")); UpdateLobbyInput(); return; }
         _heroes.Visible = _page == MatchPage.HeroSelection; _menuButton.GrabFocus();
     }
     // 开发日志的打开与关闭不发出对局命令。
@@ -371,7 +445,7 @@ public sealed partial class MatchShell : Control
     {
         _details.Hide();
         var opponent = _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true;
-        _cardPreview.Open(_catalog.Visible ? card : DescribeCard(card), _catalog.Visible ? null : opponent ? _view?.Enemy : _view?.Player, _catalog.Visible ? null : opponent ? _view?.Player : _view?.Enemy);
+        _cardPreview.Open(_catalog.Visible || _atlasBrowsing ? card : DescribeCard(card), _catalog.Visible || _atlasBrowsing ? null : opponent ? _view?.Enemy : _view?.Player, _catalog.Visible || _atlasBrowsing ? null : opponent ? _view?.Player : _view?.Enemy);
     }
     // 图鉴卡牌与棋盘共用右键预览入口。
     public void ShowCardPreview(CardSnapshot card, Rect2 rect) => ShowDetails(card, rect);
@@ -399,6 +473,12 @@ public sealed partial class MatchShell : Control
 
     public override void _UnhandledKeyInput(InputEvent input)
     {
+        if (_lobbyEnabled && IsLobbyNavigationActive)
+        {
+            if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _choosingFromLobby)
+            { ShowLobby(); GetViewport().SetInputAsHandled(); }
+            return;
+        }
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _benchOpen)
         { CloseBench(); GetViewport().SetInputAsHandled(); return; }
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape })
@@ -424,7 +504,7 @@ public sealed partial class MatchShell : Control
         if (_layingOut || _desktopScroll is null) return;
         _layingOut = true;
         const float margin = 32;
-        var choosing = _page == MatchPage.HeroSelection;
+        var choosing = _page == MatchPage.HeroSelection || _choosingFromLobby;
         var width = Size.X - margin * 2;
         var center = Size.X / 2;
         var battle = _battleStage.Visible;
@@ -434,6 +514,7 @@ public sealed partial class MatchShell : Control
         _tableSurface.Position = new Vector2(center - 675, 130); _tableSurface.Size = new Vector2(1350, 720);
         _tableSurface.Visible = !choosing; _tableSurface.Texture = MatchTheme.Skin.TableSurface;
         _tableSurface.Material = MatchTheme.Skin.SurfaceEffect;
+        _top.Visible = !_choosingFromLobby;
         _top.Position = new Vector2(margin, 0); _top.Size = new Vector2(width, 64);
         _stageRect = new Rect2(center - 560, 250, 1120, 230);
         _heroRect = new Rect2(center - 600, 750, 1200, 124);
@@ -484,9 +565,11 @@ public sealed partial class MatchShell : Control
         _menuButton.Position = new Vector2(Size.X - margin - 96, 12); _menuButton.Size = new Vector2(96, 40);
         _menu.Position = Vector2.Zero; _menu.Size = Size;
         _economy.Position = new Vector2(center - 584, 760); _economy.Size = new Vector2(100, 74);
+        _lobby.Position = _atlas.Position = Vector2.Zero; _lobby.Size = _atlas.Size = Size;
+        _heroBack.Position = new Vector2(Size.X - 152, 22); _heroBack.Size = new Vector2(120, 40);
         _settings.Position = Vector2.Zero; _settings.Size = Size;
-        _catalog.Position = new Vector2(margin, margin); _catalog.Size = Size - Vector2.One * margin * 2;
-        _cardPreview.Position = Vector2.Zero; _cardPreview.Size = Size;
+        _catalog.Position = Vector2.Zero; _catalog.Size = Size;
+        _cardPreview.Position = Vector2.Zero; _cardPreview.SetBounds(Size);
         _skillCatalog.Position = _catalog.Position; _skillCatalog.Size = _catalog.Size;
         _details.ClampTo(Size); _secondary.ClampTo(Size);
         _sellDrop.Position = Vector2.Zero; _sellDrop.Size = Size;
@@ -498,6 +581,8 @@ public sealed partial class MatchShell : Control
     // 固定16:9画布隐藏整页滚动；浮层和图鉴自行消费滚轮。
     public override void _Input(InputEvent input)
     {
+        if (_lobbyEnabled && _lobby.Visible && !_atlasBrowsing && !_settings.Visible && input is InputEventKey { Pressed: true } lobbyKey)
+        { MatchMenuView.TrapTab(_lobby, lobbyKey); return; }
         if (_cardPreview.Visible) return;
         if (!_desktopScroll.Visible || _catalog.Visible || _skillCatalog.Visible || _secondary.Visible
             || _details.Visible && _details.GetGlobalRect().HasPoint(GetGlobalMousePosition())) return;

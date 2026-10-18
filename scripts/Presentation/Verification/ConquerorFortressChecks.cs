@@ -55,7 +55,7 @@ internal static class ConquerorFortressChecks
                 || result.PermanentChanges.Any() || result.PermanentAttributeBonuses.Any()
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
-            if (!CardDisplayAdapter.Details(snapshot).Contains("回响：") || !CardDisplayAdapter.Details(snapshot).Contains("40/80")
+            if (!CardDisplayAdapter.Details(snapshot).Contains("回响　") || !CardDisplayAdapter.Details(snapshot).Contains("40/80")
                 || !CardDisplayAdapter.AbilityDetails(snapshot.Abilities).Contains("当敌方存活战场卡牌发动后")) return false;
         }
         return true;

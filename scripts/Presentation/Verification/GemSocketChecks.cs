@@ -65,7 +65,7 @@ internal static class GemSocketChecks
                 || sockets.GetChild<Panel>(2).GetThemeStylebox("panel") is not StyleBoxTexture filledStyle
                 || empty.Texture == filledStyle.Texture
                 || sockets.GetChildren().Cast<Panel>().Any(socket => socket.RotationDegrees != 45)
-                || !details.Contains("孔1：空孔") || !details.Contains("孔3：测试红宝石")) return false;
+                || !details.Contains("孔1　空孔") || !details.Contains("孔3　测试红宝石")) return false;
             face.SetCard(new CardDisplayAdapter().Build(MatchDisplayQuery.FromOffer(ShopOffer.Create(new SocketCard(0)))));
             if (sockets.GetChildCount() != 0 || sockets.Visible) return false;
             foreach (var level in Enumerable.Range(1, 5))

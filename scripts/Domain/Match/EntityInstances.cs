@@ -31,7 +31,8 @@ public sealed class CardInstance
         IReadOnlyList<CardQuestDefinition>? quests = null,
         IReadOnlyList<TaggedCardSaleAttributeBonus>? saleAttributeBonuses = null,
         IReadOnlyList<BattleVictoryAttributeBonus>? battleVictoryBonuses = null,
-        int battleValueBonus = 0)
+        int battleValueBonus = 0,
+        IReadOnlyList<TaggedCardAcquisitionAttributeBonus>? acquisitionAttributeBonuses = null)
     {
         Id = id;
         _attributes = attributes ?? throw new ArgumentNullException(nameof(attributes));
@@ -42,6 +43,7 @@ public sealed class CardInstance
         BattleVictoryBonuses = battleVictoryBonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
         ArgumentOutOfRangeException.ThrowIfNegative(battleValueBonus);
         BattleValueBonus = battleValueBonus;
+        AcquisitionAttributeBonuses = acquisitionAttributeBonuses ?? Array.Empty<TaggedCardAcquisitionAttributeBonus>();
         Quests = quests is null ? Array.Empty<CardQuestDefinition>() : new List<CardQuestDefinition>(quests).AsReadOnly();
         _gemSockets = new GemDefinition?[attributes.Identity.GemSocketCount];
         GemSockets = Array.AsReadOnly(_gemSockets);
@@ -73,6 +75,7 @@ public sealed class CardInstance
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; private set; }
     public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; private set; }
     public int BattleValueBonus { get; private set; }
+    public IReadOnlyList<TaggedCardAcquisitionAttributeBonus> AcquisitionAttributeBonuses { get; private set; }
 
     public IReadOnlyList<CardQuestDefinition> Quests { get; }
 
@@ -129,6 +132,9 @@ public sealed class CardInstance
         BattleVictoryBonuses = bonuses ?? Array.Empty<BattleVictoryAttributeBonus>();
 
     internal void ReplaceBattleValueBonus(int amount) => BattleValueBonus = amount;
+
+    internal void ReplaceAcquisitionAttributeBonuses(IReadOnlyList<TaggedCardAcquisitionAttributeBonus>? bonuses) =>
+        AcquisitionAttributeBonuses = bonuses ?? Array.Empty<TaggedCardAcquisitionAttributeBonus>();
 
     // 累乘对局内永久冷却倍率，升级不重置已获得的缩减。
     internal void ReduceCooldown(int percent)

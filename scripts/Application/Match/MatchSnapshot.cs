@@ -38,6 +38,7 @@ public sealed record CardSnapshot(
     public IReadOnlyList<TaggedCardSaleAttributeBonus> SaleAttributeBonuses { get; init; } = Array.Empty<TaggedCardSaleAttributeBonus>();
     public IReadOnlyList<BattleVictoryAttributeBonus> BattleVictoryBonuses { get; init; } = Array.Empty<BattleVictoryAttributeBonus>();
     public int BattleValueBonus { get; init; }
+    public IReadOnlyList<TaggedCardAcquisitionAttributeBonus> AcquisitionAttributeBonuses { get; init; } = Array.Empty<TaggedCardAcquisitionAttributeBonus>();
     public IReadOnlyDictionary<StringName, int> OwnValues { get; init; } =
         new ReadOnlyDictionary<StringName, int>(new Dictionary<StringName, int>());
     public StringName Illustration { get; init; } = new("");
@@ -140,6 +141,7 @@ public sealed record MatchSnapshot(
                 SaleAttributeBonuses = Array.AsReadOnly(card.SaleAttributeBonuses.ToArray()),
                 BattleVictoryBonuses = Array.AsReadOnly(card.BattleVictoryBonuses.ToArray()),
                 BattleValueBonus = card.BattleValueBonus,
+                AcquisitionAttributeBonuses = Array.AsReadOnly(card.AcquisitionAttributeBonuses.ToArray()),
                 OwnValues = card.Attributes.BaseCombat.SnapshotFinalValues(),
                 Illustration = identity.Illustration,
                 DescriptionEntries = Array.AsReadOnly(identity.DescriptionEntries.ToArray()),
@@ -205,7 +207,7 @@ public sealed record MatchSnapshot(
                 _ => effect,
             }).ToArray()), ability.AllowsBench, ability.TriggerStateKey,
             ability.TriggerCardTag, ability.TriggerCardElement, ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus,
-            ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags)).ToArray());
+            ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags, ability.TargetCardTag)).ToArray());
 
     private static void AddPlacements(
         BoardZoneState zoneState,

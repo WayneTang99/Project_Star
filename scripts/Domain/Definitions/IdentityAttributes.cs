@@ -129,15 +129,22 @@ public sealed class SkillIdentityAttributes : IdentityAttributes
 
 public sealed class EncounterIdentityAttributes : IdentityAttributes
 {
-    public EncounterIdentityAttributes(StringName key, string displayName, StringName? illustration = null, string summary = "") : base(key, displayName)
+    public EncounterIdentityAttributes(StringName key, string displayName, StringName? illustration = null, string summary = "",
+        IEnumerable<StringName>? allowedHeroKeys = null) : base(key, displayName)
     {
         Illustration = illustration ?? new StringName("");
         Summary = summary;
+        var heroes = (allowedHeroKeys ?? []).ToArray();
+        if (heroes.Any(hero => hero is null || hero.IsEmpty) || heroes.Distinct().Count() != heroes.Length)
+            throw new ArgumentException("Allowed heroes must be non-empty unique keys.", nameof(allowedHeroKeys));
+        AllowedHeroKeys = Array.AsReadOnly(heroes);
     }
 
     // 遭遇原画资源属于只读身份，由表现层加载。
     public StringName Illustration { get; }
     public string Summary { get; }
+    // 空列表表示所有英雄；集合冻结，不受传入数组后续修改影响。
+    public IReadOnlyList<StringName> AllowedHeroKeys { get; }
 }
 
 // 导师只读身份与展示信息（领域定义层）。

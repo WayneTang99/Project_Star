@@ -12,6 +12,7 @@ public sealed partial class SkillItemView : Button
     private readonly TextureRect _artwork = new() { Name = "Artwork", MouseFilter = MouseFilterEnum.Ignore,
         ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
 
+    public override void _EnterTree() => Pressed += RequestDetails;
     public override void _Ready()
     {
         AddChild(_artwork); _artwork.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -31,6 +32,9 @@ public sealed partial class SkillItemView : Button
         MatchTheme.Surface(selected ? new Color("354c38") : MatchTheme.SurfaceColor,
             selected ? MatchTheme.Gold : new Color("a5bcc9")));
 
+    private void RequestDetails() => DetailsRequested?.Invoke();
+    public override void _ExitTree() => Pressed -= RequestDetails;
+
     public override void _GuiInput(InputEvent input)
     {
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }
@@ -43,7 +47,7 @@ public sealed partial class SkillItemView : Button
         var text = new RichTextLabel { FitContent = true, ScrollActive = false,
             CustomMinimumSize = new Vector2(420, 0), MouseFilter = MouseFilterEnum.Ignore };
         CardKeywordText.Render(text, forText);
-        var panel = new PanelContainer(); panel.AddChild(text);
+        var panel = new PanelContainer { ZAsRelative = false, ZIndex = 200 }; panel.AddChild(text);
         var color = GetNodeOrNull<Panel>("LevelBorder")?.GetThemeStylebox("panel") as StyleBoxFlat;
         var style = MatchTheme.Surface(MatchTheme.SurfaceColor, color?.BorderColor ?? MatchTheme.Gold);
         style.SetBorderWidthAll(2); panel.AddThemeStyleboxOverride("panel", style); return panel;

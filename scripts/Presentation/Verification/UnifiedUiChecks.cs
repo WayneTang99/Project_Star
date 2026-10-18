@@ -119,8 +119,8 @@ internal static class UnifiedUiChecks
             if (settings.Visible || !toggle.HasFocus()) return Fail("设置取消焦点");
             await KeyInput(Key.Enter); await KeyInput(Key.Tab); await KeyInput(Key.Tab); await KeyInput(Key.Enter);
             var catalog = shell.GetNode<CardCatalogView>("CardCatalog");
-            if (!catalog.Visible || !catalog.GetNode<LineEdit>("Content/Filters/Search").HasFocus()) return Fail("局内图鉴");
-            var back = catalog.GetNode<Button>("Content/Header/Back"); back.GrabFocus(); await KeyInput(Key.Tab, shift: true);
+            if (!catalog.Visible || !catalog.GetNode<LineEdit>("Content/Body/Browser/Filters/Search").HasFocus()) return Fail("局内图鉴");
+            var back = catalog.GetNode<Button>("Content/Footer/Back"); back.GrabFocus(); await KeyInput(Key.Tab, shift: true);
             if (viewport.GuiGetFocusOwner() is not { } focus || !catalog.IsAncestorOf(focus)) return Fail("图鉴焦点不能泄漏");
             await KeyInput(Key.Escape);
             if (catalog.Visible || !toggle.HasFocus()) return Fail("图鉴返回");

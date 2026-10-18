@@ -498,6 +498,7 @@ public sealed class CardEconomyService
         {
             var created = CreateAcquiredCard(definition, level);
             session.Player.Inventory.Add(created);
+            ApplyAcquisitionBonuses(session, definition, plan);
             new CardQuestService(_boardService).ProcessEvent(session,
                 new CardAcquiredQuestEvent(definition.Attributes.Identity.ElementKeys, created.Id));
             return new CardAcquisitionResult(created, true, level, level);
@@ -519,6 +520,7 @@ public sealed class CardEconomyService
             + CardValueCalculator.CalculateMergeCompensation(definition, previousLevel, plan.FinalLevel));
         _entityFactory.ApplyCardLevel(target, definition, plan.FinalLevel);
         target.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, value);
+        ApplyAcquisitionBonuses(session, definition, plan);
         new CardQuestService(_boardService).ProcessEvent(session,
             new CardAcquiredQuestEvent(definition.Attributes.Identity.ElementKeys));
         return new CardAcquisitionResult(target, false, previousLevel, plan.FinalLevel);
@@ -529,10 +531,15 @@ public sealed class CardEconomyService
 
     private static Result CheckMergeValue(MatchSession session, CardDefinition definition, MergePlan plan)
     {
-        if (plan.TargetId is not { } id) return Result.Success();
-        var target = session.Player.Inventory.Find(id)!;
         try
         {
+            foreach (var (card, key, amount) in AcquisitionBonuses(session, definition, plan))
+            {
+                _ = checked(card.Attributes.Persistent.GetBaseValue(key) + amount);
+                _ = checked(card.Attributes.Persistent.GetFinalValue(key) + amount);
+            }
+            if (plan.TargetId is not { } id) return Result.Success();
+            var target = session.Player.Inventory.Find(id)!;
             var delta = CardValueCalculator.CalculateMergeCompensation(definition,
                 target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), plan.FinalLevel);
             if (checked(target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value) + delta) < 0
@@ -541,9 +548,29 @@ public sealed class CardEconomyService
         }
         catch (OverflowException)
         {
-            return Result.Fail(new Failure(InvalidValue, "合成后的卡牌价值超出范围。"));
+            return Result.Fail(new Failure(InvalidValue, "获得卡牌后的价值或成长属性超出范围。"));
         }
         return Result.Success();
+    }
+
+    // 从既有战场、备战来源收集本次成功获得的贡献；合并材料和获得者自身不触发。
+    private static IEnumerable<(CardInstance Card, StringName Key, int Amount)> AcquisitionBonuses(
+        MatchSession session, CardDefinition definition, MergePlan plan)
+    {
+        var tags = plan.TargetId is { } id ? session.Player.Inventory.Find(id)!.Tags : definition.Tags;
+        foreach (var card in session.Player.Inventory.Cards)
+        {
+            if (!session.Board.Contains(card.Id) || card.Id == plan.TargetId || plan.ConsumedIds.Contains(card.Id)) continue;
+            foreach (var group in card.AcquisitionAttributeBonuses.Where(bonus => tags.Contains(bonus.RequiredTag))
+                .GroupBy(bonus => bonus.AttributeKey))
+                yield return (card, group.Key, checked(group.Sum(bonus => bonus.Amount)));
+        }
+    }
+
+    private static void ApplyAcquisitionBonuses(MatchSession session, CardDefinition definition, MergePlan plan)
+    {
+        foreach (var (card, key, amount) in AcquisitionBonuses(session, definition, plan))
+            card.Attributes.Persistent.SetBaseValue(key, checked(card.Attributes.Persistent.GetBaseValue(key) + amount));
     }
 
     private MergePlan BuildMergePlan(MatchSession session, CardDefinition definition, int level)

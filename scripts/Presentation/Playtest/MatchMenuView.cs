@@ -7,6 +7,7 @@ namespace Project_Star.Presentation.Playtest;
 // 模态菜单门控棋盘输入；确认携带打开时的对局身份，按钮不接触模型。
 public sealed partial class MatchMenuView : Control
 {
+    public event Action? LobbyRequested;
     public event Action? SettingsRequested;
     public event Action? CardsRequested;
     public event Action? SkillsRequested;
@@ -33,6 +34,7 @@ public sealed partial class MatchMenuView : Control
         Entry(entries, "OpenDisplaySettings", "设置", () => { Close(); SettingsRequested?.Invoke(); });
         Entry(entries, "OpenCardCatalog", "卡牌图鉴", () => { Close(); CardsRequested?.Invoke(); });
         Entry(entries, "OpenSkillCatalog", "技能图鉴", () => { Close(); SkillsRequested?.Invoke(); });
+        Entry(entries, "ReturnToLobby", "返回大厅", () => { Close(); LobbyRequested?.Invoke(); });
         _abandon = Entry(entries, "Abandon", "放弃对局", ConfirmAbandon);
         _confirmation = Panel("AbandonConfirmation");
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 18); _confirmation.AddChild(column);
