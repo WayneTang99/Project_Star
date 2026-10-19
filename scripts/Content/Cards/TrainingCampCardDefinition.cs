@@ -17,7 +17,7 @@ public sealed class TrainingCampCardDefinition : CardDefinition
             [new(CardKeywords.Activate, "冷却3秒，魔法消耗0，己方所有存活战场人类卡牌攻击增加5/10/20，可累加，仅本场战斗生效。"),
              new(CardKeywords.Pickup, "获得一张随机同级小型人类卡牌，不限制归属。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 30 })),
-            new TagSet([GameTags.Location]), initialLevel: 2,
+            new TagSet([GameTags.Building, GameTags.Location]), initialLevel: 2,
             levels: [CreateLevel(2, 5), CreateLevel(3, 10), CreateLevel(4, 20)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int amount) => new(level, null,

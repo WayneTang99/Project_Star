@@ -22,6 +22,15 @@ internal static class BattleEffectResolver
                     && runtime.Cards.Any(enemy => enemy.Side != card.Side && !enemy.Destroyed && !enemy.IsOnBench
                         && ContainsAnyEffectiveTag(runtime, enemy, conditional.RequiredAnyTags)))
                     multicast = checked(multicast + conditional.Amount);
+        if (!card.Destroyed && !card.IsOnBench)
+            foreach (var ability in card.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is GrantSourceMulticastWhileAlliedCardMatchesEffectDefinition alliedConditional
+                    && runtime.Cards.Any(ally => ally.Side == card.Side && !ally.Destroyed && !ally.IsOnBench
+                        && (alliedConditional.RequiredTag is not { } tag || HasEffectiveTag(runtime, ally, tag))
+                        && (alliedConditional.RequiredElement is not { } element || ally.ElementKeys.Contains(element))))
+                    multicast = checked(multicast + alliedConditional.Amount);
         foreach (var source in runtime.AbilitySources)
         {
             if (source.Side != card.Side || source.Destroyed || source.IsOnBench) continue;
@@ -121,6 +130,9 @@ internal static class BattleEffectResolver
             case TransformRandomEnemyCardEffectDefinition transform:
                 TransformRandomEnemyCard(runtime, pending.Source, transform);
                 break;
+            case TransformSourceIntoRandomCardsEffectDefinition split when pending.Source is CardBattleState splitSource:
+                TransformSourceIntoRandomCards(runtime, splitSource, split);
+                break;
             case DamageEffectDefinition damage:
                 if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, damage.Amount), damage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
@@ -170,6 +182,12 @@ internal static class BattleEffectResolver
                     armorDamageAmount,
                     heroArmorDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
+                break;
+            case ReduceHeroStatusEffectDefinition reduction:
+                var removed = Math.Min(reduction.Amount, reduction.Status == BattleStatus.Burn ? hero.Burn : hero.Poison);
+                if (reduction.Status == BattleStatus.Burn) hero.Burn -= removed;
+                else hero.Poison -= removed;
+                if (removed > 0) runtime.Events.Add(new StatusChangedEvent(runtime.Tick, reduction.Status, -removed));
                 break;
             case HealEffectDefinition heal:
                 if (!CanHeal(runtime, pending.Source.Side, heal)) break;
@@ -366,6 +384,10 @@ internal static class BattleEffectResolver
                 break;
             case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
                 var targets = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
+                    && (!modifier.AdjacentOnly || pending.Source is CardBattleState adjacentModifierSource
+                        && card.EntityId != adjacentModifierSource.EntityId
+                        && (card.BoardStart + card.OccupiedSlots == adjacentModifierSource.BoardStart
+                            || adjacentModifierSource.BoardStart + adjacentModifierSource.OccupiedSlots == card.BoardStart))
                     && HasEffectiveTag(runtime, card, modifier.RequiredTag) && (modifier.RequiresAttributeSupport
                         ? card.SupportsCombatAttribute(modifier.AttributeKey)
                         : card.CombatAttributes.ContainsKey(modifier.AttributeKey))).ToArray();
@@ -439,6 +461,7 @@ internal static class BattleEffectResolver
         var target = runtime.GetHero(pending.Ability.Definition.Target == AbilityTarget.EnemyHero ? Opposite(pending.Source.Side) : pending.Source.Side);
         return effect switch
         {
+            ReduceHeroStatusEffectDefinition value => -Math.Min(value.Amount, value.Status == BattleStatus.Burn ? target.Burn : target.Poison),
             AttributeDamageEffectDefinition value => AttributeDamageAmount(runtime, pending, value),
             SourceHeroHealthScaledAttributeDamageEffectDefinition value => primaryValue ? Value(value.AttributeKey)
                 : checked((int)((long)Value(value.AttributeKey) * own.Health / own.MaxHealth)),
@@ -694,6 +717,56 @@ internal static class BattleEffectResolver
         runtime.Queue.CancelSource(target);
         runtime.ScheduledMulticasts.RemoveAll(item => ReferenceEquals(item.Ability.Source, target));
         runtime.Events.Add(new CardTransformedEvent(runtime.Tick, source.EntityId, target.EntityId, identity.Key));
+    }
+
+    // 原子替换来源占格；不触发摧毁，取消旧发动队列，新卡从完整冷却开始。
+    private static void TransformSourceIntoRandomCards(BattleRuntime runtime, CardBattleState source,
+        TransformSourceIntoRandomCardsEffectDefinition effect)
+    {
+        if (source.Destroyed || source.IsOnBench || !runtime.Cards.Contains(source)) return;
+        var candidates = effect.Replacements.Where(card => card.SupportsLevel(source.Level))
+            .OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToList();
+        if (candidates.Count < effect.Count
+            || (long)candidates[0].Attributes.Identity.OccupiedSlots * effect.Count != source.OccupiedSlots) return;
+        var replacements = new List<CardBattleState>();
+        var start = source.BoardStart;
+        for (var index = 0; index < effect.Count; index++)
+        {
+            var selected = runtime.NextRandomIndex(candidates.Count);
+            var definition = candidates[selected]; candidates.RemoveAt(selected);
+            var identity = definition.Attributes.Identity;
+            var level = definition.GetLevel(source.Level);
+            var values = definition.Attributes.BaseCombat.CreateMutableCopy();
+            if (level is not null)
+                foreach (var entry in level.BaseCombatValues) values.SetBaseValue(entry.Key, entry.Value);
+            var id = index == 0 ? source.EntityId : runtime.NewSummonedCardId(source.EntityId);
+            var setup = new CardBattleSetup(id, start, values.GetFinalValue(GameAttributeKeys.AttackDamage),
+                values.GetFinalValue(GameAttributeKeys.CooldownTicks), level?.Abilities ?? definition.Abilities,
+                UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
+                OccupiedSlots: identity.OccupiedSlots, ElementKeys: identity.ElementKeys,
+                ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
+                { Identity = identity, Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+            var replacement = new CardBattleState(setup, source.Side)
+            {
+                TransformedIdentity = index == 0 ? identity : null,
+                SummonedCard = index == 0 ? source.SummonedCard : new SummonedCardSnapshot(identity, start,
+                    Array.AsReadOnly(definition.Tags.ToArray()), Array.AsReadOnly(setup.Abilities!.ToArray()), setup.CombatValues),
+            };
+            foreach (var entry in setup.CombatValues) replacement.CombatAttributes[entry.Key] = entry.Value;
+            replacements.Add(replacement);
+            start += identity.OccupiedSlots;
+        }
+        runtime.Queue.CancelSource(source);
+        runtime.ScheduledMulticasts.RemoveAll(item => ReferenceEquals(item.Ability.Source, source));
+        runtime.Cards[runtime.Cards.IndexOf(source)] = replacements[0];
+        runtime.Events.Add(new CardTransformedEvent(runtime.Tick, source.EntityId, source.EntityId,
+            replacements[0].Identity!.Key));
+        foreach (var replacement in replacements.Skip(1))
+        {
+            runtime.AddSummonedCard(replacement);
+            runtime.Events.Add(new CardSummonedEvent(runtime.Tick, source.EntityId, replacement.EntityId, source.Side,
+                replacement.Identity!.Key, source.Level, replacement.BoardStart));
+        }
     }
 
     // 先验证等级、边界和占位，失败时不消耗随机数。

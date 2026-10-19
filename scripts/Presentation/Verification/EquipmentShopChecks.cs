@@ -20,7 +20,7 @@ using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.Verification;
 
-// 装备店铺的分级交易、标签光环、生命周期与原生原画验证（表现层）。
+// 军械库的分级交易、标签光环、生命周期与原生原画验证（表现层）。
 internal static class EquipmentShopChecks
 {
     internal static bool LevelPreview()
@@ -50,9 +50,10 @@ internal static class EquipmentShopChecks
         var identity = definition.Attributes.Identity;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
         using var image = texture?.GetImage();
-        if (identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Medium
+        if (identity.DisplayName != "军械库" || identity.Key != new StringName("card.equipment_shop")
+            || identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Medium
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
-            || !definition.Tags.Contains(GameTags.Location) || definition.InitialLevel != 2
+            || !definition.Tags.Contains(GameTags.Building) || definition.InitialLevel != 2
             || definition.SupportsLevel(1) || definition.SupportsLevel(5)
             || texture is null || texture.GetWidth() != texture.GetHeight() || image?.HasMipmaps() != true
             || !DefinitionRegistry.Scan(typeof(EquipmentShopChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
@@ -142,7 +143,7 @@ internal static class EquipmentShopChecks
 
     internal static async Task Capture(Node owner)
     {
-        GD.Print($"装备店铺等级预览验证：{LevelPreview()}");
+        GD.Print($"军械库等级预览验证：{LevelPreview()}");
         var viewport = new SubViewport { Size = new Vector2I(920, 640), Disable3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.Always }; owner.AddChild(viewport);
         try
@@ -151,7 +152,7 @@ internal static class EquipmentShopChecks
             var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(new EquipmentShopCardDefinition()));
             var texture = GD.Load<Texture2D>(card.Illustration.ToString());
             using var artwork = texture.GetImage();
-            GD.Print($"装备店铺原画：{artwork.GetWidth()}×{artwork.GetHeight()}，mipmap层数：{artwork.GetMipmapCount()}。");
+            GD.Print($"军械库原画：{artwork.GetWidth()}×{artwork.GetHeight()}，mipmap层数：{artwork.GetMipmapCount()}。");
             var large = new CardItemView { Position = new Vector2(20, 20), Size = new Vector2(440, 440) };
             var small = new CardItemView { Position = new Vector2(480, 20), Size = new Vector2(100, 100) };
             viewport.AddChild(large); viewport.AddChild(small);
@@ -172,7 +173,7 @@ internal static class EquipmentShopChecks
             await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             using var image = viewport.GetTexture().GetImage();
             if (image.SavePng("res://output/equipment-shop/card-face.png") != Error.Ok)
-                throw new InvalidOperationException("装备店铺截图失败。");
+                throw new InvalidOperationException("军械库截图失败。");
         }
         finally { owner.RemoveChild(viewport); viewport.Free(); }
     }

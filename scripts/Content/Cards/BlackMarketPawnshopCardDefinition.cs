@@ -16,7 +16,7 @@ public sealed class BlackMarketPawnshopCardDefinition : CardDefinition
                 descriptionEntries:
                 [new(CardKeywords.Aura, "己方攻击卡牌获得等同于此卡牌价值的攻击；仅在战场区生效。"),
                  new(CardKeywords.Trade, "在战场区或备战区时，出售其他卡牌后，此卡牌获得等同于该卡牌价值×10/15/20/30%+1的价值（百分比向下取整）。")]),
-            baseCombat: new ModifiableAttributeSet()), new TagSet([GameTags.Location]), initialLevel: 1,
+            baseCombat: new ModifiableAttributeSet()), new TagSet([GameTags.Building]), initialLevel: 1,
             levels: [CreateLevel(1, 10), CreateLevel(2, 15), CreateLevel(3, 20), CreateLevel(4, 30)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int percent) => new(level, null,

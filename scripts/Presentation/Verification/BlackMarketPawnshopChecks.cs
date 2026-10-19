@@ -30,7 +30,7 @@ internal static class BlackMarketPawnshopChecks
         if (identity.DisplayName != "黑市典当铺" || identity.FactionKey != new StringName("valos")
             || identity.Size != CardSize.Large || definition.InitialLevel != 1 || definition.SupportsLevel(5)
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
-            || !definition.Tags.Contains(GameTags.Location) || texture is null
+            || !definition.Tags.Contains(GameTags.Building) || texture is null
             || texture.GetWidth() * 2 != texture.GetHeight() * 3
             || !DefinitionRegistry.Scan(typeof(BlackMarketPawnshopChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
         foreach (var (level, percent) in new[] { (1, 10), (2, 15), (3, 20), (4, 30) })

@@ -28,7 +28,7 @@ public sealed class BlacksmithCardDefinition : CardDefinition
                     [GameAttributeKeys.AttackDamage] = 0,
                     [GameAttributeKeys.CooldownTicks] = 60,
                 })),
-            new TagSet([GameTags.Location]),
+            new TagSet([GameTags.Building]),
             initialLevel: 2,
             levels:
             [

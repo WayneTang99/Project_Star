@@ -23,7 +23,7 @@ internal static class ConquerorFortressChecks
         if (identity.Key != new StringName("card.conqueror_fortress") || identity.DisplayName != "征服者堡垒"
             || identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Large
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
-            || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Location)
+            || definition.Tags.Count != 3 || !definition.Tags.Contains(GameTags.Location)
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
             || !DefinitionRegistry.Scan(typeof(ConquerorFortressChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());

@@ -30,9 +30,8 @@ public sealed partial class MatchShell : Control
     public event Action? NewJourneyRequested;
     private GameLobbyView _lobby = null!;
     private AtlasHubView _atlas = null!;
-    private Button _heroBack = null!;
-    private bool _lobbyEnabled, _choosingFromLobby, _atlasBrowsing;
-    public bool IsLobbyNavigationActive => _lobbyEnabled && (_lobby.Visible || _choosingFromLobby || _atlasBrowsing);
+    private bool _lobbyEnabled, _atlasBrowsing;
+    public bool IsLobbyNavigationActive => _lobbyEnabled && (_lobby.Visible || _atlasBrowsing);
     private TopBar _top = null!;
     private ContextPortrait _portrait = null!;
     private PlayerHeroPanel _hero = null!;
@@ -185,14 +184,12 @@ public sealed partial class MatchShell : Control
         _battlefield.DetailsRequested += ShowDetails; _bench.DetailsRequested += ShowDetails; _enemy.DetailsRequested += ShowDetails;
         _lobby = Add(this, new GameLobbyView { Name = "GameLobby", ZIndex = 20 });
         _atlas = Add(this, new AtlasHubView { Name = "AtlasHub", ZIndex = 25 });
-        _heroBack = Add(this, new Button { Name = "BackToLobby", Text = "返回大厅", ZIndex = 10, Visible = false });
-        _lobby.StartRequested += OpenLobbyHeroes; _lobby.ResumeRequested += ResumeJourney;
+        _lobby.StartRequested += StartLobbyJourney; _lobby.ResumeRequested += ResumeJourney;
         _lobby.AtlasRequested += () => { _atlasBrowsing = true; _lobby.Hide(); _atlas.Open(); UpdateLobbyInput(); };
         _lobby.SettingsRequested += OpenSettings;
         _atlas.Closed += () => { _atlasBrowsing = false; _lobby.Open(_view?.Player?.Status == MatchStatus.InProgress); _lobby.GetNode<Button>("SceneStage/Atlas").GrabFocus(); UpdateLobbyInput(); };
         _atlas.CardsRequested += OpenCatalog; _atlas.SkillsRequested += OpenSkillCatalog;
         _atlas.CardRequested += ShowDetails; _atlas.SkillRequested += ShowSkill;
-        _heroBack.Pressed += ShowLobby;
         _menu.LobbyRequested += ShowLobby;
         Resized += LayoutShell; LayoutShell();
         GetTree().NodeAdded += AddButtonFeedback;
@@ -237,13 +234,14 @@ public sealed partial class MatchShell : Control
         _heroArmor.Text = (view.Playback?.State.Player.Armor ?? view.Player?.Hero?.CombatValues.GetValueOrDefault(Project_Star.Domain.Common.GameAttributeKeys.Armor) ?? 0).ToString();
         _heroRegen.Text = "+" + (view.Player?.Hero?.CombatValues.GetValueOrDefault(Project_Star.Domain.Common.GameAttributeKeys.HealthRegen) ?? 0).ToString();
         _heroes.Render(view.Message, view.Heroes);
+        _lobby.Render(view.Heroes);
         _encounters.Render(view.Message, view.Choices);
         _events.Render(view.Message, view.EventOptions, view.EventRevision, view.ContextIllustration, view.EncounterLevel);
         _shop.Render(view.Message, view.Offers, view.ShopLevel);
         _gemShop.Render(view.Player, view.GemOffers);
         if (view.Page is MatchPage.BattleResult or MatchPage.MatchEnded) _result.Render(view);
         var browsing = _catalog.Visible || _skillCatalog.Visible;
-        _heroes.Visible = (view.Page == MatchPage.HeroSelection || _choosingFromLobby) && !browsing && !(_lobbyEnabled && _lobby.Visible);
+        _heroes.Visible = view.Page == MatchPage.HeroSelection && !browsing && !_lobbyEnabled;
         _encounters.Visible = view.Page == MatchPage.EncounterChoice;
         _events.Visible = view.Page == MatchPage.Event;
         _shop.Visible = view.Page == MatchPage.Shop;
@@ -268,7 +266,7 @@ public sealed partial class MatchShell : Control
         _battlefield.RenderBattle(view.Playback); _enemy.RenderBattle(view.Playback); _bench.RenderBattle(view.Playback);
         if (_page != view.Page) { _battlefield.ClearFeedback(); _bench.ClearFeedback(); _enemy.ClearFeedback(); }
         var pageChanged = _page != view.Page;
-        if (_lobbyEnabled && view.Page == MatchPage.HeroSelection && _page != MatchPage.HeroSelection && !_choosingFromLobby)
+        if (_lobbyEnabled && view.Page == MatchPage.HeroSelection && _page != MatchPage.HeroSelection)
         {
             _lobby.Open(false); _heroes.Hide();
         }
@@ -338,8 +336,7 @@ public sealed partial class MatchShell : Control
 
     private void SelectHero(StringName key, long revision)
     {
-        if (_choosingFromLobby && _view?.Player is not null) NewJourneyRequested?.Invoke();
-        _choosingFromLobby = false; _lobby.Hide(); _heroBack.Hide(); UpdateLobbyInput();
+        _lobby.Hide(); UpdateLobbyInput();
         ChoiceSelected?.Invoke(MatchPage.HeroSelection, key, revision);
     }
     public void EnableLobby()
@@ -353,20 +350,20 @@ public sealed partial class MatchShell : Control
     public void ShowLobby()
     {
         _benchOpen = false; _toast.Hide(); _toastTween?.Kill();
-        _choosingFromLobby = _atlasBrowsing = false; _atlas.Hide(); _catalog.Hide(); _skillCatalog.Hide();
+        _atlasBrowsing = false; _atlas.Hide(); _catalog.Hide(); _skillCatalog.Hide();
         _menu.Close(); _details.Hide(); _secondary.Hide(); _cardPreview.Close(); _settings.Hide();
-        _heroes.Hide(); _heroBack.Hide(); _lobby.Open(_view?.Player?.Status == MatchStatus.InProgress);
+        _heroes.Hide(); _lobby.Open(_view?.Player?.Status == MatchStatus.InProgress);
         UpdateLobbyInput();
     }
-    private void OpenLobbyHeroes()
+    private void StartLobbyJourney()
     {
-        _lobby.Hide(); _choosingFromLobby = true;
-        foreach (var view in new Control[] { _encounters, _events, _shop, _gemShop, _result, _battleStage, _enemy }) view.Hide();
-        _heroes.Show(); _heroBack.Show();
-        LayoutShell(); UpdateLobbyInput(); _heroes.GetNode<Button>("Choose").GrabFocus();
+        var key = _lobby.SelectedHeroKey;
+        if (!_lobby.Visible || _view?.Heroes.Any(hero => hero.Key == key && hero.Action.Visible && hero.Action.Enabled) != true) return;
+        if (_view.Player is not null) NewJourneyRequested?.Invoke();
+        SelectHero(key, 0);
     }
     private void ResumeJourney()
-    { _lobby.Hide(); _choosingFromLobby = false; UpdateLobbyInput(); if (_view is not null) Render(_view); _menuButton.GrabFocus(); }
+    { _lobby.Hide(); UpdateLobbyInput(); if (_view is not null) Render(_view); _menuButton.GrabFocus(); }
     private void UpdateLobbyInput()
     {
         if (!_lobbyEnabled) return;
@@ -377,8 +374,7 @@ public sealed partial class MatchShell : Control
                 || child == _cardPreview || child == _details || child == _secondary) continue;
             child.ProcessMode = blocked ? ProcessModeEnum.Disabled : ProcessModeEnum.Inherit;
         }
-        _menuButton.Visible = !_lobby.Visible && !_choosingFromLobby && !_atlasBrowsing;
-        _heroBack.Visible = _choosingFromLobby;
+        _menuButton.Visible = !_lobby.Visible && !_atlasBrowsing;
     }
     private void SelectEncounter(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.EncounterChoice, key, revision);
     private void SelectEvent(StringName key, long revision) => ChoiceSelected?.Invoke(MatchPage.Event, key, revision);
@@ -420,7 +416,7 @@ public sealed partial class MatchShell : Control
     private void CloseCatalog()
     {
         if (_atlasBrowsing) { _atlas.ReturnFromCatalog(new StringName("cards")); UpdateLobbyInput(); return; }
-        _heroes.Visible = _page == MatchPage.HeroSelection; _menuButton.GrabFocus();
+        _heroes.Visible = !_lobbyEnabled && _page == MatchPage.HeroSelection; _menuButton.GrabFocus();
     }
     private void OpenSkillCatalog()
     {
@@ -430,7 +426,7 @@ public sealed partial class MatchShell : Control
     private void CloseSkillCatalog()
     {
         if (_atlasBrowsing) { _atlas.ReturnFromCatalog(new StringName("skills")); UpdateLobbyInput(); return; }
-        _heroes.Visible = _page == MatchPage.HeroSelection; _menuButton.GrabFocus();
+        _heroes.Visible = !_lobbyEnabled && _page == MatchPage.HeroSelection; _menuButton.GrabFocus();
     }
     // 开发日志的打开与关闭不发出对局命令。
     public void ToggleLog() => _result.ToggleLog();
@@ -475,8 +471,6 @@ public sealed partial class MatchShell : Control
     {
         if (_lobbyEnabled && IsLobbyNavigationActive)
         {
-            if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _choosingFromLobby)
-            { ShowLobby(); GetViewport().SetInputAsHandled(); }
             return;
         }
         if (input is InputEventKey { Pressed: true, Keycode: Key.Escape } && _benchOpen)
@@ -490,11 +484,14 @@ public sealed partial class MatchShell : Control
     private void AddButtonFeedback(Node node)
     {
         if (node is not BaseButton button || !IsAncestorOf(button)) return;
+        // 营地角色已有独立的脚下选中圈，避免通用矩形反馈覆盖透明插画。
+        if (button.GetParent()?.GetParent() is GameLobbyView) return;
         // NodeAdded期间节点仍在进入树，延后挂载装饰以免修改中的树重入。
         Callable.From(() =>
         {
             if (!GodotObject.IsInstanceValid(button) || !button.IsInsideTree() || !IsAncestorOf(button)
                 || button.GetNodeOrNull<ButtonFeedback>("InteractionFeedback") is not null) return;
+            if (button.GetParent()?.GetParent() is GameLobbyView) return;
             button.AddChild(new ButtonFeedback { Name = "InteractionFeedback" });
         }).CallDeferred();
     }
@@ -504,7 +501,7 @@ public sealed partial class MatchShell : Control
         if (_layingOut || _desktopScroll is null) return;
         _layingOut = true;
         const float margin = 32;
-        var choosing = _page == MatchPage.HeroSelection || _choosingFromLobby;
+        var choosing = _page == MatchPage.HeroSelection;
         var width = Size.X - margin * 2;
         var center = Size.X / 2;
         var battle = _battleStage.Visible;
@@ -514,7 +511,7 @@ public sealed partial class MatchShell : Control
         _tableSurface.Position = new Vector2(center - 675, 130); _tableSurface.Size = new Vector2(1350, 720);
         _tableSurface.Visible = !choosing; _tableSurface.Texture = MatchTheme.Skin.TableSurface;
         _tableSurface.Material = MatchTheme.Skin.SurfaceEffect;
-        _top.Visible = !_choosingFromLobby;
+        _top.Visible = true;
         _top.Position = new Vector2(margin, 0); _top.Size = new Vector2(width, 64);
         _stageRect = new Rect2(center - 560, 250, 1120, 230);
         _heroRect = new Rect2(center - 600, 750, 1200, 124);
@@ -566,7 +563,6 @@ public sealed partial class MatchShell : Control
         _menu.Position = Vector2.Zero; _menu.Size = Size;
         _economy.Position = new Vector2(center - 584, 760); _economy.Size = new Vector2(100, 74);
         _lobby.Position = _atlas.Position = Vector2.Zero; _lobby.Size = _atlas.Size = Size;
-        _heroBack.Position = new Vector2(Size.X - 152, 22); _heroBack.Size = new Vector2(120, 40);
         _settings.Position = Vector2.Zero; _settings.Size = Size;
         _catalog.Position = Vector2.Zero; _catalog.Size = Size;
         _cardPreview.Position = Vector2.Zero; _cardPreview.SetBounds(Size);

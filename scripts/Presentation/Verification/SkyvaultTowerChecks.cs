@@ -26,7 +26,7 @@ internal static class SkyvaultTowerChecks
             || identity.Size != CardSize.Large || definition.InitialLevel != 4
             || Enumerable.Range(1, 5).Any(level => definition.SupportsLevel(level) != (level == 4))
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
-            || !definition.Tags.ToArray().ToHashSet().SetEquals(new[] { GameTags.Large, GameTags.Location })
+            || !definition.Tags.ToArray().ToHashSet().SetEquals(new[] { GameTags.Large, GameTags.Building, GameTags.Location })
             || !DefinitionRegistry.Scan(typeof(SkyvaultTowerChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
         var card = new EntityFactory().CreateCard(definition);
         var tower = new CardBattleSetup(card.Id, 0, 0, 70, card.Abilities, UseLegacyAttack: false,

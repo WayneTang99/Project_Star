@@ -739,7 +739,7 @@ internal static class CardCombatChecks
             || definition.Attributes.Identity.Size != CardSize.Large
             || definition.Attributes.Identity.ElementKeys.Count != 1
             || definition.Attributes.Identity.ElementKeys[0] != GameElements.Light
-            || !definition.Tags.Contains(GameTags.Location)
+            || !definition.Tags.Contains(GameTags.Building)
             || aura.Activation != AbilityActivation.PassiveAura
             || aura.ManaCost != 0
             || aura.CooldownTicks != 0
@@ -849,7 +849,7 @@ internal static class CardCombatChecks
             || definition.Attributes.Identity.Size != CardSize.Medium
             || definition.Attributes.Identity.ElementKeys.Count != 1
             || definition.Attributes.Identity.ElementKeys[0] != GameElements.General
-            || !definition.Tags.Contains(GameTags.Location)
+            || !definition.Tags.Contains(GameTags.Building)
             || levelTwo.Abilities[0].ManaCost != 0
             || levelTwo.Abilities[0].CooldownTicks != 60
             || attackModifier is null

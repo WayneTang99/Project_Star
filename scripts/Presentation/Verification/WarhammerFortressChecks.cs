@@ -27,7 +27,7 @@ internal static class WarhammerFortressChecks
         if (identity.DisplayName != "战锤要塞" || identity.FactionKey != new StringName("paladin")
             || identity.Size != CardSize.Large || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
-            || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Location)
+            || definition.Tags.Count != 3 || !definition.Tags.Contains(GameTags.Location)
             || texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3
             || !DefinitionRegistry.Scan(typeof(WarhammerFortressChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
         foreach (var (level, damage) in new[] { (3, 300), (4, 500) })

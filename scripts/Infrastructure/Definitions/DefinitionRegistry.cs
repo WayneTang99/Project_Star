@@ -185,6 +185,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
                 {
                     SummonAdjacentCardEffectDefinition summon => new[] { summon.Card },
                     SummonRandomAdjacentCardEffectDefinition summon => summon.Cards,
+                    TransformSourceIntoRandomCardsEffectDefinition split => split.Replacements,
                     _ => System.Array.Empty<CardDefinition>(),
                 })
                 if (!cards.ContainsKey(template.Attributes.Identity.Key) || !template.SupportsLevel(level))

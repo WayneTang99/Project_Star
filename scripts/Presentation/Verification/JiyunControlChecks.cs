@@ -24,7 +24,7 @@ internal static class JiyunControlChecks
             (new WineGourdCardDefinition(), "酒葫芦", "card.wine_gourd", CardSize.Small, GameElements.Wood, 1, []),
             (new BambooHatCardDefinition(), "斗笠", "card.bamboo_hat", CardSize.Medium, GameElements.General, 1, [GameTags.Equipment]),
             (new HiddenBambooGroveCardDefinition(), "隐秘竹林", "card.hidden_bamboo_grove", CardSize.Large, GameElements.Wood, 2, [GameTags.Plant, GameTags.Location]),
-            (new ZenLightTempleCardDefinition(), "禅光寺", "card.zen_light_temple", CardSize.Large, GameElements.General, 4, [GameTags.Location]),
+            (new ZenLightTempleCardDefinition(), "禅光寺", "card.zen_light_temple", CardSize.Large, GameElements.General, 4, [GameTags.Building, GameTags.Location]),
         })
         {
             var identity = definition.Attributes.Identity;

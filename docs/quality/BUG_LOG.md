@@ -1,7 +1,10 @@
-﻿# BUG_LOG
+# BUG_LOG
 
 | 编号 | 日期 | 位置 | 描述 | 根因 | 修复方案 | 状态 |
 |---|---|---|---|---|---|---|
+| BUG-333 | 2026-10-19 | PhaseOneVerification / 无头全量UI检查 | 无头全量验证多次在既有UI检查期间异常退出，控制台大量Object was deleted while awaiting a callback，未生成全量汇总；史莱姆材料标签及原画更新后再次复现。 | 待定位；已有末尾调用栈涉及英雄技能详情与TestEncounterLevels/ShopView.Render，专项战斗验证可独立完成。 | 保存output/element-slimes/verify-final-console.log、output/slime-material-redraw/verify-all-console.log、output/pauldron-caltrops/verify-final-all-console.log、output/statue-plaza/verify-all-console.log及output/water-well/verify-all-console.log，继续隔离复查节点回调及UI夹具生命周期；不以专项结果替代全量通过。 | Open |
+| BUG-332 | 2026-10-19 | BattlePlaybackPresenter.Project / 尺寸变化转变 | 中型卡原位分裂后，回放投影新增第二张小型卡会移除第一张的棋盘占位。 | 转变只替换展示身份，保留原中型两格占位；随后新增卡按重叠清理时误删第一张。 | 消费CardTransformedEvent时先按冻结转变身份更新原占位宽度，再处理新增卡；验证原位两张小型、相邻卡保留、战前及对局快照隔离。 | Fixed |
+| BUG-331 | 2026-10-19 | QuicksandExpanseChecks.OutcomesAndLevels | 新增弓箭塔后流沙奖励验证失败，奖励和确定性结算正常。 | 测试假定随机奖励后战场恰好1张卡，抽到训练营的拾取奖励会额外放置卡牌。 | 改为检查本次奖励卡实际位于战场，继续验证等级、归属和确定性，允许正常拾取连锁。 | Fixed |
 | BUG-323 | 2026-10-16 | CardDisplayAdapter / 卡牌详情与任务奖励 | 发动描述统一添加“目标：”前缀，导致己方英雄重复、自身疾速缺少主语，描述中残留冒号。 | 能力层统一目标与自带目标的效果文案叠加，状态描述未按实际目标生成。 | 改为按效果补必要目标，去掉统一目标前缀与冒号，任务奖励同步；全卡全部支持等级与代表原生预览检查。 | Fixed |
 | BUG-324 | 2026-10-16 | CardDisplayAdapter / 教团远征军与战斗状态 | 远征军光环显示内部英文属性key，战斗详情使用英文秒单位。 | 敌方标签计数成长分支直接插值AttributeKey，状态行硬编码s。 | 统一使用中文属性映射，时长单位改为秒；全卡逐级英文残留审查。 | Fixed |
 | BUG-325 | 2026-10-16 | CardKeywordText / 召唤、转变与指定卡牌奖励 | 引用卡名与普通正文混在一起，卡名中的属性词还会被拆开高亮。 | 只识别效果关键词和身份标签，未识别具体卡牌引用。 | 具体引用生成【卡名】，HTML与原生优先整段金色加粗；覆盖固定及随机召唤、转变和指定卡牌获得。 | Fixed |
@@ -401,3 +404,6 @@
 | BUG-327 | 2026-10-18 | CardDisplayAdapter / 独立卡牌预览 | 野猪独立预览显示0伤害，详情公式未标当前攻击。 | 将缺少真实战斗快照一律视为缺少全部依据，丢弃已知攻击及默认满血语义。 | 生命比例独立预览默认100%，英雄等级沿用快照；详情列明当前攻击，真实冻结施加量继续优先。覆盖四级野猪、攻击加成与真实生命比例。 | Fixed |
 
 | BUG-328 | 2026-10-18 | HeroDetailsView / 技能详情及二级弹窗 | 技能详情可见但关闭按钮被遮罩拦截。 | 全屏Shade是弹窗子节点并设TopLevel，Godot优先命中该独立输入根，即使视觉Z层在内容下方也会盖住按钮。 | 打开时将遮罩移为弹窗前的同级节点，弹窗排到末尾；同步显隐与销毁，技能和其他二级弹窗共用。真实鼠标复现命中Shade；修复后1600×900及2240×1260命中Close，关闭、底层阻断、Tab、Escape及焦点恢复通过。 | Fixed |
+
+| BUG-329 | 2026-10-19 | ComponentShowcase.CaptureLobby / 后台截图 | 隐藏窗口的营地捕获等待FramePostDraw后不再前进。 | 隐藏或屏幕外窗口可能停止自动绘帧，捕获夹具依赖可见窗口绘帧信号。 | 营地捕获在布局帧完成后显式RenderingServer.ForceDraw(false)，再读取真实GPU视口；隔离副本保持no_focus及屏幕外位置。三尺寸截图和交互捕获通过。 | Fixed |
+| BUG-330 | 2026-10-19 | ComponentShowcase.CaptureLobby / 插图验证 | 已有实际透明通道的角色被误报缺少透明插图。 | CompressedTexture2D.HasAlpha在引擎中固定返回false；无头dummy渲染也不提供实际GPU纹理数据。 | 真实渲染检查GetImage().DetectAlpha与mipmap，无头仅检查资源加载及交互；六张透明插图的GPU检查通过。 | Fixed |

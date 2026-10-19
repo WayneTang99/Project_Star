@@ -22,7 +22,7 @@ public sealed class WarhammerFortressCardDefinition : CardDefinition
                 {
                     [GameAttributeKeys.AttackDamage] = 300,
                     [GameAttributeKeys.CooldownTicks] = 120,
-                })), new TagSet([GameTags.Location]), initialLevel: 3,
+                })), new TagSet([GameTags.Building, GameTags.Location]), initialLevel: 3,
             levels: [CreateLevel(3, 300), CreateLevel(4, 500)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int damage) => new(level,

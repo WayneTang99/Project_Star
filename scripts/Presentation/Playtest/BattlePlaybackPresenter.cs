@@ -143,6 +143,16 @@ public sealed class BattlePlaybackPresenter
         foreach (var item in _source.Result.Events.Take(_state.EventCount))
         {
             BoardPlacementSnapshot? restored = null;
+            if (item is CardTransformedEvent transform)
+            {
+                var transformed = _state.Cards.FirstOrDefault(card => card.Id == transform.TargetCardId && card.Side == side);
+                var placementIndex = placements.FindIndex(placement => placement.CardId == transform.TargetCardId);
+                if (placementIndex >= 0 && transformed?.TransformedIdentity is { } identity)
+                {
+                    var placement = placements[placementIndex];
+                    placements[placementIndex] = placement with { EndExclusive = placement.Start + identity.OccupiedSlots };
+                }
+            }
             if (item is CardSummonedEvent summon && summon.Side == side)
             {
                 var state = summonedStates.Single(card => card.Id == summon.SummonedCardId);

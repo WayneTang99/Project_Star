@@ -20,7 +20,7 @@ public sealed class SkyvaultTowerCardDefinition : CardDefinition
                 new(CardKeywords.Echo, "当己方人类卡牌发动后，此卡牌获得1秒充能。"),
                 new(CardKeywords.Echo, "当己方光属性卡牌发动后，此卡牌护甲和治疗各增加20，仅本场战斗生效。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
-            { [GameAttributeKeys.CooldownTicks] = 70 })), new TagSet([GameTags.Location]),
+            { [GameAttributeKeys.CooldownTicks] = 70 })), new TagSet([GameTags.Building, GameTags.Location]),
             initialLevel: 4, levels:
             [new CardLevelDefinition(4, new Dictionary<StringName, int>
                 { [GameAttributeKeys.Armor] = 100, [GameAttributeKeys.HealingBonus] = 100 },

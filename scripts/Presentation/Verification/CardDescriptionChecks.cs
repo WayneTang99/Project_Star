@@ -47,6 +47,7 @@ internal static class CardDescriptionChecks
                     SummonAdjacentCardEffectDefinition value => new[] { value.Card },
                     SummonRandomAdjacentCardEffectDefinition value => value.Cards,
                     TransformRandomEnemyCardEffectDefinition value => new[] { value.Replacement },
+                    TransformSourceIntoRandomCardsEffectDefinition value => value.Replacements,
                     GrantSourceLevelCardEffectDefinition value => new[] { value.Card },
                     _ => Array.Empty<CardDefinition>(),
                 };

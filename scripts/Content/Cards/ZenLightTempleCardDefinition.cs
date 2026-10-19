@@ -15,7 +15,7 @@ public sealed class ZenLightTempleCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/zen_light_temple-illustration.png"),
                 descriptionEntries:
                 [new(CardKeywords.Echo, "当双方任何攻击卡牌发动后，禁锢该卡牌1秒。")])),
-            new TagSet([GameTags.Location]), initialLevel: 4,
+            new TagSet([GameTags.Building, GameTags.Location]), initialLevel: 4,
             levels:
             [new CardLevelDefinition(4, null,
                 [new AbilityDefinition(new StringName("ability.immobilize_activated_attack_card"),

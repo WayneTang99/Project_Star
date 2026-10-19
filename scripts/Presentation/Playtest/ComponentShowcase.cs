@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Godot;
 using Project_Star.Application.Factories;
@@ -233,7 +233,9 @@ public sealed partial class ComponentShowcase : Control
             var lobby = shell.GetNode<GameLobbyView>("GameLobby");
             var atlas = shell.GetNode<AtlasHubView>("AtlasHub");
             var selector = shell.GetNode<HeroSelectionView>("ContextRow/ContextHost/HeroSelectionView");
-            var submitted = 0; shell.ChoiceSelected += (_, _, _) => submitted++;
+            var submitted = 0; var resets = 0; var submittedHero = new StringName("");
+            shell.ChoiceSelected += (page, key, _) => { if (page == MatchPage.HeroSelection) { submitted++; submittedHero = key; } };
+            shell.NewJourneyRequested += () => resets++;
             foreach (var size in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080), new Vector2I(2560, 1080) })
             {
                 GetWindow().Size = size; GetTree().Root.ContentScaleSize = size;
@@ -245,19 +247,19 @@ public sealed partial class ComponentShowcase : Control
             }
             GetWindow().Size = new Vector2I(1600, 900); GetTree().Root.ContentScaleSize = new Vector2I(1600, 900); await Frame();
             var settings = shell.GetNode<DisplaySettingsView>("DisplaySettings");
-            Press(lobby.GetNode<Button>("Settings")); await Save("settings-open");
+            Press(lobby.GetNode<Button>("SceneStage/Settings")); await Save("settings-open");
             if (!settings.Visible) throw new InvalidOperationException("大厅设置未打开。");
             Press((Button)settings.FindChild("Cancel", true, false)); await Frame();
-            if (settings.Visible || GetViewport().GuiGetFocusOwner() != lobby.GetNode<Button>("Settings"))
+            if (settings.Visible || GetViewport().GuiGetFocusOwner() != lobby.GetNode<Button>("SceneStage/Settings"))
                 throw new InvalidOperationException("大厅设置取消按钮被遮挡或未恢复焦点。");
-            Press(lobby.GetNode<Button>("Settings")); await Frame();
+            Press(lobby.GetNode<Button>("SceneStage/Settings")); await Frame();
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = true }, true);
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Tab, Pressed = false }, true); await Frame();
             if (!settings.IsAncestorOf(GetViewport().GuiGetFocusOwner())) throw new InvalidOperationException("设置Tab焦点泄漏到大厅。");
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = true }, true);
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = false }, true); await Frame();
             if (settings.Visible) throw new InvalidOperationException("大厅设置Escape无法关闭。");
-            Press(lobby.GetNode<Button>("Settings")); await Frame();
+            Press(lobby.GetNode<Button>("SceneStage/Settings")); await Frame();
             var settingsSize = GetWindow().Size;
             Press((Button)settings.FindChild("Apply", true, false)); await Frame();
             if (!((Button)settings.FindChild("Confirm", true, false)).IsVisibleInTree())
@@ -267,12 +269,34 @@ public sealed partial class ComponentShowcase : Control
             if (settings.Visible || GetWindow().Size != settingsSize) throw new InvalidOperationException("取消设置预览未恢复窗口。");
             await Save("settings-returned");
 
-            Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
-            if (!selector.IsVisibleInTree() || lobby.Visible || submitted != 0)
-                throw new InvalidOperationException("进入选角提前提交或未显示。");
-            await Save("heroes");
-            Press(shell.GetNode<Button>("BackToLobby")); await Frame();
-            if (!lobby.Visible || submitted != 0) throw new InvalidOperationException("选角返回创建了对局。");
+            var heroButtons = new[] { "paladin", "mona", "robin", "harla", "valos", "jiyun" }
+                .Select(name => lobby.GetNode<Button>("SceneStage/" + name)).ToArray();
+            var selectedBeforeHover = lobby.SelectedHeroKey;
+            var hoverPoint = heroButtons[1].GetGlobalRect().GetCenter();
+            GetViewport().PushInput(new InputEventMouseMotion { Position = hoverPoint, GlobalPosition = hoverPoint }, true); await Frame();
+            if (!lobby.GetNode<Control>("SceneStage/HeroInfo").Visible || lobby.SelectedHeroKey != selectedBeforeHover || submitted != 0)
+                throw new InvalidOperationException("悬浮未显示英雄信息，或浏览提前选角／创建旅程。");
+            await Save("hero-hover");
+            foreach (var heroButton in heroButtons)
+            {
+                Press(heroButton); await Frame();
+                if (lobby.SelectedHeroKey != new StringName("hero." + heroButton.Name) || submitted != 0 || selector.Visible)
+                    throw new InvalidOperationException("营地点选英雄没有只更新同行选择。");
+                var texture = heroButton.GetChild<TextureRect>(0).Texture;
+                if (texture is null || (DisplayServer.GetName() != "headless" && (texture.GetImage().DetectAlpha() == Image.AlphaMode.None || texture.GetImage().GetMipmapCount() == 0)))
+                    throw new InvalidOperationException("营地英雄缺少透明插图或mipmap。");
+            }
+            heroButtons[0].GrabFocus(); await Frame();
+            var beforeBrowse = lobby.SelectedHeroKey;
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Right, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Right, Pressed = false }, true); await Frame();
+            if (lobby.SelectedHeroKey != beforeBrowse || !lobby.GetNode<Control>("SceneStage/HeroInfo").Visible)
+                throw new InvalidOperationException("键盘浏览改变了同行选择或未展示信息。");
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = true }, true);
+            GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = false }, true); await Frame();
+            if (lobby.GetNode<Control>("SceneStage/HeroInfo").Visible || GetViewport().GuiGetFocusOwner() != lobby.GetNode<Button>("SceneStage/Start"))
+                throw new InvalidOperationException("Escape未关闭英雄信息或恢复开始按钮焦点。");
+            await Save("hero-selected");
             Press(lobby.GetNode<Button>("SceneStage/Atlas")); await Save("atlas");
             foreach (var category in new[] { WorldCatalogQuery.Heroes, WorldCatalogQuery.Encounters, WorldCatalogQuery.Mentors, WorldCatalogQuery.Sets })
             {
@@ -302,20 +326,21 @@ public sealed partial class ComponentShowcase : Control
             if (!shell.GetNode<CardCatalogView>("CardCatalog").Visible) throw new InvalidOperationException("卡牌分类没有接入。");
             shell.GetNode<CardCatalogView>("CardCatalog").Close(); await Frame();
             if (!atlas.Visible) throw new InvalidOperationException("关闭图鉴未返回分类。");
-            shell.ShowLobby(); Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
-            Press(selector.GetNode<Button>("Choose")); await Frame();
-            if (submitted != 1 || lobby.Visible || selector.Visible) throw new InvalidOperationException("确认英雄未且仅提交一次。");
+            shell.ShowLobby(); Press(heroButtons[1]); await Frame();
+            Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
+            if (submitted != 1 || submittedHero != new StringName("hero.mona") || lobby.Visible || selector.Visible || resets != 0)
+                throw new InvalidOperationException("开始冒险没有直接以选中英雄创建一次旅程。");
             shell.ShowLobby(); await Frame();
             if (!lobby.GetNode<Button>("SceneStage/Resume").Visible) throw new InvalidOperationException("进行中的旅程不可继续。");
-            Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
-            if (selector.GetParent().GetChildren().OfType<Control>().Any(control => control != selector && control.IsVisibleInTree()))
-                throw new InvalidOperationException("已有旅程的阶段界面穿透新选角。");
-            await Save("heroes-existing"); shell.ShowLobby();
-            if (submitted != 1 || !lobby.GetNode<Button>("SceneStage/Resume").Visible)
-                throw new InvalidOperationException("浏览新英雄覆盖了正在进行的旅程。");
+            var nextHero = lobby.GetNode<Button>("SceneStage/robin"); Press(nextHero); await Frame(); await Save("existing-journey");
+            if (submitted != 1 || resets != 0) throw new InvalidOperationException("浏览或点选新英雄覆盖了正在进行的旅程。");
             Press(lobby.GetNode<Button>("SceneStage/Resume")); await Save("resumed");
-            if (lobby.Visible || shell.IsLobbyNavigationActive) throw new InvalidOperationException("继续旅程未恢复对局。");
-            GD.Print("大厅验证通过：设置鼠标取消、Tab焦点、Escape、预览恢复；启动、三种窗口、选角取消、图鉴分类、怪物卡牌与详情、确认一次及继续旅程。");
+            if (lobby.Visible || shell.IsLobbyNavigationActive || submitted != 1 || resets != 0)
+                throw new InvalidOperationException("继续旅程没有保留原对局。");
+            shell.ShowLobby(); Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
+            if (submitted != 2 || submittedHero != new StringName("hero.robin") || resets != 1 || lobby.Visible || selector.Visible)
+                throw new InvalidOperationException("新旅程没有在开始时才重置并使用营地选择。");
+            GD.Print("营地验证通过：三种尺寸、六英雄独立透明插图与mipmap、悬浮、点选、键盘与Escape、图鉴与设置、直接开始、保留并继续旧局、开始新局仅提交一次。");
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
@@ -330,7 +355,9 @@ public sealed partial class ComponentShowcase : Control
         }
         async System.Threading.Tasks.Task Save(string name)
         {
-            await Frame(); await Frame(); await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            await Frame(); await Frame();
+            if (DisplayServer.GetName() == "headless") return;
+            RenderingServer.ForceDraw(false);
             DirAccess.MakeDirRecursiveAbsolute("res://output/lobby");
             using var image = GetViewport().GetTexture().GetImage();
             if (image.SavePng($"res://output/lobby/{name}-{image.GetWidth()}x{image.GetHeight()}.png") != Error.Ok)

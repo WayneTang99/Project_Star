@@ -94,7 +94,7 @@ internal static class QuicksandExpanseChecks
                 var card = first.Result.GrantedCard;
                 if (card is null || card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != level
                     || card.Attributes.Identity.Key != second.Result.GrantedCard?.Attributes.Identity.Key
-                    || first.Session.Board.Battlefield.Count != 1 || first.Result.MonsterEncounter is not null) return false;
+                    || first.Session.Board.Locate(card.Id)?.Zone != BoardZone.Battlefield || first.Result.MonsterEncounter is not null) return false;
                 if (roll < 60 && (card.Attributes.Identity.Size != CardSize.Medium
                     || card.Attributes.Identity.FactionKey != registry.Heroes[heroKey].Attributes.Identity.FactionKey)) return false;
                 if (roll >= 90 && card.Attributes.Identity.Key != new StringName("card.jewelry_bag")) return false;

@@ -36,6 +36,7 @@ public enum AbilityActivation
     EchoOnLeftmostAlliedCardActivated = 24,
     EchoOnAlliedCardStatusGained = 25,
     EchoOnSourceDestroyed = 26,
+    EchoOnEnemyCardStatusGained = 27,
 }
 
 public enum AbilityTarget
@@ -77,6 +78,9 @@ public sealed record IncreaseHeroMaxHealthEffectDefinition(int Amount, bool Targ
 // 按己方存活战场标签卡牌数量提供英雄最大生命光环（领域战斗层）。
 public sealed record IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition(StringName RequiredTag, int Amount) : EffectDefinition;
 
+// 来源价值取开战冻结值，来源失效时撤销光环贡献。
+public sealed record IncreaseHeroMaxHealthBySourceValueEffectDefinition(int Multiplier) : EffectDefinition;
+
 // 仅在日蚀期间倍增目标英雄受到的日蚀伤害。
 public sealed record MultiplyReceivedEclipseDamageEffectDefinition(int Multiplier) : EffectDefinition;
 
@@ -104,6 +108,10 @@ public sealed record SummonRandomAdjacentCardEffectDefinition(
 
 // 将同尺寸敌方战场卡牌临时替换为指定定义，保留目标等级（领域战斗层）。
 public sealed record TransformRandomEnemyCardEffectDefinition(CardDefinition Replacement) : EffectDefinition;
+
+// 将来源原有占格替换为若干随机不同模板的同级卡牌（领域战斗层）。
+public sealed record TransformSourceIntoRandomCardsEffectDefinition(
+    IReadOnlyList<CardDefinition> Replacements, int Count) : EffectDefinition;
 
 public sealed record ModifyAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
 
@@ -207,6 +215,10 @@ public sealed record GrantTagToRandomEnemyCardsEffectDefinition(StringName Tag, 
 public sealed record GrantSourceMulticastWhileEnemyTaggedEffectDefinition(
     IReadOnlyList<StringName> RequiredAnyTags, int Amount) : EffectDefinition;
 
+// 己方存在匹配标签或元素的存活战场卡牌时，为来源提供一份多重（领域战斗层）。
+public sealed record GrantSourceMulticastWhileAlliedCardMatchesEffectDefinition(
+    int Amount, StringName? RequiredTag = null, StringName? RequiredElement = null) : EffectDefinition;
+
 // 按敌方存活的指定标签卡牌数量增加来源属性（领域战斗层）。
 public sealed record IncreaseSourceAttributePerEnemyTaggedCardEffectDefinition(
     StringName AttributeKey,
@@ -225,6 +237,9 @@ public sealed record IncreaseSourceAttributePerCooldownSecondEffectDefinition(
     StringName AttributeKey, int AmountPerSecond) : EffectDefinition;
 
 public sealed record ApplyStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
+
+// 固定扣减英雄已有灼伤或中毒，最多移除当前拥有的量（领域战斗层）。
+public sealed record ReduceHeroStatusEffectDefinition(BattleStatus Status, int Amount) : EffectDefinition;
 
 // 随机对一张存活敌方战场卡牌累加持续状态（领域战斗层）。
 public sealed record ApplyStatusToRandomEnemyCardEffectDefinition(
@@ -323,7 +338,8 @@ public sealed record ReduceSourceCooldownEffectDefinition(int AmountTicks) : Eff
 public sealed record ModifyTaggedAlliedCardsAttributeEffectDefinition(
     StringName RequiredTag,
     StringName AttributeKey,
-    int Amount, bool RandomSingleTarget = false, bool RequiresAttributeSupport = true) : EffectDefinition;
+    int Amount, bool RandomSingleTarget = false, bool RequiresAttributeSupport = true,
+    bool AdjacentOnly = false) : EffectDefinition;
 
 // 从己方存活战场攻击卡牌中随机选择一张，累加指定战斗属性。
 public sealed record ModifyRandomAlliedAttackCardAttributeEffectDefinition(StringName AttributeKey, int Amount) : EffectDefinition;
@@ -372,6 +388,7 @@ public sealed class AbilityDefinition
         if (activation == AbilityActivation.EchoOnSourceHeroFirstLethalDamage && (allowsBench || cooldownTicks != 0))
             throw new ArgumentException("First lethal damage trigger requires a battlefield source and no cooldown.", nameof(activation));
         if (activation is AbilityActivation.EchoOnSourceCardStatusGained or AbilityActivation.EchoOnAlliedCardStatusGained
+            or AbilityActivation.EchoOnEnemyCardStatusGained
             ? triggerStatus is not BattleStatus.HasteDuration and not BattleStatus.SlowDuration and not BattleStatus.ImmobilizeDuration
                 || allowsBench || cooldownTicks != 0
             : triggerStatus is not null)
@@ -474,6 +491,10 @@ public sealed class AbilityDefinition
             if (effect is EnterEclipseEffectDefinition
                 && (activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled || allowsBench))
                 throw new ArgumentException("Eclipse entry requires an executed battlefield ability.", nameof(effects));
+            if (effect is IncreaseHeroMaxHealthBySourceValueEffectDefinition valueHealth
+                && (valueHealth.Multiplier < 1 || activation != AbilityActivation.PassiveAura
+                    || target != AbilityTarget.AlliedHero || allowsBench))
+                throw new ArgumentException("Source value max health requires a positive battlefield allied hero aura.", nameof(effects));
             if (effect is IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition taggedHealth
                 && (taggedHealth.RequiredTag.IsEmpty || taggedHealth.Amount < 1
                     || activation != AbilityActivation.PassiveAura || target != AbilityTarget.AlliedHero || allowsBench))
@@ -576,6 +597,17 @@ public sealed class AbilityDefinition
             if (effect is TransformRandomEnemyCardEffectDefinition transform
                 && (transform.Replacement is null || activation == AbilityActivation.PassiveAura))
                 throw new ArgumentException("Card transformation requires a replacement and an executed ability.", nameof(effects));
+            if (effect is TransformSourceIntoRandomCardsEffectDefinition split
+                && (split.Replacements is null || split.Count < 1 || split.Replacements.Count < split.Count
+                    || split.Replacements.Any(card => card is null)
+                    || split.Replacements.Select(card => card.Attributes.Identity.Key).Distinct().Count() != split.Replacements.Count
+                    || split.Replacements.Select(card => card.Attributes.Identity.OccupiedSlots).Distinct().Count() != 1
+                    || activation == AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Source transformation requires distinct equal-size templates, a positive count and an executed battlefield self ability.", nameof(effects));
+            if (effect is ReduceHeroStatusEffectDefinition heroReduction
+                && (heroReduction.Status is not BattleStatus.Burn and not BattleStatus.Poison || heroReduction.Amount < 1
+                    || activation == AbilityActivation.PassiveAura || target is not AbilityTarget.AlliedHero and not AbilityTarget.EnemyHero))
+                throw new ArgumentException("Hero status reduction requires burn or poison, a positive amount and an executed hero target.", nameof(effects));
             if (effect is ApplyAttributeStatusEffectDefinition attributeStatus
                 && (attributeStatus.AttributeKey.IsEmpty || attributeStatus.Status is not BattleStatus.Burn and not BattleStatus.Poison))
                 throw new ArgumentException("Attribute status requires a key and burn or poison.", nameof(effects));
@@ -706,7 +738,8 @@ public sealed class AbilityDefinition
                 throw new ArgumentException("Attribute armor key cannot be empty.", nameof(effects));
             }
             if (effect is ModifyTaggedAlliedCardsAttributeEffectDefinition modifier
-                && (modifier.RequiredTag.IsEmpty || modifier.AttributeKey.IsEmpty))
+                && (modifier.RequiredTag.IsEmpty || modifier.AttributeKey.IsEmpty
+                    || modifier.AdjacentOnly && (allowsBench || activation == AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard)))
                 throw new ArgumentException("Tagged card attribute modifier keys cannot be empty.", nameof(effects));
             if (effect is ModifyRandomAlliedAttackCardAttributeEffectDefinition randomModifier && randomModifier.AttributeKey.IsEmpty)
                 throw new ArgumentException("Random attack card attribute key cannot be empty.", nameof(effects));
@@ -760,6 +793,14 @@ public sealed class AbilityDefinition
                 && (randomTag.Tag.IsEmpty || randomTag.TargetCount < 1 || target != AbilityTarget.EnemyHero || allowsBench
                     || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
                 throw new ArgumentException("Random enemy tags require a positive count and executed battlefield enemy effect.", nameof(effects));
+            if (effect is GrantSourceMulticastWhileAlliedCardMatchesEffectDefinition alliedMulticast)
+            {
+                if (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
+                    || alliedMulticast.Amount < 1 || alliedMulticast.RequiredTag is null && alliedMulticast.RequiredElement is null
+                    || alliedMulticast.RequiredTag is { IsEmpty: true } || alliedMulticast.RequiredElement is { IsEmpty: true })
+                    throw new ArgumentException("Allied conditional multicast requires a battlefield self aura, positive amount and a tag or element.", nameof(effects));
+                if (alliedMulticast.RequiredElement is { } element) _ = GameElements.Normalize([element]);
+            }
             if (effect is GrantSourceMulticastWhileEnemyTaggedEffectDefinition taggedMulticast
                 && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench
                     || taggedMulticast.Amount < 1 || taggedMulticast.RequiredAnyTags is null
@@ -800,7 +841,9 @@ public sealed class AbilityDefinition
                 ? multiplier with { RequiredEnemyAnyTags = Array.AsReadOnly(tags.ToArray()) }
                 : effect is GrantSourceMulticastWhileEnemyTaggedEffectDefinition conditionalMulticast
                     ? conditionalMulticast with { RequiredAnyTags = Array.AsReadOnly(conditionalMulticast.RequiredAnyTags.ToArray()) }
-                    : effect).ToList().AsReadOnly();
+                    : effect is TransformSourceIntoRandomCardsEffectDefinition split
+                        ? split with { Replacements = Array.AsReadOnly(split.Replacements.ToArray()) }
+                        : effect).ToList().AsReadOnly();
         AllowsBench = allowsBench;
         TriggerStateKey = triggerStateKey;
         TriggerCardTag = triggerCardTag;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -37,6 +37,7 @@ public sealed partial class PhaseOneVerification : Control
             ("怪物与PvP敌方同步可见且结算与重开无残留", PlaytestVerification.EnemyVisibilityAndReset),
         ]),
         new("基础规则与定义", [
+            ("万象舆图四级地域拾取成长、出售任务、价值生命光环与冻结隔离", MyriadAtlasChecks.GrowthAndQuest),
             ("小天使分级治疗、敌方双标签去重、多重与神圣感知联动", LittleAngelChecks.LevelsAndHealing),
             ("神圣感知分级、开战随机标签与战斗隔离", DivineSenseAndAngelChecks.DivineSense),
             ("正义天使分级、恶魔亡灵多重及神圣感知联动", DivineSenseAndAngelChecks.Angel),
@@ -238,8 +239,8 @@ public sealed partial class PhaseOneVerification : Control
             ("炼金釜出售消耗品永久成长、冻结快照和溢出预检正确", AlchemyCauldronChecks.SaleGrowthAndBattle),
             ("弗兰肯特材料出售成长、多重完整发动、升级保留和原画正确", FrankentChecks.SaleGrowthAndBattle),
             ("黑市典当铺分级交易、价值光环、失效撤销、冻结与溢出预检", BlackMarketPawnshopChecks.SaleGrowthAndAura),
-            ("装备店铺三级交易、战场备战拾取成长与失败原子性", EquipmentShopChecks.AcquisitionAndLevels),
-            ("装备店铺及价值光环跨级预览保留价值、成长与卡面攻防", EquipmentShopChecks.LevelPreview),
+            ("军械库三级交易、战场备战拾取成长与失败原子性", EquipmentShopChecks.AcquisitionAndLevels),
+            ("军械库及价值光环跨级预览保留价值、成长与卡面攻防", EquipmentShopChecks.LevelPreview),
             ("光辉板甲两级、双方、自身及光属性多重回响成长与筛选", RadiantPlateArmorChecks.LevelsAndEcho),
             ("普通商店本职业池与光属性商店跨职业元素池、刷新购买", OrdinaryAndLightShopChecks.PoolsAndRefresh),
             ("光属性商店圣骑士资格和等级排程、普通商店通用资格", OrdinaryAndLightShopChecks.Scheduling),
@@ -256,10 +257,14 @@ public sealed partial class PhaseOneVerification : Control
             ("护腿四级、双方、4秒装备疾速及相邻多重护甲回响", GreavesChecks.LevelsAndCombat),
             ("随军圣女四级、双方、魔法门槛、6秒周期及人类攻击累加", ArmySaintessChecks.LevelsManaAndTargets),
             ("教团秘法师三级、双方、魔法边界、5秒伤害与己方治疗", OrderArcanistChecks.LevelsManaAndHealing),
+            ("十种小型史莱姆分级、双方3秒周期效果、随机目标与原画", ElementSlimeChecks.LevelsAndEffects),
+            ("大史莱姆四级伤害、半血边界、原位分裂与确定性", BigSlimeChecks.LevelsAndSplit),
             ("火枪手四级、双方、7秒周期伤害与灼伤及原画", MusketeerChecks.LevelsAndFiring),
+            ("弓箭塔四级、双方伤害、敌方多重充能及原画", ArcherTowerChecks.LevelsAndEcho),
+            ("建筑与地域分类及双标签", ArcherTowerChecks.BuildingTags),
             ("星纹天使分级、双方、恶魔随机不重复禁锢与无恶魔治疗", StarPatternAngelChecks.LevelsAndBranches),
             ("星纹天使魔法边界、多重、来源失效、条件变化与显示", StarPatternAngelChecks.ManaLifetimeAndDisplay),
-            ("装备店铺标签攻防光环、双方、叠加、失效及冻结", EquipmentShopChecks.AuraFiltersAndLifetime),
+            ("军械库标签攻防光环、双方、叠加、失效及冻结", EquipmentShopChecks.AuraFiltersAndLifetime),
             ("碧玉蟾各等级5秒按冻结实际价值施毒且护甲不抵消", JadeToadChecks.LevelsAndPoison),
             ("碧玉蟾只按开战参战实例成长，胜负和战斗类型均适用", JadeToadChecks.GrowthAndParticipation),
             ("碧玉蟾重复成长、升级保留、出售和冻结回放正确", JadeToadChecks.UpgradeSaleAndPlayback),
@@ -311,6 +316,11 @@ public sealed partial class PhaseOneVerification : Control
             ("大天使号两级伤害、20秒冷却、双方分类充能与回响截断正确", ArchangelChecks.LevelsAndCharge),
             ("苍穹塔4级身份、护甲治疗、双方人类充能及光属性独立成长正确", SkyvaultTowerChecks.IdentityAndCombat),
             ("护手四级护甲、多重及双方相邻装备伤害回响正确", GauntletChecks.LevelsAndCombat),
+            ("肩甲四级、双方、相邻标签强化与多重", PauldronCaltropsChecks.Pauldron),
+            ("铁蒺藜四级、双方敌方疾速回响及陷阱标签", PauldronCaltropsChecks.Caltrops),
+            ("尖桩吊闸三级伤害、双方人类及多重充能", PauldronCaltropsChecks.Portcullis),
+            ("神像广场两级治疗、独立条件多重和条件失效", StatuePlazaChecks.ConditionsAndHealing),
+            ("水井四级治疗、双方灼伤扣减边界、周期和多重", WaterWellChecks.LevelsAndReduction),
             ("守护十字四级、无主动冷却及双方相邻卡牌回响护甲正确", GuardianCrossChecks.LevelsAndCombat),
             ("手弩四级伤害、4秒冷却及疾速翻倍提前发动正确", HandCrossbowChecks.LevelsAndHaste),
             ("手弩状态入口、来源加成、多重叠加、衰减与非法配置正确", HandCrossbowChecks.RoutesAndStacking),
@@ -559,6 +569,90 @@ public sealed partial class PhaseOneVerification : Control
             {
                 try { await OrderArcanistChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-myriad-atlas"))
+            Callable.From((Action)(() =>
+            {
+                var passed = MyriadAtlasChecks.GrowthAndQuest();
+                GD.Print($"万象舆图专项验证：{passed}"); GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-myriad-atlas"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MyriadAtlasChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-archer-tower"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ArcherTowerChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-element-slimes"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ElementSlimeChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-pauldron-caltrops"))
+            Callable.From((Action)(async () =>
+            {
+                try { await PauldronCaltropsChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-pauldron-caltrops"))
+            Callable.From((Action)(() =>
+            {
+                var shoulder = PauldronCaltropsChecks.Pauldron();
+                var trap = PauldronCaltropsChecks.Caltrops();
+                var portcullis = PauldronCaltropsChecks.Portcullis();
+                var armory = EquipmentShopChecks.AcquisitionAndLevels() && EquipmentShopChecks.LevelPreview()
+                    && EquipmentShopChecks.AuraFiltersAndLifetime();
+                var regression = CombatTraceChecks.PreservesTraces() && CardCombatChecks.CheckBlacksmith()
+                    && IceLotusChecks.LevelsAndCombat() && CardDescriptionChecks.AllLevels();
+                GD.Print($"肩甲={shoulder}，铁蒺藜={trap}，尖桩吊闸={portcullis}，军械库={armory}，相关回归={regression}");
+                GetTree().Quit(shoulder && trap && portcullis && armory && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-statue-plaza"))
+            Callable.From((Action)(async () =>
+            {
+                try { await StatuePlazaChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-statue-plaza"))
+            Callable.From((Action)(() =>
+            {
+                var card = StatuePlazaChecks.ConditionsAndHealing();
+                var regression = CombatTraceChecks.PreservesTraces() && DivineSenseAndAngelChecks.Angel() && CardDescriptionChecks.AllLevels();
+                GD.Print($"神像广场={card}，条件多重与固定战斗回归={regression}");
+                GetTree().Quit(card && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-water-well"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WaterWellChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-water-well"))
+            Callable.From((Action)(() =>
+            {
+                var card = WaterWellChecks.LevelsAndReduction();
+                var regression = CombatTraceChecks.PreservesTraces() && MusketeerChecks.LevelsAndFiring() && CardDescriptionChecks.AllLevels();
+                GD.Print($"水井={card}，灼伤与固定战斗回归={regression}");
+                GetTree().Quit(card && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-element-slimes"))
+            Callable.From((Action)(() =>
+            {
+                var small = ElementSlimeChecks.LevelsAndEffects();
+                var big = BigSlimeChecks.LevelsAndSplit();
+                var regression = CombatTraceChecks.PreservesTraces()
+                    && PolymorphChecks.LevelsAndHaste() && PolymorphChecks.TargetsAndReset()
+                    && PolymorphChecks.PlaybackAndRestoration() && TemplarKnightChecks.PlaybackAndRestoration()
+                    && BonebreakerMageChecks.RepeatedSummoningAndPlayback() && DawnLongbowChecks.CancellationAndFrozenCount()
+                    && CardDescriptionChecks.AllLevels();
+                GD.Print($"史莱姆专项：小型={small}，大史莱姆={big}，固定战斗与转变召唤回归={regression}");
+                GetTree().Quit(small && big && regression ? 0 : 1);
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-musketeer"))
             Callable.From((Action)(async () =>

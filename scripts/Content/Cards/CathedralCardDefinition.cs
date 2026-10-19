@@ -28,7 +28,7 @@ public sealed class CathedralCardDefinition : CardDefinition
                     [GameAttributeKeys.AttackDamage] = 0,
                     [GameAttributeKeys.CooldownTicks] = 0,
                 })),
-            new TagSet([GameTags.Location]),
+            new TagSet([GameTags.Building, GameTags.Location]),
             initialLevel: 4,
             levels:
             [

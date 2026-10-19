@@ -8,6 +8,7 @@ public static class GameTags
     public static readonly StringName Medium = new("Medium");
     public static readonly StringName Large = new("Large");
     public static readonly StringName Equipment = new("Equipment");
+    public static readonly StringName Trap = new("Trap");
     public static readonly StringName Material = new("Material");
     public static readonly StringName Consumable = new("Consumable");
     public static readonly StringName Human = new("Human");
@@ -19,6 +20,7 @@ public static class GameTags
     public static readonly StringName Mechanical = new("Mechanical");
     public static readonly StringName Demon = new("Demon");
     public static readonly StringName Undead = new("Undead");
+    public static readonly StringName Building = new("Building");
     public static readonly StringName Location = new("Location");
     public static readonly StringName Plant = new("Plant");
     public static readonly StringName Deity = new("Deity");

@@ -217,11 +217,17 @@ internal static class BattleStatusResolver
             if (source.Side != side || source.Destroyed || source.IsOnBench) continue;
             foreach (var ability in source.Abilities)
             foreach (var effect in ability.Definition.Effects)
+            {
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is IncreaseHeroMaxHealthBySourceValueEffectDefinition valueAura
+                    && source is CardBattleState valueSource)
+                    bonus = checked(bonus + checked(valueSource.FrozenValue * valueAura.Multiplier));
                 if (ability.Definition.Activation == AbilityActivation.PassiveAura
                     && effect is IncreaseHeroMaxHealthPerAlliedTaggedCardEffectDefinition aura)
                     bonus = checked(bonus + runtime.Cards.Count(card => card.Side == side
                         && !card.Destroyed && !card.IsOnBench
                         && BattleEffectResolver.HasEffectiveTag(runtime, card, aura.RequiredTag)) * aura.Amount);
+            }
         }
         var hero = runtime.GetHero(side);
         var delta = checked(bonus - hero.MaxHealthAuraBonus);

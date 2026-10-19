@@ -329,7 +329,7 @@ public sealed class CombatSimulator
         }
     }
 
-    // 正时长状态实际累加后，排入自身及同方来源的状态获得回响。
+    // 正时长状态实际累加后，按受影响卡牌归属排入自身、己方或敌方状态获得回响。
     internal static void EnqueueSourceStatusGainedEchoes(BattleRuntime runtime, CardBattleState target, BattleStatus status)
     {
         if (target.Destroyed || target.IsOnBench) return;
@@ -340,8 +340,9 @@ public sealed class CombatSimulator
         foreach (var source in runtime.AbilitySources)
         foreach (var ability in source.Abilities)
         {
-            if (source.Side != target.Side || source.Destroyed || source.IsOnBench) continue;
-            if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardStatusGained
+            if (source.Destroyed || source.IsOnBench) continue;
+            if ((ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardStatusGained && source.Side == target.Side
+                    || ability.Definition.Activation == AbilityActivation.EchoOnEnemyCardStatusGained && source.Side != target.Side)
                 && ability.Definition.TriggerStatus == status)
                 Enqueue(runtime, source, ability, true, eventCard: target);
         }

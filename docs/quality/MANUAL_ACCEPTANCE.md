@@ -1,5 +1,20 @@
 ﻿# 当前试玩验收
 
+2026-10-19新增水井并按反馈纯文字独立重绘：圣骑士小型水属性、无额外标签，复用治疗并新增通用英雄状态固定扣减效果，扣减不超过当前量、不触发状态获得回响，随多重重新结算。专项覆盖四级、双方、零／不足／充足灼伤、实际治疗与扣减、6秒周期、多重、备战／摧毁排除及确定性；火枪手灼伤与固定战斗基线通过，全卡152张／478组等级文案0问题。原画重做为紧凑井口、大水桶和统一三分之四透视，当前water_well-illustration-redraw-20261019.png（887×1774），原生实际加载10层mipmap，1/4级及紧凑卡面通过。构建0警告0错误，git diff --check通过；新增内容的全量无头验证仍因BUG-333异常退出，未标通过。证据：output/water-well/build-redraw.log、verify-redraw.log、verify-all-console.log、capture-redraw.log、card-face.png、generation.json及redraw-generation.json。未执行完整人工对局。
+
+2026-10-19神像广场按要求纯文字独立重绘为高挑站姿天使，未传入原图或参考图。双翼向上贴背收拢，垂直长袍与窄柱基座减少横向占地，保留开阔广场；当前引用statue_plaza-illustration-standing-20261019.png（1536×1024）。仅切换原画，构建0警告0错误，原生实际加载10层mipmap，3/4级及紧凑卡面检查通过，git diff --check通过。证据：output/statue-plaza/standing-generation.json、build-standing.log、capture-standing.log、card-face.png。未重跑全量战斗回归。
+
+2026-10-19新增神像广场，并按用户最终要求以纯文字独立重绘天使神像（未传入原图或参考图片）：当前引用statue_plaza-illustration-fresh-20261019.png（1536×1024），坐姿天使、无瞳石雕眼眸、游戏手绘风格。添加可复用己方标签／元素存在条件多重光环，三项条件独立累计，每项不按数量重复，包含来源，候选失效后动态撤销；保留每组多重冻结规则。专项覆盖3/4级及双方、0～3项条件组合、双标签与重复候选、敌方／备战／摧毁排除、实际治疗量、条件在多重期间失效与下一轮发动次数、确定性和原始数据隔离。构建0警告0错误，专项、正义天使条件多重和固定战斗基线通过，全卡151张／474组等级文案0问题；原生实际加载10层mipmap，初始／满级与紧凑卡面通过，git diff --check通过。全量无头仍因BUG-333异常退出，未标记通过。证据：output/statue-plaza/build-final.log、verify-focused-final.log、verify-all-console.log、capture.log、card-face.png及fresh-generation.json。石像可保留五官和无神眼眸的约定已同步项目原画技能。未执行完整人工对局。
+
+2026-10-19新增肩甲、铁蒺藜（原需求名地刺）、尖桩吊闸，并将卡牌装备店铺改名军械库，保留card.equipment_shop及原交易／价值光环。新增Trap标签、中文映射及词条着色；复用标签属性强化并支持直接相邻筛选，复用状态获得入口支持敌方状态回响。专项覆盖各支持等级和双方、相邻完整占格／双标签／多重／排除条件、疾速逐张触发／施加方无关／零时长／非疾速／备战／摧毁，以及吊闸双方人类充能提前发动和多重。四项专项及固定战斗基线、铁匠铺和冰莲回归通过，军械库三级交易、光环、预览回归通过；构建0警告0错误，全卡150张／472组等级文案0问题，git diff --check通过。内置image_gen独立生成肩甲与铁蒺藜887×1774、尖桩吊闸与军械库1254×1254原画，原生实际加载均10层mipmap，初始／满级和紧凑卡面通过。最终无头全量仍在既有UI夹具期间异常退出，BUG-333保持Open，未标为全量通过。证据：output/pauldron-caltrops/build-final.log、verify-all-four-focused.log、verify-final-all-console.log、capture-final.log、card-faces.png、generation.json及portcullis-armory-generation.json。未执行完整人工对局。
+
+2026-10-19大史莱姆重绘及全部史莱姆添加材料标签：11张正式Definition统一添加Material，更新既有等级验证，并确认原位分裂后的两张小史莱姆回放快照均保留材料。内置image_gen以纯文字独立重绘单体圆润胶体，未使用旧图作为输入；接入big_slime-illustration-redraw-20261019.png（1254×1254），旧图保留。原生实际纹理10层mipmap，初始／满级紧凑及放大卡面通过。构建0警告0错误，史莱姆专项、固定战斗基线、转变召唤与延迟多重回归通过，全卡147张／461组等级文案0问题，git diff --check通过。无头全量仍因BUG-333异常退出，未标为通过。证据：output/slime-material-redraw/build-final.log、verify-focused-final.log、verify-all-console.log、capture.log、card-faces.png、card-faces-large.png、generation.json。未执行完整人工对局。
+
+2026-10-19新增九元素史莱姆、无属性史莱姆及大史莱姆，共11张无阵营正式卡牌。专项覆盖全部等级、双方周期效果、禁锢目标不重复／不足全选／备战排除与衰减；大史莱姆验证半血严格边界、不同元素同级原位分裂、低等级排除光暗、旧多重取消、新卡完整冷却、64个种子的确定性及回放占格和跨战斗隔离。修复转变改变尺寸后的回放占位BUG-332。构建0警告0错误，史莱姆专项及固定战斗基线、旧转变、召唤与延迟多重回归通过，全卡147张／461组等级文案0问题。内置image_gen独立生成10张887×1774小型原画与1张1254×1254中型原画，正式接入art/ui/card-face/artwork/；原生实际加载全部10层mipmap，初始／满级紧凑及放大卡面通过。两次无头全量验证在既有UI夹具期间异常退出，登记BUG-333待定位，全量未通过。证据：output/element-slimes/build.log、verify-focused-console.log、verify-final-console.log、capture-final.log、card-faces.png、card-faces-large.png、generation.json。未执行完整人工对局。
+
+2026-10-19新增弓箭塔及建筑标签：弓箭塔四级伤害、双方敌方发动充能、多重、备战排除及确定性通过；建筑／地域独立分类与双标签验证通过，大教堂和苍穹塔均保留双标签；辰光之门按用户确认仅为地域。内置image_gen按Belfry主题新绘方形原画，1254×1254，Godot 4.7.2 .NET实际加载10层mipmap，240×240与100×100原生卡面检查通过。构建0警告0错误，全量435/435通过；修正流沙随机奖励验证对拾取连锁的错误数量假设，登记BUG-331。证据：output/archer-tower/build.log、verify-final.log、capture.log、card-face.png、generation.txt。未执行完整人工对局。
+
+
 2026-10-17用户要求审判之锤恢复本轮修改前版本，已切回judgment_hammer-illustration-redraw-20261016.png；构建通过，原生加载确认1536×1024、10层mipmap。证据：output/judgment-hammer-20261017/build-restored.log、capture-restored.log。
 
 
@@ -330,3 +345,14 @@ Godot 表示本机 .NET 版本编辑器的实际可执行文件。原生输入�
 全卡134张／413组等级文案审查零问题；卡面只显示具体数字，缺少必要依据时为0，已知属性不丢弃，独立生命比例默认满血；详情保留当前攻击与公式，不添加默认预览策略文字。四级野猪、攻击加成、宝石主效果、实际冻结数值和两个新商店的商品池／刷新购买／排程通过聚焦检查。HTML20段脚本语法与数值示例通过；浏览器file协议受工具策略限制，未完成本次浏览器视觉验收。原生已检查紧凑卡面与放大预览（output/boar-and-shops-capture-final.log、output/radiant-set-20261018/*.png）。6张正式新原画均1254×1254、实际10级mipmap，原画与内置image_gen完整提示词见output/paladin-content-artwork-delivery-20261018.md。
 
 2026-10-18 技能详情鼠标遮挡修复（BUG-328）：复现时关闭按钮位置命中HeroDetails/Shade。移除遮罩独立TopLevel输入根，将其移为弹窗之前的同级普通控件，打开时弹窗置于末尾，显隐与销毁同步。专项验证1600×900、2240×1260真实鼠标关闭、底层菜单阻断、Tab焦点圈定、Escape关闭与入口焦点恢复全部通过；复用技能原画／等级及奖励浮层回归通过。构建0警告0错误、diff检查通过。证据output/secondary-modal-repro.log、secondary-modal-fixed.log及output/secondary-modal/skill-*.png。本次弹窗修复后未重复无关战斗全量。
+
+
+### 2026-10-19 营地内选英雄同步
+
+HTML已确认的营地直接选英雄方案同步原生：六张独立透明PNG与姓名／活动牌，悬浮或聚焦显示正式英雄身份及初始属性，点击只更换同行选择，开始冒险才经既有应用入口创建新局；已有旅程可以继续，浏览或更换英雄不重置原局。图鉴、设置、放弃后的营地及终局新旅程入口沿用同一大厅。运行时不打开独立选角页。
+
+构建0警告0错误；Main.tscn无头全量433/433通过。专项无头和真实GPU后台捕获通过：1280×720、1920×1080、2560×1080场景边界，六英雄实际视口点击与透明／mipmap，悬浮只读、方向键只浏览、Escape焦点恢复、设置鼠标／Tab／Escape／预览取消，图鉴分类与怪物卡牌详情，选中英雄仅提交一次、继续原局不重置、明确开始新旅程才重置一次。已目视检查1920营地、1600英雄信息与超宽背景延展。BUG-329、330已修复。
+
+证据：output/camp-native.log、output/camp-headless.log、output/camp-verify.log与output/camp-native/*.png。截图来自使用相同源码／资源的隔离验证副本，override.cfg仅在副本中设置no_focus=true、屏幕外位置、静音Dummy音频与兼容渲染器；后台Start-Process使用WindowStyle Hidden，显式ForceDraw读取GPU视口，不显示或激活编辑器／游戏窗口，不写日常显示设置。兼容渲染器日志有TAA不可用提示，未发现引擎错误。正常游戏仍沿用既有渲染配置；本轮未做完整人工对局或逐像素字体比对。
+
+2026-10-19新增万象舆图：四级地域拾取价值成长、出售5张地域任务解锁、价值×20最大生命光环、备战与摧毁失效、升级保留及旧战斗冻结隔离通过。构建0警告0错误，Godot 4.7.2 .NET全量436/436通过。内置image_gen生成1254×1254方形原画，实际加载10层mipmap，100×100紧凑卡面及放大预览检查通过；截图使用无焦点、屏幕外的隔离验证入口。证据：output/myriad-atlas/build.log、verify.log、focused.log、capture.log、card-face.png、preview.png、generation.txt。未执行完整人工对局。
