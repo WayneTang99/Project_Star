@@ -2,6 +2,7 @@
 
 | 编号 | 日期 | 位置 | 描述 | 根因 | 修复方案 | 状态 |
 |---|---|---|---|---|---|---|
+| BUG-334 | 2026-10-19 | LavaStoneChecks / 原生卡面验证 | 新增熔岩石验证初稿编译时找不到CardItemView。 | 缺少Presentation.Playtest命名空间导入。 | 补齐using并重新构建及执行专项验证。 | Fixed |
 | BUG-333 | 2026-10-19 | PhaseOneVerification / 无头全量UI检查 | 无头全量验证多次在既有UI检查期间异常退出，控制台大量Object was deleted while awaiting a callback，未生成全量汇总；史莱姆材料标签及原画更新后再次复现。 | 待定位；已有末尾调用栈涉及英雄技能详情与TestEncounterLevels/ShopView.Render，专项战斗验证可独立完成。 | 保存output/element-slimes/verify-final-console.log、output/slime-material-redraw/verify-all-console.log、output/pauldron-caltrops/verify-final-all-console.log、output/statue-plaza/verify-all-console.log及output/water-well/verify-all-console.log，继续隔离复查节点回调及UI夹具生命周期；不以专项结果替代全量通过。 | Open |
 | BUG-332 | 2026-10-19 | BattlePlaybackPresenter.Project / 尺寸变化转变 | 中型卡原位分裂后，回放投影新增第二张小型卡会移除第一张的棋盘占位。 | 转变只替换展示身份，保留原中型两格占位；随后新增卡按重叠清理时误删第一张。 | 消费CardTransformedEvent时先按冻结转变身份更新原占位宽度，再处理新增卡；验证原位两张小型、相邻卡保留、战前及对局快照隔离。 | Fixed |
 | BUG-331 | 2026-10-19 | QuicksandExpanseChecks.OutcomesAndLevels | 新增弓箭塔后流沙奖励验证失败，奖励和确定性结算正常。 | 测试假定随机奖励后战场恰好1张卡，抽到训练营的拾取奖励会额外放置卡牌。 | 改为检查本次奖励卡实际位于战场，继续验证等级、归属和确定性，允许正常拾取连锁。 | Fixed |

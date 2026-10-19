@@ -1,4 +1,4 @@
-﻿# 当前试玩验收
+# 当前试玩验收
 
 2026-10-19新增水井并按反馈纯文字独立重绘：圣骑士小型水属性、无额外标签，复用治疗并新增通用英雄状态固定扣减效果，扣减不超过当前量、不触发状态获得回响，随多重重新结算。专项覆盖四级、双方、零／不足／充足灼伤、实际治疗与扣减、6秒周期、多重、备战／摧毁排除及确定性；火枪手灼伤与固定战斗基线通过，全卡152张／478组等级文案0问题。原画重做为紧凑井口、大水桶和统一三分之四透视，当前water_well-illustration-redraw-20261019.png（887×1774），原生实际加载10层mipmap，1/4级及紧凑卡面通过。构建0警告0错误，git diff --check通过；新增内容的全量无头验证仍因BUG-333异常退出，未标通过。证据：output/water-well/build-redraw.log、verify-redraw.log、verify-all-console.log、capture-redraw.log、card-face.png、generation.json及redraw-generation.json。未执行完整人工对局。
 
@@ -356,3 +356,9 @@ HTML已确认的营地直接选英雄方案同步原生：六张独立透明PNG�
 证据：output/camp-native.log、output/camp-headless.log、output/camp-verify.log与output/camp-native/*.png。截图来自使用相同源码／资源的隔离验证副本，override.cfg仅在副本中设置no_focus=true、屏幕外位置、静音Dummy音频与兼容渲染器；后台Start-Process使用WindowStyle Hidden，显式ForceDraw读取GPU视口，不显示或激活编辑器／游戏窗口，不写日常显示设置。兼容渲染器日志有TAA不可用提示，未发现引擎错误。正常游戏仍沿用既有渲染配置；本轮未做完整人工对局或逐像素字体比对。
 
 2026-10-19新增万象舆图：四级地域拾取价值成长、出售5张地域任务解锁、价值×20最大生命光环、备战与摧毁失效、升级保留及旧战斗冻结隔离通过。构建0警告0错误，Godot 4.7.2 .NET全量436/436通过。内置image_gen生成1254×1254方形原画，实际加载10层mipmap，100×100紧凑卡面及放大预览检查通过；截图使用无焦点、屏幕外的隔离验证入口。证据：output/myriad-atlas/build.log、verify.log、focused.log、capture.log、card-face.png、preview.png、generation.txt。未执行完整人工对局。
+
+
+2026-10-19新增无阵营熔岩石：小型、火属性、材料、初始1级，四级出售效果复用最左侧灼伤永久成长1/2/3/4。专项覆盖战场／备战出售、跳过非灼伤与备战目标、最左侧选择、实际施加量、重复出售、旧战斗冻结和确定性；固定／属性／百分比灼伤、狂暴多重、累加升级与失败回归通过，全卡153张／482组等级文案0问题。构建0警告0错误，git diff --check通过。内置image_gen按最终名称独立重绘，887×1774，实际加载10层mipmap；原生1/4级、紧凑卡面与放大预览检查通过。全量验证未返回汇总，已停止，不记通过。证据：output/lava-stone/build.log、focused.log、verify-all.log、capture.log、card-face.png、preview.png、generation.json。未执行完整人工对局。
+
+2026-10-19新增1级火史莱姆怪物，40最大生命，按0/1/2格配置两张1级熔岩石及一张1级火史莱姆，携带1级灼伤精通；咩咩最大生命由100改80。专项通过定义注册、排程、重复卡牌保留、独立实例、战斗快照、实际灼伤4、确定性及胜利奖励等级与幂等领取；咩咩阵容、奖励、80生命与风车菊治愈回归、固定战斗基线均通过。内置image_gen生成1536×1024横向怪物原画，实际加载10层mipmap；提示词及来源见output/fire-slime-monster/generation.json。构建0警告0错误，git diff --check通过。未执行完整人工对局；全量验证结果另见verify-all.log，不以专项代替全量。
+全量无头验证未返回汇总，已停止，未标通过；日志保存在output/fire-slime-monster/verify-all.log。

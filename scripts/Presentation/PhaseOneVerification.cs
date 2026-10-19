@@ -127,6 +127,8 @@ public sealed partial class PhaseOneVerification : Control
             ("导师领取沿用合并并拒绝重复、跨局、过期和终局操作", MentorChecks.ClaimAndIsolation),
             ("导师遭遇等级传入选择和技能，刷新及重开不重复领取", MentorChecks.EncounterFlow),
             ("野猪2级遭遇从第3轮解锁，卡组与冲撞保持1级", EncounterChecks.CheckBoarMonsterDefinition),
+            ("火史莱姆40生命、重复熔岩石阵容与灼伤精通实战正确", FireSlimeMonsterChecks.DefinitionAndBattle),
+            ("火史莱姆胜利奖励保留卡牌技能等级且只领取一次", FireSlimeMonsterChecks.Rewards),
             ("咩咩三张卡牌、治愈技能、等级布局与实际发动正确", BaaMonsterChecks.DefinitionAndBattle),
             ("咩咩胜利奖励保留三种卡牌和治愈等级且只领取一次", BaaMonsterChecks.Rewards),
             ("风车菊四级治疗、出售永久生命与咩咩治愈叠加正确", WindmillDaisyChecks.LevelsHealingAndSales),
@@ -144,8 +146,8 @@ public sealed partial class PhaseOneVerification : Control
             ("破碎之星多重宝石、狂暴、护甲补充、失效与隐身边界", ArmorShatteringMaulChecks.OrderingAndBoundaries),
             ("训练营同级小型人类拾取、合并、满盘、空池与随机状态", TrainingCampChecks.PickupAndBoundaries),
             ("训练木桩攻击分类、目标排除、来源失效和本场隔离", TrainingDummyChecks.FiltersAndSourceLoss),
-            ("越狱者1级60生命、默认属性、卡组排程与实际迟缓正确", JailbreakerChecks.DefinitionAndBattle),
-            ("越狱者胜利奖励池保留卡牌等级，金币经验和领取正确", JailbreakerChecks.Rewards),
+            ("逃遁的破誓者1级60生命、默认属性、卡组排程与实际迟缓正确", JailbreakerChecks.DefinitionAndBattle),
+            ("逃遁的破誓者胜利奖励池保留卡牌等级，金币经验和领取正确", JailbreakerChecks.Rewards),
             ("校场按定义永久提升英雄生命或战场卡牌攻击", EncounterChecks.CheckTrainingGround),
             ("垃圾场固定展示零钱与材料选项并结算奖励", EncounterChecks.CheckLandfill),
             ("暮歌丛林固定选项、概率配置与原画正确", DuskSongJungleChecks.Definitions),
@@ -279,6 +281,7 @@ public sealed partial class PhaseOneVerification : Control
             ("磨刀石各等级出售强化最左侧攻击卡牌，实际伤害与冻结正确", WhetstoneChecks.LevelsAndDamage),
             ("磨刀石出售累加、合并更新、升级保留与溢出失败正确", WhetstoneChecks.StackingAndFailures),
             ("磨刀石目标涵盖全部直接伤害能力与零攻击卡牌", WhetstoneChecks.AttackClassification),
+            ("熔岩石四级出售强化最左侧灼伤卡牌、实际灼伤与冻结正确", LavaStoneChecks.LevelsAndSales),
             ("萤火吉丁虫各等级发动与出售最左侧灼伤成长、冻结正确", FireglowJewelBeetleChecks.LevelsAndSales),
             ("萤火吉丁虫支持固定、属性、百分比灼伤及狂暴多重", FireglowJewelBeetleChecks.ClassificationAndPercent),
             ("萤火吉丁虫永久累加、合并升级保留、空目标与溢出拒绝", FireglowJewelBeetleChecks.StackingAndFailures),
@@ -640,6 +643,40 @@ public sealed partial class PhaseOneVerification : Control
                 var regression = CombatTraceChecks.PreservesTraces() && MusketeerChecks.LevelsAndFiring() && CardDescriptionChecks.AllLevels();
                 GD.Print($"水井={card}，灼伤与固定战斗回归={regression}");
                 GetTree().Quit(card && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-fire-slime-monster"))
+            Callable.From((Action)(() =>
+            {
+                var monster = FireSlimeMonsterChecks.DefinitionAndBattle() && FireSlimeMonsterChecks.Rewards();
+                var baa = BaaMonsterChecks.DefinitionAndBattle() && BaaMonsterChecks.Rewards()
+                    && WindmillDaisyChecks.LevelsHealingAndSales();
+                var regression = CombatTraceChecks.PreservesTraces();
+                GD.Print($"火史莱姆怪物={monster}，咩咩80生命与治愈回归={baa}，固定战斗={regression}");
+                GetTree().Quit(monster && baa && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-lava-stone"))
+            Callable.From((Action)(() =>
+            {
+                var card = LavaStoneChecks.LevelsAndSales();
+                var regression = FireglowJewelBeetleChecks.ClassificationAndPercent()
+                    && FireglowJewelBeetleChecks.StackingAndFailures() && CombatTraceChecks.PreservesTraces()
+                    && CardDescriptionChecks.AllLevels();
+                GD.Print($"熔岩石={card}，灼伤成长与固定战斗回归={regression}");
+                GetTree().Quit(card && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-lava-stone"))
+            Callable.From((Action)(async () =>
+            {
+                try { await LavaStoneChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-jailbreaker"))
+            Callable.From((Action)(() =>
+            {
+                var definition = JailbreakerChecks.DefinitionAndBattle();
+                var rewards = JailbreakerChecks.Rewards();
+                GD.Print($"逃遁的破誓者：身份、原画mipmap与战斗={definition}，奖励={rewards}");
+                GetTree().Quit(definition && rewards ? 0 : 1);
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--verify-element-slimes"))
             Callable.From((Action)(() =>

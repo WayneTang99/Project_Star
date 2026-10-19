@@ -31,7 +31,7 @@ internal static class BaaMonsterChecks
         if (identity.DisplayName != "咩咩" || definition.Level != 1
             || definition.MinimumRound != 1 || definition.MaximumRound != 99
             || !definition.Skills.SequenceEqual(new[] { new MonsterSkillEntry(new StringName("skill.healing"), 1) })
-            || values.GetBaseValue(GameAttributeKeys.MaxHealth) != 100 || values.GetBaseValue(GameAttributeKeys.Armor) != 0
+            || values.GetBaseValue(GameAttributeKeys.MaxHealth) != 80 || values.GetBaseValue(GameAttributeKeys.Armor) != 0
             || values.GetBaseValue(GameAttributeKeys.MaxMana) != 100 || values.GetBaseValue(GameAttributeKeys.Mana) != 0
             || values.GetBaseValue(GameAttributeKeys.ManaRegen) != 10 || values.GetBaseValue(GameAttributeKeys.HealthRegen) != 0
             || !definition.Cards.SequenceEqual(new[]
@@ -57,7 +57,7 @@ internal static class BaaMonsterChecks
         var grass = opponent.Player.Inventory.Cards.Single(card => card.Attributes.Identity.Key == new StringName("card.silver_needle_grass"));
         var flower = opponent.Player.Inventory.Cards.Single(card => card.Attributes.Identity.Key == new StringName("card.windmill_daisy"));
         var battle = new CombatSimulator().Simulate(setup);
-        return setup.Opponent.Hero.MaxHealth == 100 && setup.Opponent.Hero.Level == 1
+        return setup.Opponent.Hero.MaxHealth == 80 && setup.Opponent.Hero.Level == 1
             && setup.Opponent.Cards.Count == 3 && setup.Opponent.Skills.Count == 1
             && opponent.Player.Skills.Items.Single().Attributes.Identity.Key == new StringName("skill.healing")
             && opponent.Player.Skills.Items.Single().Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) == 1

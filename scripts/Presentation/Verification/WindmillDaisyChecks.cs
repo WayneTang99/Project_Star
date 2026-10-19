@@ -65,7 +65,7 @@ internal static class WindmillDaisyChecks
         var setup = new BattleSetupFactory().Create(player, baa, 42, new BattleTick(41), new BattleTick(42));
         var damaged = new BattleSetup(setup.Player, new BattleSideSetup(setup.Opponent.Hero with { Poison = 10 },
             setup.Opponent.Cards, setup.Opponent.Skills), setup.Seed, setup.Timeout, setup.EclipseTime);
-        return new CombatSimulator().Simulate(damaged).States.Last(frame => frame.Tick.Value == 40).Opponent.Health == 80;
+        return new CombatSimulator().Simulate(damaged).States.Last(frame => frame.Tick.Value == 40).Opponent.Health == 60;
     }
 
     internal static async Task Capture(Node owner)

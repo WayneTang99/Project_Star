@@ -18,7 +18,7 @@ using Project_Star.Infrastructure.Encounters;
 
 namespace Project_Star.Presentation.Verification;
 
-// 越狱者的固定卡组、排程、战斗与奖励验证（表现层）。
+// 逃遁的破誓者的固定卡组、排程、战斗与奖励验证（表现层）。
 internal static class JailbreakerChecks
 {
     internal static bool DefinitionAndBattle()
@@ -28,7 +28,7 @@ internal static class JailbreakerChecks
         var identity = definition.Attributes.Identity;
         var values = definition.Attributes.BaseCombat;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
-        if (!registry.Monsters.ContainsKey(identity.Key) || identity.DisplayName != "越狱者"
+        if (!registry.Monsters.ContainsKey(identity.Key) || identity.DisplayName != "逃遁的破誓者"
             || definition.Level != 1 || definition.MinimumRound != 1 || definition.MaximumRound != 99
             || values.GetBaseValue(GameAttributeKeys.MaxHealth) != 60 || values.GetBaseValue(GameAttributeKeys.Armor) != 0
             || values.GetBaseValue(GameAttributeKeys.MaxMana) != 100 || values.GetBaseValue(GameAttributeKeys.Mana) != 0
@@ -38,7 +38,8 @@ internal static class JailbreakerChecks
             {
                 new MonsterCardEntry(new StringName("card.lockpick"), 2, 0),
                 new MonsterCardEntry(new StringName("card.oathbreaker"), 1, 1),
-            }) || texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3) return false;
+            }) || texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3
+            || !texture.GetImage().HasMipmaps()) return false;
         var factory = new EntityFactory(); var board = new BoardService(new BoardPlacementSolver());
         var session = new CreateMatchService(factory).Create(1, 0, new PaladinHeroDefinition());
         session.Progress.Turn = 4;

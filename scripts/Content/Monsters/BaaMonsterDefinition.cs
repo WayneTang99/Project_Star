@@ -12,7 +12,7 @@ public sealed class BaaMonsterDefinition : MonsterDefinition
                 new MonsterCardEntry(new StringName("card.silver_needle_grass"), 2, 0),
                 new MonsterCardEntry(new StringName("card.baa_sheep"), 1, 1),
                 new MonsterCardEntry(new StringName("card.windmill_daisy"), 1, 2),
-            ], level: 1,
+            ], maxHealth: 80, level: 1,
             skills: [new MonsterSkillEntry(new StringName("skill.healing"), 1)],
             illustration: new StringName("res://art/ui/encounters/artwork/baa-illustration.png")) { }
 }
