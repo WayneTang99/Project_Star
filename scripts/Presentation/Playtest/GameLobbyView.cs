@@ -23,7 +23,6 @@ public sealed partial class GameLobbyView : Control
     private IReadOnlyList<KeyedAction> _entries = Array.Empty<KeyedAction>();
     private Button _start = null!, _resume = null!;
     private Button? _inspected;
-    private double _seconds;
     // 活动与摆放仅属于界面，英雄身份和数值来自正式快照。
     private static readonly Dictionary<StringName, (string Art, string Activity, Rect2 Rect)> Camp = new()
     {
@@ -38,7 +37,7 @@ public sealed partial class GameLobbyView : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        var texture = GD.Load<Texture2D>("res://art/ui/lobby/traveler-camp-20261018.png");
+        var texture = GD.Load<Texture2D>("res://art/ui/lobby/republic-20261019.png");
         var backdrop = new TextureRect { Texture = texture, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered, MouseFilter = MouseFilterEnum.Ignore,
             Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/LobbyBackdrop.gdshader") } };
@@ -49,9 +48,9 @@ public sealed partial class GameLobbyView : Control
         _stage.AddChild(scene); _stage.AddChild(_decoration); _decoration.Draw += DrawDecoration;
         Place(Text(_stage, "✧ 星辰之旅", 32, new("f0dfb8"), 5), 55, 24, 400, 48);
         Place(Text(_stage, "PROJECT STAR", 11, new("c5c9bc"), 5), 107, 73, 340, 22);
-        Place(Text(_stage, "THE TRAVELER’S CAMP", 12, new("bcbfba"), 6), 64, 144, 420, 24);
-        Place(Text(_stage, "旅人营地", 40, new("f2e1bb"), 8), 64, 178, 450, 64);
-        Place(Text(_stage, "炉火尚暖，等一位同行的人。", 14, new("c7c9bd"), 2), 64, 248, 450, 26);
+        Place(Text(_stage, "THE REPUBLIC", 12, new("bcbfba"), 6), 64, 144, 420, 24);
+        Place(Text(_stage, "共和国", 40, new("f2e1bb"), 8), 64, 178, 450, 64);
+        Place(Text(_stage, "金色城门下，等一位同行的人。", 14, new("c7c9bd"), 2), 64, 248, 450, 26);
         var atlas = Entry("Atlas", "图鉴", () => AtlasRequested?.Invoke());
         atlas.Icon = GD.Load<Texture2D>("res://art/ui/lobby/book.svg"); atlas.AddThemeConstantOverride("icon_max_width", 16);
         Place(atlas, 1352, 32, 100, 44);
@@ -195,7 +194,7 @@ public sealed partial class GameLobbyView : Control
     public override void _Process(double delta)
     {
         if (!IsVisibleInTree()) return;
-        _seconds = (_seconds + delta) % (Math.PI * 8); PositionInfo(); _decoration.QueueRedraw();
+        PositionInfo(); _decoration.QueueRedraw();
     }
     private void DrawDecoration()
     {
@@ -213,8 +212,6 @@ public sealed partial class GameLobbyView : Control
                 Mathf.Sin(i * Mathf.Tau / 64) * rect.Size.Y * .055f)).ToArray();
             _decoration.DrawPolyline(points, new Color("e8c97e"), 2, true);
         }
-        for (var i = 8; i > 0; i--) _decoration.DrawCircle(new Vector2(848, 576), i * 10,
-            new Color(1, .65f, .15f, .002f + .001f * (float)Math.Sin(_seconds * .8)));
     }
     private Button Entry(string name, string text, Action action)
     {

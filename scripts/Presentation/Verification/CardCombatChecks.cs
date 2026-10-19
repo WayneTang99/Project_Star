@@ -29,7 +29,7 @@ internal static class CardCombatChecks
             || definition.SupportsLevel(5))
             return false;
 
-        var expectedDamage = new[] { 20, 30, 50, 100 };
+        var expectedDamage = new[] { 60, 120, 320, 640 };
         for (var level = 1; level <= 4; level++)
         {
             var levelDefinition = definition.GetLevel(level);

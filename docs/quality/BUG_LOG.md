@@ -2,6 +2,8 @@
 
 | 编号 | 日期 | 位置 | 描述 | 根因 | 修复方案 | 状态 |
 |---|---|---|---|---|---|---|
+| BUG-336 | 2026-10-19 | HTML / 世界图鉴详情 | 选择条目打开详情时列表变窄重排，窄屏原列表消失。 | has-detail切换网格列数及列表display。 | 详情改为独立浮层，列表保持原有尺寸与显示方式；三尺寸打开及关闭详情前后条目矩形一致。仅HTML修复。 | Fixed |
+| BUG-335 | 2026-10-19 | HTML / 大厅英雄选择 | 选中英雄时姓名牌宽度改变，底部身份内容可能挤压操作区。 | 选中标记插入文字流，底部身份和操作共享弹性宽度。 | 标记改为绝对定位并预留空间，身份区固定列宽，操作区独立；三尺寸逐一选择六英雄，姓名牌及底部矩形与字号均保持一致。仅HTML修复。 | Fixed |
 | BUG-334 | 2026-10-19 | LavaStoneChecks / 原生卡面验证 | 新增熔岩石验证初稿编译时找不到CardItemView。 | 缺少Presentation.Playtest命名空间导入。 | 补齐using并重新构建及执行专项验证。 | Fixed |
 | BUG-333 | 2026-10-19 | PhaseOneVerification / 无头全量UI检查 | 无头全量验证多次在既有UI检查期间异常退出，控制台大量Object was deleted while awaiting a callback，未生成全量汇总；史莱姆材料标签及原画更新后再次复现。 | 待定位；已有末尾调用栈涉及英雄技能详情与TestEncounterLevels/ShopView.Render，专项战斗验证可独立完成。 | 保存output/element-slimes/verify-final-console.log、output/slime-material-redraw/verify-all-console.log、output/pauldron-caltrops/verify-final-all-console.log、output/statue-plaza/verify-all-console.log及output/water-well/verify-all-console.log，继续隔离复查节点回调及UI夹具生命周期；不以专项结果替代全量通过。 | Open |
 | BUG-332 | 2026-10-19 | BattlePlaybackPresenter.Project / 尺寸变化转变 | 中型卡原位分裂后，回放投影新增第二张小型卡会移除第一张的棋盘占位。 | 转变只替换展示身份，保留原中型两格占位；随后新增卡按重叠清理时误删第一张。 | 消费CardTransformedEvent时先按冻结转变身份更新原占位宽度，再处理新增卡；验证原位两张小型、相邻卡保留、战前及对局快照隔离。 | Fixed |

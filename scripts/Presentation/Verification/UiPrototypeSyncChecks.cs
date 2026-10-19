@@ -57,11 +57,11 @@ internal static class UiPrototypeSyncChecks
         var query = new CardPreviewQuery(registry);
         var entries = CardCatalogQuery.Capture(registry);
         var boar = entries.Single(entry => entry.InitialCard.DisplayName == "野猪").Levels.Single(level => level.Card.Level == 2).Card;
-        var grown = boar with { Value = 15, OwnValues = new Dictionary<StringName, int>(boar.CurrentValues) { [GameAttributeKeys.AttackDamage] = 37 },
-            CurrentValues = new Dictionary<StringName, int>(boar.CurrentValues) { [GameAttributeKeys.AttackDamage] = 37 } };
+        var grown = boar with { Value = 15, OwnValues = new Dictionary<StringName, int>(boar.CurrentValues) { [GameAttributeKeys.AttackDamage] = 127 },
+            CurrentValues = new Dictionary<StringName, int>(boar.CurrentValues) { [GameAttributeKeys.AttackDamage] = 127 } };
         var result = query.Preview(grown, 4, new StringName?[grown.GemSockets.Count]);
-        if (result.Level != 4 || result.CurrentValues[GameAttributeKeys.AttackDamage] != 107
-            || grown.Level != 2 || grown.Value != 15 || grown.CurrentValues[GameAttributeKeys.AttackDamage] != 37) return false;
+        if (result.Level != 4 || result.CurrentValues[GameAttributeKeys.AttackDamage] != 647
+            || grown.Level != 2 || grown.Value != 15 || grown.CurrentValues[GameAttributeKeys.AttackDamage] != 127) return false;
         var gemKeys = new StringName?[grown.GemSockets.Count]; gemKeys[0] = query.Gems[0].Key;
         var gem = query.Preview(grown, 4, gemKeys);
         if (gem.GemSockets[0]?.Key != query.Gems[0].Key || grown.GemSockets.Any(item => item is not null)

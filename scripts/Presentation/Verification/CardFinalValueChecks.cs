@@ -90,7 +90,7 @@ internal static class CardFinalValueChecks
         foreach (var level in new[] { 1, 2, 3, 4 })
         {
             var boar = MatchDisplayQuery.FromOffer(ShopOffer.Create(new BoarCardDefinition(), level));
-            var attack = new[] { 20, 30, 50, 100 }[level - 1];
+            var attack = new[] { 60, 120, 320, 640 }[level - 1];
             Require(Values(boar).Single() == attack.ToString(), "standalone boar defaults full health");
             var enhanced = boar with { CurrentValues = new Dictionary<StringName, int>(boar.CurrentValues)
                 { [GameAttributeKeys.AttackDamage] = attack + 7 } };

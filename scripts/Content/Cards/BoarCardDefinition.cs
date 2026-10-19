@@ -21,21 +21,21 @@ public sealed class BoarCardDefinition : CardDefinition
                     illustration: new StringName("res://art/ui/card-face/artwork/boar-illustration-v2.png"),
                     descriptionEntries:
                     [
-                        new(CardKeywords.Activate, "冷却6秒，对敌方英雄造成20/30/50/100 × 己方英雄当前生命比例的普通伤害（小数向下取整，先扣护甲）。"),
+                        new(CardKeywords.Activate, "冷却6秒，对敌方英雄造成60/120/320/640 × 己方英雄当前生命比例的普通伤害（小数向下取整，先扣护甲）。"),
                     ]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
                 {
-                    [GameAttributeKeys.AttackDamage] = 20,
+                    [GameAttributeKeys.AttackDamage] = 60,
                     [GameAttributeKeys.CooldownTicks] = 60,
                 })),
             new TagSet([GameTags.Beast]),
             initialLevel: 1,
             levels:
             [
-                CreateLevel(1, 20),
-                CreateLevel(2, 30),
-                CreateLevel(3, 50),
-                CreateLevel(4, 100),
+                CreateLevel(1, 60),
+                CreateLevel(2, 120),
+                CreateLevel(3, 320),
+                CreateLevel(4, 640),
             ])
     {
     }
