@@ -31,7 +31,7 @@ public sealed partial class BattleStageView : Control
     public override void _Ready()
     {
         _portrait = new TextureRect { Name = "EnemyPortrait", ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered, ClipContents = true, MouseFilter = MouseFilterEnum.Pass }; AddChild(_portrait);
-        _name = new Label { HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(_name, 12); _name.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("11211adb"), Colors.Transparent)); AddChild(_name);
+        _name = new Label { HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(_name, 12); _name.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("302820db"), Colors.Transparent)); AddChild(_name);
         _vs = new Label { Text = "VS" }; MatchTheme.Text(_vs, 30, new Color("a18750b3"), true); AddChild(_vs);
         _eyebrow = new Label(); MatchTheme.Text(_eyebrow, 10, MatchTheme.Gold, spacing: 4); AddChild(_eyebrow);
         _title = new Label(); MatchTheme.Text(_title, 24, new Color("e1cfab"), spacing: 5); AddChild(_title);

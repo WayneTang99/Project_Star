@@ -204,6 +204,7 @@ public sealed partial class PhaseOneVerification : Control
             ("永久摧毁只生成永久变化记录", CombatChecks.CheckPermanentDestroy),
         ]),
         new("技能", [
+            ("圣骑士人类攻击护甲技能分级、双方筛选、叠加及实际效果正确", HumanAuraSkillChecks.LevelsAndTargets),
             ("无阵营光环技能分级、双方筛选、叠加及实际效果正确", NeutralAuraSkillChecks.LevelsAndTargets),
             ("左右属性光环随边缘目标摧毁重新选择", NeutralAuraSkillChecks.DynamicPositions),
             ("中毒光环覆盖固定属性比例公式且治疗实际结算正确", NeutralAuraSkillChecks.PoisonFormulasAndHealing),
@@ -264,6 +265,15 @@ public sealed partial class PhaseOneVerification : Control
             ("火枪手四级、双方、7秒周期伤害与灼伤及原画", MusketeerChecks.LevelsAndFiring),
             ("弓箭塔四级、双方伤害、敌方多重充能及原画", ArcherTowerChecks.LevelsAndEcho),
             ("建筑与地域分类及双标签", ArcherTowerChecks.BuildingTags),
+            ("滚石陷阱两级、双方尺寸摧毁、疾速充能及消耗", RollingBoulderTrapChecks.LevelsAndCombat),
+            ("巫师装备四级、魔法支付回响、再生叠加及原画", WizardEquipmentChecks.LevelsAndCombat),
+            ("火焰护腕四级、多重伤害与灼伤", FlameGauntletChecks.LevelsAndCombat),
+            ("玩具熊三级半血献祭召唤、空位与暴怒熊狂暴倍率", TeddyBearChecks.LevelsAndCombat),
+            ("烛台四级灼伤消耗与火属性回响疾速", CandelabrumChecks.LevelsAndCombat),
+            ("火焰提灯四级随机迟缓目标与固定灼伤", FlameLanternChecks.LevelsAndTargets),
+            ("冰火精灵两级双元素回响、排除自身与充能成长", IcefireSpiritChecks.LevelsAndEchoes),
+            ("巫毒娃娃三级、最短完整冷却、并列左侧及中毒", VoodooDollChecks.LevelsAndCombat),
+            ("复生仪式双方小型摧毁、同级原位召唤及回响截断", RebirthRitualChecks.SummonsAndFilters),
             ("星纹天使分级、双方、恶魔随机不重复禁锢与无恶魔治疗", StarPatternAngelChecks.LevelsAndBranches),
             ("星纹天使魔法边界、多重、来源失效、条件变化与显示", StarPatternAngelChecks.ManaLifetimeAndDisplay),
             ("军械库标签攻防光环、双方、叠加、失效及冻结", EquipmentShopChecks.AuraFiltersAndLifetime),
@@ -303,6 +313,7 @@ public sealed partial class PhaseOneVerification : Control
             ("冒险者大剑身份、原画、两级英雄等级伤害与8秒冷却正确", AdventurerGreatswordChecks.IdentityAndDamage),
             ("遗迹石像身份、两级伤害护甲与开战禁锢8秒首发正确", RuinStoneStatueChecks.LevelsAndTiming),
             ("碎骨法师身份、分级伤害、摧毁筛选、多重及空目标正确", BonebreakerMageChecks.LevelsAndSacrifice),
+            ("碎骨法师外部摧毁回响、尺寸元素归属过滤与狂暴独立", BonebreakerMageChecks.DestructionEcho),
             ("捣蛋鬼蝙蝠身份、分级随机迟缓、2秒伤害与战场筛选正确", MischievousBatChecks.LevelsAndTargets),
             ("捣蛋鬼蝙蝠迟缓累加、多重、飞行减时长及空目标正确", MischievousBatChecks.StackingAndEmptyTargets),
             ("见习剑士身份、四档7秒伤害、原画及快照筛选正确", ApprenticeSwordsmanChecks.LevelsAndArtwork),
@@ -366,7 +377,8 @@ public sealed partial class PhaseOneVerification : Control
             ("魔法坩埚20件任务将冷却降至5秒，合并与移区保留进度", MagicCauldronChecks.ThresholdAndMerge),
             ("魔法坩埚失败及重复出售不推进任务，实例与入口隔离", MagicCauldronChecks.FailedSalesAndIsolation),
             ("原木法杖拾取含合并、备战累计、统一发动与升级正确", LogStaffChecks.AcquisitionAndActivation),
-            ("黑犀金龟等级、随机迟缓目标、叠加及飞行减时长正确", BlackRhinocerosBeetleChecks.LevelsAndSlow),
+            ("麻痹针蜂等级、随机迟缓目标、叠加及飞行减时长正确", BlackRhinocerosBeetleChecks.LevelsAndSlow),
+            ("黑犀金龟分级护甲与针蜂出售冷却正确", BlackRhinocerosBeetleChecks.LevelsAndArmor),
             ("骷髅及骨冢身份、等级、原画与骷髅3秒分级伤害正确", MonaUndeadChecks.LevelsAndDamage),
             ("骨冢3秒同级召唤、骷髅独立冷却、左侧阻挡与确定性正确", MonaUndeadChecks.SummonTimingAndPositions),
             ("破誓者分级随机不重复迟缓、双方光牌动态冷却及倍率正确", OathbreakerChecks.TargetsAndAura),
@@ -383,7 +395,7 @@ public sealed partial class PhaseOneVerification : Control
             ("相邻召唤边界、阻挡、争用顺序及完整占格正确", TemplarKnightChecks.PositionsAndOrdering),
             ("召唤来源摧毁后独立、永久摧毁无库存变化及注册校验正确", TemplarKnightChecks.LifecycleAndValidation),
             ("召唤物双边回放身份位置冻结、播放控制及战后恢复正确", TemplarKnightChecks.PlaybackAndRestoration),
-            ("出售从左查找战场土属性目标，倍率永久累乘且升级保留", BlackRhinocerosBeetleChecks.SaleTargetsAndPersistence),
+            ("出售从左查找战场土属性目标，倍率永久累乘且升级保留", () => BlackRhinocerosBeetleChecks.SaleTargetsAndPersistence()),
             ("小数冷却倍率用于首发和重置，兼容增时长、疾速及充能", BlackRhinocerosBeetleChecks.MultiplierBattleTiming),
             ("飞行回响准确定位己方事件卡牌、叠加且不连锁", FlyingBroomChecks.EventTargetsAndStacking),
             ("飞行减半新增迟缓/禁锢，兼容相邻倍率且不影响疾速", CardStateChecks.FlyingDurations),
@@ -585,6 +597,175 @@ public sealed partial class PhaseOneVerification : Control
                 try { await MyriadAtlasChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
             })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-rebirth-ritual"))
+            Callable.From((Action)(async () =>
+            {
+                try { await RebirthRitualChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-human-aura-skills"))
+            Callable.From((Action)(() =>
+            {
+                var passed = HumanAuraSkillChecks.LevelsAndTargets();
+                GD.Print($"训练与御敌分级和实际结算={passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-needle-wasp"))
+            Callable.From((Action)(async () =>
+            {
+                try { await BlackRhinocerosBeetleChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-needle-wasp"))
+            Callable.From((Action)(() =>
+            {
+                var slow = BlackRhinocerosBeetleChecks.LevelsAndSlow();
+                var armor = BlackRhinocerosBeetleChecks.LevelsAndArmor();
+                var sale = BlackRhinocerosBeetleChecks.SaleTargetsAndPersistence();
+                var timing = BlackRhinocerosBeetleChecks.MultiplierBattleTiming();
+                var trace = CombatTraceChecks.PreservesTraces();
+                GD.Print($"迟缓={slow} 护甲={armor} 出售={sale} 冷却={timing} 回归={trace}");
+                var passed = slow && armor && sale && timing && trace;
+                GD.Print($"麻痹针蜂与黑犀金龟专项验证：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-voodoo-doll"))
+            Callable.From((Action)(() =>
+            {
+                var passed = VoodooDollChecks.LevelsAndCombat() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"巫毒娃娃及固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-voodoo-doll"))
+            Callable.From((Action)(async () =>
+            {
+                try { await VoodooDollChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-icefire-spirit"))
+            Callable.From((Action)(() =>
+            {
+                var passed = IcefireSpiritChecks.LevelsAndEchoes();
+                var regression = CombatTraceChecks.PreservesTraces() && CandelabrumChecks.LevelsAndCombat()
+                    && FlameLanternChecks.LevelsAndTargets() && FlameGobletChecks.LevelsAndBurn() && FlameGobletChecks.TriggersAndReset();
+                GD.Print($"冰火精灵专项：{passed}，固定战斗及元素回响回归：{regression}");
+                GetTree().Quit(passed && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-icefire-spirit"))
+            Callable.From((Action)(async () =>
+            {
+                try { await IcefireSpiritChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-spirit-tag"))
+            Callable.From((Action)(() =>
+            {
+                var passed = PhoenixChecks.DefinitionAndBattle() && StarPatternAngelChecks.LevelsAndBranches()
+                    && StarPatternAngelChecks.ManaLifetimeAndDisplay() && AscendantChecks.LevelsAndThresholds()
+                    && CardDescriptionChecks.AllLevels();
+                GD.Print($"精灵标签及关联内容验证：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-flame-lantern"))
+            Callable.From((Action)(() =>
+            {
+                var passed = FlameLanternChecks.LevelsAndTargets();
+                var regression = CombatTraceChecks.PreservesTraces() && MischievousBatChecks.LevelsAndTargets();
+                GD.Print($"火焰提灯专项：{passed}，固定战斗及迟缓回归：{regression}");
+                GetTree().Quit(passed && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-flame-lantern"))
+            Callable.From((Action)(async () =>
+            {
+                try { await FlameLanternChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-bonebreaker-mage"))
+            Callable.From((Action)(() =>
+            {
+                var levels = BonebreakerMageChecks.LevelsAndSacrifice();
+                var echo = BonebreakerMageChecks.DestructionEcho();
+                var summon = BonebreakerMageChecks.RepeatedSummoningAndPlayback();
+                var regression = CombatTraceChecks.PreservesTraces() && RebirthRitualChecks.SummonsAndFilters() && CandelabrumChecks.LevelsAndCombat();
+                GD.Print($"碎骨法师：分级={levels}，摧毁回响={echo}，召唤回放={summon}，回归={regression}");
+                GetTree().Quit(levels && echo && summon && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-candelabrum"))
+            Callable.From((Action)(() =>
+            {
+                var passed = CandelabrumChecks.LevelsAndCombat() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"烛台专项与固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-candelabrum"))
+            Callable.From((Action)(async () =>
+            {
+                try { await CandelabrumChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-teddy-bear"))
+            Callable.From((Action)(() =>
+            {
+                var passed = TeddyBearChecks.LevelsAndCombat();
+                var regression = CombatTraceChecks.PreservesTraces() && RebirthRitualChecks.SummonsAndFilters();
+                GD.Print($"玩具熊与暴怒熊专项：{passed}，固定战斗与召唤回归：{regression}");
+                GetTree().Quit(passed && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-teddy-bear"))
+            Callable.From((Action)(async () =>
+            {
+                try { await TeddyBearChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-flame-gauntlet"))
+            Callable.From((Action)(() =>
+            {
+                var passed = FlameGauntletChecks.LevelsAndCombat() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"火焰护腕专项与固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-flame-gauntlet"))
+            Callable.From((Action)(async () =>
+            {
+                try { await FlameGauntletChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-wizard-equipment"))
+            Callable.From((Action)(() =>
+            {
+                var passed = WizardEquipmentChecks.LevelsAndCombat();
+                var regression = CombatTraceChecks.PreservesTraces();
+                GD.Print($"巫师装备专项验证：{passed}，固定战斗与回放基线：{regression}");
+                GetTree().Quit(passed && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-wizard-equipment"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WizardEquipmentChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-rebirth-ritual"))
+            Callable.From((Action)(() =>
+            {
+                var passed = RebirthRitualChecks.SummonsAndFilters();
+                var regression = CombatTraceChecks.PreservesTraces() && RollingBoulderTrapChecks.LevelsAndCombat();
+                GD.Print($"复生仪式专项：{passed}，固定战斗与滚石陷阱回归：{regression}");
+                GetTree().Quit(passed && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-rolling-boulder-trap"))
+            Callable.From((Action)(() =>
+            {
+                var passed = RollingBoulderTrapChecks.LevelsAndCombat();
+                var regression = CombatTraceChecks.PreservesTraces();
+                GD.Print($"滚石陷阱专项验证：{passed}，固定战斗与回放基线：{regression}");
+                GetTree().Quit(passed && regression ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-rolling-boulder-trap"))
+            Callable.From((Action)(async () =>
+            {
+                try { await RollingBoulderTrapChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-archer-tower"))
             Callable.From((Action)(async () =>
             {
@@ -739,6 +920,12 @@ public sealed partial class PhaseOneVerification : Control
                 try { await CardCatalogChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
             })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-card-catalog"))
+            Callable.From((Action)(() =>
+            {
+                var passed = CardCatalogChecks.Definitions() && CardCatalogChecks.Interaction(this);
+                GD.Print($"卡牌图鉴定义、筛选与只读交互：{passed}"); GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--capture-mechanism-heavy-crossbow"))
             Callable.From((Action)(async () =>
             {
@@ -852,6 +1039,13 @@ public sealed partial class PhaseOneVerification : Control
             {
                 try { await GemShopChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.Print(error); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-gem-ratio"))
+            Callable.From((Action)(() =>
+            {
+                var passed = GemShopChecks.ActivationAndPrimary() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"宝石属性换算与固定战斗回归={passed}");
+                GetTree().Quit(passed ? 0 : 1);
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--verify"))
             Callable.From(() =>

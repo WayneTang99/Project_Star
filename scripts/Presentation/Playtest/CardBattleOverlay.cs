@@ -164,7 +164,7 @@ public sealed partial class CardBattleOverlay : Control
             DrawLine(new Vector2(Size.X * .09f, y + 16), new Vector2(Size.X * .91f, y - 4), color, 3);
             for (var x = Size.X * .09f; x < Size.X * .91f; x += 12)
             { var offset = 10 - 20 * (x / Size.X - .09f) / .82f; DrawLine(new Vector2(x, y + offset), new Vector2(x + 3, y + offset + 6), color, 1); }
-            DrawRect(new Rect2(Size.X / 2 - 9, y - 8, 18, 18), new Color("172630dd"));
+            DrawRect(new Rect2(Size.X / 2 - 9, y - 8, 18, 18), new Color("352d25dd"));
             DrawRect(new Rect2(Size.X / 2 - 9, y - 8, 18, 18), color, false, 2);
         }
         if (_flash > 0)
@@ -172,7 +172,7 @@ public sealed partial class CardBattleOverlay : Control
             var glow = MatchTheme.Outline(new Color(new Color("fff0ba"), _flash * .65f)); glow.SetBorderWidthAll(4);
             DrawStyleBox(glow, new Rect2(Vector2.One * 4, Size - Vector2.One * 8));
         }
-        if (_state.Destroyed) DrawRect(new Rect2(3, Size.Y * .44f, Mathf.Max(1, Size.X - 6), 24), new Color("101719bb"));
+        if (_state.Destroyed) DrawRect(new Rect2(3, Size.Y * .44f, Mathf.Max(1, Size.X - 6), 24), new Color("1f1712bb"));
     }
     public override void _ExitTree() => Resized -= LayoutLayer;
 }

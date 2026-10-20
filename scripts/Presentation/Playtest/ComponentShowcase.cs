@@ -244,6 +244,8 @@ public sealed partial class ComponentShowcase : Control
                 if (!lobby.Visible || stage.GetGlobalRect().End.X > shell.Size.X + 1
                     || stage.GetGlobalRect().End.Y > shell.Size.Y + 1 || selector.Visible)
                     throw new InvalidOperationException("大厅场景越界或启动页仍露出选角。");
+                if (lobby.GetNode<Button>("SceneStage/mona").Visible || lobby.GetNode<Control>("SceneStage/SelectedName").Visible)
+                    throw new InvalidOperationException("初次大厅仍显示英雄或头像信息。");
             }
             GetWindow().Size = new Vector2I(1600, 900); GetTree().Root.ContentScaleSize = new Vector2I(1600, 900); await Frame();
             var settings = shell.GetNode<DisplaySettingsView>("DisplaySettings");
@@ -269,33 +271,36 @@ public sealed partial class ComponentShowcase : Control
             if (settings.Visible || GetWindow().Size != settingsSize) throw new InvalidOperationException("取消设置预览未恢复窗口。");
             await Save("settings-returned");
 
-            var heroButtons = new[] { "paladin", "mona", "robin", "harla", "valos", "jiyun" }
-                .Select(name => lobby.GetNode<Button>("SceneStage/" + name)).ToArray();
-            var selectedBeforeHover = lobby.SelectedHeroKey;
+            var heroEntry = lobby.GetNode<Button>("SceneStage/Heroes");
+            var chooser = lobby.GetNode<Control>("SceneStage/HeroChooser");
+            var choiceRow = lobby.GetNode<HBoxContainer>("SceneStage/HeroChooser/Panel/Content/Choices");
+            Press(heroEntry); await Frame(); await Save("heroes-open");
+            if (!chooser.Visible || choiceRow.GetChildCount() != 6 || submitted != 0) throw new InvalidOperationException("英雄按钮未打开独立选择层。");
+            var heroButtons = choiceRow.GetChildren().Cast<Button>().ToArray();
+            var before = heroButtons.Select(button => button.GetGlobalRect()).ToArray();
             var hoverPoint = heroButtons[1].GetGlobalRect().GetCenter();
-            GetViewport().PushInput(new InputEventMouseMotion { Position = hoverPoint, GlobalPosition = hoverPoint }, true); await Frame();
-            if (!lobby.GetNode<Control>("SceneStage/HeroInfo").Visible || lobby.SelectedHeroKey != selectedBeforeHover || submitted != 0)
-                throw new InvalidOperationException("悬浮未显示英雄信息，或浏览提前选角／创建旅程。");
-            await Save("hero-hover");
+            GetViewport().PushInput(new InputEventMouseMotion { Position = hoverPoint, GlobalPosition = hoverPoint }, true);
+            await Frame(); await Frame(); await Save("hero-hover");
+            if (!heroButtons.Select(button => button.GetGlobalRect()).SequenceEqual(before)) throw new InvalidOperationException("英雄悬浮改变布局。");
+            GetViewport().PushInput(new InputEventMouseButton { Position = hoverPoint, ButtonIndex = MouseButton.Left, Pressed = true }, true);
+            await Frame(); await Save("hero-pressed");
+            GetViewport().PushInput(new InputEventMouseButton { Position = hoverPoint, ButtonIndex = MouseButton.Left, Pressed = false }, true);
+            await Frame();
             foreach (var heroButton in heroButtons)
             {
-                Press(heroButton); await Frame();
-                if (lobby.SelectedHeroKey != new StringName("hero." + heroButton.Name) || submitted != 0 || selector.Visible)
-                    throw new InvalidOperationException("营地点选英雄没有只更新同行选择。");
-                var texture = heroButton.GetChild<TextureRect>(0).Texture;
-                if (texture is null || (DisplayServer.GetName() != "headless" && (texture.GetImage().DetectAlpha() == Image.AlphaMode.None || texture.GetImage().GetMipmapCount() == 0)))
-                    throw new InvalidOperationException("营地英雄缺少透明插图或mipmap。");
+                Press(heroEntry); await Frame(); Press(heroButton); await Frame();
+                var actors = new[] { "paladin", "mona", "robin", "harla", "valos", "jiyun" }.Select(name => lobby.GetNode<Button>("SceneStage/" + name)).ToArray();
+                if (chooser.Visible || lobby.SelectedHeroKey != new StringName("hero." + heroButton.Name) || submitted != 0 || selector.Visible || actors.Count(actor => actor.Visible) != 1)
+                    throw new InvalidOperationException($"选择英雄失败 chooser={chooser.Visible}, selected={lobby.SelectedHeroKey}, clicked={heroButton.Name}, submitted={submitted}, selector={selector.Visible}, actors={actors.Count(actor => actor.Visible)}。");
             }
-            heroButtons[0].GrabFocus(); await Frame();
-            var beforeBrowse = lobby.SelectedHeroKey;
+            Press(heroEntry); await Frame();
+            var beforeBrowse = lobby.SelectedHeroKey; heroButtons[0].GrabFocus();
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Right, Pressed = true }, true);
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Right, Pressed = false }, true); await Frame();
-            if (lobby.SelectedHeroKey != beforeBrowse || !lobby.GetNode<Control>("SceneStage/HeroInfo").Visible)
-                throw new InvalidOperationException("键盘浏览改变了同行选择或未展示信息。");
+            if (lobby.SelectedHeroKey != beforeBrowse) throw new InvalidOperationException("方向键浏览提前选角。");
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = true }, true);
             GetViewport().PushInput(new InputEventKey { Keycode = Key.Escape, Pressed = false }, true); await Frame();
-            if (lobby.GetNode<Control>("SceneStage/HeroInfo").Visible || GetViewport().GuiGetFocusOwner() != lobby.GetNode<Button>("SceneStage/Start"))
-                throw new InvalidOperationException("Escape未关闭英雄信息或恢复开始按钮焦点。");
+            if (chooser.Visible || GetViewport().GuiGetFocusOwner() != heroEntry) throw new InvalidOperationException("Escape未关闭选角层并恢复英雄按钮焦点。");
             await Save("hero-selected");
             Press(lobby.GetNode<Button>("SceneStage/Atlas")); await Save("atlas");
             foreach (var category in new[] { WorldCatalogQuery.Heroes, WorldCatalogQuery.Encounters, WorldCatalogQuery.Mentors, WorldCatalogQuery.Sets })
@@ -326,13 +331,13 @@ public sealed partial class ComponentShowcase : Control
             if (!shell.GetNode<CardCatalogView>("CardCatalog").Visible) throw new InvalidOperationException("卡牌分类没有接入。");
             shell.GetNode<CardCatalogView>("CardCatalog").Close(); await Frame();
             if (!atlas.Visible) throw new InvalidOperationException("关闭图鉴未返回分类。");
-            shell.ShowLobby(); Press(heroButtons[1]); await Frame();
+            shell.ShowLobby(); Press(heroEntry); await Frame(); Press(heroButtons[1]); await Frame();
             Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
             if (submitted != 1 || submittedHero != new StringName("hero.mona") || lobby.Visible || selector.Visible || resets != 0)
                 throw new InvalidOperationException("开始冒险没有直接以选中英雄创建一次旅程。");
             shell.ShowLobby(); await Frame();
             if (!lobby.GetNode<Button>("SceneStage/Resume").Visible) throw new InvalidOperationException("进行中的旅程不可继续。");
-            var nextHero = lobby.GetNode<Button>("SceneStage/robin"); Press(nextHero); await Frame(); await Save("existing-journey");
+            Press(heroEntry); await Frame(); var nextHero = heroButtons.Single(button => button.Name == "robin"); Press(nextHero); await Frame(); await Save("existing-journey");
             if (submitted != 1 || resets != 0) throw new InvalidOperationException("浏览或点选新英雄覆盖了正在进行的旅程。");
             Press(lobby.GetNode<Button>("SceneStage/Resume")); await Save("resumed");
             if (lobby.Visible || shell.IsLobbyNavigationActive || submitted != 1 || resets != 0)
@@ -340,7 +345,7 @@ public sealed partial class ComponentShowcase : Control
             shell.ShowLobby(); Press(lobby.GetNode<Button>("SceneStage/Start")); await Frame();
             if (submitted != 2 || submittedHero != new StringName("hero.robin") || resets != 1 || lobby.Visible || selector.Visible)
                 throw new InvalidOperationException("新旅程没有在开始时才重置并使用营地选择。");
-            GD.Print("营地验证通过：三种尺寸、六英雄独立透明插图与mipmap、悬浮、点选、键盘与Escape、图鉴与设置、直接开始、保留并继续旧局、开始新局仅提交一次。");
+            GD.Print("大厅验证通过：三种尺寸初始无英雄、独立选角、单英雄显示、稳定悬浮与按下、键盘与Escape、图鉴设置、开始与继续仅提交一次。");
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
@@ -478,7 +483,7 @@ public sealed partial class ComponentShowcase : Control
     {
         GetWindow().ContentScaleSize = new Vector2I(1920, 1080);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        var background = new ColorRect { Color = new Color("333c41"), MouseFilter = MouseFilterEnum.Ignore };
+        var background = new ColorRect { Color = new Color("483e35"), MouseFilter = MouseFilterEnum.Ignore };
         AddChild(background); background.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var column = new VBoxContainer { Position = new Vector2(24, 20) }; AddChild(column);
         column.AddThemeConstantOverride("separation", 18);

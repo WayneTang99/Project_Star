@@ -17,7 +17,7 @@ public sealed partial class HeroBattleStatusView : HBoxContainer
     {
         MouseFilter = MouseFilterEnum.Ignore;
         AddThemeConstantOverride("separation", 5);
-        _armor = Chip("Armor", "armor", "668799", "22343d", AttributePalette.Find(GameAttributeKeys.Armor)!.Value, "护甲抵消普通伤害");
+        _armor = Chip("Armor", "armor", "668799", "43382e", AttributePalette.Find(GameAttributeKeys.Armor)!.Value, "护甲抵消普通伤害");
         _burn = Chip("Burn", "burn", "a58052", "322a20", AttributePalette.Find(GameAttributeKeys.Burn)!.Value, "灼伤：每0.6秒结算，先扣护甲，每次减少1");
         _poison = Chip("Poison", "poison", "68955d", "203325", AttributePalette.Find(GameAttributeKeys.Poison)!.Value, "中毒：每1秒结算，无视护甲，不衰减");
         _stealth = new PanelContainer { Name = "Stealth", Visible = false,

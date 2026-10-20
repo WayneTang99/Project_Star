@@ -51,22 +51,23 @@ void fragment(){ COLOR=vec4(textureLod(screen_texture,SCREEN_UV,3.5).rgb*0.55,1.
         _panel.AddChild(margin); var column = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; margin.AddChild(column);
         _close = new Button { Name = "Close", Text = "×", TopLevel = true, ZAsRelative = false, ZIndex = 56, CustomMinimumSize = new Vector2(36, 36) }; column.AddChild(_close); _close.Pressed += Close;
         _body = new HBoxContainer { Name = "Body", SizeFlagsVertical = SizeFlags.ShrinkCenter }; _body.AddThemeConstantOverride("separation", 28); column.AddChild(_body);
-        _visual = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; _visual.AddThemeConstantOverride("separation", 14); var visual = _visual; _body.AddChild(visual);
+        _visual = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        _visual.AddThemeConstantOverride("separation", 14); var visual = _visual; _body.AddChild(visual);
         _name = new Label { Name = "Title", HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(_name, 25, MatchTheme.Gold, bold: true); visual.AddChild(_name);
         _artHost = new Control { Name = "Artwork" }; visual.AddChild(_artHost);
         _face = new CardPreviewArt { Name = "TiltCard" }; _artHost.AddChild(_face);
         var hint = new Label { Text = "按住卡面拖动 · 松开回正", HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(hint, 12, MatchTheme.Muted); visual.AddChild(hint);
         _meta = new Label { Name = "Metadata", HorizontalAlignment = HorizontalAlignment.Center }; MatchTheme.Text(_meta, 13, MatchTheme.Muted); visual.AddChild(_meta);
         var rightPanel = new PanelContainer { Name = "RulesPanel", SizeFlagsVertical = SizeFlags.ShrinkCenter };
-        var rightPlate = MatchTheme.Surface(new Color("293139"), new Color("a88e6577")); rightPlate.SetCornerRadiusAll(10); rightPlate.ContentMarginLeft = rightPlate.ContentMarginRight = rightPlate.ContentMarginTop = rightPlate.ContentMarginBottom = 22; rightPanel.AddThemeStyleboxOverride("panel", rightPlate); _body.AddChild(rightPanel);
-        _rightScroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; var rightScroll = _rightScroll; rightPanel.AddChild(rightScroll);
+        var rightPlate = MatchTheme.Surface(new Color("40372f"), new Color("ad967677")); rightPlate.SetCornerRadiusAll(10); rightPlate.ContentMarginLeft = rightPlate.ContentMarginRight = rightPlate.ContentMarginTop = rightPlate.ContentMarginBottom = 22; rightPanel.AddThemeStyleboxOverride("panel", rightPlate); _body.AddChild(rightPanel);
+        _rightScroll = new ScrollContainer { Name = "RulesScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; var rightScroll = _rightScroll; rightPanel.AddChild(rightScroll);
         _right = new VBoxContainer { Name = "Options" }; _right.AddThemeConstantOverride("separation", 12); _right.AddThemeFontSizeOverride("font_size", 12); rightScroll.AddChild(_right);
         _related = new CardRelatedEffectsView { Name = "Related", SizeFlagsVertical = SizeFlags.ShrinkCenter }; _body.AddChild(_related);
         _right.AddChild(new Label { Text = "等级预览" }); _levels = new HBoxContainer { Name = "Levels" }; _right.AddChild(_levels);
         _right.AddChild(new Label { Text = "宝石预览" }); _gems = new VBoxContainer { Name = "Gems" }; _right.AddChild(_gems);
         var reset = new Button { Name = "Reset", Text = "还原当前卡牌" }; _right.AddChild(reset); reset.Pressed += Reset;
         _right.AddChild(new Label { Text = "仅预览 · 不改变当前卡牌" });
-        _details = new CardDetailsContent { Name = "Details", RuleFontSize = 15 }; _right.AddChild(_details);
+        _details = new CardDetailsContent { Name = "Details", RuleFontSize = 15, ExpandContent = true }; _right.AddChild(_details);
         Resized += LayoutPreview; _artHost.Resized += LayoutArt; _visual.Resized += LayoutArt;
     }
 

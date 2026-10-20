@@ -24,8 +24,8 @@ public sealed partial class HeroDetailsView : PanelContainer
     private readonly CardDisplayAdapter _adapter = new();
     public override void _Ready()
     {
-        _shade = new ColorRect { Name = "Shade", TopLevel = true, ZAsRelative = false, ZIndex = 44, Color = new Color("080e1680"), MouseFilter = MouseFilterEnum.Stop }; AddChild(_shade);
-        AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold));
+        _shade = new ColorRect { Name = "Shade", TopLevel = true, ZAsRelative = false, ZIndex = 44, Color = new Color("160f0b80"), MouseFilter = MouseFilterEnum.Stop }; AddChild(_shade);
+        AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("3c342d"), MatchTheme.Gold));
         var column = new VBoxContainer { Name = "Content" }; AddChild(column);
         _close = new Button { Text = "×", Name = "Close", SizeFlagsHorizontal = SizeFlags.ShrinkEnd }; column.AddChild(_close); _close.Pressed += Hide;
         var scroll = new ScrollContainer { Name = "Scroll", SizeFlagsVertical = SizeFlags.ExpandFill,
@@ -47,7 +47,7 @@ public sealed partial class HeroDetailsView : PanelContainer
     {
         if (_view?.Player is null) return;
         if (!Visible) _returnFocus = GetViewport().GuiGetFocusOwner();
-        AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold));
+        AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("3c342d"), MatchTheme.Gold));
         PrepareModal();
         _focusedSkill = null; _section = section; Show(); Populate();
         Size = new Vector2(Mathf.Min(_focusedSkill is null ? 520 : 540, bounds.X), Mathf.Min(_focusedSkill is null ? 450 : 360, bounds.Y));
@@ -60,7 +60,7 @@ public sealed partial class HeroDetailsView : PanelContainer
     public void ShowSkill(SkillSnapshot skill, Vector2 bounds)
     {
         if (!Visible) _returnFocus = GetViewport().GuiGetFocusOwner();
-        var plate = MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold); plate.SetCornerRadiusAll(10); plate.ContentMarginLeft = plate.ContentMarginRight = plate.ContentMarginTop = plate.ContentMarginBottom = 30; AddThemeStyleboxOverride("panel", plate);
+        var plate = MatchTheme.Surface(new Color("3c342d"), MatchTheme.Gold); plate.SetCornerRadiusAll(10); plate.ContentMarginLeft = plate.ContentMarginRight = plate.ContentMarginTop = plate.ContentMarginBottom = 30; AddThemeStyleboxOverride("panel", plate);
         PrepareModal();
         _focusedSkill = skill; Show(); Populate(); ClampTo(bounds); Position = (bounds - Size) / 2; _close.GrabFocus();
     }
@@ -110,7 +110,7 @@ public sealed partial class HeroDetailsView : PanelContainer
             var icon = new SkillItemView { CustomMinimumSize = new Vector2(76, 76), SizeFlagsHorizontal = SizeFlags.ShrinkBegin, MouseFilter = MouseFilterEnum.Ignore, FocusMode = FocusModeEnum.None }; heading.AddChild(icon); icon.Render(selected, _adapter);
             var title = new Label { Text = $"{selected.DisplayName} · {selected.Level}级", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter }; MatchTheme.Text(title, 24, MatchTheme.Ink, bold: true); heading.AddChild(title);
             var text = new RichTextLabel { FitContent = true, ScrollActive = false, CustomMinimumSize = new Vector2(0, 120) }; _items.AddChild(text);
-            var effectPlate = MatchTheme.Surface(new Color("182129"), new Color("a88e6544")); effectPlate.ContentMarginLeft = effectPlate.ContentMarginRight = effectPlate.ContentMarginTop = effectPlate.ContentMarginBottom = 18; text.AddThemeStyleboxOverride("normal", effectPlate);
+            var effectPlate = MatchTheme.Surface(new Color("302923"), new Color("ad967644")); effectPlate.ContentMarginLeft = effectPlate.ContentMarginRight = effectPlate.ContentMarginTop = effectPlate.ContentMarginBottom = 18; text.AddThemeStyleboxOverride("normal", effectPlate);
             var content = CardDisplayAdapter.SkillDetails(selected); var firstLine = content.IndexOf('\n'); CardKeywordText.Render(text, firstLine < 0 ? content : content[(firstLine + 1)..]);
 
         }

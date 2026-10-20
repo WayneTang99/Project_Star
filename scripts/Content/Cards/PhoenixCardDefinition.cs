@@ -19,7 +19,7 @@ public sealed class PhoenixCardDefinition : CardDefinition
                     new(CardKeywords.Activate, "冷却4秒，魔法消耗0，对敌方英雄施加164灼伤。"),
                     new(CardKeywords.Echo, "每场战斗，己方英雄首次受到致命伤害时，阻止死亡并治疗其最大生命值的50%（向下取整），此卡牌灼伤翻倍，仅本场生效。"),
                 ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
-                { [GameAttributeKeys.CooldownTicks] = 40 })), new TagSet([GameTags.Beast, GameTags.Deity]), initialLevel: 4,
+                { [GameAttributeKeys.CooldownTicks] = 40 })), new TagSet([GameTags.Beast, GameTags.Spirit]), initialLevel: 4,
             levels:
             [
                 new CardLevelDefinition(4, new Dictionary<StringName, int> { [GameAttributeKeys.Burn] = 164 },

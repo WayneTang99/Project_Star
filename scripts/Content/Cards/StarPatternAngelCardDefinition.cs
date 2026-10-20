@@ -6,7 +6,7 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 星纹天使帕拉帝恩神明卡牌，组合恶魔随机禁锢与无恶魔条件治疗（内容层）。
+// 星纹天使帕拉帝恩精灵卡牌，组合恶魔随机禁锢与无恶魔条件治疗（内容层）。
 public sealed class StarPatternAngelCardDefinition : CardDefinition
 {
     public StarPatternAngelCardDefinition()
@@ -18,7 +18,7 @@ public sealed class StarPatternAngelCardDefinition : CardDefinition
             [new(CardKeywords.Opening, "此卡牌进入飞行。"),
              new(CardKeywords.Activate, "冷却4秒，消耗20魔法，随机给予敌方1/2张存活战场恶魔卡牌1秒禁锢，不重复选取，数量不足时全部选取；敌方无存活战场恶魔卡牌时，改为治疗己方英雄80/160生命。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 40 })),
-            new TagSet([GameTags.Deity]), initialLevel: 3, levels: [CreateLevel(3, 1, 80), CreateLevel(4, 2, 160)]) { }
+            new TagSet([GameTags.Spirit]), initialLevel: 3, levels: [CreateLevel(3, 1, 80), CreateLevel(4, 2, 160)]) { }
 
     private static CardLevelDefinition CreateLevel(int level, int count, int healing) => new(level, null,
         [new AbilityDefinition(new StringName("ability.enter_flying_on_battle_start"), AbilityActivation.PassiveOnBattleStart,

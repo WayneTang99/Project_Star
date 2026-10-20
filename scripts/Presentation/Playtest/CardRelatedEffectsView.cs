@@ -43,7 +43,7 @@ public sealed partial class CardRelatedEffectsView : PanelContainer
     ];
     public override void _Ready()
     {
-        AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("252d36"), new Color("a88e6588")));
+        AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("3c342d"), new Color("ad967688")));
         AddChild(_scroll); _scroll.AddChild(_items); _items.AddThemeConstantOverride("separation", 9);
     }
     // 接收正式目录的只读投影，引用卡牌不创建实例或结算能力。
@@ -80,7 +80,7 @@ public sealed partial class CardRelatedEffectsView : PanelContainer
     }
     private void AddBox(string title, string text, float width, bool reference)
     {
-        var panel = new PanelContainer(); var plate = MatchTheme.Surface(new Color("182129"), new Color("a88e6544"));
+        var panel = new PanelContainer(); var plate = MatchTheme.Surface(new Color("302923"), new Color("ad967644"));
         plate.BorderWidthLeft = 2; plate.BorderColor = new Color(reference ? "d5b979" : "83cec6"); panel.AddThemeStyleboxOverride("panel", plate); _items.AddChild(panel);
         var column = new VBoxContainer(); panel.AddChild(column);
         var heading = new Label { Text = title }; MatchTheme.Text(heading, 14, new Color(reference ? "e4cb91" : "83cec6"), bold: true); column.AddChild(heading);

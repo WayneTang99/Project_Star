@@ -95,7 +95,7 @@ public sealed partial class SellDropZone : Control
         _value.Text = $"出售可得 {card.Value} 金币"; _value.Visible = _selling;
         CardKeywordText.RenderRule(_effect, string.Join(" · ", card.DescriptionEntries.Where(e => e.KeywordKey == CardKeywords.Sell).Select(e => e.Text)));
         _effect.Visible = _selling && _effect.GetParsedText().Length > 0;
-        var plate = MatchTheme.Surface(new Color("303039f5"), _color); plate.SetCornerRadiusAll(7);
+        var plate = MatchTheme.Surface(new Color("3f3329f5"), _color); plate.SetCornerRadiusAll(7);
         plate.ContentMarginLeft = plate.ContentMarginRight = 14; plate.ContentMarginTop = plate.ContentMarginBottom = 12;
         _feedback.AddThemeStyleboxOverride("panel", plate);
         _feedback.Size = new Vector2(250, 0);

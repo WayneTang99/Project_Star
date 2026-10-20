@@ -24,11 +24,11 @@ public sealed partial class CardEffectRow : HBoxContainer
     // 按效果语义选择图标与显示值。
     public void Configure(CardFaceEffect effect)
     {
-        var kind = effect.Kind == CardFaceEffectKind.ManaCost ? "mana" : effect.Kind.ToString().ToLowerInvariant();
+        var kind = effect.Kind is CardFaceEffectKind.ManaCost or CardFaceEffectKind.ManaRegen ? "mana" : effect.Kind.ToString().ToLowerInvariant();
         // 保持样式及纹理的强引用，避免GC后已有绘制命令引用失效纹理。
         _plate = MatchTheme.Plate("effect-" + kind, 3);
         QueueRedraw();
-        _icon.Texture = MatchTheme.Icon(new StringName(kind));
+        _icon.Texture = MatchTheme.Icon(new StringName(effect.Kind == CardFaceEffectKind.ManaRegen ? "regeneration" : kind));
         _value.Text = effect.Value;
         _icon.Modulate = AttributePalette.Effect(effect.Kind);
         _icon.Material = AttributePalette.IconMaterial;

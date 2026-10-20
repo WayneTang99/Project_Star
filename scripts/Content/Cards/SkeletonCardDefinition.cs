@@ -13,7 +13,7 @@ public sealed class SkeletonCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.skeleton"), "骷髅", new StringName("mona"),
                 CardSize.Small, [GameElements.Dark],
-                illustration: new StringName("res://art/ui/card-face/artwork/skeleton-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/skeleton-floating-skull-20261020.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却3秒，魔法消耗0，对敌方英雄造成10/20/30/40伤害（随此卡牌攻击加成提高）。"),

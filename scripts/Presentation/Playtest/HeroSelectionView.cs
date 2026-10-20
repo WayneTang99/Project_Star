@@ -213,7 +213,7 @@ public sealed partial class HeroSelectionView : Control
         for (var index = 0; index < _buttons.Count; index++)
         {
             var button = _buttons[index].Button; var current = index == _index;
-            button.AddThemeStyleboxOverride("normal", MatchTheme.Surface(current ? new Color("294138") : MatchTheme.SurfaceColor,
+            button.AddThemeStyleboxOverride("normal", MatchTheme.Surface(current ? new Color("514332") : MatchTheme.SurfaceColor,
                 current ? MatchTheme.Blue : new Color("756847")));
             button.GetNode<Label>("SelectedMark").Text = current ? "✓" : "";
         }

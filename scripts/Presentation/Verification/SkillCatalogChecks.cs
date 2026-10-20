@@ -184,8 +184,8 @@ internal static class SkillCatalogChecks
                 {
                     shell.ApplyBoardSkin(MatchTheme.Skin); await Frame(); await Frame();
                     if (!search.HasFocus() || search.Text != "至圣斩" || level.GetItemId(level.Selected) != selectedLevel
-                        || ((StyleBoxFlat)selected.GetThemeStylebox("normal")).BgColor != new Color("354c38")
-                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color("262b34"))
+                        || ((StyleBoxFlat)selected.GetThemeStylebox("normal")).BgColor != new Color("554735")
+                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color("3b332d"))
                         throw new InvalidOperationException("配色切换未同步图鉴样式或丢失焦点、筛选、预览等级。");
                     await Save(blue ? "skin-refreshed" : "skin-restored");
                 }

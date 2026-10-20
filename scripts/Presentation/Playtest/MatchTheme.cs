@@ -7,12 +7,12 @@ namespace Project_Star.Presentation.Playtest;
 // 表现层集中定义默认砂石主题、金属边框与紧凑交互样式，不参与玩法状态。
 internal static class MatchTheme
 {
-    public static readonly Color Background = new("191e26");
-    public static readonly Color Ink = new("edf0dd");
-    public static Color Gold => new("c8a879");
-    public static Color Blue => new("85d8da");
-    public static Color SurfaceColor => new("30323a");
-    public static readonly Color Muted = new("aeb4a3");
+    public static readonly Color Background = new("2c2622");
+    public static readonly Color Ink = new("ece0cf");
+    public static Color Gold => new("c5ad87");
+    public static Color Blue => new("cbb7a1");
+    public static Color SurfaceColor => new("4a4037");
+    public static readonly Color Muted = new("b8aa98");
     public const int Gap = 8;
     private static readonly Dictionary<StringName, Texture2D> Icons = new();
     private static Texture2D? _stars;
@@ -129,10 +129,10 @@ internal static class MatchTheme
             var direction = new Vector2(Mathf.Sin(angle), -Mathf.Cos(angle));
             var length = Mathf.Abs(width * direction.X) + Mathf.Abs(height * direction.Y);
             var start = rect.Size / 2 - direction * length / 2; var end = rect.Size / 2 + direction * length / 2;
-            var stops = kind == "tooltip" ? "<stop stop-color='#393a3e'/><stop offset='1' stop-color='#272b32'/>"
-                : kind == "stage" ? "<stop stop-color='#1d322d'/><stop offset='.65' stop-color='#142622'/><stop offset='1' stop-color='#23342c'/>"
-                : kind == "hero" ? "<stop stop-color='#1c2b25'/><stop offset='1' stop-color='#17251f'/>"
-                : "<stop stop-color='#393a3e'/><stop offset='1' stop-color='#272b32'/>";
+            var stops = kind == "tooltip" ? "<stop stop-color='#51483e'/><stop offset='1' stop-color='#3c332c'/>"
+                : kind == "stage" ? "<stop stop-color='#483e34'/><stop offset='.65' stop-color='#332b25'/><stop offset='1' stop-color='#514438'/>"
+                : kind == "hero" ? "<stop stop-color='#3e342b'/><stop offset='1' stop-color='#302820'/>"
+                : "<stop stop-color='#51483e'/><stop offset='1' stop-color='#3c332c'/>";
             using var image = new Image();
             image.LoadSvgFromString(FormattableString.Invariant($"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}'><defs><linearGradient id='g' gradientUnits='userSpaceOnUse' x1='{start.X}' y1='{start.Y}' x2='{end.X}' y2='{end.Y}'>{stops}</linearGradient></defs><rect width='100%' height='100%' fill='url(#g)'/></svg>"));
             texture = ImageTexture.CreateFromImage(image); Panels.Add(key, texture);
@@ -140,7 +140,7 @@ internal static class MatchTheme
         canvas.DrawTextureRect(texture, rect, false);
         var border = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "c0a269" : kind == "stage" ? "7f744b" : kind == "hero" ? "716444" : "968358")); border.SetCornerRadiusAll(0);
         canvas.DrawStyleBox(border, rect);
-        var inset = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "0b1814" : kind == "stage" ? "0c1c19" : kind == "hero" ? "0c1916" : "0b1915")); inset.SetBorderWidthAll(3); inset.SetCornerRadiusAll(0);
+        var inset = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "251e19" : kind == "stage" ? "27211c" : kind == "hero" ? "241e19" : "231e19")); inset.SetBorderWidthAll(3); inset.SetCornerRadiusAll(0);
         canvas.DrawStyleBox(inset, rect.Grow(kind == "tooltip" ? -2 : -1));
         if (kind != "hero" && kind != "tooltip") canvas.DrawRect(rect.Grow(kind == "stage" ? -8 : -5), new Color(Gold, kind == "stage" ? .15f : .22f), false, 1);
     }
@@ -190,7 +190,7 @@ internal static class MatchTheme
     private static Texture2D CreateBackground(Vector2 size)
     {
         using var image = new Image();
-        image.LoadSvgFromString($"<svg xmlns='http://www.w3.org/2000/svg' width='{size.X}' height='{size.Y}'><defs><radialGradient id='a' cx='0' cy='0' r='1' gradientTransform='translate(.5 .1) scale(.38891 .70004)'><stop stop-color='#466044' stop-opacity='.333333'/><stop offset='1' stop-color='#466044' stop-opacity='0'/></radialGradient><radialGradient id='b' cx='0' cy='0' r='1' gradientTransform='translate(0 .8) scale(.636396 .509117)'><stop stop-color='#264942' stop-opacity='.466667'/><stop offset='1' stop-color='#264942' stop-opacity='0'/></radialGradient><pattern id='p' width='7' height='7' patternUnits='userSpaceOnUse' patternTransform='rotate(25)'><rect width='1' height='7' fill='#d5c080' fill-opacity='.011765'/></pattern></defs><rect width='100%' height='100%' fill='url(#p)'/><rect width='100%' height='100%' fill='url(#b)'/><rect width='100%' height='100%' fill='url(#a)'/></svg>");
+        image.LoadSvgFromString($"<svg xmlns='http://www.w3.org/2000/svg' width='{size.X}' height='{size.Y}'><defs><radialGradient id='a' cx='0' cy='0' r='1' gradientTransform='translate(.5 .1) scale(.38891 .70004)'><stop stop-color='#665846' stop-opacity='.333333'/><stop offset='1' stop-color='#665846' stop-opacity='0'/></radialGradient><radialGradient id='b' cx='0' cy='0' r='1' gradientTransform='translate(0 .8) scale(.636396 .509117)'><stop stop-color='#5a4c40' stop-opacity='.466667'/><stop offset='1' stop-color='#5a4c40' stop-opacity='0'/></radialGradient><pattern id='p' width='7' height='7' patternUnits='userSpaceOnUse' patternTransform='rotate(25)'><rect width='1' height='7' fill='#d5c080' fill-opacity='.011765'/></pattern></defs><rect width='100%' height='100%' fill='url(#p)'/><rect width='100%' height='100%' fill='url(#b)'/><rect width='100%' height='100%' fill='url(#a)'/></svg>");
         return ImageTexture.CreateFromImage(image);
     }
 
@@ -215,10 +215,10 @@ internal static class MatchTheme
         theme.SetStylebox("panel", "PanelContainer", Plate("surface"));
         theme.SetStylebox("panel", "TooltipPanel", Plate("tooltip"));
         theme.SetColor("font_color", "TooltipLabel", Ink);
-        theme.SetStylebox("normal", "Button", Surface(new Color("2b303a"), new Color("756847")));
-        theme.SetStylebox("hover", "Button", Surface(new Color("3c414b"), Gold));
-        theme.SetStylebox("pressed", "Button", Surface(new Color("222730"), Blue));
-        theme.SetStylebox("disabled", "Button", Surface(new Color("252a33"), new Color("81735f")));
+        theme.SetStylebox("normal", "Button", Surface(new Color("443a32"), new Color("756847")));
+        theme.SetStylebox("hover", "Button", Surface(new Color("594d42"), Gold));
+        theme.SetStylebox("pressed", "Button", Surface(new Color("332d27"), Blue));
+        theme.SetStylebox("disabled", "Button", Surface(new Color("3a332d"), new Color("81735f")));
         theme.SetStylebox("focus", "Button", Outline(Blue));
         foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
             theme.SetColor(state, "Button", Ink);
@@ -226,12 +226,12 @@ internal static class MatchTheme
         theme.SetStylebox("panel", "PopupMenu", Surface(SurfaceColor, Gold));
         theme.SetColor("font_color", "PopupMenu", Ink);
         theme.SetColor("font_hover_color", "PopupMenu", Ink);
-        theme.SetStylebox("normal", "LineEdit", Surface(new Color("262b34"), new Color("756847")));
-        theme.SetStylebox("focus", "LineEdit", Surface(new Color("262b34"), Blue));
+        theme.SetStylebox("normal", "LineEdit", Surface(new Color("3b332d"), new Color("756847")));
+        theme.SetStylebox("focus", "LineEdit", Surface(new Color("3b332d"), Blue));
         theme.SetColor("font_color", "LineEdit", Ink);
         theme.SetColor("font_placeholder_color", "LineEdit", Muted);
         theme.SetStylebox("normal", "OptionButton", Surface(SurfaceColor, Gold));
-        theme.SetStylebox("hover", "OptionButton", Surface(new Color("3c414b"), Gold));
+        theme.SetStylebox("hover", "OptionButton", Surface(new Color("594d42"), Gold));
         theme.SetStylebox("pressed", "OptionButton", Surface(SurfaceColor, Blue));
         theme.SetColor("font_color", "OptionButton", Ink);
         theme.SetColor("font_hover_color", "OptionButton", Ink);

@@ -32,7 +32,7 @@ public sealed partial class ResourceBar : ProgressBar
     private static StyleBoxTexture CreateFill(bool mana)
     {
         var resource = new Color(mana ? "cc99ff" : "55d6a5");
-        var dark = new Color("11151d");
+        var dark = new Color("1f1711");
         return new StyleBoxTexture { Texture = new GradientTexture2D { Width = 244, Height = 24,
             FillFrom = new Vector2(0, 1), FillTo = Vector2.Zero,
             Gradient = new Gradient { Colors = new[] { dark.Lerp(resource, .18f), dark.Lerp(resource, .32f) } } } };

@@ -144,7 +144,7 @@ internal static class CardInteractionChecks
         var projected = CardQuestViewModel.From(card, null);
         if (projected[0].Progress != 20 || projected[1].Progress != 60 || projected[2].Progress != 75
             || !projected[0].Reward.Contains("+80") || !projected[1].Reward.Contains("光属性")
-            || !projected[2].Reward.Contains("10%灼伤") || !projected[2].Reward.Contains("飞行") || projected[2].Reward.Contains("神明")) return false;
+            || !projected[2].Reward.Contains("10%灼伤") || !projected[2].Reward.Contains("飞行") || projected[2].Reward.Contains("精灵")) return false;
         var replay = new CardBattleSnapshot(card.Id, SideId.Player, false, 0, 0, 0, [], card.CurrentValues)
             { Quests = Array.AsReadOnly(card.QuestDefinitions.Select(quest => new CardQuestBattleSnapshot(quest.Key, 0, quest.RequiredCount, false)).ToArray()) };
         if (CardQuestViewModel.From(card, replay).Any(quest => quest.Progress != 0 || quest.Unlocked)) return false;

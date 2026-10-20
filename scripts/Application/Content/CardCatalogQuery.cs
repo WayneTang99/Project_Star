@@ -15,6 +15,8 @@ public sealed record CardCatalogLevel(CardSnapshot Card, int InitialValue);
 public sealed record CardCatalogEntry(string FactionName, int InitialLevel, IReadOnlyList<CardCatalogLevel> Levels)
 {
     public string SetName { get; init; } = "";
+    public StringName FactionHeroKey { get; init; } = new("");
+    public StringName FactionIllustration { get; init; } = new("");
     public CardSnapshot InitialCard => Levels.First(level => level.Card.Level == InitialLevel).Card;
 }
 
@@ -33,6 +35,10 @@ public static class CardCatalogQuery
                         return new CardCatalogLevel(MatchDisplayQuery.FromOffer(offer), offer.Price);
                     }).ToArray()))
             {
+                FactionHeroKey = catalog.Heroes.Values.FirstOrDefault(hero => hero.Attributes.Identity.FactionKey == definition.Attributes.Identity.FactionKey)
+                    ?.Attributes.Identity.Key ?? new StringName(""),
+                FactionIllustration = catalog.Heroes.Values.FirstOrDefault(hero => hero.Attributes.Identity.FactionKey == definition.Attributes.Identity.FactionKey)
+                    ?.Attributes.Identity.Illustration ?? new StringName(""),
                 SetName = definition.Attributes.Identity.SetKey is { } setKey
                     ? catalog.Sets[setKey].Attributes.Identity.DisplayName : "",
             }).ToArray());

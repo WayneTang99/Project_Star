@@ -46,7 +46,7 @@ public sealed partial class TopBar : HBoxContainer
             var center = _journey.Position + new Vector2(98 + 23 * index, 41);
             Vector2[] diamond = [center + new Vector2(0, -6), center + new Vector2(6, 0), center + new Vector2(0, 6), center + new Vector2(-6, 0)];
             var current = _currentTurn == index + 1;
-            DrawColoredPolygon(diamond, current ? new Color("ffedb3") : index + 1 < _currentTurn ? new Color("ba9c62") : new Color("1b2a25"));
+            DrawColoredPolygon(diamond, current ? new Color("eedfc4") : index + 1 < _currentTurn ? new Color("ba9c62") : new Color("392f27"));
             DrawPolyline([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]], new Color("9f9460"), 1, true);
             if (current) DrawCircle(center, 8, new Color(1, .85f, .4f, .12f));
             if (index < 7) DrawLine(center + new Vector2(10, 11), center + new Vector2(17, 11), new Color("87794b"), 1);

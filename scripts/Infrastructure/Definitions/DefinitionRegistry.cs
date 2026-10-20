@@ -126,6 +126,11 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
         ValidateCardSets(cards, sets);
         ValidateTransformations(cards);
         ValidateSummons(cards);
+        foreach (var ability in cards.Values.SelectMany(card => card.Abilities.Concat(card.Levels.Values.SelectMany(level => level.Abilities)))
+            .Concat(skills.Values.SelectMany(skill => skill.Abilities.Concat(skill.Levels.Values.SelectMany(level => level.Abilities)))))
+        foreach (var summon in ability.Effects.OfType<SummonAtDestroyedCardEffectDefinition>())
+            if (!cards.ContainsKey(summon.Card.Attributes.Identity.Key))
+                throw new DefinitionValidationException($"Destruction summon references unknown card '{summon.Card.Attributes.Identity.Key}'.");
         ValidateMonsterCards(monsters, cards);
         ValidateMonsterSkills(monsters, skills);
         foreach (var encounter in encounters.Values)
@@ -184,6 +189,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
             foreach (var template in effect switch
                 {
                     SummonAdjacentCardEffectDefinition summon => new[] { summon.Card },
+                    SacrificeSourceAndNeighborsToSummonEffectDefinition summon => new[] { summon.Card },
                     SummonRandomAdjacentCardEffectDefinition summon => summon.Cards,
                     TransformSourceIntoRandomCardsEffectDefinition split => split.Replacements,
                     _ => System.Array.Empty<CardDefinition>(),

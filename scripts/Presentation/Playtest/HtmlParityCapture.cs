@@ -68,6 +68,58 @@ internal static class HtmlParityCapture
             new UiAction("刷新 · 8"), new UiAction("开始战斗", false), new UiAction("继续旅程　→"), new UiAction("奖励", false))
         { ShopLevel = 4, DisplayRound = 2, DisplayTurn = 3, ContextIllustration = new StringName("res://art/ui/encounters/artwork/large_shop-illustration.png") };
         shell.Render(view);
+        if (OS.GetCmdlineUserArgs().Contains("--preview-layout-fixes"))
+        {
+            foreach (var resolution in new[] { new Vector2I(1280, 720), new Vector2I(1920, 1080) })
+            {
+                owner.GetWindow().Size = resolution;
+                for (var frame = 0; frame < 6; frame++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+                var preview = shell.GetNode<CardPreviewView>("CardPreview");
+                foreach (var definition in new CardDefinition[] { new CathedralCardDefinition(), new SkyvaultTowerCardDefinition(), new DebilisCardDefinition() })
+                {
+                    shell.ShowCardPreview(Sample(definition, 4, 16), default); await Save("preview-" + definition.Attributes.Identity.Key.ToString().Replace('.', '-'));
+                    var body = preview.FindChild("Body", true, false) as HBoxContainer;
+                    var center = preview.GetGlobalRect().GetCenter().Y;
+                    foreach (Control part in body!.GetChildren())
+                        if (Mathf.Abs(part.GetGlobalRect().GetCenter().Y - center) > 4)
+                            throw new InvalidOperationException($"预览列未独立垂直居中：{definition.Attributes.Identity.Key} {part.Name} center={part.GetGlobalRect().GetCenter().Y} expected={center}");
+                    var inner = (ScrollContainer)preview.FindChild("BodyScroll", true, false);
+                    if (inner.VerticalScrollMode != ScrollContainer.ScrollMode.Disabled) throw new InvalidOperationException("预览内部仍有规则滚动。");
+                    var outer = (ScrollContainer)preview.FindChild("RulesScroll", true, false);
+                    if (definition is DebilisCardDefinition)
+                    {
+                        outer.ScrollVertical = (int)outer.GetVScrollBar().MaxValue; await Save("preview-debilis-bottom");
+                        if (outer.ScrollVertical <= 0) throw new InvalidOperationException("长套装内容未展开到外层滚动。");
+                        var extra = (Button)preview.FindChild("InstanceToggle", true, false); extra.EmitSignal(Button.SignalName.Pressed);
+                        await Save("preview-debilis-attributes");
+                        if (((RichTextLabel)preview.FindChild("InstanceDetails", true, false)).ScrollActive)
+                            throw new InvalidOperationException("实例属性仍使用内部滚动。");
+                    }
+                    preview.Close();
+                }
+                var sourceCard = new CardItemView { Name = "AvoidanceSource", Size = new Vector2(180, 120), MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 12 };
+                shell.AddChild(sourceCard);
+                foreach (var definition in new CardDefinition[] { new JudgmentHammerCardDefinition(), new DebilisCardDefinition() })
+                foreach (var fraction in new[] { new Vector2(.06f, .13f), new Vector2(.45f, .33f), new Vector2(.78f, .68f) })
+                {
+                    var card = Sample(definition, definition.InitialLevel, 16);
+                    sourceCard.Position = shell.Size * fraction; sourceCard.Render(card, new CardDisplayAdapter());
+                    var sourceRect = sourceCard.GetRect(); var hover = shell.GetNode<CardDetailsView>("CardDetails");
+                    hover.SetPinned(true); hover.ShowNear(card, sourceRect, shell.Size);
+                    await Save("avoid-" + definition.Attributes.Identity.Key.ToString().Replace('.', '-') + "-" + fraction.X);
+                    var detailsRect = hover.GetGlobalRect(); var anchor = sourceCard.GetGlobalRect();
+                    var related = (Control)hover.FindChild("Related", true, false);
+                    if (detailsRect.Intersects(anchor) || related.Visible && related.GetGlobalRect().Intersects(anchor))
+                        throw new InvalidOperationException($"详情或关联框遮住来源卡牌：{definition.Attributes.Identity.Key} at {fraction}, detail={detailsRect}, related={related.GetGlobalRect()}, source={anchor}");
+                    if (!shell.GetGlobalRect().Encloses(detailsRect) || related.Visible && !shell.GetGlobalRect().Encloses(related.GetGlobalRect()))
+                        throw new InvalidOperationException("来源避让后详情越出窗口。");
+                    hover.Hide();
+                }
+                shell.RemoveChild(sourceCard); sourceCard.Free();
+            }
+            GD.Print("预览修复验证通过：两种分辨率、三张长短规则卡牌独立居中、内部展开、外层滚动、属性无嵌套滚动及来源卡牌避让。");
+            owner.GetTree().Quit(); return;
+        }
         if (OS.GetCmdlineUserArgs().Contains("--related-preview"))
         {
             await Save("background");
@@ -357,7 +409,7 @@ internal static class HtmlParityCapture
                 || menuButton.End.X > shell.Size.X || menuButton.Position.Y < 0)
                 throw new InvalidOperationException("经济区或菜单入口溢出固定画布。");
             await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            var directory = OS.GetCmdlineUserArgs().Contains("--related-preview") ? "res://output/related-preview" : OS.GetCmdlineUserArgs().Contains("--render-quality") ? "res://output/ui-render-quality/native"
+            var directory = OS.GetCmdlineUserArgs().Contains("--preview-layout-fixes") ? "res://output/warm-ui/preview" : OS.GetCmdlineUserArgs().Contains("--related-preview") ? "res://output/related-preview" : OS.GetCmdlineUserArgs().Contains("--render-quality") ? "res://output/ui-render-quality/native"
                 : OS.GetCmdlineUserArgs().Contains("--centered-overview") ? "res://output/ui-html-parity/overview" : "res://output/ui-html-parity/native";
             DirAccess.MakeDirRecursiveAbsolute(directory);
             using var image = owner.GetViewport().GetTexture().GetImage();
@@ -369,7 +421,7 @@ internal static class HtmlParityCapture
 
     private static async Task CaptureDetailsComponent(Control owner)
     {
-        var background = new ColorRect { Color = new Color("31463b"), MouseFilter = Control.MouseFilterEnum.Ignore };
+        var background = new ColorRect { Color = new Color("4e4337"), MouseFilter = Control.MouseFilterEnum.Ignore };
         owner.AddChild(background); background.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         owner.Theme = MatchTheme.Create();
         var details = new CardDetailsView { ZIndex = 100 }; owner.AddChild(details);

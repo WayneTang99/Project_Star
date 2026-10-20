@@ -49,7 +49,7 @@ public sealed partial class LeavePanel : HFlowContainer
     {
         foreach (var intent in new[] { MatchAction.Refresh, MatchAction.Developer })
         {
-            var plate = MatchTheme.Surface(new Color("1e3128"), new Color("6b775a"));
+            var plate = MatchTheme.Surface(new Color("453b31"), new Color("6b775a"));
             plate.ContentMarginLeft = plate.ContentMarginRight = 9; plate.ContentMarginTop = plate.ContentMarginBottom = 6;
             _buttons[intent].AddThemeStyleboxOverride("normal", plate);
         }

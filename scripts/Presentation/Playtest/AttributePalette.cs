@@ -45,6 +45,7 @@ internal static class AttributePalette
         CardFaceEffectKind.Poison => GameAttributeKeys.Poison,
         CardFaceEffectKind.Burn => GameAttributeKeys.Burn,
         CardFaceEffectKind.Mana or CardFaceEffectKind.ManaCost => GameAttributeKeys.Mana,
+        CardFaceEffectKind.ManaRegen => GameAttributeKeys.ManaRegen,
         _ => new StringName("")
     }) ?? MatchTheme.Ink;
 

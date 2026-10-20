@@ -59,6 +59,26 @@ internal static class BattleEffectResolver
         var hero = runtime.GetHero(targetSide);
         switch (effect)
         {
+            case SacrificeSourceAndNeighborsToSummonEffectDefinition sacrificeSummon when pending.Source is CardBattleState sacrificeSource:
+                var neighbors = runtime.Cards.Where(card => card.Side == sacrificeSource.Side && !card.Destroyed && !card.IsOnBench
+                    && card.EntityId != sacrificeSource.EntityId
+                    && (card.BoardStart + card.OccupiedSlots == sacrificeSource.BoardStart
+                        || card.BoardStart == sacrificeSource.BoardStart + sacrificeSource.OccupiedSlots)).ToArray();
+                foreach (var neighbor in neighbors)
+                    DestroyCard(runtime, neighbor, sacrificeSource.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
+                DestroyCard(runtime, sacrificeSource, sacrificeSource.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
+                foreach (var side in new[] { AdjacentCardSide.Left, AdjacentCardSide.Right })
+                {
+                    if (!CanSummonAdjacentCard(runtime, sacrificeSource, sacrificeSummon.Card, side)) continue;
+                    var start = side == AdjacentCardSide.Left
+                        ? sacrificeSource.BoardStart - sacrificeSummon.Card.Attributes.Identity.OccupiedSlots
+                        : sacrificeSource.BoardStart + sacrificeSource.OccupiedSlots;
+                    var summoned = SummonCard(runtime, sacrificeSource, sacrificeSummon.Card, sacrificeSource.Level, start);
+                    if (summoned is not null && sacrificeSummon.SummonedStateKey is { } stateKey)
+                        SetCardState(runtime, pending, summoned, stateKey, true);
+                    break;
+                }
+                break;
             case GrantTagToRandomEnemyCardsEffectDefinition randomTag:
                 var tagCandidates = runtime.Cards.Where(card => card.Side != pending.Source.Side
                     && !card.Destroyed && !card.IsOnBench).ToList();
@@ -84,7 +104,7 @@ internal static class BattleEffectResolver
                 growingHero.Health = checked(growingHero.Health + fixedHealthGrowth.Amount);
                 break;
             case ApplyPrimaryEffectPercentStatusEffectDefinition primaryStatus:
-                var extraAmount = checked((int)((long)pending.PrimaryValue * primaryStatus.Percent / 100));
+                var extraAmount = primaryStatus.CalculateAmount(pending.Ability.Definition.Effects.FirstOrDefault(), pending.PrimaryValue);
                 if (primaryStatus.Status is BattleStatus.Burn or BattleStatus.Poison)
                     extraAmount = checked(extraAmount + GetEffectiveCombatAttribute(runtime, pending.Source,
                         primaryStatus.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : GameAttributeKeys.PoisonBonus));
@@ -92,6 +112,11 @@ internal static class BattleEffectResolver
                 var extraApplied = BattleStatusResolver.ApplyStatus(pending.Source, enemyHero,
                     new ApplyStatusEffectDefinition(primaryStatus.Status, BerserkAmount(pending, extraAmount)));
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, primaryStatus.Status, extraApplied));
+                break;
+            case SummonAtDestroyedCardEffectDefinition replacement:
+                if (pending.EventCard is { Destroyed: true, IsOnBench: false } destroyedCard
+                    && destroyedCard.Side == pending.Source.Side)
+                    SummonCard(runtime, pending.Source, replacement.Card, destroyedCard.Level, destroyedCard.BoardStart);
                 break;
             case SummonAdjacentCardEffectDefinition summon:
                 if (pending.Source is not CardBattleState summoner)
@@ -358,17 +383,27 @@ internal static class BattleEffectResolver
             case DestroyCardEffectDefinition destroy:
                 if (pending.Source is not CardBattleState destroySource)
                     throw new InvalidOperationException("Self-destruction requires a card source.");
-                DestroyCard(runtime, destroySource, pending.Source.EntityId, destroy.Permanent);
+                DestroyCard(runtime, destroySource, pending.Source.EntityId, destroy.Permanent, pending.IsEcho || pending.SuppressEchoes);
+                break;
+            case DestroyBattlefieldCardsEffectDefinition battlefieldDestroy:
+                foreach (var target in runtime.Cards.Where(card => !card.Destroyed && !card.IsOnBench
+                    && card.OccupiedSlots <= (int)battlefieldDestroy.MaximumSize).ToArray())
+                    DestroyCard(runtime, target, pending.Source.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case DestroyRandomEnemyCardEffectDefinition randomDestroy:
-                DestroyRandomEnemyCard(runtime, pending.Source, randomDestroy);
+                DestroyRandomEnemyCard(runtime, pending.Source, randomDestroy, pending.IsEcho || pending.SuppressEchoes);
+                break;
+            case DestroyAlliedCardsEffectDefinition alliedDestroy:
+                foreach (var target in runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
+                    && card.OccupiedSlots == (int)alliedDestroy.Size && card.ElementKeys.Contains(alliedDestroy.ElementKey)).ToArray())
+                    DestroyCard(runtime, target, pending.Source.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case DestroyAlliedCardsAndDamageEffectDefinition sacrifice:
                 var sacrifices = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
                     && card.OccupiedSlots == (int)sacrifice.Size && card.ElementKeys.Contains(sacrifice.ElementKey)).ToArray();
                 var sacrificeDamage = BerserkAmount(pending, GetEffectiveCombatAttribute(runtime, pending.Source, sacrifice.DamageAttributeKey));
                 foreach (var sacrificed in sacrifices)
-                    DestroyCard(runtime, sacrificed, pending.Source.EntityId, false);
+                    DestroyCard(runtime, sacrificed, pending.Source.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
                 foreach (var sacrificed in sacrifices)
                 {
                     if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, sacrificeDamage, false, GetDamageSourceKind(pending.Source))
@@ -492,7 +527,7 @@ internal static class BattleEffectResolver
             ChargeSourceCardEffectDefinition value => value.AmountTicks,
             ChargeCardEffectDefinition value => value.AmountTicks,
             ApplyPrimaryEffectPercentStatusEffectDefinition value when !primaryValue =>
-                checked((int)((long)pending.PrimaryValue * value.Percent / 100)
+                checked(value.CalculateAmount(pending.Ability.Definition.Effects.FirstOrDefault(), pending.PrimaryValue)
                     + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0)),
             IncreaseAlliedCardAttributeAuraEffectDefinition value => checked(value.Amount + own.Level * value.HeroLevelMultiplier
@@ -603,6 +638,14 @@ internal static class BattleEffectResolver
                 && effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition multiplier
                 && multiplier.AttributeKey == key && runtime.GetHero(Opposite(source.Side)).Armor > 0)
                 value = checked(value * multiplier.Multiplier);
+        if (source is CardBattleState { Destroyed: false, IsOnBench: false } stateSource)
+            foreach (var ability in stateSource.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is MultiplySourceAttributeWhileInStateEffectDefinition stateMultiplier
+                    && stateMultiplier.AttributeKey == key
+                    && (stateMultiplier.StateKey == GameAttributeKeys.Berserk ? stateSource.IsBerserk : stateSource.IsFlying))
+                    value = checked(value * stateMultiplier.Multiplier);
         if (source is CardBattleState { Destroyed: false, IsOnBench: false } receiver
             && receiver.SupportsCombatAttribute(key))
         {
@@ -673,7 +716,7 @@ internal static class BattleEffectResolver
     private static void DestroyRandomEnemyCard(
         BattleRuntime runtime,
         IBattleAbilitySource source,
-        DestroyRandomEnemyCardEffectDefinition effect)
+        DestroyRandomEnemyCardEffectDefinition effect, bool suppressEchoes)
     {
         var candidates = new System.Collections.Generic.List<CardBattleState>();
         foreach (var card in runtime.Cards)
@@ -687,7 +730,7 @@ internal static class BattleEffectResolver
             candidates.Add(card);
         }
         if (candidates.Count == 0) return;
-        DestroyCard(runtime, candidates[runtime.NextRandomIndex(candidates.Count)], source.EntityId, effect.Permanent);
+        DestroyCard(runtime, candidates[runtime.NextRandomIndex(candidates.Count)], source.EntityId, effect.Permanent, suppressEchoes);
     }
 
     // 以新的 Runtime 状态替换目标；旧队列来源失效，对局实例不受影响。
@@ -788,7 +831,19 @@ internal static class BattleEffectResolver
         var size = identity.OccupiedSlots;
         var start = effect.Side == AdjacentCardSide.Left ? source.BoardStart - size : source.BoardStart + source.OccupiedSlots;
         if (!CanSummonAdjacentCard(runtime, source, definition, effect.Side)) return;
-        var level = definition.GetLevel(source.Level);
+        SummonCard(runtime, source, definition, source.Level, start);
+    }
+
+    // 校验完整占格并创建本场召唤物，卡牌与技能来源共用。
+    private static CardBattleState? SummonCard(BattleRuntime runtime, IBattleAbilitySource source, CardDefinition definition,
+        int cardLevel, int start)
+    {
+        var identity = definition.Attributes.Identity;
+        var size = identity.OccupiedSlots;
+        if (!definition.SupportsLevel(cardLevel) || start < 0 || start + size > runtime.GetBattlefieldCapacity(source.Side)
+            || runtime.Cards.Any(card => card.Side == source.Side && !card.IsOnBench && !card.Destroyed
+                && card.BoardStart < start + size && start < card.BoardStart + card.OccupiedSlots)) return null;
+        var level = definition.GetLevel(cardLevel);
         var values = definition.Attributes.BaseCombat.CreateMutableCopy();
         if (level is not null)
             foreach (var entry in level.BaseCombatValues) values.SetBaseValue(entry.Key, entry.Value);
@@ -797,7 +852,7 @@ internal static class BattleEffectResolver
             values.GetFinalValue(GameAttributeKeys.CooldownTicks), level?.Abilities ?? definition.Abilities,
             UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
             OccupiedSlots: size, ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Identity = identity, Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+            { Identity = identity, Level = cardLevel, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var summoned = new CardBattleState(setup, source.Side)
         {
             SummonedCard = new SummonedCardSnapshot(identity, start, Array.AsReadOnly(definition.Tags.ToArray()),
@@ -805,7 +860,8 @@ internal static class BattleEffectResolver
         };
         foreach (var entry in setup.CombatValues) summoned.CombatAttributes[entry.Key] = entry.Value;
         runtime.AddSummonedCard(summoned);
-        runtime.Events.Add(new CardSummonedEvent(runtime.Tick, source.EntityId, id, source.Side, identity.Key, source.Level, start));
+        runtime.Events.Add(new CardSummonedEvent(runtime.Tick, source.EntityId, id, source.Side, identity.Key, cardLevel, start));
+        return summoned;
     }
 
     private static void ChargeRandomOtherAlliedElementCard(
@@ -956,7 +1012,7 @@ internal static class BattleEffectResolver
             target.Side, target.BoardStart, target.OccupiedSlots));
     }
 
-    private static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent)
+    private static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent, bool suppressEchoes)
     {
         if (target.Destroyed) return;
         foreach (var tag in EffectiveTags(runtime, target)) target.DestroyedTags.Add(tag);
@@ -966,6 +1022,13 @@ internal static class BattleEffectResolver
         runtime.Events.Add(new CardDestroyedEvent(runtime.Tick, target.EntityId, target.Side, sourceId));
         foreach (var ability in target.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.EchoOnSourceDestroyed))
             CombatSimulator.Enqueue(runtime, target, ability, true, allowDestroyedSource: true);
+        if (!suppressEchoes && !target.IsOnBench)
+            foreach (var source in runtime.AbilitySources.Where(source => source.Side == target.Side && !source.Destroyed && !source.IsOnBench))
+            foreach (var ability in source.Abilities)
+                if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardDestroyed
+                    && (ability.Definition.TriggerCardSize is not { } size || target.OccupiedSlots == (int)size)
+                    && (ability.Definition.TriggerCardElement is not { } element || target.ElementKeys.Contains(element)))
+                    CombatSimulator.Enqueue(runtime, source, ability, true, eventCard: target);
         if (permanent && target.SummonedCard is null) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
     }
 

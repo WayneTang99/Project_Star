@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Project_Star.Application.Content;
+using Project_Star.Infrastructure.Definitions;
+using Project_Star.Presentation.Playtest;
 using Godot;
 using Project_Star.Application.Board;
 using Project_Star.Application.Combat;
@@ -17,16 +21,16 @@ using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Verification;
 
-// 黑犀金龟随机迟缓、出售目标与永久冷却倍率的集成验证（表现层验证模块）。
+// 麻痹针蜂迟缓、黑犀金龟护甲、出售与永久冷却倍率的集成验证（表现层验证模块）。
 internal static class BlackRhinocerosBeetleChecks
 {
     internal static bool LevelsAndSlow()
     {
-        var definition = new BlackRhinocerosBeetleCardDefinition();
+        var definition = new ParalyzingNeedleWaspCardDefinition();
         var identity = definition.Attributes.Identity;
-        if (identity.Key != new StringName("card.black_rhinoceros_beetle") || identity.DisplayName != "黑犀金龟"
+        if (identity.Key != new StringName("card.paralyzing_needle_wasp") || identity.DisplayName != "麻痹针蜂"
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Small
-            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Earth })
+            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Lightning })
             || !definition.Tags.Contains(GameTags.Insect) || definition.InitialLevel != 1
             || definition.SupportsLevel(5) || TagDisplayNames.Get(GameTags.Insect) != "虫族") return false;
         var factory = new EntityFactory();
@@ -35,8 +39,8 @@ internal static class BlackRhinocerosBeetleChecks
             var card = factory.CreateCard(definition, level);
             if (card.CooldownMultiplier != 1m || card.Abilities.Single().CooldownTicks != 40
                 || card.Abilities.Single().ManaCost != 0
-                || card.OnSellReward is not ReduceLeftmostElementCardCooldownOnSellDefinition { Percent: var percent }
-                || percent != level) return false;
+                || card.OnSellReward is not ReduceLeftmostElementCardCooldownOnSellDefinition { Percent: var percent, ElementKey: var element }
+                || percent != level || element != GameElements.Lightning) return false;
         }
         var source = EntityId.New(); var first = EntityId.New(); var second = EntityId.New();
         var bench = EntityId.New(); var destroyed = EntityId.New(); var ally = EntityId.New();
@@ -79,16 +83,44 @@ internal static class BlackRhinocerosBeetleChecks
         return !empty.Events.OfType<StatusChangedEvent>().Any();
     }
 
-    internal static bool SaleTargetsAndPersistence()
+    internal static bool LevelsAndArmor()
+    {
+        var definition = new BlackRhinocerosBeetleCardDefinition();
+        for (var level = 1; level <= 4; level++)
+        foreach (var reverse in new[] { false, true })
+        {
+            var card = new EntityFactory().CreateCard(definition, level);
+            var amount = 10 << (level - 1);
+            var source = new CardBattleSetup(card.Id, 0, 0, 40, card.Abilities,
+                UseLegacyAttack: false, ArmorAmount: amount)
+                { CombatValues = card.Attributes.BaseCombat.SnapshotFinalValues(), Level = level };
+            var sides = reverse ? Battle([], [source], 80) : Battle([source], [], 80);
+            var setup = new BattleSetup(sides.Player, sides.Opponent, 42, new BattleTick(80), new BattleTick(81));
+            var result = new CombatSimulator().Simulate(setup);
+            var armor = reverse ? result.States[^1].Opponent.Armor : result.States[^1].Player.Armor;
+            if (armor != amount * 2 || result.Events.OfType<StatusChangedEvent>().Any()
+                || !result.Events.OfType<AbilityActivatedEvent>().Select(e => e.Tick.Value)
+                    .SequenceEqual(new long[] { 40, 80 })
+                || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
+            var benched = new CombatSimulator().Simulate(reverse
+                ? Battle([], [source with { IsOnBench = true }], 80)
+                : Battle([source with { IsOnBench = true }], [], 80));
+            if (benched.Events.OfType<AbilityActivatedEvent>().Any()) return false;
+        }
+        return SaleTargetsAndPersistence(new ParalyzingNeedleWaspCardDefinition(), GameElements.Lightning);
+    }
+
+    internal static bool SaleTargetsAndPersistence(CardDefinition? soldDefinition = null, StringName? elementKey = null)
     {
         var factory = new EntityFactory(); var board = new BoardService(new BoardPlacementSolver());
         var economy = new CardEconomyService(factory, board);
-        var beetleDefinition = new BlackRhinocerosBeetleCardDefinition();
-        var earthDefinition = new ElementFixture(GameElements.Earth);
+        var beetleDefinition = soldDefinition ?? new BlackRhinocerosBeetleCardDefinition();
+        var targetElement = elementKey ?? GameElements.Earth;
+        var earthDefinition = new ElementFixture(targetElement);
         for (var level = 1; level <= 4; level++)
         {
             var match = Match(factory); var opponent = Match(factory);
-            var general = factory.CreateCard(new ElementFixture(GameElements.General));
+            var general = factory.CreateCard(new ElementFixture(targetElement == GameElements.Lightning ? GameElements.Earth : GameElements.Lightning));
             var left = factory.CreateCard(earthDefinition); var right = factory.CreateCard(earthDefinition);
             var benchEarth = factory.CreateCard(earthDefinition); var sold = factory.CreateCard(beetleDefinition, level);
             foreach (var card in new[] { general, left, right, benchEarth, sold }) match.Player.Inventory.Add(card);
@@ -200,5 +232,39 @@ internal static class BlackRhinocerosBeetleChecks
                 new StringName("verification.beetle." + element), "元素目标", GameFactions.Neutral, CardSize.Small, [element]),
                 baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 40 })),
                 new TagSet(), [Ability("target", AbilityActivation.Active, 40, new DamageEffectDefinition(1))]) { }
+    }
+    internal static async Task Capture(Node owner)
+    {
+        var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ParalyzingNeedleWaspCardDefinition()));
+        var adapter = new CardDisplayAdapter();
+        using var raw = adapter.Artwork(snapshot.Illustration).GetImage();
+        if (!raw.HasMipmaps() || raw.GetWidth() * 2 != raw.GetHeight())
+            throw new InvalidOperationException("麻痹针蜂原画比例或mipmap不合格。");
+        GD.Print($"麻痹针蜂原画：{raw.GetWidth()}×{raw.GetHeight()}，mipmap层数{raw.GetMipmapCount()}");
+        var viewport = new SubViewport { Size = new Vector2I(420, 460), Disable3D = true,
+            RenderTargetUpdateMode = SubViewport.UpdateMode.Always }; owner.AddChild(viewport);
+        var preview = new CardPreviewView { Size = owner.GetViewport().GetVisibleRect().Size, Theme = MatchTheme.Create() };
+        owner.AddChild(preview);
+        try
+        {
+            viewport.AddChild(new ColorRect { Color = new Color("333c41"), Size = new Vector2(420, 460) });
+            foreach (var (position, size) in new[] { (new Vector2(24, 24), new Vector2(200, 400)),
+                (new Vector2(260, 24), new Vector2(100, 200)) })
+            {
+                var face = new CardItemView { Position = position, Size = size };
+                viewport.AddChild(face); face.Render(snapshot, adapter);
+            }
+            preview.SetQuery(new CardPreviewQuery(DefinitionRegistry.Scan(typeof(BlackRhinocerosBeetleChecks).Assembly)));
+            preview.Open(snapshot, null, null);
+            await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+            await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+            await owner.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+            using var image = viewport.GetTexture().GetImage();
+            using var detail = owner.GetViewport().GetTexture().GetImage();
+            if (image.SavePng("res://output/needle-wasp/card-face.png") != Error.Ok
+                || detail.SavePng("res://output/needle-wasp/preview.png") != Error.Ok)
+                throw new InvalidOperationException("麻痹针蜂卡面截图失败。");
+        }
+        finally { owner.RemoveChild(viewport); viewport.Free(); owner.RemoveChild(preview); preview.Free(); }
     }
 }

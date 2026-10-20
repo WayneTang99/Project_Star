@@ -12,11 +12,11 @@ public sealed class RadiantSwordShieldCardDefinition : CardDefinition
     public RadiantSwordShieldCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
             new StringName("card.radiant_sword_shield"), "光辉剑盾", new StringName("paladin"), CardSize.Medium,
-            [GameElements.Light], setKey: new StringName("set.radiant"),
+            [GameElements.Light], setKey: new StringName("set.radiant"), gemSocketCount: 2,
             illustration: new StringName("res://art/ui/card-face/artwork/radiant_sword_shield-illustration-20261018.png"),
             descriptionEntries:
             [
-                new(CardKeywords.Activate, "冷却5秒，魔法消耗0，对敌方英雄造成200伤害，己方英雄获得200护甲；多重1。"),
+                new(CardKeywords.Activate, "冷却5秒，魔法消耗0，对敌方英雄造成200伤害，己方英雄获得200护甲；多重1；拥有2个宝石孔。"),
                 new(CardKeywords.Aura, "己方存活战场光属性装备卡牌冷却缩减10%，包含此卡牌；多张百分比累加，最高100%，此卡牌被摧毁后失效。"),
             ]), baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
             { [GameAttributeKeys.CooldownTicks] = 50 })), new TagSet([GameTags.Equipment]), initialLevel: 4,

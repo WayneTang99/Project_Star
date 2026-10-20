@@ -124,6 +124,11 @@ internal sealed class CardBattleState : IBattleAbilitySource
                     SupportedCombatAttributes.Add(attributeStatus.AttributeKey);
                     CombatAttributes[attributeStatus.AttributeKey] = setup.CombatValues.TryGetValue(attributeStatus.AttributeKey, out var amount) ? amount : 0;
                     break;
+                case ApplySourceAttributePercentStatusEffectDefinition percentStatus:
+                    SupportedCombatAttributes.Add(percentStatus.AttributeKey);
+                    if (setup.CombatValues.TryGetValue(percentStatus.AttributeKey, out var percentAmount))
+                        CombatAttributes[percentStatus.AttributeKey] = percentAmount;
+                    break;
                 case AttributeDamageEffectDefinition attributeDamage:
                     SupportedCombatAttributes.Add(attributeDamage.AttributeKey);
                     break;

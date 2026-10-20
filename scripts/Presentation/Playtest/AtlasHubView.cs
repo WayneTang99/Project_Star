@@ -39,7 +39,7 @@ public sealed partial class AtlasHubView : PanelContainer
 
     public override void _Ready()
     {
-        var plate = MatchTheme.Surface(new Color("192a32"), Colors.Transparent); plate.SetCornerRadiusAll(0);
+        var plate = MatchTheme.Surface(new Color("332c26"), Colors.Transparent); plate.SetCornerRadiusAll(0);
         plate.ContentMarginLeft = plate.ContentMarginRight = 36; plate.ContentMarginTop = plate.ContentMarginBottom = 28;
         AddThemeStyleboxOverride("panel", plate); AddChild(_column); _column.AddThemeConstantOverride("separation", 22);
         var header = new HBoxContainer(); _column.AddChild(header); header.AddChild(_title); header.AddChild(_back);
@@ -124,7 +124,7 @@ public sealed partial class AtlasHubView : PanelContainer
     }
     private void BuildEntry(Control host, WorldCatalogEntry entry, bool stacked)
     {
-            var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("22343c"), new Color("53676d")));
+            var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("463c32"), new Color("867764")));
             host.AddChild(panel); BoxContainer row = stacked ? new VBoxContainer() : new HBoxContainer(); row.AddThemeConstantOverride("separation", 24); panel.AddChild(row);
             var identity = new VBoxContainer { CustomMinimumSize = new Vector2(230, 0) }; row.AddChild(identity);
             if (!entry.Illustration.IsEmpty && ResourceLoader.Exists(entry.Illustration.ToString()))

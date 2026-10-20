@@ -23,7 +23,7 @@ public static class CardAbilityComposer
                 ability.Key, ability.Activation, ability.Target, ability.ManaCost,
                 Math.Max(1, checked(ability.CooldownTicks + cooldownDelta)),
                 Array.AsReadOnly(ability.Effects.Concat(extraEffects).ToArray()), ability.AllowsBench, ability.TriggerStateKey,
-                targetCardTag: ability.TargetCardTag))
+                targetCardTag: ability.TargetCardTag, excludeSourceCard: ability.ExcludeSourceCard))
             .ToArray());
     }
 }

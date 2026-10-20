@@ -10,6 +10,7 @@ public enum CardFaceEffectKind
     Mana,
     Multicast,
     ManaCost,
+    ManaRegen,
 }
 
 public sealed record CardFaceEffect(CardFaceEffectKind Kind, string Value);

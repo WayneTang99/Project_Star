@@ -45,6 +45,7 @@ internal static class CardDescriptionChecks
                 IEnumerable<CardDefinition> references = effect switch
                 {
                     SummonAdjacentCardEffectDefinition value => new[] { value.Card },
+                    SacrificeSourceAndNeighborsToSummonEffectDefinition value => new[] { value.Card },
                     SummonRandomAdjacentCardEffectDefinition value => value.Cards,
                     TransformRandomEnemyCardEffectDefinition value => new[] { value.Replacement },
                     TransformSourceIntoRandomCardsEffectDefinition value => value.Replacements,

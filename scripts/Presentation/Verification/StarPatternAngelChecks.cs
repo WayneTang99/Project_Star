@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,7 +26,7 @@ internal static class StarPatternAngelChecks
         var definition = new StarPatternAngelCardDefinition(); var identity = definition.Attributes.Identity;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString()); using var image = texture?.GetImage();
         if (identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Small
-            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Light }) || !definition.Tags.Contains(GameTags.Deity)
+            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Light }) || !definition.Tags.Contains(GameTags.Spirit)
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
             || image is null || image.GetHeight() != image.GetWidth() * 2 || !image.HasMipmaps()
             || !DefinitionRegistry.Scan(typeof(StarPatternAngelChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;

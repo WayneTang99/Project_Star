@@ -52,7 +52,7 @@ internal static class BattleQuestResolver
                     Array.AsReadOnly(definition.Effects.Concat(quest.AdditionalActiveEffects).ToArray()),
                     definition.AllowsBench, definition.TriggerStateKey, definition.TriggerCardTag,
                     definition.TriggerCardElement, definition.TriggerCardSide, definition.TriggerCardSize, definition.TriggerStatus,
-                    targetCardTag: definition.TargetCardTag);
+                    targetCardTag: definition.TargetCardTag, excludeSourceCard: definition.ExcludeSourceCard);
             }
         if (quest.UnlockedElementKeys.Count > 0) card.ElementKeys = new HashSet<Godot.StringName>(quest.UnlockedElementKeys);
         if (quest.UnlockedTags.Count > 0) card.Tags = new TagSet(card.Tags.Concat(quest.UnlockedTags));

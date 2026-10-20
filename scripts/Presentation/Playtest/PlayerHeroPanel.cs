@@ -55,7 +55,7 @@ public sealed partial class PlayerHeroPanel : Control
             VerticalAlignment = VerticalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore };
         _level.AddThemeColorOverride("font_color", new Color("defaff"));
         MatchTheme.Text(_level, 20, new Color("defaff"), true);
-        _level.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("325b67"), new Color("8fc5cc")));
+        _level.AddThemeStyleboxOverride("normal", MatchTheme.Surface(new Color("665748"), new Color("c9b898")));
         identity.AddChild(_level);
         _health = new ResourceBar("HealthBar", new Color("729c51")); AddChild(_health);
         _mana = new ResourceBar("ManaBar", new Color("438fa2")); AddChild(_mana);

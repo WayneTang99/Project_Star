@@ -27,7 +27,7 @@ internal static class PhoenixChecks
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Large
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Fire }) || definition.InitialLevel != 4
             || definition.SupportsLevel(3) || definition.SupportsLevel(5) || definition.Tags.Count != 3
-            || !definition.Tags.Contains(GameTags.Beast) || !definition.Tags.Contains(GameTags.Deity)
+            || !definition.Tags.Contains(GameTags.Beast) || !definition.Tags.Contains(GameTags.Spirit)
             || texture is null || texture.GetWidth() * 2 != texture.GetHeight() * 3
             || !DefinitionRegistry.Scan(typeof(PhoenixChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
         var bird = Bird();

@@ -74,13 +74,13 @@ internal static class CardCatalogChecks
             if (grid.GetChildCount() != 0) return Fail("空结果");
             search.Text = "";
             search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
-            var faction = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/Faction");
-            for (var index = 1; index < faction.ItemCount; index++)
+            var faction = catalog.GetNode<VBoxContainer>("Content/Body/TagSidebar/Scroll/Filters/HeroFaction/Faction");
+            for (var index = 1; index < faction.GetChildCount(); index++)
             {
-                faction.Select(index); faction.EmitSignal(OptionButton.SignalName.ItemSelected, index);
+                faction.GetChild<Button>(index).EmitSignal(Button.SignalName.Pressed);
                 if (grid.GetChildCount() == 0) return Fail("归属列表为空");
                 foreach (VBoxContainer cell in grid.GetChildren())
-                    if (!CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly)).Any(entry => entry.FactionName == faction.GetItemText(index) && cell.GetNode<Label>("Caption").Text == $"{entry.InitialCard.DisplayName} · {entry.InitialLevel}级")) return Fail("归属过滤");
+                    if (!CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly)).Any(entry => entry.FactionName == faction.GetChild<Button>(index).TooltipText && cell.GetNode<Label>("Caption").Text == $"{entry.InitialCard.DisplayName} · {entry.InitialLevel}级")) return Fail("归属过滤");
             }
             if (!FiltersAndSorting(catalog)) return Fail("分类筛选与排序");
             catalog._Input(new InputEventKey { Pressed = true, Keycode = Key.Escape });
@@ -110,7 +110,7 @@ internal static class CardCatalogChecks
         }, 0)]);
         var entries = formal.Append(dual).ToArray(); catalog.SetEntries(entries);
         var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards");
-        var faction = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/Faction");
+        var faction = catalog.GetNode<VBoxContainer>("Content/Body/TagSidebar/Scroll/Filters/HeroFaction/Faction");
         var size = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/Size");
         var element = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/Element");
         var initial = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/InitialLevel");
@@ -119,10 +119,10 @@ internal static class CardCatalogChecks
         var direction = catalog.GetNode<Button>("Content/Body/Browser/Classification/Direction");
         var canonical = new[] { GameElements.General, GameElements.Fire, GameElements.Water, GameElements.Wind,
             GameElements.Earth, GameElements.Lightning, GameElements.Wood, GameElements.Ice, GameElements.Light, GameElements.Dark };
-        Pick(faction, 0);
-        var tagOptions = catalog.GetNode<HFlowContainer>("Content/Body/TagSidebar/Scroll/Filters/TagOptions");
-        var tagMatch = catalog.GetNode<OptionButton>("Content/Body/TagSidebar/Scroll/Filters/TagMatch");
-        var clearTags = catalog.GetNode<Button>("Content/Body/TagSidebar/Scroll/Filters/ClearTags");
+        faction.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+        var tagOptions = catalog.GetNode<HFlowContainer>("TagLayer/TagPopup/Filters/TagOptions");
+        var tagMatch = catalog.GetNode<OptionButton>("TagLayer/TagPopup/Filters/TagFilters/TagMatch");
+        var clearTags = catalog.GetNode<Button>("TagLayer/TagPopup/Filters/TagFilters/ClearTags");
         var availableTags = entries.SelectMany(entry => entry.InitialCard.Tags).Distinct().ToArray();
         if (tagOptions.GetChildCount() != availableTags.Length || !clearTags.Disabled || tagMatch.Selected != 0) return false;
         foreach (var tag in availableTags)
@@ -192,8 +192,8 @@ internal static class CardCatalogChecks
         }
         Pick(initial, 0);
         // 按展示名定位夹具，避免依赖内容枚举顺序。
-        for (var index = 1; index < faction.ItemCount; index++)
-            if (faction.GetItemText(index) == dual.FactionName) Pick(faction, index);
+        for (var index = 1; index < faction.GetChildCount(); index++)
+            if (faction.GetChild<Button>(index).TooltipText == dual.FactionName) faction.GetChild<Button>(index).EmitSignal(Button.SignalName.Pressed);
         Pick(size, (int)CardSize.Large); Pick(element, 3);
         for (var index = 1; index < initial.ItemCount; index++)
             if (initial.GetItemId(index) == 4) Pick(initial, index);
@@ -205,7 +205,7 @@ internal static class CardCatalogChecks
         Pick(element, 8);
         if (grid.GetChildCount() != 0) return false;
         search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
-        Pick(faction, 0); Pick(size, 0); Pick(element, 0); Pick(initial, 0);
+        faction.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed); Pick(size, 0); Pick(element, 0); Pick(initial, 0);
         var captions = entries.ToDictionary(Caption);
         for (var field = 0; field < sort.ItemCount; field++)
         {
@@ -322,6 +322,26 @@ internal static class CardCatalogChecks
                 await Frame(); await Frame();
                 if (catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount() != 1)
                     throw new InvalidOperationException("真实键盘搜索未刷新详情。");
+                search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
+                var faction = catalog.GetNode<VBoxContainer>("Content/Body/TagSidebar/Scroll/Filters/HeroFaction/Faction");
+                await Frame(); await Frame();
+                var railRect = faction.GetGlobalRect(); var firstRect = faction.GetChild<Button>(1).GetGlobalRect();
+                faction.GetChild<Button>(1).GrabFocus(); KeyInput(Key.Enter); await Frame(); await Frame();
+                if (!faction.GetChild<Button>(1).ButtonPressed || railRect != faction.GetGlobalRect() || firstRect != faction.GetChild<Button>(1).GetGlobalRect())
+                    throw new InvalidOperationException("归属按钮选择改变排版或未生效。");
+                await Save("hero-faction");
+                var hoverFaction = faction.GetChild<Button>(2); var hoverRect = hoverFaction.GetGlobalRect();
+                var point = hoverRect.GetCenter();
+                owner.GetViewport().PushInput(new InputEventMouseMotion { Position = point }, true);
+                await Frame(); await Save("faction-hover");
+                owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.Left, Pressed = true }, true);
+                await Frame(); await Save("faction-pressed");
+                owner.GetViewport().PushInput(new InputEventMouseButton { Position = point, ButtonIndex = MouseButton.Left, Pressed = false }, true);
+                await Frame();
+                if (hoverRect != hoverFaction.GetGlobalRect() || !hoverFaction.ButtonPressed)
+                    throw new InvalidOperationException("归属悬浮／按下改变几何布局或实际点击未生效。");
+                var clearFilters = catalog.GetNode<Button>("Content/Body/Browser/Filters/ClearFilters"); Click(clearFilters); await Frame();
+                if (!faction.GetChild<Button>(0).ButtonPressed) throw new InvalidOperationException("清空未恢复全部归属。");
                 foreach (var (query, label) in new[] { ("", "all"), ("羽饰头盔", "small"), ("登神者", "medium"), ("禅光寺", "large"), ("没有这张卡牌", "empty") })
                 {
                     search.Text = query; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
@@ -351,11 +371,14 @@ internal static class CardCatalogChecks
                     throw new InvalidOperationException("套装筛选结果为空或控件越界。");
                 await Save("set-filter");
                 setFilter.Select(0); setFilter.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
-                var mechanical = catalog.GetNode<Button>("Content/Body/TagSidebar/Scroll/Filters/TagOptions/Mechanical");
-                var vehicle = catalog.GetNode<Button>("Content/Body/TagSidebar/Scroll/Filters/TagOptions/Vehicle");
+                Click(catalog.GetNode<Button>("Content/Body/Browser/Filters/Tags")); await Frame(); await Frame();
+                if (!catalog.GetNode<Control>("TagLayer").Visible) throw new InvalidOperationException("标签浮层未打开。");
+                await Save("tag-popup");
+                var mechanical = catalog.GetNode<Button>("TagLayer/TagPopup/Filters/TagOptions/Mechanical");
+                var vehicle = catalog.GetNode<Button>("TagLayer/TagPopup/Filters/TagOptions/Vehicle");
                 Click(mechanical); await Frame();
                 vehicle.GrabFocus(); KeyInput(Key.Space); await Frame(); await Frame();
-                var tagMatch = catalog.GetNode<OptionButton>("Content/Body/TagSidebar/Scroll/Filters/TagMatch");
+                var tagMatch = catalog.GetNode<OptionButton>("TagLayer/TagPopup/Filters/TagFilters/TagMatch");
                 var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
                 foreach (var mode in new[] { 0, 1 })
                 {
@@ -366,13 +389,15 @@ internal static class CardCatalogChecks
                         : entry.InitialCard.Tags.Contains(GameTags.Mechanical) || entry.InitialCard.Tags.Contains(GameTags.Vehicle));
                     if (!mechanical.ButtonPressed || !vehicle.ButtonPressed
                         || catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount() != expectedCount
-                        || catalog.GetNode<HFlowContainer>("Content/Body/TagSidebar/Scroll/Filters/TagOptions").GetChildren().OfType<Button>()
+                        || catalog.GetNode<HFlowContainer>("TagLayer/TagPopup/Filters/TagOptions").GetChildren().OfType<Button>()
                             .Any(button => !catalog.GetGlobalRect().Encloses(button.GetGlobalRect())))
                         throw new InvalidOperationException("标签筛选鼠标／键盘选择、且或逻辑或按钮换行越界。");
                     await Save(mode == 0 ? "tags-and" : "tags-or");
                 }
-                Click(catalog.GetNode<Button>("Content/Body/TagSidebar/Scroll/Filters/ClearTags")); await Frame();
+                Click(catalog.GetNode<Button>("TagLayer/TagPopup/Filters/TagFilters/ClearTags")); await Frame();
                 tagMatch.Select(0); tagMatch.EmitSignal(OptionButton.SignalName.ItemSelected, 0);
+                KeyInput(Key.Escape); await Frame();
+                if (!catalog.Visible || catalog.GetNode<Control>("TagLayer").Visible) throw new InvalidOperationException("Escape未只关闭标签浮层。");
                 var sort = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/Sort");
                 var direction = catalog.GetNode<Button>("Content/Body/Browser/Classification/Direction");
                 sort.GrabFocus(); KeyInput(Key.Enter); await Frame(); KeyInput(Key.Down); KeyInput(Key.Enter);
@@ -398,7 +423,7 @@ internal static class CardCatalogChecks
                     if (owner.GetViewport().GuiGetFocusOwner() != currentFocus || sort.Selected != selectedSort || !direction.ButtonPressed
                         || sizeFilter.Selected != 2 || elementFilter.Selected != 9
                         || catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards").GetChildCount() != selectedCount
-                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color("262b34"))
+                        || ((StyleBoxFlat)search.GetThemeStylebox("normal")).BgColor != new Color("3b332d"))
                         throw new InvalidOperationException("卡牌图鉴切换配色后样式遗漏或筛选、排序、焦点改变。");
                     await Save(blue ? "filtered-blue" : "filtered-green-restored");
                 }

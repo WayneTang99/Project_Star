@@ -70,7 +70,7 @@ public sealed class CardPreviewQuery
                 (level == source.Level ? ability.Effects.Take(Math.Max(0, ability.Effects.Count - originalGemCount))
                     : ability.Effects.Concat(quests.SelectMany(quest => quest.AdditionalActiveEffects))).Concat(gemEffects).ToArray()),
             ability.AllowsBench, ability.TriggerStateKey, ability.TriggerCardTag, ability.TriggerCardElement,
-            ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus, ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags, ability.TargetCardTag)).ToArray();
+            ability.TriggerCardSide, ability.TriggerCardSize, ability.TriggerStatus, ability.TriggerHeroHealthPercent, ability.TriggerCardAnyTags, ability.TargetCardTag, ability.ExcludeSourceCard)).ToArray();
         var preview = Describe(source with
         {
             Level = level, Value = checked(source.Value + target.Value - (entry!.Levels.First(item => item.Card.Level == source.Level).Card.Value)),

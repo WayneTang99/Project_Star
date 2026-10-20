@@ -36,7 +36,7 @@ public sealed partial class SkillCatalogView : PanelContainer
 
     public override void _Ready()
     {
-        var page = MatchTheme.Surface(new Color("293139"), Colors.Transparent); page.SetBorderWidthAll(0); page.SetCornerRadiusAll(0);
+        var page = MatchTheme.Surface(new Color("40372f"), Colors.Transparent); page.SetBorderWidthAll(0); page.SetCornerRadiusAll(0);
         page.ContentMarginLeft = page.ContentMarginRight = page.ContentMarginTop = page.ContentMarginBottom = 28; AddThemeStyleboxOverride("panel", page);
         var column = new VBoxContainer { Name = "Content" }; column.AddThemeConstantOverride("separation", 18); AddChild(column);
         var header = new HBoxContainer { Name = "Header" }; column.AddChild(header);
@@ -51,14 +51,14 @@ public sealed partial class SkillCatalogView : PanelContainer
         AddChild(_overlay); _overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
         var shade = new ColorRect { Color = new Color("06110fe8"), MouseFilter = MouseFilterEnum.Stop };
         _overlay.AddChild(shade); shade.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        _detailPanel = new PanelContainer { Name = "DetailPanel" }; _overlay.AddChild(_detailPanel); _detailPanel.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold)); _detailPanel.AddChild(_detail);
+        _detailPanel = new PanelContainer { Name = "DetailPanel" }; _overlay.AddChild(_detailPanel); _detailPanel.AddThemeStyleboxOverride("panel", MatchTheme.Surface(new Color("3c342d"), MatchTheme.Gold)); _detailPanel.AddChild(_detail);
         foreach (var control in new Control[] { _closeDetail, _name, _preview, _level, _text }) _detail.AddChild(control);
         var heading = new HBoxContainer { Name = "Heading" }; heading.AddThemeConstantOverride("separation", 18); _detail.AddChild(heading); _detail.MoveChild(heading, 1);
         _preview.Reparent(heading); _name.Reparent(heading); _name.SizeFlagsHorizontal = SizeFlags.ExpandFill; _name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         _closeDetail.Text = "×"; _closeDetail.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
         _name.AddThemeFontSizeOverride("font_size", 24); _text.SizeFlagsVertical = SizeFlags.Fill; _text.CustomMinimumSize = new Vector2(0, 120);
-        var effectPlate = MatchTheme.Surface(new Color("182129"), new Color("a88e6544")); effectPlate.ContentMarginLeft = effectPlate.ContentMarginRight = effectPlate.ContentMarginTop = effectPlate.ContentMarginBottom = 18; _text.AddThemeStyleboxOverride("normal", effectPlate);
-        var detailPlate = MatchTheme.Surface(new Color("252d36"), MatchTheme.Gold); detailPlate.ContentMarginLeft = detailPlate.ContentMarginRight = detailPlate.ContentMarginTop = detailPlate.ContentMarginBottom = 30; detailPlate.SetCornerRadiusAll(10); _detailPanel.AddThemeStyleboxOverride("panel", detailPlate);
+        var effectPlate = MatchTheme.Surface(new Color("302923"), new Color("ad967644")); effectPlate.ContentMarginLeft = effectPlate.ContentMarginRight = effectPlate.ContentMarginTop = effectPlate.ContentMarginBottom = 18; _text.AddThemeStyleboxOverride("normal", effectPlate);
+        var detailPlate = MatchTheme.Surface(new Color("3c342d"), MatchTheme.Gold); detailPlate.ContentMarginLeft = detailPlate.ContentMarginRight = detailPlate.ContentMarginTop = detailPlate.ContentMarginBottom = 30; detailPlate.SetCornerRadiusAll(10); _detailPanel.AddThemeStyleboxOverride("panel", detailPlate);
         _grid.AddThemeConstantOverride("h_separation", 14); _grid.AddThemeConstantOverride("v_separation", 14);
         _search.AddThemeColorOverride("font_color", MatchTheme.Ink);
         _search.AddThemeColorOverride("font_placeholder_color", MatchTheme.Muted);

@@ -84,6 +84,7 @@ public sealed class CardDisplayAdapter
                             : value.AttributeKey == GameAttributeKeys.Armor ? CardFaceEffectKind.Armor : CardFaceEffectKind.Healing,
                         $"+{value.Amount + card.HeroLevel * value.HeroLevelMultiplier + card.Value * value.SourceValueMultiplier}"),
                     RestoreManaEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Mana, value.Amount.ToString()),
+                    ApplyStatusEffectDefinition { Status: BattleStatus.ManaRegen } value => new CardFaceEffect(CardFaceEffectKind.ManaRegen, value.Amount.ToString()),
                     ArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, value.Amount.ToString()),
                     GainSourceHeroLevelScaledArmorEffectDefinition value => new CardFaceEffect(CardFaceEffectKind.Armor, (card.HeroLevel * value.Multiplier).ToString()),
@@ -185,7 +186,7 @@ public sealed class CardDisplayAdapter
                 if (frozen) index++;
                 if (ReferenceEquals(effect, armorBonus)) continue;
                 if (effect is DestroyCardEffectDefinition destroy && ability.Activation == AbilityActivation.Active)
-                { lines.Add($"消耗　发动后{(destroy.Permanent ? "永久" : "")}摧毁此卡牌。"); continue; }
+                { lines.Add(destroy.Permanent ? "消耗　永久摧毁此卡牌。" : "消耗"); continue; }
                 if (effect is ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition reaction)
                 {
                     lines.Add($"回响　当己方直接相邻的{TagDisplayNames.Get(reaction.RequiredTag)}卡牌获得{DurationStatusName(reaction.Status)}后，该卡牌{AttributeName(reaction.AttributeKey)} +{reaction.Amount}，仅本场战斗生效。");
@@ -214,8 +215,12 @@ public sealed class CardDisplayAdapter
                     (ApplyStatusEffectDefinition status, { } value) => StatusText(status.Status, value),
                     (ApplyAttributeStatusEffectDefinition status, { } value) when status.AttributeKey != GameAttributeKeys.Value => StatusText(status.Status, value),
                     (ApplyAttributeStatusEffectDefinition status, _) when status.AttributeKey == GameAttributeKeys.Value => $"施加等同于此卡牌当前价值的{DurationStatusName(status.Status)}",
+                    (ApplySourceAttributePercentStatusEffectDefinition status, _) when status.Percent == 100
+                        && status.AttributeKey == (status.Status == BattleStatus.Burn ? GameAttributeKeys.Burn : GameAttributeKeys.Poison)
+                        => StatusText(status.Status, amount ?? checked(Value(card, status.AttributeKey)
+                            + Value(card, status.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : GameAttributeKeys.PoisonBonus))),
                     (ApplySourceAttributePercentStatusEffectDefinition, _) => Describe(card, effect),
-                    (ApplyPrimaryEffectPercentStatusEffectDefinition status, _) => $"额外施加本次发动主效果数值的{status.Percent}%{DurationStatusName(status.Status)}（向下取整后累加施加量加成）",
+                    (ApplyPrimaryEffectPercentStatusEffectDefinition status, _) => $"额外施加本次发动主效果等值换算后数值的{status.Percent}%{DurationStatusName(status.Status)}（向下取整后累加施加量加成）",
                     _ => Describe(card, effect),
                 };
                 if (EchoCondition(ability) is null) text = DescribeTarget(ability, effect, text);
@@ -237,6 +242,16 @@ public sealed class CardDisplayAdapter
                     or SourceHeroHealthScaledAttributeDamageEffectDefinition { BypassArmor: true }
                     or SourceHeroArmorDamageEffectDefinition { BypassArmor: true }) text += "（无视护甲）";
                 effects.Add(text.Replace("（来源 攻击）", "").Replace("（失效时移除）", "").Replace("（仅一次）", ""));
+            }
+            if (ability.Effects.Count > 0 && ability.Effects.All(effect => effect is MultiplySourceAttributeWhileInStateEffectDefinition))
+            {
+                effects.Clear();
+                foreach (var group in ability.Effects.Cast<MultiplySourceAttributeWhileInStateEffectDefinition>()
+                    .GroupBy(effect => (effect.StateKey, effect.Multiplier)))
+                    effects.Add($"{AttributeName(group.Key.StateKey)}时，此卡牌{string.Join("和", group
+                        .Where(effect => effect.AttributeKey != GameAttributeKeys.BurnBonus || !group.Any(other => other.AttributeKey == GameAttributeKeys.Burn))
+                        .Select(effect => effect.AttributeKey == GameAttributeKeys.AttackDamage ? "伤害" : AttributeName(effect.AttributeKey)))}"
+                        + (group.Key.Multiplier == 2 ? "翻倍" : $"×{group.Key.Multiplier}"));
             }
             if (effects.Count == 0) continue;
             var keyword = ability.Activation switch
@@ -354,7 +369,8 @@ public sealed class CardDisplayAdapter
             Array.Empty<StringName>(), Array.Empty<QuestProgressSnapshot>()) { Abilities = abilities };
         if (values is not null) card = card with { CurrentValues = values };
         return string.Join("\n", abilities.SelectMany(ability =>
-            ability.Effects.All(effect => effect is ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition)
+            ability.Effects.All(effect => effect is ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition
+                or SummonAtDestroyedCardEffectDefinition)
                 ? Rules(card with { Abilities = new[] { ability } }) :
             new[] { $"{(EchoCondition(ability) is { } condition ? "回响　" + condition : Activation(ability.Activation))} · {(ability.Effects.Any(effect => effect is ApplyStatusToRandomAlliedCardEffectDefinition)
                 && ability.Effects.Any(effect => effect is ApplyStatusToRandomEnemyCardEffectDefinition)
@@ -397,10 +413,18 @@ public sealed class CardDisplayAdapter
             SourceHeroLevelScaledDamageEffectDefinition value => checked(card.HeroLevel * value.Multiplier),
             GainSourceHeroArmorFromAttributeEffectDefinition value => Value(card, value.AttributeKey),
             HealEffectDefinition { UnlessEnemyTag: null, PerAlliedElementKey: null } value => checked(value.Amount + Value(card, GameAttributeKeys.HealingBonus)),
+            GainSourceHeroArmorEffectDefinition value => value.Amount,
+            ArmorEffectDefinition value => value.Amount,
             RestoreManaEffectDefinition value => value.Amount,
+            ApplyStatusEffectDefinition value => value.Amount + Value(card, value.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus
+                : value.Status == BattleStatus.Poison ? GameAttributeKeys.PoisonBonus : new StringName()),
+            ApplyAttributeStatusEffectDefinition value => Value(card, value.AttributeKey) + Value(card,
+                value.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : value.Status == BattleStatus.Poison ? GameAttributeKeys.PoisonBonus : new StringName()),
+            ApplySourceAttributePercentStatusEffectDefinition value => checked((int)((long)Value(card, value.AttributeKey) * value.Percent / 100))
+                + Value(card, value.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : value.Status == BattleStatus.Poison ? GameAttributeKeys.PoisonBonus : new StringName()),
             _ => null,
         };
-        return primary is { } amount ? checked((int)((long)amount * effect.Percent / 100)
+        return primary is { } amount ? checked(effect.CalculateAmount(ability.Effects.FirstOrDefault(), amount)
             + Value(card, effect.Status == BattleStatus.Burn ? GameAttributeKeys.BurnBonus : GameAttributeKeys.PoisonBonus)) : 0;
     }
 
@@ -439,6 +463,8 @@ public sealed class CardDisplayAdapter
         ReduceSetCardCooldownEffectDefinition value => $"套装内战场卡牌冷却永久缩减{value.Percent}%",
         RepairRandomDestroyedAlliedCardEffectDefinition value => $"随机修复1张己方被摧毁的{TagDisplayNames.Get(value.RequiredTag)}卡牌",
         SummonAdjacentCardEffectDefinition value => $"在{(value.Side == AdjacentCardSide.Left ? "左" : "右")}侧召唤同级【{value.Card.Attributes.Identity.DisplayName}】",
+        SummonAtDestroyedCardEffectDefinition value => $"在该卡牌原位置召唤1张与被摧毁卡牌同级的【{value.Card.Attributes.Identity.DisplayName}】（仅本场战斗生效）",
+        SacrificeSourceAndNeighborsToSummonEffectDefinition value => $"摧毁此卡牌和两侧相邻卡牌，召唤【{value.Card.Attributes.Identity.DisplayName}】{(value.SummonedStateKey is { } state ? $"并使其进入{AttributeName(state)}" : "")}",
         SummonRandomAdjacentCardEffectDefinition value => $"在{(value.Side == AdjacentCardSide.Left ? "左" : "右")}侧随机召唤同级{string.Join("或", value.Cards.Select(item => $"【{item.Attributes.Identity.DisplayName}】"))}",
         TransformRandomEnemyCardEffectDefinition value => $"随机敌方1张同尺寸卡牌转变为同级【{value.Replacement.Attributes.Identity.DisplayName}】",
         TransformSourceIntoRandomCardsEffectDefinition value => $"此卡牌在原位置转变为{value.Count}张不同种类的同级卡牌，随机选自{string.Join("、", value.Replacements.Select(item => $"【{item.Attributes.Identity.DisplayName}】"))}，仅本场战斗生效",
@@ -452,8 +478,9 @@ public sealed class CardDisplayAdapter
         SetRandomAdjacentAlliedTaggedCardStateEffectDefinition value => $"随机1张己方相邻{TagDisplayNames.Get(value.RequiredTag)}卡牌{(value.Enabled ? "获得" : "失去")}{AttributeName(value.StateKey)}",
         SetRandomOtherAlliedCardStateEffectDefinition value => $"己方随机1张其他卡牌{(value.Enabled ? "进入" : "失去")}{AttributeName(value.StateKey)}",
         MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition value => $"敌方英雄有护甲时，此卡牌{AttributeName(value.AttributeKey)} ×{value.Multiplier}",
+        MultiplySourceAttributeWhileInStateEffectDefinition value => $"此卡牌处于{AttributeName(value.StateKey)}时，{AttributeName(value.AttributeKey)} ×{value.Multiplier}",
         MultiplyReceivedCardStatusDurationEffectDefinition value => $"此卡牌每次获得的{DurationStatusName(value.Status)}时长 ×{value.Multiplier}（包含施加来源的时长加成）",
-        ApplyPrimaryEffectPercentStatusEffectDefinition value => $"发动时额外向敌方施加主属性值{value.Percent}%的{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}",
+        ApplyPrimaryEffectPercentStatusEffectDefinition value => $"发动时额外向敌方施加主属性等值换算后数值{value.Percent}%的{(value.Status == BattleStatus.Burn ? "灼伤" : "中毒")}",
         SocketRandomSourceGemEffectDefinition => "为此卡牌随机镶嵌一颗宝石，孔满时跳过",
         GrantExperienceEffectDefinition value => $"获得{value.Amount}经验",
         ReduceOtherHeroCardCooldownAuraEffectDefinition value => $"己方当前英雄以外的卡牌（含无阵营）冷却缩减{value.Percent}%",
@@ -472,6 +499,7 @@ public sealed class CardDisplayAdapter
         DamageEffectDefinition value => $"造成 {value.Amount} 点伤害{(value.BypassArmor ? "（无视护甲）" : "")}",
         AttributeDamageEffectDefinition value => $"造成 {AttributeDamageValue(card, value)} 点伤害（来源 {AttributeName(value.AttributeKey)}{(value.Percent == 100 ? "" : $"的{value.Percent}%")}）",
         DestroyAlliedCardsAndDamageEffectDefinition value => $"摧毁己方{TagDisplayNames.Get(GameTags.FromSize(value.Size))}{ElementName(value.ElementKey)}属性战场卡牌，每张造成 {Value(card, value.DamageAttributeKey)} 点伤害",
+        DestroyAlliedCardsEffectDefinition value => $"摧毁己方所有{TagDisplayNames.Get(GameTags.FromSize(value.Size))}{ElementName(value.ElementKey)}属性卡牌",
         MaxHealthPercentDamageEffectDefinition value => $"造成目标最大生命的 {value.Percent}% 伤害",
         SourceHeroHealthScaledAttributeDamageEffectDefinition value => $"{Value(card, value.AttributeKey)} 点伤害按己方英雄当前生命比例缩放",
         SourceHeroArmorDamageEffectDefinition value => $"{(value.ConsumeArmor ? "己方英雄失去当前全部护甲，" : "")}伤害等于{(value.Multiplier == 1 ? "" : "（")}己方英雄当前护甲{(value.BonusAttributeKey is { } key ? $" + {Value(card, key)}" : "")}{(value.Multiplier == 1 ? "" : $"）×{value.Multiplier}")}",
@@ -512,6 +540,7 @@ public sealed class CardDisplayAdapter
         ApplyStatusToAdjacentAlliedCardsEffectDefinition value => $"己方直接相邻的{(value.RequiredTag is { } requiredTag ? TagDisplayNames.Get(requiredTag) : "")}卡牌获得{value.Amount / 10m:0.##}秒{DurationStatusName(value.Status)}{(value.BonusMultiplier == 1 ? "" : $"（{TagDisplayNames.Get(value.BonusTag)}卡牌时长×{value.BonusMultiplier}）")}",
         ModifyAdjacentTaggedCardAttributeOnStatusGainedEffectDefinition value => $"相邻{TagDisplayNames.Get(value.RequiredTag)}获得{DurationStatusName(value.Status)}时，{AttributeName(value.AttributeKey)} +{value.Amount}",
         DestroyCardEffectDefinition value => value.Permanent ? "永久摧毁卡牌" : "本场摧毁卡牌",
+        DestroyBattlefieldCardsEffectDefinition value => $"摧毁双方所有存活战场{string.Join("和", Enum.GetValues<CardSize>().Where(size => size <= value.MaximumSize).Select(size => TagDisplayNames.Get(GameTags.FromSize(size))))}卡牌（仅本场战斗生效）",
         DestroyRandomEnemyCardEffectDefinition value => $"随机{(value.Permanent ? "永久" : "本场")}摧毁敌方 {string.Join("/", value.AllowedSizes.Select(size => TagDisplayNames.Get(GameTags.FromSize(size))))} {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))}卡牌",
         MultiplySourceAttributePerDestroyedTaggedCardEffectDefinition value => $"每张已摧毁的 {string.Join("/", value.RequiredAnyTags.Select(TagDisplayNames.Get))} 卡牌使 {AttributeName(value.AttributeKey)} ×{value.Multiplier}",
         IncreaseSourceCooldownEffectDefinition value => $"{(value.FirstActivationOnly ? "首次发动" : "发动后")}增加冷却 {value.AmountTicks / 10m:0.##}秒",
@@ -519,7 +548,7 @@ public sealed class CardDisplayAdapter
         ModifyTaggedAlliedCardsAttributeEffectDefinition value => $"己方{(value.RandomSingleTarget ? "随机1张" : "所有")}{(value.AdjacentOnly ? "直接相邻" : "")}存活战场{TagDisplayNames.Get(value.RequiredTag)}卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（仅本场战斗生效）",
         ModifyRandomAlliedAttackCardAttributeEffectDefinition value => $"己方随机1张存活战场攻击卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（仅本场战斗生效）",
         ModifyAlliedAttackCardsAttributeEffectDefinition value => $"己方所有存活战场攻击卡牌 {AttributeName(value.AttributeKey)} +{value.Amount}（仅本场）",
-        IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌{(value.Permanent ? "永久" : "")} {AttributeName(value.AttributeKey)} +{value.Amount}{(value.Permanent ? "" : "（仅本场战斗生效）")}",
+        IncreaseSourceCardAttributeEffectDefinition value => $"此卡牌{(value.Permanent ? "永久" : "")} {AttributeName(value.AttributeKey)} +{value.Amount}",
         IncreaseSourceAttributePerCooldownSecondEffectDefinition value => $"此卡牌{AttributeName(value.AttributeKey)}增加等同于有效完整冷却秒数 ×{value.AmountPerSecond}（向下取整）",
         GrantTagToRandomEnemyCardsEffectDefinition value => $"敌方随机{value.TargetCount}张存活战场卡牌视为{TagDisplayNames.Get(value.Tag)}，保留原标签，仅本场生效",
         GrantSourceMulticastWhileEnemyTaggedEffectDefinition value => $"敌方战场存在存活的{string.Join("或", value.RequiredAnyTags.Select(TagDisplayNames.Get))}卡牌时，此卡牌多重 +{value.Amount}",
@@ -560,10 +589,11 @@ public sealed class CardDisplayAdapter
         var anyTags = ability.TriggerCardAnyTags is { } tags ? string.Join("或", tags.Select(TagDisplayNames.Get)) : "";
         return ability.Activation switch
         {
-            AbilityActivation.EchoOnMatchingAlliedCardActivated => $"当己方战场{size}{category}卡牌发动后",
+            AbilityActivation.EchoOnMatchingAlliedCardActivated => $"当己方{(ability.ExcludeSourceCard ? "其他" : "")}战场{size}{category}卡牌发动后",
             AbilityActivation.EchoOnAdjacentAlliedCardActivated => $"当己方{side}直接相邻的{size}{tag}卡牌发动后",
             AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated => $"当己方直接相邻的{tag}攻击卡牌发动后",
             AbilityActivation.EchoOnEnemyCardActivated => $"当敌方存活战场{anyTags}卡牌发动后",
+            AbilityActivation.EchoOnShortestCooldownEnemyCardActivated => "当敌方存活战场当前完整冷却最短的卡牌发动后（并列取最左侧1张）",
             AbilityActivation.EchoOnAnyAttackCardActivated => "当双方任意1张战场攻击卡牌发动后",
             AbilityActivation.EchoOnFirstAlliedCardActivated => $"每场战斗，己方首张{tag}卡牌正常发动后（不含多重额外发动）",
             AbilityActivation.EchoOnSourceCardActivated => "当此卡牌发动后",
@@ -571,13 +601,16 @@ public sealed class CardDisplayAdapter
             AbilityActivation.EchoOnAlliedCardEnteredState => $"当己方战场卡牌进入{state}时",
             AbilityActivation.EchoOnSourceCardStatusGained => $"当此卡牌获得{status}后",
             AbilityActivation.EchoOnAlliedCardStatusGained => $"当己方战场卡牌获得{status}后",
+            AbilityActivation.EchoOnAlliedCardDestroyed => $"当己方战场{size}{element}卡牌被摧毁后",
             AbilityActivation.EchoOnEnemyCardStatusGained => $"当敌方战场卡牌获得{status}后",
             AbilityActivation.EchoOnAlliedSlowApplied => "当己方向卡牌施加迟缓后",
-            AbilityActivation.EchoOnSourceHeroHealthBelow => $"每场战斗，己方英雄生命首次低于最大生命的{ability.TriggerHeroHealthPercent}%时",
+            AbilityActivation.EchoOnSourceHeroHealthBelow => ability.TriggerHeroHealthPercent == 50
+                ? "己方英雄生命低于一半时" : $"己方英雄生命低于最大生命的{ability.TriggerHeroHealthPercent}%时",
             AbilityActivation.EchoOnSourceHeroFirstLethalDamage => "每场战斗，己方英雄首次受到致命伤害时",
             AbilityActivation.PassiveOnEclipseStart => "进入日蚀时间时（全场仅1次）",
             AbilityActivation.EchoOnAbilityActivated => "当任意能力发动后",
             AbilityActivation.EchoOnDamageDealt => "当造成伤害后",
+            AbilityActivation.EchoOnAlliedManaSpent => "当己方实际消耗魔法后",
             _ => null,
         };
     }
@@ -596,9 +629,11 @@ public sealed class CardDisplayAdapter
         AbilityActivation.EchoOnAlliedCardEnteredState => "己方卡牌进入状态后回响",
         AbilityActivation.EchoOnMatchingAlliedCardActivated => "己方符合条件的卡牌发动后回响",
         AbilityActivation.EchoOnSourceCardActivated => "此卡牌发动后回响",
+        AbilityActivation.EchoOnAlliedManaSpent => "己方消耗魔法后回响",
         AbilityActivation.EchoOnSourceCardStatusGained => "此卡牌获得持续状态后回响",
         AbilityActivation.EchoOnAlliedCardStatusGained => "己方卡牌获得持续状态后回响",
         AbilityActivation.EchoOnEnemyCardStatusGained => "敌方卡牌获得持续状态后回响",
+        AbilityActivation.EchoOnAlliedCardDestroyed => "己方卡牌被摧毁后回响",
         AbilityActivation.EchoOnSourceDestroyed => "亡语",
         AbilityActivation.EchoOnAdjacentAlliedCardActivated => "指定一侧己方相邻卡牌发动后回响",
         AbilityActivation.EchoOnLeftmostAlliedCardActivated => "己方战场最左侧卡牌发动后回响",
@@ -608,6 +643,7 @@ public sealed class CardDisplayAdapter
         AbilityActivation.EchoOnAlliedSlowApplied => "己方施加迟缓后回响",
         AbilityActivation.EchoOnAnyAttackCardActivated => "双方攻击卡牌发动后回响",
         AbilityActivation.EchoOnEnemyCardActivated => "敌方战场卡牌发动后触发",
+        AbilityActivation.EchoOnShortestCooldownEnemyCardActivated => "敌方完整冷却最短卡牌发动后回响",
         AbilityActivation.EchoOnAbilityActivated => "发动后回响", AbilityActivation.EchoOnDamageDealt => "伤害后回响",
         _ => value.ToString(),
     };

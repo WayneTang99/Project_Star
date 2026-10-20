@@ -93,6 +93,7 @@ public sealed partial class MatchShell : Control
         TextureFilter = TextureFilterEnum.LinearWithMipmaps;
         OversamplingWithScale = OversamplingWithScaleEnum.Enabled;
         Theme = MatchTheme.Create();
+        Material = new ShaderMaterial { Shader = GD.Load<Shader>("res://scripts/Presentation/Playtest/WarmTable.gdshader") };
         var background = new ColorRect { Name = "Background", Color = MatchTheme.Background,
             MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true };
         AddChild(background); MoveChild(background, 0);
@@ -163,7 +164,7 @@ public sealed partial class MatchShell : Control
         _cardPreview = Add(this, new CardPreviewView { Name = "CardPreview", ZIndex = 55 });
         _secondary = Add(this, new HeroDetailsView { Name = "HeroDetails", ZIndex = 45 });
         _toast = Add(this, new PanelContainer { Name = "Toast", ZIndex = 40, MouseFilter = MouseFilterEnum.Ignore, Visible = false });
-        var toastPlate = MatchTheme.Surface(new Color("243a2f"), MatchTheme.Gold);
+        var toastPlate = MatchTheme.Surface(new Color("4c4033"), MatchTheme.Gold);
         toastPlate.ContentMarginLeft = toastPlate.ContentMarginRight = 24; toastPlate.ContentMarginTop = toastPlate.ContentMarginBottom = 12;
         _toast.AddThemeStyleboxOverride("panel", toastPlate);
         _toastText = new Label(); MatchTheme.Text(_toastText, 14, new Color("eedab1")); _toast.AddChild(_toastText);

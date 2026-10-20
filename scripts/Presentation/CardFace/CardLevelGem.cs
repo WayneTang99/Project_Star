@@ -16,7 +16,7 @@ public sealed partial class CardLevelGem : Control
         {
             using var image = new Image();
             var rarity = LevelColor(_level).ToHtml(false);
-            image.LoadSvgFromString($"<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 36 36'><defs><linearGradient id='a' x2='1' y2='1'><stop stop-color='#e7e2b6'/><stop offset='1' stop-color='#816f40'/></linearGradient><linearGradient id='b' x2='1' y2='1'><stop stop-color='#fff' stop-opacity='.73'/><stop offset='.5' stop-color='#{rarity}'/><stop offset='1' stop-color='#141417' stop-opacity='.33'/></linearGradient></defs><path d='M18 0 36 18 18 36 0 18Z' fill='#46381e'/><path d='M18 1 35 18 18 35 1 18Z' fill='url(#a)' stroke='#fff0bf'/><path d='M18 5 31 18 18 31 5 18Z' fill='url(#b)' stroke='#ffffff77'/></svg>");
+            image.LoadSvgFromString($"<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 36 36'><defs><linearGradient id='a' x2='1' y2='1'><stop stop-color='#e7e2b6'/><stop offset='1' stop-color='#816f40'/></linearGradient><linearGradient id='b' x2='1' y2='1'><stop stop-color='#fff' stop-opacity='.73'/><stop offset='.5' stop-color='#{rarity}'/><stop offset='1' stop-color='#211b17' stop-opacity='.33'/></linearGradient></defs><path d='M18 0 36 18 18 36 0 18Z' fill='#46381e'/><path d='M18 1 35 18 18 35 1 18Z' fill='url(#a)' stroke='#fff0bf'/><path d='M18 5 31 18 18 31 5 18Z' fill='url(#b)' stroke='#ffffff77'/></svg>");
             texture = ImageTexture.CreateFromImage(image); Textures.Add(_level, texture);
         }
         DrawTextureRect(texture, new Rect2(Vector2.Zero, Size), false);

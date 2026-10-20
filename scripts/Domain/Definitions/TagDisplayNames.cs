@@ -26,7 +26,7 @@ public static class TagDisplayNames
         [GameTags.Building] = "建筑",
         [GameTags.Location] = "地域",
         [GameTags.Plant] = "植物",
-        [GameTags.Deity] = "神明",
+        [GameTags.Spirit] = "精灵",
     };
 
     public static string Get(StringName tag) => Names.TryGetValue(tag, out var name) ? name : tag.ToString();

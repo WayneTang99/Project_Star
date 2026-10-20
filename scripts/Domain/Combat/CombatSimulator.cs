@@ -150,6 +150,15 @@ public sealed class CombatSimulator
             var activatesLeftmostCard = pending.Source is CardBattleState { IsOnBench: false } activatingCard
                 && !runtime.Cards.Any(card => card.Side == activatingCard.Side && !card.Destroyed && !card.IsOnBench
                     && card.BoardStart < activatingCard.BoardStart);
+            var activatesShortestCooldownCard = definition.Activation == AbilityActivation.Active
+                && !pending.IsEcho && !pending.SuppressEchoes
+                && ReferenceEquals(pending.Source, runtime.Cards
+                    .Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
+                        && card.Abilities.Any(active => active.Definition.Activation == AbilityActivation.Active))
+                    .OrderBy(card => card.Abilities.Where(active => active.Definition.Activation == AbilityActivation.Active)
+                        .Max(active => BattleCooldownRules.DurationUnits(active.Definition.CooldownTicks,
+                            card.CooldownBonusTicks, card.EffectiveCooldownMultiplier)))
+                    .ThenBy(card => card.BoardStart).FirstOrDefault());
             if (paysMana)
             {
                 hero.Mana -= definition.ManaCost;
@@ -194,7 +203,8 @@ public sealed class CombatSimulator
                     ability.Definition.Effects.Any(effect => effect is AttributeDamageEffectDefinition { FirstActivationMultiplier: > 1 })))
                     BattleStateRecorder.CaptureState(runtime);
             }
-            if (!pending.IsEcho && !pending.SuppressEchoes) EnqueueEchoes(runtime, pending, activatesLeftmostCard);
+            if (!pending.IsEcho && !pending.SuppressEchoes)
+                EnqueueEchoes(runtime, pending, activatesLeftmostCard, activatesShortestCooldownCard);
             if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
                 && pending.Source is CardBattleState questCard && questCard.Quests.Count > 0
                 && runtime.Cards.Contains(questCard))
@@ -202,7 +212,8 @@ public sealed class CombatSimulator
         }
     }
 
-    private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin, bool activatesLeftmostCard)
+    private static void EnqueueEchoes(BattleRuntime runtime, PendingAbility origin, bool activatesLeftmostCard,
+        bool activatesShortestCooldownCard)
     {
         foreach (var source in runtime.AbilitySources)
         foreach (var ability in source.Abilities)
@@ -210,12 +221,23 @@ public sealed class CombatSimulator
             if (source.Destroyed || (source.IsOnBench && !ability.Definition.AllowsBench)) continue;
             if (ability.Definition.Activation == AbilityActivation.EchoOnAbilityActivated)
                 Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedManaSpent
+                && source.Side == origin.Source.Side
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && origin.Ability.Definition.ManaCost > 0
+                && !origin.IsMulticast && !origin.IsTriggeredActivation)
+                Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnEnemyCardActivated
                 && source.Side != origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } enemyCard
                 && (ability.Definition.TriggerCardAnyTags is not { } enemyTags
                     || enemyTags.Any(tag => BattleEffectResolver.HasEffectiveTag(runtime, enemyCard, tag)))
                 && origin.Ability.Definition.Activation == AbilityActivation.Active)
+                Enqueue(runtime, source, ability, true);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnShortestCooldownEnemyCardActivated
+                && source.Side != origin.Source.Side
+                && origin.Ability.Definition.Activation == AbilityActivation.Active
+                && activatesShortestCooldownCard)
                 Enqueue(runtime, source, ability, true);
             if (ability.Definition.Activation == AbilityActivation.EchoOnAnyAttackCardActivated
                 && origin.Source is CardBattleState { IsOnBench: false } eventCard
@@ -253,6 +275,7 @@ public sealed class CombatSimulator
             if (ability.Definition.Activation == AbilityActivation.EchoOnMatchingAlliedCardActivated
                 && source.Side == origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } originCard
+                && (!ability.Definition.ExcludeSourceCard || originCard.EntityId != source.EntityId)
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
                 && (ability.Definition.TriggerCardSize is not { } size || originCard.OccupiedSlots == (int)size)
                 && (ability.Definition.TriggerCardTag is null && ability.Definition.TriggerCardElement is null

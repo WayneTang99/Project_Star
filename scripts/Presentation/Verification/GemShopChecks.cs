@@ -65,16 +65,31 @@ internal static class GemShopChecks
             }
         }
         foreach (var primary in new EffectDefinition[] { new HealEffectDefinition(107), new GainSourceHeroArmorEffectDefinition(107),
-            new ApplyStatusEffectDefinition(BattleStatus.Burn, 107) })
+            new ApplyStatusEffectDefinition(BattleStatus.Burn, 107), new ApplyStatusEffectDefinition(BattleStatus.Poison, 107),
+            new ApplyStatusEffectDefinition(BattleStatus.HealthRegen, 107), new ApplyStatusEffectDefinition(BattleStatus.ManaRegen, 107),
+            new ApplyAttributeStatusEffectDefinition(BattleStatus.Burn, GameAttributeKeys.AttackDamage),
+            new ApplySourceAttributePercentStatusEffectDefinition(BattleStatus.Poison, GameAttributeKeys.AttackDamage, 100) })
         {
-            var ability = new AbilityDefinition(new StringName("verification.gem.primary"), AbilityActivation.Active, AbilityTarget.AlliedHero, 0, 1,
+            var ability = new AbilityDefinition(new StringName("verification.gem.primary"), AbilityActivation.Active,
+                primary is ApplySourceAttributePercentStatusEffectDefinition ? AbilityTarget.EnemyHero : AbilityTarget.AlliedHero, 0, 1,
                 [primary, new GainSourceHeroArmorEffectDefinition(999), new ApplyPrimaryEffectPercentStatusEffectDefinition(BattleStatus.Poison, 10)]);
-            var card = new CardBattleSetup(EntityId.New(), 0, 0, 1, [ability], UseLegacyAttack: false);
+            var card = new CardBattleSetup(EntityId.New(), 0, 107, 1, [ability], UseLegacyAttack: false)
+            { CombatValues = new System.Collections.Generic.Dictionary<StringName, int> { [GameAttributeKeys.AttackDamage] = 107 } };
             var result = new CombatSimulator().Simulate(new BattleSetup(
                 new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), [card]),
                 new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0), []), 42, new BattleTick(10), new BattleTick(11)));
             var frame = result.States.Last(frame => frame.Tick.Value == 10 && frame.Opponent.Health > 0);
-            Require(frame.Opponent.Poison == 10 && frame.Player.Poison == 0, "治疗护甲卡敌方目标与取整");
+            var expected = primary is ApplyStatusEffectDefinition or ApplyAttributeStatusEffectDefinition or ApplySourceAttributePercentStatusEffectDefinition ? 107 : 10;
+            var preview = MatchSnapshot.From(Statue(3).Session).Cards.Single() with
+            {
+                Abilities = [ability], CurrentValues = card.CombatValues!, EffectAmounts = Array.Empty<int?>(),
+            };
+            Require(CardDisplayAdapter.FaceEffects(preview).Contains(new CardFaceEffect(CardFaceEffectKind.Poison, expected.ToString())),
+                "独立预览使用相同属性价值换算");
+            if (primary is ApplySourceAttributePercentStatusEffectDefinition) expected += 107;
+            var ownPoison = primary is ApplyStatusEffectDefinition { Status: BattleStatus.Poison } ? 107 : 0;
+            Require(frame.Opponent.Poison == expected && frame.Player.Poison == ownPoison,
+                $"属性价值换算、敌方目标与取整：{primary}，敌方{frame.Opponent.Poison}/{expected}，己方{frame.Player.Poison}/{ownPoison}");
         }
         var boosted = new CardBattleSetup(EntityId.New(), 0, 107, 1,
             [new AbilityDefinition(new StringName("verification.gem.berserk"), AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard, 0, 0,

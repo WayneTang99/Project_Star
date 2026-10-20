@@ -13,7 +13,7 @@ public sealed class BoneBarrowCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(
             new CardIdentityAttributes(new StringName("card.bone_barrow"), "骨冢", new StringName("mona"),
                 CardSize.Medium, [GameElements.Dark],
-                illustration: new StringName("res://art/ui/card-face/artwork/bone_barrow-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/bone_barrow-orbiting-skulls-20261020.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却3秒，魔法消耗0，此卡牌左侧紧邻位置可用时，召唤一张同级骷髅；左侧已有存活卡牌或超出战场边界时不召唤，已摧毁卡牌的位置可再次召唤，召唤物仅本场战斗存在。"),

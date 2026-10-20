@@ -28,7 +28,7 @@ public sealed partial class CardElementBadge : Control
             : _elementKey == GameElements.Lightning ? ("fff976", "c0a822", "ϟ")
             : _elementKey == GameElements.Ice ? ("b4ffff", "2cafb8", "❄")
             : _elementKey == GameElements.Dark ? ("a07ccc", "492d70", "☽")
-            : ("a8adb3", "50565f", "◇");
+            : ("a8adb3", "62584e", "◇");
         DrawCircle(center, radius - 1, new Color(dark));
         for (var i = 24; i > 0; i--)
             DrawCircle(center + new Vector2(-radius * .25f, -radius * .35f) * (1 - i / 24f),

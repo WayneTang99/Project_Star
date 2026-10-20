@@ -32,7 +32,7 @@ internal static class AscendantChecks
             || identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Medium
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General }) || definition.InitialLevel != 1
             || definition.SupportsLevel(5) || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Human)
-            || definition.Tags.Contains(GameTags.Deity) || TagDisplayNames.Get(GameTags.Deity) != "神明"
+            || definition.Tags.Contains(GameTags.Spirit) || TagDisplayNames.Get(GameTags.Spirit) != "精灵"
             || identity.DescriptionEntries.Count != 5 || texture is null || texture.GetWidth() != texture.GetHeight()) return false;
         for (var level = 1; level <= 4; level++)
         {
@@ -51,7 +51,7 @@ internal static class AscendantChecks
                 || statuses.Length != 2 || statuses.Any(e => e.Tick.Value is not (2430 or 2432) || e.Amount != (81 + 100 * level) / 10)
                 || last.Values[GameAttributeKeys.AttackDamage] != 81 + 102 * level
                 || last.Values[GameAttributeKeys.Multicast] != 1 || !last.QuestTags.Contains(GameTags.Human)
-                || last.QuestTags.Contains(GameTags.Deity) || !last.QuestElementKeys.SequenceEqual(new[] { GameElements.Light })
+                || last.QuestTags.Contains(GameTags.Spirit) || !last.QuestElementKeys.SequenceEqual(new[] { GameElements.Light })
                 || !last.Quests.Select(quest => quest.Progress).SequenceEqual(new[] { 20, 60, 100 })
                 || result.PermanentAttributeBonuses.Count != 102
                 || result.PermanentAttributeBonuses.Any(bonus => bonus.Amount != level || bonus.CardId != context.Card.Id)
@@ -65,9 +65,9 @@ internal static class AscendantChecks
                 || !StateAt(result, context.Card.Id, 2402).Quests[2].Unlocked) return false;
             if (!context.Apply(result) || context.Attack != 81 + 102 * level
                 || context.Card.Quests.Any(quest => !context.Card.IsQuestUnlocked(quest))
-                || context.Card.Tags.Contains(GameTags.Deity) || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light
-                || initial.Cards.Single().ElementKeys.Single() != GameElements.General || initial.Cards.Single().Tags.Contains(GameTags.Deity)
-                || definition.Attributes.Identity.ElementKeys.Single() != GameElements.General || definition.Tags.Contains(GameTags.Deity)) return false;
+                || context.Card.Tags.Contains(GameTags.Spirit) || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light
+                || initial.Cards.Single().ElementKeys.Single() != GameElements.General || initial.Cards.Single().Tags.Contains(GameTags.Spirit)
+                || definition.Attributes.Identity.ElementKeys.Single() != GameElements.General || definition.Tags.Contains(GameTags.Spirit)) return false;
         }
         return true;
     }
@@ -126,17 +126,17 @@ internal static class AscendantChecks
         if (context.Attack != 181 || context.Card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast) != 0
             || context.Card.Attributes.Identity.ElementKeys.Single() != GameElements.Light) return false;
         context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Battlefield, 0);
-        if (!context.Apply(context.Run(902)) || context.Attack != 501 || context.Card.Tags.Contains(GameTags.Deity)) return false;
+        if (!context.Apply(context.Run(902)) || context.Attack != 501 || context.Card.Tags.Contains(GameTags.Spirit)) return false;
         context.Board.RefreshQuestAbilities(context.Match);
         context.Board.RefreshQuestAbilities(context.Match);
         if (context.Attack != 501 || context.Card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.Multicast) != 1) return false;
         context.Board.PlaceCard(context.Match, context.Card.Id, BoardZone.Bench, 0);
         var fresh = context.Factory.CreateCard(context.Definition);
-        return context.Attack == 421 && !context.Card.Tags.Contains(GameTags.Deity)
+        return context.Attack == 421 && !context.Card.Tags.Contains(GameTags.Spirit)
             && context.Card.Attributes.Identity.ElementKeys.Single() == GameElements.Light
             && context.Card.Attributes.Identity.GemSocketCount == 1 && context.Card.GemSockets.Count == 1
-            && !lightBefore.Cards.Single().Tags.Contains(GameTags.Deity)
-            && fresh.Attributes.Identity.ElementKeys.Single() == GameElements.General && !fresh.Tags.Contains(GameTags.Deity)
+            && !lightBefore.Cards.Single().Tags.Contains(GameTags.Spirit)
+            && fresh.Attributes.Identity.ElementKeys.Single() == GameElements.General && !fresh.Tags.Contains(GameTags.Spirit)
             && fresh.Quests.All(quest => fresh.GetQuestProgress(quest.Key) == 0);
     }
 
@@ -235,12 +235,12 @@ internal static class AscendantChecks
             || !context.Apply(result)) return false;
         var playback = new BattlePlaybackPresenter(new BattleResolution(before, enemyBefore, result, MatchSnapshot.From(context.Match)));
         var old = playback.Project(SideId.Player).Cards.Single();
-        if (old.Quests.Last().Progress != 99 || old.Tags.Contains(GameTags.Deity)) return false;
+        if (old.Quests.Last().Progress != 99 || old.Tags.Contains(GameTags.Spirit)) return false;
         playback.Skip(); playback.Skip();
         var projected = playback.Project(SideId.Player).Cards.Single();
-        if (projected.Quests.Last().Progress != 100 || projected.Tags.Contains(GameTags.Deity)
+        if (projected.Quests.Last().Progress != 100 || projected.Tags.Contains(GameTags.Spirit)
             || projected.ElementKeys.Single() != GameElements.Light || context.Attack != 83
-            || old.Quests.Last().Progress != 99 || old.Tags.Contains(GameTags.Deity)
+            || old.Quests.Last().Progress != 99 || old.Tags.Contains(GameTags.Spirit)
             || !CardDisplayAdapter.AbilityDetails(projected.Abilities).Contains("10%灼伤")) return false;
         // 百分比读取有效攻击，先取整，再遵循狂暴的状态施加倍率。
         quests.ProcessEvent(context.Match, new SourceCardActivatedQuestEvent(context.Card.Id));

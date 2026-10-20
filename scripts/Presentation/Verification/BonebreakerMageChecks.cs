@@ -29,16 +29,16 @@ internal static class BonebreakerMageChecks
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Medium
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark }) || !definition.Tags.Contains(GameTags.Human)
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
-            || !DefinitionRegistry.Scan(typeof(BonebreakerMageChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
+            || !DefinitionRegistry.Scan(typeof(BonebreakerMageChecks).Assembly).Cards.ContainsKey(identity.Key)) return Fail();
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
-        if (texture is null || texture.GetWidth() != texture.GetHeight()) return false;
+        if (texture is null || texture.GetWidth() != texture.GetHeight()) return Fail();
         foreach (var level in new[] { 3, 4 })
         foreach (var bonus in new[] { 0, 7 })
         foreach (var side in new[] { SideId.Player, SideId.Opponent })
         {
             var attack = (level == 3 ? 80 : 160) + bonus;
             var mage = Mage(level) with { AttackDamage = attack, Multicast = 1 };
-            if (mage.Abilities!.Single().ManaCost != 40) return false;
+            if (mage.Abilities!.Single(a => a.Activation == AbilityActivation.Active).ManaCost != 40) return Fail();
             var one = Block(2, 1, GameElements.Dark);
             var two = Block(3, 1, GameElements.Dark) with { ElementKeys = [GameElements.Dark, GameElements.Light] };
             var medium = Block(4, 2, GameElements.Dark);
@@ -55,34 +55,35 @@ internal static class BonebreakerMageChecks
             var hits = result.Events.OfType<DamageDealtEvent>().Where(item => item.SourceCardId == mage.EntityId).ToArray();
             var payments = result.Events.OfType<ManaChangedEvent>().Where(item => item.Side == side).ToArray();
             if (destroyed.Length != 2 || !destroyed.Select(item => item.CardId).SequenceEqual(new[] { one.EntityId, two.EntityId })
-                || hits.Length != 2 || hits.Any(item => item.Tick.Value != 90 || item.RawDamage != attack
+                || hits.Length != 3 || !hits.Select(item => item.Tick.Value).SequenceEqual(new long[] { 0, 90, 90 })
+                || hits.Any(item => item.RawDamage != attack
                     || item.TargetSide == side) || hits.Sum(item => item.ArmorAbsorbed) != 80
-                || hits.Sum(item => item.HealthDamage) != attack * 2 - 80
+                || hits.Sum(item => item.HealthDamage) != attack * 3 - 80
                 || result.States[^1].Cards.Any(item => new[] { medium.EntityId, otherElement.EntityId, bench.EntityId, enemy.EntityId }
                     .Contains(item.Id) && item.Destroyed)
                 || payments.Length != 2 || payments.Any(item => item.Amount != -40)
-                || result.PermanentChanges.Any() || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
+                || result.PermanentChanges.Any() || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return Fail();
             var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
             if (!CardDisplayAdapter.FaceEffects(offer).Any(effect => effect.Kind == CardFaceEffectKind.Damage
                     && effect.Value == (level == 3 ? "80" : "160"))
                 || !new CardDisplayAdapter().Build(offer).Effects.Any(effect => effect.Kind == CardFaceEffectKind.ManaCost && effect.Value == "−40")
-                || !CardDisplayAdapter.Details(offer).Contains("攻击　")) return false;
+                || !CardDisplayAdapter.Details(offer).Contains("攻击　")) return Fail();
         }
         var empty = new CombatSimulator().Simulate(Battle([Mage(3)], [], 180));
-        if (empty.Events.OfType<DamageDealtEvent>().Any() || empty.Events.OfType<CardDestroyedEvent>().Any()) return false;
+        if (empty.Events.OfType<DamageDealtEvent>().Any() || empty.Events.OfType<CardDestroyedEvent>().Any()) return Fail();
         var unpaidMage = Mage(3); var sacrifice = Block(2, 1, GameElements.Dark);
         var unpaid = new CombatSimulator().Simulate(Battle([unpaidMage, sacrifice], [], 90, 39));
         if (unpaid.Events.OfType<AbilityActivatedEvent>().Any(item => item.SourceCardId == unpaidMage.EntityId)
-            || unpaid.Events.OfType<CardDestroyedEvent>().Any() || unpaid.Events.OfType<DamageDealtEvent>().Any()) return false;
+            || unpaid.Events.OfType<CardDestroyedEvent>().Any() || unpaid.Events.OfType<DamageDealtEvent>().Any()) return Fail();
         var paid = new CombatSimulator().Simulate(Battle([unpaidMage, sacrifice], [], 90, 40));
         if (paid.Events.OfType<CardDestroyedEvent>().Count() != 1
-            || paid.Events.OfType<ManaChangedEvent>().Single().Amount != -40) return false;
+            || paid.Events.OfType<ManaChangedEvent>().Single().Amount != -40) return Fail();
         try
         {
             _ = new AbilityDefinition(new StringName("verification.sacrifice.invalid"), AbilityActivation.Active,
                 AbilityTarget.EnemyHero, 0, 90,
                 [new DestroyAlliedCardsAndDamageEffectDefinition(CardSize.Small, new StringName(""), GameAttributeKeys.AttackDamage)]);
-            return false;
+            return Fail();
         }
         catch (ArgumentException) { return true; }
     }
@@ -129,6 +130,41 @@ internal static class BonebreakerMageChecks
             && !result.States[^1].Cards.Single(item => item.Id == summons[1].SummonedCardId).Destroyed;
     }
 
+    internal static bool DestructionEcho()
+    {
+        foreach (var reverse in new[] { false, true })
+        foreach (var level in new[] { 3, 4 })
+        {
+            var mage = Mage(level);
+            var damage = level == 3 ? 80 : 160;
+            CardBattleSetup Victim(int start, int size, StringName element) => Block(start, size, element) with
+            {
+                Abilities = [new AbilityDefinition("verification.bonebreaker.consume", AbilityActivation.Active,
+                    AbilityTarget.SelfCard, 0, 30, [new DestroyCardEffectDefinition(false)])],
+            };
+            var dark = Victim(2, 1, GameElements.Dark);
+            var light = Victim(3, 1, GameElements.Light);
+            var medium = Victim(4, 2, GameElements.Dark);
+            var enemyDark = Victim(0, 1, GameElements.Dark);
+            var empowered = mage with { Abilities = mage.Abilities!.Append(new AbilityDefinition("verification.bonebreaker.berserk",
+                AbilityActivation.PassiveOnBattleStart, AbilityTarget.SelfCard, 0, 0,
+                [new SetSourceCardStateEffectDefinition(GameAttributeKeys.Berserk, true)])).ToArray() };
+            CardBattleSetup[] allies = [empowered, dark, light, medium];
+            var setup = Battle(reverse ? [enemyDark] : allies, reverse ? allies : [enemyDark], 30);
+            var result = new CombatSimulator().Simulate(setup);
+            var hits = result.Events.OfType<DamageDealtEvent>().Where(e => e.SourceCardId == mage.EntityId).ToArray();
+            if (hits.Length != 1 || hits[0].Tick.Value != 30 || hits[0].RawDamage != damage
+                || !result.Events.OfType<AbilityActivatedEvent>().Any(e => e.SourceCardId == mage.EntityId && e.IsEcho)
+                || result.Events.OfType<ManaChangedEvent>().Any() || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
+            var inactive = Battle(reverse ? [] : [mage with { IsOnBench = true }, dark],
+                reverse ? [mage with { IsOnBench = true }, dark] : [], 30);
+            if (new CombatSimulator().Simulate(inactive).Events.OfType<DamageDealtEvent>().Any(e => e.SourceCardId == mage.EntityId)) return false;
+        }
+        return true;
+    }
+
+    private static bool Fail([System.Runtime.CompilerServices.CallerLineNumber] int line = 0)
+    { GD.Print($"碎骨法师检查失败，行 {line}"); return false; }
     private static CardBattleSetup Mage(int level)
     {
         var definition = new BonebreakerMageCardDefinition();

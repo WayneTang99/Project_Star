@@ -14,6 +14,7 @@ namespace Project_Star.Presentation.Playtest;
 public sealed partial class CardDetailsContent : VBoxContainer
 {
     public int RuleFontSize { get; set; } = 18;
+    public bool ExpandContent { get; set; }
     private HFlowContainer _tags = null!;
     private Label _name = null!;
     private PanelContainer _cooldown = null!;
@@ -48,6 +49,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         var ruleMargin = new MarginContainer(); ruleMargin.AddThemeConstantOverride("margin_right", 2); AddChild(ruleMargin); ruleMargin.AddChild(Line());
         Space(13);
         _scroll = new ScrollContainer { Name = "BodyScroll", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(_scroll);
+        if (ExpandContent) _scroll.VerticalScrollMode = ScrollContainer.ScrollMode.Disabled;
         _scroll.AddThemeStyleboxOverride("panel", new StyleBoxEmpty { ContentMarginRight = 2 });
         _paragraphs = new VBoxContainer { Name = "Paragraphs", SizeFlagsHorizontal = SizeFlags.ExpandFill }; _paragraphs.AddThemeConstantOverride("separation", 8); _scroll.AddChild(_paragraphs);
         Space(14); AddChild(Line()); Space(12);
@@ -59,7 +61,8 @@ public sealed partial class CardDetailsContent : VBoxContainer
         _value = new Label { Name = "Value" }; MatchTheme.Text(_value, 14, AttributePalette.Find(GameAttributeKeys.Value), true, true); footer.AddChild(_value);
         _extra = new Button { Name = "InstanceToggle", Text = "宝石 · 当前属性  ▾", Alignment = HorizontalAlignment.Left };
         _extra.AddThemeFontSizeOverride("font_size", 14); _extra.AddThemeStyleboxOverride("normal", new StyleBoxEmpty()); AddChild(_extra);
-        _attributes = new RichTextLabel { Name = "InstanceDetails", CustomMinimumSize = new Vector2(0, 160), Visible = false };
+        _attributes = new RichTextLabel { Name = "InstanceDetails", CustomMinimumSize = new Vector2(0, ExpandContent ? 0 : 160),
+            FitContent = ExpandContent, ScrollActive = !ExpandContent, Visible = false };
         _attributes.AddThemeFontSizeOverride("normal_font_size", 16); AddChild(_attributes); _extra.Pressed += ToggleAttributes;
     }
 
@@ -124,7 +127,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         _identity.Text = $"{card.Level}级 · {string.Join(" / ", card.ElementKeys.Select(element => element == GameElements.General ? "无属性" : CardDisplayAdapter.ElementName(element) + "属性"))}"; _value.Text = card.Value.ToString();
         CardKeywordText.RenderRule(_attributes, CardDisplayAdapter.CurrentDetails(card) + "\n" + string.Join("\n",
             card.GemSockets.Select((gem, index) => $"孔{index + 1}　{gem?.DisplayName ?? "空孔"}{(gem is null ? "" : " · " + gem.Description)}")));
-        _attributes.CustomMinimumSize = new Vector2(0, Mathf.Min(160, maximumBodyHeight / 2));
+        _attributes.CustomMinimumSize = new Vector2(0, ExpandContent ? 0 : Mathf.Min(160, maximumBodyHeight / 2));
         if (!preserveExpansion) { _attributes.Hide(); _scroll.ScrollVertical = 0; _attributes.GetVScrollBar().Value = 0; }
         UpdateBodyHeight();
     }
@@ -134,7 +137,8 @@ public sealed partial class CardDetailsContent : VBoxContainer
     private void UpdateBodyHeight()
     {
         var available = _maximumBodyHeight - (_attributes.Visible ? _attributes.CustomMinimumSize.Y : 0);
-        var height = Mathf.Min(available, Mathf.Max(22, _paragraphs.GetCombinedMinimumSize().Y));
+        var height = ExpandContent ? Mathf.Max(22, _paragraphs.GetCombinedMinimumSize().Y)
+            : Mathf.Min(available, Mathf.Max(22, _paragraphs.GetCombinedMinimumSize().Y));
         if (!Mathf.IsEqualApprox(_scroll.CustomMinimumSize.Y, height)) _scroll.CustomMinimumSize = new Vector2(0, height);
     }
     private void ToggleAttributes() { _attributes.Visible = !_attributes.Visible; UpdateBodyHeight(); }
@@ -154,7 +158,7 @@ public sealed partial class CardDetailsContent : VBoxContainer
         {
             var row = new HBoxContainer { Name = $"Threshold{threshold.RequiredCount}" }; row.AddThemeConstantOverride("separation", 15); section.AddChild(row);
             var needed = new Label { Name = "RequiredCount", Text = $"{threshold.RequiredCount}件", CustomMinimumSize = new Vector2(42, 0) };
-            MatchTheme.Text(needed, 18, new Color("d9b777"), bold: true); row.AddChild(needed);
+            MatchTheme.Text(needed, 18, new Color("c5ad87"), bold: true); row.AddChild(needed);
             var template = new CardSnapshot(default, set.Key, set.DisplayName, card.Level, 0, card.Size,
                 card.FactionKey, card.ElementKeys, Array.Empty<QuestProgressSnapshot>())
                 { HeroLevel = card.HeroLevel, Abilities = threshold.Abilities };

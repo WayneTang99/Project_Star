@@ -16,7 +16,7 @@ public sealed class BlackRhinocerosBeetleCardDefinition : CardDefinition
                 illustration: new StringName("res://art/ui/card-face/artwork/black_rhinoceros_beetle-illustration-rework-20261011.png"),
                 descriptionEntries:
                 [
-                    new(CardKeywords.Activate, "冷却4秒，魔法消耗0，使敌方随机1张战场卡牌获得1秒迟缓。"),
+                    new(CardKeywords.Activate, "冷却4秒，魔法消耗0，己方英雄获得10/20/40/80护甲。"),
                     new(CardKeywords.Sell, "出售此卡牌后，从己方战场区最左侧向右查找第一张土属性卡牌，使其冷却永久缩减1/2/3/4%；战场区没有土属性卡牌时不生效。"),
                 ]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>
@@ -27,9 +27,9 @@ public sealed class BlackRhinocerosBeetleCardDefinition : CardDefinition
     {
     }
 
-    private static CardLevelDefinition CreateLevel(int level) => new(level, null,
-        [new AbilityDefinition(new StringName("ability.slow_random_enemy_card"), AbilityActivation.Active,
-            AbilityTarget.OtherBattlefieldCards, 0, 40,
-            [new ApplyStatusToRandomEnemyCardEffectDefinition(BattleStatus.SlowDuration, 10)])],
+    private static CardLevelDefinition CreateLevel(int level) => new(level, new Dictionary<StringName, int> { [GameAttributeKeys.Armor] = 10 << (level - 1) },
+        [new AbilityDefinition(new StringName("ability.gain_attribute_armor"), AbilityActivation.Active,
+            AbilityTarget.AlliedHero, 0, 40,
+            [new GainSourceHeroArmorFromAttributeEffectDefinition(GameAttributeKeys.Armor)])],
         onSellReward: new ReduceLeftmostElementCardCooldownOnSellDefinition(GameElements.Earth, level));
 }
