@@ -23,6 +23,9 @@ public static class GameElements
         General, Fire, Water, Wind, Earth, Lightning, Wood, Ice, Light, Dark,
     ];
 
+    // 按规范顺序提供只读元素目录，供内容组合与展示使用（领域定义层）。
+    public static IReadOnlyList<StringName> All { get; } = Array.AsReadOnly(CanonicalValues);
+
     public static IReadOnlyList<StringName> Normalize(IEnumerable<StringName> elementKeys)
     {
         ArgumentNullException.ThrowIfNull(elementKeys);

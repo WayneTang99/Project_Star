@@ -17,7 +17,7 @@ internal static class FlyingBroomChecks
         var identity = definition.Attributes.Identity;
         if (identity.Key != new StringName("card.flying_broom") || identity.DisplayName != "飞天扫帚"
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Medium
-            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General })
+            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Wind })
             || !definition.Tags.Contains(GameTags.Equipment) || !definition.Tags.Contains(GameTags.Vehicle)
             || !definition.Tags.Contains(GameTags.Medium) || definition.InitialLevel != 1
             || definition.SupportsLevel(5)) return false;

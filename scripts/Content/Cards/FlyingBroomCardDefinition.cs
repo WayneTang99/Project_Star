@@ -13,7 +13,7 @@ public sealed class FlyingBroomCardDefinition : CardDefinition
         : base(
             new EntityAttributes<CardIdentityAttributes>(
                 new CardIdentityAttributes(new StringName("card.flying_broom"), "飞天扫帚",
-                    new StringName("mona"), CardSize.Medium, [GameElements.General],
+                    new StringName("mona"), CardSize.Medium, [GameElements.Wind],
                     illustration: new StringName("res://art/ui/card-face/artwork/flying_broom-illustration-rework-20261011-full.png"),
                     descriptionEntries:
                     [

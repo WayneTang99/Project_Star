@@ -21,6 +21,9 @@ public sealed record GrantRandomOtherHeroSourceLevelCardEffectDefinition(CardSiz
 // 拾取时按尺寸与标签随机获得一张来源同级卡牌，不限制英雄归属（领域对局效果）。
 public sealed record GrantRandomTaggedSourceLevelCardEffectDefinition(CardSize Size, StringName RequiredTag) : EffectDefinition;
 
+// 轮初从全部英雄的同级技能候选中随机学习一项（领域对局定义）。
+public sealed record GrantRandomHeroSourceLevelSkillEffectDefinition : EffectDefinition;
+
 // 根据英雄当前等级提供可撤销的属性贡献（领域能力定义）。
 public sealed record ModifyHeroLevelScaledAttributeEffectDefinition(StringName AttributeKey, int Multiplier) : EffectDefinition;
 

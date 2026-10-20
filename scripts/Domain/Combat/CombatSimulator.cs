@@ -186,6 +186,8 @@ public sealed class CombatSimulator
                     runtime.ScheduledMulticasts.Add((runtime.Tick + new BattleTick(checked((repeat + 1) * 2)),
                         pending with { IsMulticast = true, EnqueuedAt = runtime.Tick }));
             }
+            pending = ElementSequenceResolver.Consume(runtime, pending);
+            runtime.ResolvingActivation = pending;
             if (definition.Effects.Any(effect => effect is ApplyPrimaryEffectPercentStatusEffectDefinition))
                 pending = pending with { PrimaryValue = BattleEffectResolver.PrimaryValue(runtime, pending) };
             foreach (var effect in definition.Effects)
@@ -194,6 +196,8 @@ public sealed class CombatSimulator
                 BattleStatusResolver.RefreshCooldownAuras(runtime);
                 BattleStateRecorder.CaptureState(runtime);
             }
+            runtime.ResolvingActivation = null;
+            ElementSequenceResolver.Complete(runtime, pending);
             if (!pending.IsEcho) pending.Source.ActivationCount++;
             if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
                 && pending.Source is CardBattleState activatedCard)

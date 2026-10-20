@@ -69,6 +69,11 @@ public enum BattleStatus
 
 public abstract record EffectDefinition;
 
+// 按前置与后续元素发动建立一次性限时联动，可提供伤害倍率或随机卡牌状态（领域战斗层）。
+public sealed record ElementSequenceEffectDefinition(StringName PrerequisiteElement, StringName FollowupElement,
+    int WindowTicks, bool RequiresAttack = false, decimal DamageMultiplier = 1m,
+    BattleStatus? Status = null, int StatusTicks = 0) : EffectDefinition;
+
 // 提前进入全场唯一一次日蚀；已进入时无额外效果。
 public sealed record EnterEclipseEffectDefinition : EffectDefinition;
 
@@ -110,8 +115,8 @@ public enum AdjacentCardSide { Left = 0, Right = 1 }
 // 在来源指定一侧的空位召唤同级卡牌，仅存在于战斗 Runtime。
 public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, AdjacentCardSide Side) : EffectDefinition;
 
-// 在被摧毁事件卡牌原位置召唤其同级模板，支持技能来源（领域战斗层）。
-public sealed record SummonAtDestroyedCardEffectDefinition(CardDefinition Card) : EffectDefinition;
+// 在被摧毁卡牌原位置召唤，默认继承被摧毁者等级，也可使用来源卡牌等级（领域战斗层）。
+public sealed record SummonAtDestroyedCardEffectDefinition(CardDefinition Card, bool UseSourceLevel = false) : EffectDefinition;
 
 // 摧毁来源及左右直接相邻己方卡牌，再在来源两侧空位召唤同级模板。
 public sealed record SacrificeSourceAndNeighborsToSummonEffectDefinition(
@@ -401,9 +406,15 @@ public sealed class AbilityDefinition
         int? triggerHeroHealthPercent = null,
         IReadOnlyList<StringName>? triggerCardAnyTags = null,
         StringName? targetCardTag = null,
-        bool excludeSourceCard = false)
+        bool excludeSourceCard = false,
+        StringName? excludedTriggerCardElement = null)
     {
         ArgumentNullException.ThrowIfNull(effects);
+        if (excludedTriggerCardElement is not null)
+        {
+            if (activation != AbilityActivation.EchoOnAlliedCardDestroyed || !GameElements.IsValid(excludedTriggerCardElement))
+                throw new ArgumentException("Excluded element requires an allied destruction trigger and a valid element.", nameof(excludedTriggerCardElement));
+        }
         if (excludeSourceCard && activation != AbilityActivation.EchoOnMatchingAlliedCardActivated)
             throw new ArgumentException("Source exclusion requires a matching allied activation echo.", nameof(excludeSourceCard));
         if (activation == AbilityActivation.EchoOnAlliedManaSpent
@@ -505,6 +516,15 @@ public sealed class AbilityDefinition
         CooldownTicks = cooldownTicks;
         foreach (var effect in effects)
         {
+            if (effect is ElementSequenceEffectDefinition sequence
+                && (activation != AbilityActivation.PassiveAura || target != AbilityTarget.EnemyHero || allowsBench
+                    || manaCost != 0 || cooldownTicks != 0 || effects.Count != 1
+                    || !GameElements.IsValid(sequence.PrerequisiteElement) || !GameElements.IsValid(sequence.FollowupElement)
+                    || sequence.WindowTicks < 1 || sequence.DamageMultiplier < 1m
+                    || sequence.Status is null && sequence.DamageMultiplier == 1m
+                    || sequence.Status is not null && (sequence.DamageMultiplier != 1m || sequence.StatusTicks < 1
+                        || sequence.Status is not (BattleStatus.SlowDuration or BattleStatus.ImmobilizeDuration or BattleStatus.HasteDuration))))
+                throw new ArgumentException("Element sequences require a battlefield aura with valid elements, window and one outcome.", nameof(effects));
             if (effect is GainSourceHeroStealthEffectDefinition stealth
                 && (stealth.DurationTicks < 1 || target != AbilityTarget.AlliedHero
                     || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled))
@@ -525,14 +545,18 @@ public sealed class AbilityDefinition
                 continue;
             }
             if (MatchAbilityRules.IsMatchTrigger(activation)
-                ? target != AbilityTarget.AlliedHero || allowsBench || cooldownTicks != 0
+                ? target != AbilityTarget.AlliedHero
+                    || allowsBench && effect is not GrantRandomHeroSourceLevelSkillEffectDefinition || cooldownTicks != 0
                     || effect is not GrantExperienceEffectDefinition and not GrantSourceLevelCardEffectDefinition
                         and not GrantRandomOtherHeroSourceLevelCardEffectDefinition and not GrantRandomTaggedSourceLevelCardEffectDefinition
-                        and not ReduceSetCardCooldownEffectDefinition
+                        and not ReduceSetCardCooldownEffectDefinition and not GrantRandomHeroSourceLevelSkillEffectDefinition
                 : effect is GrantExperienceEffectDefinition or GrantSourceLevelCardEffectDefinition
                     or GrantRandomOtherHeroSourceLevelCardEffectDefinition or GrantRandomTaggedSourceLevelCardEffectDefinition
-                    or ReduceSetCardCooldownEffectDefinition)
+                    or ReduceSetCardCooldownEffectDefinition or GrantRandomHeroSourceLevelSkillEffectDefinition)
                 throw new ArgumentException("Match rewards require a match event and an allied hero target.", nameof(effects));
+            if (effect is GrantRandomHeroSourceLevelSkillEffectDefinition
+                && (activation != AbilityActivation.PassiveOnRoundStart || manaCost != 0))
+                throw new ArgumentException("Random hero skills require a round start without mana cost.", nameof(effects));
             if (effect is ReduceSetCardCooldownEffectDefinition reductionOnRound
                 && (activation != AbilityActivation.PassiveOnRoundStart || reductionOnRound.Percent is < 1 or > 100))
                 throw new ArgumentException("Set cooldown reduction requires a round start and a valid percentage.", nameof(effects));
@@ -918,6 +942,7 @@ public sealed class AbilityDefinition
         TriggerStateKey = triggerStateKey;
         TriggerCardTag = triggerCardTag;
         TriggerCardElement = triggerCardElement;
+        ExcludedTriggerCardElement = excludedTriggerCardElement;
         TriggerCardSide = triggerCardSide;
         TriggerCardSize = triggerCardSize;
         TriggerStatus = triggerStatus;
@@ -937,6 +962,7 @@ public sealed class AbilityDefinition
     public StringName? TriggerStateKey { get; }
     public StringName? TriggerCardTag { get; }
     public StringName? TriggerCardElement { get; }
+    public StringName? ExcludedTriggerCardElement { get; }
     public AdjacentCardSide? TriggerCardSide { get; }
     public CardSize? TriggerCardSize { get; }
     public BattleStatus? TriggerStatus { get; }

@@ -45,6 +45,7 @@ internal sealed class BattleAbilityState
     public AbilityDefinition Definition { get; set; }
     public decimal RemainingCooldownUnits { get; set; }
     public bool Triggered { get; set; }
+    public long SequenceExpiresAt { get; set; } = -1;
 }
 
 internal interface IBattleAbilitySource
@@ -250,6 +251,9 @@ internal sealed record PendingAbility(
     CardBattleState? EventCard = null)
 {
     public int PrimaryValue { get; init; }
+    public decimal DamageMultiplier { get; init; } = 1m;
+    public IReadOnlyList<(IBattleAbilitySource Source, BattleAbilityState Ability)> SequenceFollowups { get; init; } =
+        Array.Empty<(IBattleAbilitySource, BattleAbilityState)>();
     public bool SuppressEchoes { get; init; }
     public bool IsTriggeredActivation { get; init; }
     public bool AllowDestroyedSource { get; init; }
@@ -295,6 +299,7 @@ internal sealed class BattleRuntime
         AddSets(setup.Player.Sets, SideId.Player); AddSets(setup.Opponent.Sets, SideId.Opponent);
     }
     public BattleTick Tick { get; set; } = BattleTick.Zero;
+    public PendingAbility? ResolvingActivation { get; set; }
     public IReadOnlyList<MatchRewardSource> MatchRewardSources { get; }
     public HeroBattleState PlayerHero { get; }
     public HeroBattleState OpponentHero { get; }

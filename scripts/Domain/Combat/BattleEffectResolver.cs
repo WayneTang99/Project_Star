@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Godot;
@@ -59,6 +59,9 @@ internal static class BattleEffectResolver
         var hero = runtime.GetHero(targetSide);
         switch (effect)
         {
+            case ElementSequenceEffectDefinition { Status: { } status } sequence:
+                ApplyEffect(runtime, pending, new ApplyStatusToRandomEnemyCardEffectDefinition(status, sequence.StatusTicks));
+                break;
             case SacrificeSourceAndNeighborsToSummonEffectDefinition sacrificeSummon when pending.Source is CardBattleState sacrificeSource:
                 var neighbors = runtime.Cards.Where(card => card.Side == sacrificeSource.Side && !card.Destroyed && !card.IsOnBench
                     && card.EntityId != sacrificeSource.EntityId
@@ -116,7 +119,9 @@ internal static class BattleEffectResolver
             case SummonAtDestroyedCardEffectDefinition replacement:
                 if (pending.EventCard is { Destroyed: true, IsOnBench: false } destroyedCard
                     && destroyedCard.Side == pending.Source.Side)
-                    SummonCard(runtime, pending.Source, replacement.Card, destroyedCard.Level, destroyedCard.BoardStart);
+                    SummonCard(runtime, pending.Source, replacement.Card,
+                        replacement.UseSourceLevel && pending.Source is CardBattleState replacementSource
+                            ? replacementSource.Level : destroyedCard.Level, destroyedCard.BoardStart);
                 break;
             case SummonAdjacentCardEffectDefinition summon:
                 if (pending.Source is not CardBattleState summoner)
@@ -159,18 +164,18 @@ internal static class BattleEffectResolver
                 TransformSourceIntoRandomCards(runtime, splitSource, split);
                 break;
             case DamageEffectDefinition damage:
-                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, damage.Amount), damage.BypassArmor,
+                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, ActivationDamageAmount(pending, damage.Amount), damage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case SourceHeroLevelScaledDamageEffectDefinition levelDamage:
                 var sourceLevel = runtime.GetHero(pending.Source.Side).Level;
                 if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero,
-                    BerserkAmount(pending, checked(sourceLevel * levelDamage.Multiplier)), levelDamage.BypassArmor,
+                    ActivationDamageAmount(pending, checked(sourceLevel * levelDamage.Multiplier)), levelDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case MaxHealthPercentDamageEffectDefinition percentDamage:
                 var amount = checked((int)((long)hero.MaxHealth * percentDamage.Percent / 100));
-                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, amount), percentDamage.BypassArmor,
+                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, ActivationDamageAmount(pending, amount), percentDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case AttributeDamageEffectDefinition attributeDamage:
@@ -179,7 +184,7 @@ internal static class BattleEffectResolver
                     pending.Source.EntityId,
                     targetSide,
                     hero,
-                    BerserkAmount(pending, AttributeDamageAmount(runtime, pending, attributeDamage)),
+                    ActivationDamageAmount(pending, AttributeDamageAmount(runtime, pending, attributeDamage)),
                     attributeDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
@@ -187,7 +192,7 @@ internal static class BattleEffectResolver
                 var healthSourceHero = runtime.GetHero(pending.Source.Side);
                 var scaledAmount = checked((int)((long)GetEffectiveCombatAttribute(
                     runtime, pending.Source, scaledDamage.AttributeKey) * healthSourceHero.Health / healthSourceHero.MaxHealth));
-                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, BerserkAmount(pending, scaledAmount),
+                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, ActivationDamageAmount(pending, scaledAmount),
                     scaledDamage.BypassArmor,
                     GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
@@ -197,7 +202,7 @@ internal static class BattleEffectResolver
                     ? 0
                     : GetEffectiveCombatAttribute(runtime, pending.Source, bonusAttributeKey);
                 var consumedArmor = armorSourceHero.Armor;
-                var armorDamageAmount = BerserkAmount(pending, checked((consumedArmor + bonusDamage) * heroArmorDamage.Multiplier));
+                var armorDamageAmount = ActivationDamageAmount(pending, checked((consumedArmor + bonusDamage) * heroArmorDamage.Multiplier));
                 if (heroArmorDamage.ConsumeArmor) armorSourceHero.Armor -= consumedArmor;
                 if (ApplyDamage(
                     runtime,
@@ -401,7 +406,7 @@ internal static class BattleEffectResolver
             case DestroyAlliedCardsAndDamageEffectDefinition sacrifice:
                 var sacrifices = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
                     && card.OccupiedSlots == (int)sacrifice.Size && card.ElementKeys.Contains(sacrifice.ElementKey)).ToArray();
-                var sacrificeDamage = BerserkAmount(pending, GetEffectiveCombatAttribute(runtime, pending.Source, sacrifice.DamageAttributeKey));
+                var sacrificeDamage = ActivationDamageAmount(pending, GetEffectiveCombatAttribute(runtime, pending.Source, sacrifice.DamageAttributeKey));
                 foreach (var sacrificed in sacrifices)
                     DestroyCard(runtime, sacrificed, pending.Source.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
                 foreach (var sacrificed in sacrifices)
@@ -475,7 +480,8 @@ internal static class BattleEffectResolver
             || effect is HealEffectDefinition { UnlessEnemyTag: not null }
             || effect is ApplyPrimaryEffectPercentStatusEffectDefinition
                 && ability.Definition.Effects.FirstOrDefault() is MaxHealthPercentDamageEffectDefinition)) return null;
-        var pending = new PendingAbility(card, ability, false, false, runtime.Tick);
+        var pending = new PendingAbility(card, ability, false, false, runtime.Tick)
+            { DamageMultiplier = ElementSequenceResolver.PreviewMultiplier(runtime, card, ability) };
         pending = pending with { PrimaryValue = PrimaryValue(runtime, pending) };
         var amount = BaseEffectAmount(runtime, pending, effect);
         var usesBerserk = effect is DamageEffectDefinition or AttributeDamageEffectDefinition
@@ -485,7 +491,8 @@ internal static class BattleEffectResolver
             or ApplyAttributeStatusEffectDefinition { Status: BattleStatus.Burn or BattleStatus.Poison }
             or ApplySourceAttributePercentStatusEffectDefinition { Status: BattleStatus.Burn or BattleStatus.Poison }
             or ApplyPrimaryEffectPercentStatusEffectDefinition;
-        return amount is { } value && usesBerserk ? BerserkAmount(pending, value) : amount;
+        return amount is { } value && IsDamageEffect(effect) ? ActivationDamageAmount(pending, value)
+            : amount is { } statusValue && usesBerserk ? BerserkAmount(pending, statusValue) : amount;
     }
 
     private static int? BaseEffectAmount(BattleRuntime runtime, PendingAbility pending,
@@ -558,6 +565,13 @@ internal static class BattleEffectResolver
         pending.Source is CardBattleState { IsBerserk: true }
             && pending.Ability.Definition.Activation == AbilityActivation.Active
                 ? checked((int)((long)amount * 120 / 100)) : amount;
+
+    private static int ActivationDamageAmount(PendingAbility pending, int amount) =>
+        checked((int)(BerserkAmount(pending, amount) * pending.DamageMultiplier));
+
+    internal static bool IsDamageEffect(EffectDefinition effect) => effect is DamageEffectDefinition or AttributeDamageEffectDefinition
+        or DestroyAlliedCardsAndDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
+        or SourceHeroArmorDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition;
 
     // 查询来源的基础属性与当前有效光环贡献，不提交属性写入。
     internal static int GetEffectiveCombatAttribute(BattleRuntime runtime, IBattleAbilitySource source, StringName key)
@@ -1027,7 +1041,8 @@ internal static class BattleEffectResolver
             foreach (var ability in source.Abilities)
                 if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardDestroyed
                     && (ability.Definition.TriggerCardSize is not { } size || target.OccupiedSlots == (int)size)
-                    && (ability.Definition.TriggerCardElement is not { } element || target.ElementKeys.Contains(element)))
+                    && (ability.Definition.TriggerCardElement is not { } element || target.ElementKeys.Contains(element))
+                    && (ability.Definition.ExcludedTriggerCardElement is not { } excluded || !target.ElementKeys.Contains(excluded)))
                     CombatSimulator.Enqueue(runtime, source, ability, true, eventCard: target);
         if (permanent && target.SummonedCard is null) runtime.PermanentChanges.Add(new PermanentChange(target.EntityId, "Destroy"));
     }

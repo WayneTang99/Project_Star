@@ -336,6 +336,14 @@ public sealed partial class PhaseOneVerification : Control
             ("神像广场两级治疗、独立条件多重和条件失效", StatuePlazaChecks.ConditionsAndHealing),
             ("水井四级治疗、双方灼伤扣减边界、周期和多重", WaterWellChecks.LevelsAndReduction),
             ("守护十字四级、无主动冷却及双方相邻卡牌回响护甲正确", GuardianCrossChecks.LevelsAndCombat),
+            ("南瓜灯四级随机迟缓与相邻发动生命再生正确", PumpkinLanternChecks.LevelsAndCombat),
+            ("月光古堡暗属性多重光环、叠加与失效正确", MoonlightCastleChecks.LevelsAndCombat),
+            ("元素法典三级伤害治疗、魔法消耗及元素去重多重正确", ElementalCodexChecks.LevelsAndCombat),
+            ("风魔怪四级多重伤害与自身疾速攻击成长正确", WindFiendChecks.LevelsAndCombat),
+            ("四项小魔女元素联动窗口、刷新、消耗与伤害状态正确", ElementSequenceChecks.WindowsAndResults),
+            ("亡灵禁术师非暗小型摧毁筛选与原地骷髅召唤正确", UndeadOccultistChecks.SummonsAndFilters),
+            ("骷髅巨人三级伤害、16秒冷却与小型摧毁充能正确", SkeletonGiantChecks.DamageAndCharge),
+            ("学者之书三级身份、无主动与轮初同级技能学习正确", () => ScholarsBookChecks.LevelsAndCombat() && ScholarsBookChecks.RoundSkills()),
             ("手弩四级伤害、4秒冷却及疾速翻倍提前发动正确", HandCrossbowChecks.LevelsAndHaste),
             ("手弩状态入口、来源加成、多重叠加、衰减与非法配置正确", HandCrossbowChecks.RoutesAndStacking),
             ("魔源发电机分级、无重复充能、魔法支付与双方筛选正确", ManaSourceGeneratorChecks.LevelsAndCharge),
@@ -615,6 +623,115 @@ public sealed partial class PhaseOneVerification : Control
             {
                 try { await BlackRhinocerosBeetleChecks.Capture(this); GetTree().Quit(); }
                 catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-element-sequences"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ElementSequenceChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-skeleton-giant"))
+            Callable.From((Action)(() =>
+            {
+                var passed = SkeletonGiantChecks.DamageAndCharge() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"骷髅巨人及固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-skeleton-giant"))
+            Callable.From((Action)(async () =>
+            {
+                try { await SkeletonGiantChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-undead-occultist"))
+            Callable.From((Action)(() =>
+            {
+                var summon = UndeadOccultistChecks.SummonsAndFilters();
+                var trace = CombatTraceChecks.PreservesTraces();
+                GD.Print($"亡灵禁术师={summon} 固定回归={trace}");
+                GetTree().Quit(summon && trace ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-undead-occultist"))
+            Callable.From((Action)(async () =>
+            {
+                try { await UndeadOccultistChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-element-sequences"))
+            Callable.From((Action)(() =>
+            {
+                var windows = ElementSequenceChecks.WindowsAndResults();
+                var trace = CombatTraceChecks.PreservesTraces();
+                GD.Print($"元素联动={windows} 固定回归={trace}");
+                GetTree().Quit(windows && trace ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-wind-fiend"))
+            Callable.From((Action)(() =>
+            {
+                var passed = WindFiendChecks.LevelsAndCombat() && FlyingBroomChecks.LevelsAndActivation()
+                    && FlyingBroomChecks.EventTargetsAndStacking() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"风魔怪、风属性飞天扫帚及固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-wind-fiend"))
+            Callable.From((Action)(async () =>
+            {
+                try { await WindFiendChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-scholars-book"))
+            Callable.From((Action)(() =>
+            {
+                var combat = ScholarsBookChecks.LevelsAndCombat();
+                var round = ScholarsBookChecks.RoundSkills();
+                var trace = CombatTraceChecks.PreservesTraces();
+                GD.Print($"学者之书身份={combat} 轮初技能={round} 固定回归={trace}");
+                GetTree().Quit(combat && round && trace ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-scholars-book"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ScholarsBookChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-elemental-codex"))
+            Callable.From((Action)(() =>
+            {
+                var passed = ElementalCodexChecks.LevelsAndCombat() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"元素法典及固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-elemental-codex"))
+            Callable.From((Action)(async () =>
+            {
+                try { await ElementalCodexChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-moonlight-castle"))
+            Callable.From((Action)(() =>
+            {
+                var passed = MoonlightCastleChecks.LevelsAndCombat() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"月光古堡及固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-moonlight-castle"))
+            Callable.From((Action)(async () =>
+            {
+                try { await MoonlightCastleChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--capture-pumpkin-lantern"))
+            Callable.From((Action)(async () =>
+            {
+                try { await PumpkinLanternChecks.Capture(this); GetTree().Quit(); }
+                catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
+            })).CallDeferred();
+        if (OS.GetCmdlineUserArgs().Contains("--verify-pumpkin-lantern"))
+            Callable.From((Action)(() =>
+            {
+                var passed = PumpkinLanternChecks.LevelsAndCombat() && CombatTraceChecks.PreservesTraces();
+                GD.Print($"南瓜灯及固定战斗回归：{passed}");
+                GetTree().Quit(passed ? 0 : 1);
             })).CallDeferred();
         if (OS.GetCmdlineUserArgs().Contains("--verify-needle-wasp"))
             Callable.From((Action)(() =>

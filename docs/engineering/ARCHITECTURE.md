@@ -81,6 +81,8 @@ CardQuestService 按对局事件推进当前拥有卡牌的实例任务，包括
 
 ## 战斗模块与固定顺序
 
+ElementSequenceResolver在成功主动发动支付及多重排程后消费来源能力各自的一次性元素窗口，将本次伤害倍率冻结在PendingAbility，发动完成后刷新前置窗口并将状态联动排入FIFO。BattleEffectResolver仅放大该次发动伤害，状态复用通用随机目标结算；BattleStateRecorder通过只读倍率查询冻结卡面值，不推进或消费窗口。回响与开战不进入窗口链，来源失效仍由Runtime判定。
+
 战斗内修复复用被摧毁的CardBattleState，不创建对局卡牌或新身份。BattleEffectResolver按标签、永久摧毁记录及完整占格筛选，用冻结随机顺序选择目标，恢复光环后重置主动冷却；AbilityQueue在摧毁时取消来源旧队列，避免同Tick修复复活旧发动。CardRepairedEvent携带位置事实，回放只读取事件与快照，按召唤／修复顺序替换可见占格，不写对局棋盘。
 
 | 协作者 | 职责 |

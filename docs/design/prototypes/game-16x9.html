@@ -667,7 +667,11 @@ ASSETS.wizardHatPreview='../../../art/ui/card-face/artwork/wizard_hat-illustrati
 ASSETS.wizardRobePreview='../../../art/ui/card-face/artwork/wizard_robe-illustration.png';
 cards.wizardHatPreview={name:'巫师帽',art:'wizardHatPreview',span:2,level:1,elements:['general'],effects:[['mana','20'],['manaregen','1']],value:2,cool:5,tags:['中型','装备'],desc:c=>[rule('发动','恢复20魔法。'),rule('回响','己方每次实际消耗魔法后，获得1魔法再生，仅本场战斗生效。')]};
 cards.wizardRobePreview={name:'巫师长袍',art:'wizardRobePreview',span:2,level:1,elements:['general'],effects:[['manaregen','4']],manaCost:40,value:2,cool:6,tags:['中型','装备'],desc:c=>[rule('发动','消耗40魔法，获得4魔法再生，仅本场战斗生效。')]};
-function showRecoverySamples(key){hideTooltip(true);benchKeys=['potion','wizardHatPreview','wizardRobePreview','recoveryPreview'];drawBoards();detailCase(key);}
+ASSETS.pumpkinLanternPreview='../../../art/ui/card-face/artwork/pumpkin_lantern-illustration.png';
+ASSETS.elementalCodexPreview='../../../art/ui/card-face/artwork/elemental_codex-illustration.png';
+cards.elementalCodexPreview={name:'元素法典',art:'elementalCodexPreview',span:2,level:2,elements:['general'],effects:[['damage','40'],['healing','40'],['multicast','1']],manaCost:60,value:4,cool:7,tags:['中型','装备'],desc:c=>[rule('发动','消耗60魔法，造成40伤害，治疗己方英雄40生命。'),rule('光环','此卡牌多重增加己方存活战场不同元素种类数，包含普通属性和自身。')]};
+cards.pumpkinLanternPreview={name:'南瓜灯',art:'pumpkinLanternPreview',span:2,level:1,elements:['wood','dark'],effects:[['healthregen','2']],value:2,cool:5,tags:['中型'],desc:c=>[rule('发动','敌方随机2张卡牌获得1秒迟缓。'),rule('回响','相邻己方卡牌发动后，己方英雄获得2生命再生。')]};
+function showRecoverySamples(key){hideTooltip(true);benchKeys=['pumpkinLanternPreview','elementalCodexPreview','wizardRobePreview','recoveryPreview'];drawBoards();detailCase(key);}
 document.querySelector('#show-burn-example').onclick=()=>{showRecoverySamples('burnPreview');setMode('battle');applyScenario('dots')};document.querySelector('#show-regeneration-example').onclick=()=>showRecoverySamples('recoveryPreview');
 benchKeys=['potion','burnPreview','recoveryPreview'];drawBoards();
 </script>

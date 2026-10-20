@@ -13,23 +13,38 @@ using Project_Star.Infrastructure.Random;
 
 namespace Project_Star.Application.Match;
 
-// 对局事件能力的经验与卡牌奖励结算，复用获得和套装计数（应用层）。
+// 对局事件的经验、卡牌与技能奖励结算，复用获得和套装计数（应用层）。
 public static class MatchAbilityService
 {
-    // 冻结轮开始战场来源与等级，新奖励不参与本次触发；满盘保留待领。
+    // 冻结轮开始来源与等级，备战仅执行明确允许的能力；新奖励不参与本次触发。
     public static void ApplyRoundCards(MatchSession session, IDefinitionCatalog catalog, BoardService board)
     {
         var faction = session.Player.Hero!.Attributes.Identity.FactionKey;
         var heroFactions = catalog.Heroes.Values.Select(hero => hero.Attributes.Identity.FactionKey).ToHashSet();
         var sources = session.Board.Battlefield.Placements.OrderBy(placement => placement.Start)
-            .Select(placement => session.Player.Inventory.Find(placement.CardId)!)
-            .Select(card => (Level: card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level),
-                Effects: card.Abilities.Where(ability => ability.Activation == AbilityActivation.PassiveOnRoundStart)
+            .Select(placement => (Card: session.Player.Inventory.Find(placement.CardId)!, OnBench: false))
+            .Concat(session.Board.Bench.Placements.OrderBy(placement => placement.Start)
+                .Select(placement => (Card: session.Player.Inventory.Find(placement.CardId)!, OnBench: true)))
+            .Select(source => (Level: source.Card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level),
+                Effects: source.Card.Abilities.Where(ability => ability.Activation == AbilityActivation.PassiveOnRoundStart
+                    && (!source.OnBench || ability.AllowsBench))
                     .SelectMany(ability => ability.Effects).ToArray())).ToArray();
         var economy = new CardEconomyService(new EntityFactory(), board, catalog.Cards.Values);
         foreach (var source in sources)
         foreach (var effect in source.Effects)
         {
+            if (effect is GrantRandomHeroSourceLevelSkillEffectDefinition)
+            {
+                var skills = catalog.Skills.Values.Where(skill => heroFactions.Contains(skill.Attributes.Identity.FactionKey)
+                    && skill.SupportsLevel(source.Level))
+                    .OrderBy(skill => skill.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray();
+                if (skills.Length == 0) continue;
+                var random = new SeededRandom(session.Random.State);
+                var skill = skills[random.NextInt(0, skills.Length)];
+                session.Random.State = random.State;
+                new SkillAcquisitionService(new EntityFactory()).AcquireSkill(session, skill, source.Level);
+                continue;
+            }
             CardDefinition? reward = null;
             if (effect is GrantRandomOtherHeroSourceLevelCardEffectDefinition randomReward)
             {
