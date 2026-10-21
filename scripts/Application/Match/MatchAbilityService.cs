@@ -70,6 +70,20 @@ public static class MatchAbilityService
         board.RefreshBonuses(session);
     }
 
+    // 固定候选顺序并复用技能获得与合并；空池不推进随机。
+    internal static void GrantRandomSkill(MatchSession session, GrantRandomFactionSkillEffectDefinition effect)
+    {
+        if (session.Definitions is not { } catalog) return;
+        var pool = catalog.Skills.Values.Where(skill => skill.SupportsLevel(effect.Level)
+            && (skill.Attributes.Identity.FactionKey == effect.FactionKey || skill.Attributes.Identity.FactionKey == GameFactions.Neutral))
+            .OrderBy(skill => skill.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray();
+        if (pool.Length == 0) return;
+        var random = new SeededRandom(session.Random.State);
+        var selected = pool[random.NextInt(0, pool.Length)];
+        session.Random.State = random.State;
+        new SkillAcquisitionService(new EntityFactory()).AcquireSkill(session, selected, effect.Level);
+    }
+
     // 只读计算当前战场套装在轮开始提供的经验。
     public static int RoundExperience(MatchSession session, IReadOnlyDictionary<StringName, CardSetDefinition> sets) =>
         checked(new CardSetEvaluator().Evaluate(session, sets).SelectMany(active => active.Threshold.Abilities)
@@ -107,6 +121,9 @@ public static class MatchAbilityService
                 foreach (var effect in ability.Effects)
                     switch (effect)
                     {
+                        case GrantRandomFactionSkillEffectDefinition skill:
+                            GrantRandomSkill(session, skill);
+                            break;
                         case GrantExperienceEffectDefinition experience:
                             HeroExperienceService.Grant(session, experience.Amount);
                             break;

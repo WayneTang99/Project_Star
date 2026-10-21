@@ -196,7 +196,7 @@ public sealed partial class CardItemView : Button
         _hovered = false; UpdateOutline(); _hoverTween?.Kill();
         _hoverTween = CreateTween();
         _hoverTween.TweenMethod(Callable.From<float>(offset => { _hoverOffset = offset; LayoutFace(); }), _hoverOffset, HasFocus() ? -6f : 0f, .2);
-        if (!HasFocus()) FindShell()?.HideHoverCard();
+        FindShell()?.HideHoverCard();
     }
     private void EnterFocus()
     {

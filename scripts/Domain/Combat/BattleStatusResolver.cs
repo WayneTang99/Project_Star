@@ -179,6 +179,12 @@ internal static class BattleStatusResolver
                                 || source.BoardStart + source.OccupiedSlots == card.BoardStart)))
                         bonus = checked(bonus - adjacentAura.AmountTicks);
                 }
+            if (!source.Destroyed && !source.IsOnBench)
+                foreach (var provider in runtime.AbilitySources.Where(provider => !provider.Destroyed && !provider.IsOnBench && provider.Side == source.Side))
+                foreach (var ability in provider.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura))
+                foreach (var aura in ability.Definition.Effects.OfType<ReduceAlliedTaggedCardCooldownAuraEffectDefinition>())
+                    if (source.OccupiedSlots == (int)aura.Size && BattleEffectResolver.HasEffectiveTag(runtime, source, aura.RequiredTag))
+                        bonus = checked(bonus - aura.AmountTicks);
             var reduction = source.Destroyed || source.IsOnBench ? 0 : Math.Min(100, runtime.AbilitySources
                 .Where(provider => !provider.Destroyed && !provider.IsOnBench && provider.Side == source.Side)
                 .SelectMany(provider => provider.Abilities)
@@ -230,6 +236,12 @@ internal static class BattleStatusResolver
             }
         }
         var hero = runtime.GetHero(side);
+        var manaRegenBonus = checked(runtime.Skills.Count(skill => skill.Side == side) * runtime.AbilitySources
+            .Where(source => source.Side == side && !source.Destroyed && !source.IsOnBench)
+            .SelectMany(source => source.Abilities).Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
+            .SelectMany(ability => ability.Definition.Effects).OfType<SkillCountManaRegenAuraEffectDefinition>().Sum(effect => effect.Multiplier));
+        hero.ManaRegen = checked(hero.ManaRegen + manaRegenBonus - hero.SkillManaRegenAuraBonus);
+        hero.SkillManaRegenAuraBonus = manaRegenBonus;
         var delta = checked(bonus - hero.MaxHealthAuraBonus);
         if (delta == 0) return;
         hero.MaxHealth = checked(hero.MaxHealth + delta);

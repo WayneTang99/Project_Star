@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -24,7 +24,8 @@ internal sealed class HeroBattleState
     public int Level { get; }
     public int Health { get; set; }
     public int Armor { get; set; }
-    public int MaxMana { get; }
+    public int MaxMana { get; set; }
+    public int SkillManaRegenAuraBonus { get; set; }
     public int Mana { get; set; }
     public int ManaSpent { get; set; }
     public int Burn { get; set; }
@@ -67,6 +68,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
         if (setup.CooldownMultiplier is < 0m or > 1m)
             throw new ArgumentOutOfRangeException(nameof(setup), "Cooldown multiplier must be between zero and one.");
         CooldownMultiplier = setup.CooldownMultiplier;
+        UpgradeLevels = setup.UpgradeLevels;
         Identity = setup.Identity;
         Level = setup.Level;
         Quests = Array.AsReadOnly(System.Linq.Enumerable.ToArray(setup.Quests));
@@ -151,7 +153,10 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public EntityId EntityId { get; }
     public SideId Side { get; }
     public int BoardStart { get; }
-    public int Level { get; }
+    public int Level { get; set; }
+    public IReadOnlyDictionary<int, BattleCardLevel> UpgradeLevels { get; }
+    public bool HasUpgraded { get; set; }
+    public Dictionary<StringName, int> UpgradeBaseChanges { get; } = [];
     public int FrozenValue { get; }
     public CardIdentityAttributes? TransformedIdentity { get; init; }
     public CardIdentityAttributes? Identity { get; }
@@ -168,7 +173,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     public int ActiveActivationCount { get; set; }
     public int CooldownBonusTicks { get; set; }
     public int HasteDuration { get; set; }
-    public decimal CooldownMultiplier { get; }
+    public decimal CooldownMultiplier { get; set; }
     public int CooldownAuraReductionPercent { get; set; }
     public decimal EffectiveCooldownMultiplier => CooldownMultiplier * (1m - CooldownAuraReductionPercent / 100m);
     public int CooldownAuraBonusTicks { get; set; }
@@ -185,7 +190,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     // 攻击卡牌按伤害能力分类，零攻击数值不改变分类。
     public bool IsAttackCard => Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
         DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition
-        or MaxHealthPercentDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition
+        or MaxHealthPercentDamageEffectDefinition or SkillCountDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition
         or SourceHeroHealthScaledAttributeDamageEffectDefinition or SourceHeroArmorDamageEffectDefinition));
 
     public int GetCombatAttribute(StringName key) => CombatAttributes.TryGetValue(key, out var value) ? value : 0;

@@ -22,6 +22,9 @@ public sealed record CardBattleSnapshot(EntityId Id, SideId Side, bool Destroyed
     int Haste, int Slow, int Immobilize, IReadOnlyList<decimal> CooldownUnits,
     IReadOnlyDictionary<StringName, int> Values)
 {
+    public IReadOnlyList<AbilityDefinition> UpgradedAbilities { get; init; } = System.Array.Empty<AbilityDefinition>();
+    public IReadOnlyDictionary<StringName, int> UpgradeBaseChanges { get; init; } = new Dictionary<StringName, int>();
+    public decimal CooldownMultiplier { get; init; } = 1m;
     // 按非持续能力及其效果顺序冻结当前施加量；未知目标或非数值效果为null。
     public IReadOnlyList<int?> EffectAmounts { get; init; } = System.Array.Empty<int?>();
     public IReadOnlyList<CardQuestBattleSnapshot> Quests { get; init; } = System.Array.Empty<CardQuestBattleSnapshot>();

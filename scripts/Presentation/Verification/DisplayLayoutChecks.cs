@@ -27,26 +27,46 @@ internal static class DisplayLayoutChecks
             settings.Open();
             var choices = settings.FindChildren("Resolution", "OptionButton", true, false).OfType<OptionButton>().Single();
             Button Button(string name) => settings.FindChildren(name, "Button", true, false).OfType<Button>().Single();
+            var sizes = Enumerable.Range(0, choices.ItemCount).Select(index =>
+            {
+                var parts = choices.GetItemText(index).Split('×');
+                return new Vector2I(int.Parse(parts[0]), int.Parse(parts[1]));
+            }).ToArray();
+            var available = DisplayServer.GetName() == "headless" ? new Vector2I(int.MaxValue, int.MaxValue)
+                : DisplayServer.ScreenGetUsableRect(window.CurrentScreen).Size;
+            bool Fits(Vector2I size) => size.X <= available.X && size.Y <= available.Y;
+            var previewIndex = Array.FindLastIndex(sizes, Fits);
+            if (previewIndex < 0) throw new InvalidOperationException($"屏幕可用范围{available}不支持任何候选分辨率。");
+            var confirmedSize = sizes[previewIndex];
+            GD.Print($"显示设置验证：可用范围{available}，预览{confirmedSize}。");
             if (Button("Cancel").FindNextValidFocus() != choices || choices.FindPrevValidFocus() != Button("Cancel")) return false;
-            choices.Select(1); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
-            if (window.Size != new Vector2I(1600, 900) || !Button("Confirm").Visible) return false;
+            choices.Select(previewIndex); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
+            if (window.Size != confirmedSize || !Button("Confirm").Visible) return false;
             settings.Open();
             if (Button("Cancel").FindNextValidFocus() != Button("Confirm") || Button("Confirm").FindNextValidFocus() != Button("Cancel")) return false;
             Button("Cancel").EmitSignal(Godot.Button.SignalName.Pressed);
             if (window.Size != new Vector2I(1280, 720) || window.Position != new Vector2I(20, 30) || settings.Visible) return false;
-            settings.Open(); choices.Select(1); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
+            settings.Open(); choices.Select(previewIndex); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
             Button("Confirm").EmitSignal(Godot.Button.SignalName.Pressed);
             var config = new ConfigFile();
-            if (config.Load(path) != Error.Ok || (int)config.GetValue("display", "width") != 1600 || settings.Visible) return false;
+            if (config.Load(path) != Error.Ok || (int)config.GetValue("display", "width") != confirmedSize.X || settings.Visible) return false;
             window.Size = new Vector2I(1280, 720); settings.LoadSaved();
-            if (window.Size != new Vector2I(1600, 900)) return false;
-            settings.Open(); choices.Select(2); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed); settings._Process(16);
-            if (window.Size != new Vector2I(1600, 900) || settings.Visible) return false;
+            if (window.Size != confirmedSize) return false;
+            settings.Open(); choices.Select(0); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed); settings._Process(16);
+            if (window.Size != confirmedSize || settings.Visible) return false;
             settings.Open(); choices.Select(0); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
             settings._Input(new InputEventKey { Keycode = Key.Escape, Pressed = true });
-            if (window.Size != new Vector2I(1600, 900) || settings.Visible) return false;
+            if (window.Size != confirmedSize || settings.Visible) return false;
             settings.Open(); choices.Select(0); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed); settings.Hide();
-            if (window.Size != new Vector2I(1600, 900) || config.Load(path) != Error.Ok || (int)config.GetValue("display", "width") != 1600) return false;
+            if (window.Size != confirmedSize || config.Load(path) != Error.Ok || (int)config.GetValue("display", "width") != confirmedSize.X) return false;
+            var rejectedIndex = Array.FindLastIndex(sizes, size => !Fits(size));
+            if (rejectedIndex >= 0)
+            {
+                settings.Open(); choices.Select(rejectedIndex); Button("Apply").EmitSignal(Godot.Button.SignalName.Pressed);
+                var message = settings.FindChildren("Message", "Label", true, false).OfType<Label>().Single();
+                if (window.Size != confirmedSize || Button("Confirm").Visible || !message.Text.Contains("超出")) return false;
+                Button("Cancel").EmitSignal(Godot.Button.SignalName.Pressed);
+            }
             return settings.FindChildren("Palette", "OptionButton", true, false).Count == 0;
         }
         finally

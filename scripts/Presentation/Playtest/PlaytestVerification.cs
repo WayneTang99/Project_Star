@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -277,7 +277,7 @@ internal static class PlaytestVerification
             var zone = placement.Zone == BoardZone.Battlefield ? "BattlefieldRow" : "BenchRow";
             scene.GetNode<Button>($"MatchShell/{zone}/Content/Board/Card_{card.Id.Value:N}").EmitSignal(Button.SignalName.Pressed);
             var details = scene.GetNode<CardDetailsView>("MatchShell/CardDetails");
-            var sale = details.GetNode<Button>("Content/Sell");
+            var sale = details.GetNode<Button>("Content/CardContent/Sell");
             if (!details.Visible || sale.Disabled || !sale.Text.Contains($"获得 {card.Value} 金币")) return false;
             var wealth = presenter.View.Player.Wealth;
             sale.EmitSignal(Button.SignalName.Pressed); sale.EmitSignal(Button.SignalName.Pressed);
@@ -605,7 +605,7 @@ internal static class PlaytestVerification
                 details.ShowNear(longCard, new Rect2(new Vector2(shell.Size.X - 100, shell.Size.Y - 80), new Vector2(70, 60)), shell.Size);
                 details.GetNode<Button>("Content/CardContent/InstanceToggle").EmitSignal(Button.SignalName.Pressed);
                 for (var frame = 0; frame < 6; frame++) await Frame();
-                var body = details.GetNode<ScrollContainer>("Content/CardContent/BodyScroll");
+                var body = details.GetNode<ScrollContainer>("Content");
                 var detailMargin = 12 * details.Scale.X;
                 if (details.Position.X < detailMargin - .1f || details.Position.Y < detailMargin - .1f
                     || details.Position.X + details.Size.X * details.Scale.X > shell.Size.X - detailMargin + .1f
@@ -1017,7 +1017,7 @@ internal static class PlaytestVerification
         var zeroAttack = boar with { CurrentValues = new System.Collections.Generic.Dictionary<StringName, int>
             { [GameAttributeKeys.AttackDamage] = 0, [GameAttributeKeys.CooldownTicks] = 60 } };
         var thorn = MatchDisplayQuery.FromOffer(ShopOffer.Create(new ThornArmorCardDefinition()));
-        return CardDisplayAdapter.Details(zeroAttack).Contains("攻击　基础 20 / 当前 0")
+        return CardDisplayAdapter.Details(zeroAttack).Contains("攻击　基础 60 / 当前 0")
             && CardDisplayAdapter.Details(zeroAttack).Contains("冷却　基础 6秒 / 当前 6秒")
             && CardDisplayAdapter.Details(thorn).Contains("攻击　基础 0 / 当前 0")
             && CardDisplayAdapter.Details(thorn).Contains("护甲　基础 10 / 当前 10");

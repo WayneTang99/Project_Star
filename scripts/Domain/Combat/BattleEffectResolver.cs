@@ -128,6 +128,10 @@ internal static class BattleEffectResolver
                     throw new InvalidOperationException("Adjacent summon requires a card source.");
                 SummonAdjacentCard(runtime, summoner, summon);
                 break;
+            case SummonIntoAllEmptySlotsEffectDefinition fill when pending.Source is CardBattleState fillSource:
+                for (var start = 0; start + fill.Card.Attributes.Identity.OccupiedSlots <= runtime.GetBattlefieldCapacity(fillSource.Side); start++)
+                    SummonCard(runtime, fillSource, fill.Card, fillSource.Level, start);
+                break;
             case SummonRandomAdjacentCardEffectDefinition randomSummon:
                 if (pending.Source is not CardBattleState randomSummoner)
                     throw new InvalidOperationException("Adjacent summon requires a card source.");
@@ -162,6 +166,15 @@ internal static class BattleEffectResolver
                 break;
             case TransformSourceIntoRandomCardsEffectDefinition split when pending.Source is CardBattleState splitSource:
                 TransformSourceIntoRandomCards(runtime, splitSource, split);
+                break;
+            case SkillCountMaxManaEffectDefinition manaSkills:
+                hero.MaxMana = checked(hero.MaxMana + runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * manaSkills.Multiplier);
+                break;
+            case SkillCountDamageEffectDefinition skillDamage:
+                var skillAmount = checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * skillDamage.Multiplier
+                    + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.AttackDamage));
+                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, ActivationDamageAmount(pending, skillAmount), false,
+                    GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case DamageEffectDefinition damage:
                 if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, ActivationDamageAmount(pending, damage.Amount), damage.BypassArmor,
@@ -422,6 +435,17 @@ internal static class BattleEffectResolver
             case ReduceSourceCooldownEffectDefinition reduction:
                 AdjustSourceCooldown(pending.Source, -reduction.AmountTicks);
                 break;
+            case UpgradeRandomOtherAlliedCardEffectDefinition:
+                BattleCardUpgradeResolver.UpgradeRandomOther(runtime, pending);
+                break;
+            case ReduceEventCardCooldownPercentEffectDefinition reduction when pending.EventCard is { Destroyed: false } upgraded:
+                var oldMultiplier = upgraded.EffectiveCooldownMultiplier;
+                upgraded.CooldownMultiplier *= 1m - reduction.Percent / 100m;
+                foreach (var ability in upgraded.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.Active))
+                    ability.RemainingCooldownUnits = Math.Max(0, ability.RemainingCooldownUnits
+                        + BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, upgraded.CooldownBonusTicks, upgraded.EffectiveCooldownMultiplier)
+                        - BattleCooldownRules.DurationUnits(ability.Definition.CooldownTicks, upgraded.CooldownBonusTicks, oldMultiplier));
+                break;
             case ModifyTaggedAlliedCardsAttributeEffectDefinition modifier:
                 var targets = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
                     && (!modifier.AdjacentOnly || pending.Source is CardBattleState adjacentModifierSource
@@ -484,7 +508,7 @@ internal static class BattleEffectResolver
             { DamageMultiplier = ElementSequenceResolver.PreviewMultiplier(runtime, card, ability) };
         pending = pending with { PrimaryValue = PrimaryValue(runtime, pending) };
         var amount = BaseEffectAmount(runtime, pending, effect);
-        var usesBerserk = effect is DamageEffectDefinition or AttributeDamageEffectDefinition
+        var usesBerserk = effect is SkillCountDamageEffectDefinition or DamageEffectDefinition or AttributeDamageEffectDefinition
             or DestroyAlliedCardsAndDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
             or SourceHeroArmorDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
             or ApplyStatusEffectDefinition { Status: BattleStatus.Burn or BattleStatus.Poison }
@@ -517,6 +541,9 @@ internal static class BattleEffectResolver
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
             ApplyStatusEffectDefinition value => value.Amount + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
+            SkillCountDamageEffectDefinition value => checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * value.Multiplier + Value(GameAttributeKeys.AttackDamage)),
+            SkillCountMaxManaEffectDefinition value => checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * value.Multiplier),
+            SkillCountManaRegenAuraEffectDefinition value => checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * value.Multiplier),
             DamageEffectDefinition value => value.Amount,
             HealEffectDefinition value => CanHeal(runtime, pending.Source.Side, value)
                 ? HealingAmount(runtime, pending.Source, value) : 0,
@@ -569,7 +596,7 @@ internal static class BattleEffectResolver
     private static int ActivationDamageAmount(PendingAbility pending, int amount) =>
         checked((int)(BerserkAmount(pending, amount) * pending.DamageMultiplier));
 
-    internal static bool IsDamageEffect(EffectDefinition effect) => effect is DamageEffectDefinition or AttributeDamageEffectDefinition
+    internal static bool IsDamageEffect(EffectDefinition effect) => effect is SkillCountDamageEffectDefinition or DamageEffectDefinition or AttributeDamageEffectDefinition
         or DestroyAlliedCardsAndDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
         or SourceHeroArmorDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition;
 
@@ -766,7 +793,7 @@ internal static class BattleEffectResolver
             level?.Abilities ?? definition.Abilities, UseLegacyAttack: false, Tags: definition.Tags,
             Multicast: values.GetFinalValue(GameAttributeKeys.Multicast), OccupiedSlots: identity.OccupiedSlots,
             ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Identity = identity, Level = target.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+            { UpgradeLevels = BattleCardLevels.Capture(definition), Identity = identity, Level = target.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var transformed = new CardBattleState(replacement, target.Side)
             { TransformedIdentity = identity, SummonedCard = target.SummonedCard };
         foreach (var entry in replacement.CombatValues) transformed.CombatAttributes[entry.Key] = entry.Value;
@@ -802,7 +829,7 @@ internal static class BattleEffectResolver
                 UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
                 OccupiedSlots: identity.OccupiedSlots, ElementKeys: identity.ElementKeys,
                 ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-                { Identity = identity, Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+                { UpgradeLevels = BattleCardLevels.Capture(definition), Identity = identity, Level = source.Level, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
             var replacement = new CardBattleState(setup, source.Side)
             {
                 TransformedIdentity = index == 0 ? identity : null,
@@ -866,7 +893,7 @@ internal static class BattleEffectResolver
             values.GetFinalValue(GameAttributeKeys.CooldownTicks), level?.Abilities ?? definition.Abilities,
             UseLegacyAttack: false, Tags: definition.Tags, Multicast: values.GetFinalValue(GameAttributeKeys.Multicast),
             OccupiedSlots: size, ElementKeys: identity.ElementKeys, ArmorAmount: values.GetFinalValue(GameAttributeKeys.Armor))
-            { Identity = identity, Level = cardLevel, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
+            { UpgradeLevels = BattleCardLevels.Capture(definition), Identity = identity, Level = cardLevel, CombatValues = values.SnapshotFinalValues(), Quests = definition.Quests };
         var summoned = new CardBattleState(setup, source.Side)
         {
             SummonedCard = new SummonedCardSnapshot(identity, start, Array.AsReadOnly(definition.Tags.ToArray()),
@@ -1026,7 +1053,7 @@ internal static class BattleEffectResolver
             target.Side, target.BoardStart, target.OccupiedSlots));
     }
 
-    private static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent, bool suppressEchoes)
+    internal static void DestroyCard(BattleRuntime runtime, CardBattleState target, EntityId sourceId, bool permanent, bool suppressEchoes)
     {
         if (target.Destroyed) return;
         foreach (var tag in EffectiveTags(runtime, target)) target.DestroyedTags.Add(tag);
@@ -1040,6 +1067,7 @@ internal static class BattleEffectResolver
             foreach (var source in runtime.AbilitySources.Where(source => source.Side == target.Side && !source.Destroyed && !source.IsOnBench))
             foreach (var ability in source.Abilities)
                 if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardDestroyed
+                    && (ability.Definition.TriggerCardTag is not { } tag || target.DestroyedTags.Contains(tag))
                     && (ability.Definition.TriggerCardSize is not { } size || target.OccupiedSlots == (int)size)
                     && (ability.Definition.TriggerCardElement is not { } element || target.ElementKeys.Contains(element))
                     && (ability.Definition.ExcludedTriggerCardElement is not { } excluded || !target.ElementKeys.Contains(excluded)))

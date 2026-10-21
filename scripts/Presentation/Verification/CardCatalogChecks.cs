@@ -42,7 +42,38 @@ internal static class CardCatalogChecks
         return CardCatalogQuery.Capture(registry).Select(entry => entry.InitialCard.Key).SequenceEqual(entries.Select(entry => entry.InitialCard.Key));
     }
 
-    internal static bool Interaction(Control owner)
+    internal static async Task<bool> SetDetails(Control owner)
+    {
+        var root = CreateRoot(owner);
+        try
+        {
+            var shell = root.GetNode<MatchShell>("MatchShell");
+            shell.GetNode<CardCatalogView>("CardCatalog").Open();
+            var registry = DefinitionRegistry.Scan(typeof(CardCatalogChecks).Assembly);
+            foreach (var definition in registry.Cards.Values.Where(card => card.Attributes.Identity.SetKey is not null))
+            {
+                var raw = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition));
+                var described = shell.DescribeCard(raw);
+                if (described.Set is null || described.Set.Key != raw.SetKey || described.Set.DistinctCardCount != 0
+                    || described.Set.Thresholds.Count == 0) return Fail("图鉴套装说明缺失：" + raw.DisplayName);
+            }
+            var scepter = MatchDisplayQuery.FromOffer(ShopOffer.Create(new Project_Star.Content.Cards.MagisterScepterCardDefinition()));
+            shell.ShowHoverCard(scepter, new Rect2(40, 80, 100, 100));
+            for (var frame = 0; frame < 6; frame++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+            var detail = shell.GetNode<CardDetailsView>("CardDetails");
+            if (!detail.Visible || !detail.HasNode("Content/CardContent/BodyScroll/Paragraphs/SetDetails")) return Fail("权杖图鉴悬停套装未渲染");
+            if (OS.GetCmdlineUserArgs().Contains("--capture-catalog-sets"))
+            {
+                RenderingServer.ForceDraw(); using var image = owner.GetViewport().GetTexture().GetImage();
+                image.SavePng("res://output/mantis-scorpion/scepter-catalog-set.png");
+            }
+            return true;
+        }
+        finally { owner.RemoveChild(root); root.Free(); }
+        static bool Fail(string reason) { GD.Print(reason); return false; }
+    }
+
+    internal static async Task<bool> Interaction(Control owner)
     {
         var root = CreateRoot(owner);
         try
@@ -68,21 +99,22 @@ internal static class CardCatalogChecks
             card._GuiInput(new InputEventMouseButton { Pressed = true, ButtonIndex = MouseButton.Right });
             if (!preview.Visible || !catalog.Visible || preview.DisplayedCard?.DisplayName != "野猪") return Fail("右键详情");
             preview.Close();
-            old.EmitSignal(Button.SignalName.Pressed);
+            if (GodotObject.IsInstanceValid(old)) old.EmitSignal(Button.SignalName.Pressed);
             search.Text = "没有这张卡牌";
             search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
             if (grid.GetChildCount() != 0) return Fail("空结果");
             search.Text = "";
             search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
             var faction = catalog.GetNode<VBoxContainer>("Content/Body/TagSidebar/Scroll/Filters/HeroFaction/Faction");
+            var entries = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
             for (var index = 1; index < faction.GetChildCount(); index++)
             {
                 faction.GetChild<Button>(index).EmitSignal(Button.SignalName.Pressed);
                 if (grid.GetChildCount() == 0) return Fail("归属列表为空");
                 foreach (VBoxContainer cell in grid.GetChildren())
-                    if (!CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly)).Any(entry => entry.FactionName == faction.GetChild<Button>(index).TooltipText && cell.GetNode<Label>("Caption").Text == $"{entry.InitialCard.DisplayName} · {entry.InitialLevel}级")) return Fail("归属过滤");
+                    if (!entries.Any(entry => entry.FactionName == faction.GetChild<Button>(index).TooltipText && cell.GetNode<Label>("Caption").Text == $"{entry.InitialCard.DisplayName} · {entry.InitialLevel}级")) return Fail("归属过滤");
             }
-            if (!FiltersAndSorting(catalog)) return Fail("分类筛选与排序");
+            if (!await FiltersAndSorting(catalog)) return Fail("分类筛选与排序");
             catalog._Input(new InputEventKey { Pressed = true, Keycode = Key.Escape });
             if (catalog.Visible || !menu.HasFocus() || choices != 0) return Fail("Escape关闭与只读");
             open.EmitSignal(Button.SignalName.Pressed);
@@ -97,7 +129,7 @@ internal static class CardCatalogChecks
         static bool Fail(string reason) { GD.Print($"图鉴交互失败：{reason}"); return false; }
     }
 
-    private static bool FiltersAndSorting(CardCatalogView catalog)
+    private static async Task<bool> FiltersAndSorting(CardCatalogView catalog)
     {
         var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
         var source = formal[0].InitialCard;
@@ -108,7 +140,7 @@ internal static class CardCatalogChecks
             Size = CardSize.Large, ElementKeys = Array.AsReadOnly(new[] { GameElements.Fire, GameElements.Water }),
             Illustration = new StringName(""),
         }, 0)]);
-        var entries = formal.Append(dual).ToArray(); catalog.SetEntries(entries);
+        var entries = formal.Append(dual).ToArray(); catalog.SetEntries(entries); await Settle();
         var grid = catalog.GetNode<GridContainer>("Content/Body/Browser/CardsScroll/Cards");
         var faction = catalog.GetNode<VBoxContainer>("Content/Body/TagSidebar/Scroll/Filters/HeroFaction/Faction");
         var size = catalog.GetNode<OptionButton>("Content/Body/Browser/Classification/Size");
@@ -119,7 +151,7 @@ internal static class CardCatalogChecks
         var direction = catalog.GetNode<Button>("Content/Body/Browser/Classification/Direction");
         var canonical = new[] { GameElements.General, GameElements.Fire, GameElements.Water, GameElements.Wind,
             GameElements.Earth, GameElements.Lightning, GameElements.Wood, GameElements.Ice, GameElements.Light, GameElements.Dark };
-        faction.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed);
+        faction.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed); await Settle();
         var tagOptions = catalog.GetNode<HFlowContainer>("TagLayer/TagPopup/Filters/TagOptions");
         var tagMatch = catalog.GetNode<OptionButton>("TagLayer/TagPopup/Filters/TagFilters/TagMatch");
         var clearTags = catalog.GetNode<Button>("TagLayer/TagPopup/Filters/TagFilters/ClearTags");
@@ -128,32 +160,32 @@ internal static class CardCatalogChecks
         foreach (var tag in availableTags)
         {
             var button = tagOptions.GetNode<Button>(tag.ToString());
-            button.ButtonPressed = true;
+            button.ButtonPressed = true; await Settle();
             if (!Matches(entries.Where(entry => entry.InitialCard.Tags.Contains(tag)))) return false;
-            button.ButtonPressed = false;
+            button.ButtonPressed = false; await Settle();
         }
         var mechanical = tagOptions.GetNode<Button>(GameTags.Mechanical.ToString());
         var vehicle = tagOptions.GetNode<Button>(GameTags.Vehicle.ToString());
-        mechanical.ButtonPressed = true; vehicle.ButtonPressed = true;
+        mechanical.ButtonPressed = true; vehicle.ButtonPressed = true; await Settle();
         foreach (var mode in new[] { 0, 1 })
         {
-            Pick(tagMatch, mode);
+            await Pick(tagMatch, mode);
             var expected = entries.Where(entry => mode == 0
                 ? entry.InitialCard.Tags.Contains(GameTags.Mechanical) && entry.InitialCard.Tags.Contains(GameTags.Vehicle)
                 : entry.InitialCard.Tags.Contains(GameTags.Mechanical) || entry.InitialCard.Tags.Contains(GameTags.Vehicle)).ToArray();
             if (expected.Length == 0 || !Matches(expected)) return false;
             var tagSearch = catalog.GetNode<LineEdit>("Content/Body/Browser/Filters/Search");
-            tagSearch.Text = expected[0].InitialCard.DisplayName; tagSearch.EmitSignal(LineEdit.SignalName.TextChanged, tagSearch.Text);
+            tagSearch.Text = expected[0].InitialCard.DisplayName; tagSearch.EmitSignal(LineEdit.SignalName.TextChanged, tagSearch.Text); await Settle();
             if (!Matches(expected.Where(entry => entry.InitialCard.DisplayName.Contains(tagSearch.Text)))) return false;
-            tagSearch.Text = ""; tagSearch.EmitSignal(LineEdit.SignalName.TextChanged, "");
-            Pick(size, (int)CardSize.Large);
+            tagSearch.Text = ""; tagSearch.EmitSignal(LineEdit.SignalName.TextChanged, ""); await Settle();
+            await Pick(size, (int)CardSize.Large);
             if (!Matches(expected.Where(entry => entry.InitialCard.Size == CardSize.Large))) return false;
-            catalog.Close(); catalog.Open(); catalog.SetEntries(entries);
+            catalog.Close(); catalog.Open(); catalog.SetEntries(entries); await Settle();
             if (tagMatch.Selected != mode || !mechanical.ButtonPressed || !vehicle.ButtonPressed
                 || !Matches(expected.Where(entry => entry.InitialCard.Size == CardSize.Large))) return false;
-            Pick(size, 0);
+            await Pick(size, 0);
         }
-        clearTags.EmitSignal(Button.SignalName.Pressed); Pick(tagMatch, 0);
+        clearTags.EmitSignal(Button.SignalName.Pressed); await Pick(tagMatch, 0); await Settle();
         if (!clearTags.Disabled || mechanical.ButtonPressed || vehicle.ButtonPressed || !Matches(entries)) return false;
         var setKeys = entries.Where(entry => entry.InitialCard.SetKey is not null)
             .Select(entry => entry.InitialCard.SetKey!).Distinct()
@@ -161,58 +193,58 @@ internal static class CardCatalogChecks
         if (set.ItemCount != setKeys.Length + 1 || set.GetItemText(0) != "全部套装") return false;
         for (var index = 1; index < set.ItemCount; index++)
         {
-            Pick(set, index);
+            await Pick(set, index);
             var expected = entries.Where(entry => entry.InitialCard.SetKey == setKeys[index - 1]).ToArray();
             if (set.GetItemText(index) != expected[0].SetName) return false;
             if (!Matches(expected)) return false;
             var member = expected[0];
-            Pick(initial, Enumerable.Range(1, initial.ItemCount - 1).First(item => initial.GetItemId(item) == member.InitialLevel));
+            await Pick(initial, Enumerable.Range(1, initial.ItemCount - 1).First(item => initial.GetItemId(item) == member.InitialLevel));
             if (!Matches(expected.Where(entry => entry.InitialLevel == member.InitialLevel))) return false;
-            catalog.Close(); catalog.Open(); catalog.SetEntries(entries);
+            catalog.Close(); catalog.Open(); catalog.SetEntries(entries); await Settle();
             if (set.Selected != index || !Matches(expected.Where(entry => entry.InitialLevel == member.InitialLevel))) return false;
-            Pick(initial, 0);
+            await Pick(initial, 0);
         }
-        Pick(set, 0);
+        await Pick(set, 0);
         for (var index = 1; index < size.ItemCount; index++)
         {
-            Pick(size, index);
+            await Pick(size, index);
             if (!Matches(entries.Where(entry => (int)entry.InitialCard.Size == size.GetItemId(index)))) return false;
         }
-        Pick(size, 0);
+        await Pick(size, 0);
         for (var index = 1; index < element.ItemCount; index++)
         {
-            Pick(element, index);
+            await Pick(element, index);
             if (!Matches(entries.Where(entry => entry.InitialCard.ElementKeys.Contains(canonical[index - 1])))) return false;
         }
-        Pick(element, 0);
+        await Pick(element, 0);
         for (var index = 1; index < initial.ItemCount; index++)
         {
-            Pick(initial, index);
+            await Pick(initial, index);
             if (!Matches(entries.Where(entry => entry.InitialLevel == initial.GetItemId(index)))) return false;
         }
-        Pick(initial, 0);
+        await Pick(initial, 0);
         // 按展示名定位夹具，避免依赖内容枚举顺序。
         for (var index = 1; index < faction.GetChildCount(); index++)
-            if (faction.GetChild<Button>(index).TooltipText == dual.FactionName) faction.GetChild<Button>(index).EmitSignal(Button.SignalName.Pressed);
-        Pick(size, (int)CardSize.Large); Pick(element, 3);
+            if (faction.GetChild<Button>(index).TooltipText == dual.FactionName) faction.GetChild<Button>(index).EmitSignal(Button.SignalName.Pressed); await Settle();
+        await Pick(size, (int)CardSize.Large); await Pick(element, 3);
         for (var index = 1; index < initial.ItemCount; index++)
-            if (initial.GetItemId(index) == 4) Pick(initial, index);
+            if (initial.GetItemId(index) == 4) await Pick(initial, index);
         var search = catalog.GetNode<LineEdit>("Content/Body/Browser/Filters/Search");
-        search.Text = "双元素"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
+        search.Text = "双元素"; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
         if (!Matches([dual])) return false;
-        catalog.Close(); catalog.Open(); catalog.SetEntries(entries);
+        catalog.Close(); catalog.Open(); catalog.SetEntries(entries); await Settle();
         if (!Matches([dual])) return false;
-        Pick(element, 8);
+        await Pick(element, 8);
         if (grid.GetChildCount() != 0) return false;
-        search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
-        faction.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed); Pick(size, 0); Pick(element, 0); Pick(initial, 0);
+        search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
+        faction.GetChild<Button>(0).EmitSignal(Button.SignalName.Pressed); await Pick(size, 0); await Pick(element, 0); await Pick(initial, 0); await Settle();
         var captions = entries.ToDictionary(Caption);
         for (var field = 0; field < sort.ItemCount; field++)
         {
-            Pick(sort, field);
+            await Pick(sort, field);
             foreach (var descending in new[] { false, true })
             {
-                direction.ButtonPressed = descending;
+                direction.ButtonPressed = descending; await Settle();
                 var shown = grid.GetChildren().Cast<VBoxContainer>().Select(cell => captions[cell.GetNode<Label>("Caption").Text]).ToArray();
                 if (shown.Length != entries.Length) return false;
                 for (var index = 1; index < shown.Length; index++)
@@ -223,19 +255,24 @@ internal static class CardCatalogChecks
                 }
             }
         }
-        direction.ButtonPressed = false; Pick(sort, 0); catalog.SetEntries(formal);
+        direction.ButtonPressed = false; await Pick(sort, 0); catalog.SetEntries(formal); await Settle();
         var previewEntry = formal.First(entry => entry.Levels.Count > 1);
-        search.Text = previewEntry.InitialCard.DisplayName; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
+        search.Text = previewEntry.InitialCard.DisplayName; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
         for (var index = 1; index < initial.ItemCount; index++)
-            if (initial.GetItemId(index) == previewEntry.InitialLevel) Pick(initial, index);
-        Pick(sort, 3); direction.ButtonPressed = true;
+            if (initial.GetItemId(index) == previewEntry.InitialLevel) await Pick(initial, index);
+        await Pick(sort, 3); direction.ButtonPressed = true; await Settle();
         if (!Matches([previewEntry])) return false;
-        search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
-        Pick(initial, 0); direction.ButtonPressed = false; Pick(sort, 0);
+        search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text); await Settle();
+        await Pick(initial, 0); direction.ButtonPressed = false; await Pick(sort, 0); await Settle();
         return Matches(formal);
 
         static string Caption(CardCatalogEntry entry) => $"{entry.InitialCard.DisplayName} · {entry.InitialLevel}级";
-        static void Pick(OptionButton option, int index) { option.Select(index); option.EmitSignal(OptionButton.SignalName.ItemSelected, index); }
+        async Task Pick(OptionButton option, int index) { option.Select(index); option.EmitSignal(OptionButton.SignalName.ItemSelected, index); await Settle(); }
+        async Task Settle()
+        {
+            await catalog.ToSignal(catalog.GetTree(), SceneTree.SignalName.ProcessFrame);
+            await catalog.ToSignal(catalog.GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
         bool Matches(System.Collections.Generic.IEnumerable<CardCatalogEntry> expected) => grid.GetChildren().Cast<VBoxContainer>()
             .Select(cell => cell.GetNode<Label>("Caption").Text).OrderBy(value => value, StringComparer.Ordinal)
             .SequenceEqual(expected.Select(Caption).OrderBy(value => value, StringComparer.Ordinal));

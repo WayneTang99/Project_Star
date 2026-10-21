@@ -58,7 +58,7 @@ public sealed class EntityFactory
             levelDefinition?.SaleAttributeBonuses,
             levelDefinition?.BattleVictoryBonuses,
             levelDefinition?.BattleValueBonus ?? 0,
-            levelDefinition?.AcquisitionAttributeBonuses);
+            levelDefinition?.AcquisitionAttributeBonuses) { Definition = definition };
     }
 
     public SkillInstance CreateSkill(SkillDefinition definition, int? level = null)
@@ -100,6 +100,7 @@ public sealed class EntityFactory
         ArgumentNullException.ThrowIfNull(definition);
         if (!definition.SupportsLevel(level))
             throw new ArgumentOutOfRangeException(nameof(level), $"Card does not provide level {level}.");
+        card.Definition = definition;
         var baseCombat = definition.Attributes.BaseCombat.CreateMutableCopy();
         var levelDefinition = definition.GetLevel(level);
         if (levelDefinition is not null)

@@ -50,7 +50,7 @@ theme_override_constants/separation = 20
 [node name="Title" type="Label" parent="Margin/Panel/Margin/Content"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "正在验证第 1～9 步……"
+text = "分批验证"
 
 [node name="Description" type="Label" parent="Margin/Panel/Margin/Content"]
 layout_mode = 2
@@ -61,6 +61,16 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 8
+
+[node name="ProgressText" type="Label" parent="Margin/Panel/Margin/Content"]
+layout_mode = 2
+text = "等待验证 · 0%"
+
+[node name="Progress" type="ProgressBar" parent="Margin/Panel/Margin/Content"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+mouse_filter = 2
+show_percentage = false
 
 [node name="Results" type="ScrollContainer" parent="Margin/Panel/Margin/Content"]
 layout_mode = 2

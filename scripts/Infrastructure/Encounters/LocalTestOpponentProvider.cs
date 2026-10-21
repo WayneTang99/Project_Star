@@ -31,7 +31,7 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
             .OrderBy(definition => definition.Attributes.Identity.Key.ToString(), StringComparer.Ordinal)
             .FirstOrDefault()
             ?? throw new InvalidOperationException("At least one card definition is required to create an opponent.");
-        var session = new CreateMatchService(_factory, _registry.Gems.Values).Create(
+        var session = new CreateMatchService(_factory, _registry.Gems.Values, _registry).Create(
             seed, 0, hero);
         var card = new CardEconomyService(_factory).AcquireCard(
             session,

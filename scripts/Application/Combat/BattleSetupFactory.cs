@@ -93,7 +93,7 @@ public sealed class BattleSetupFactory
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
                 ArmorAmount: armorAmount)
-                { Identity = card.Attributes.Identity, CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(combatValues), CooldownMultiplier = card.CooldownMultiplier,
+                { UpgradeLevels = BattleCardLevels.Capture(card.Definition, card), Identity = card.Attributes.Identity, CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(combatValues), CooldownMultiplier = card.CooldownMultiplier,
                     Level = card.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level), Quests = card.Quests,
                     QuestProgress = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
                         card.Quests.ToDictionary(quest => quest.Key, quest => card.GetQuestProgress(quest.Key))) });
@@ -121,7 +121,7 @@ public sealed class BattleSetupFactory
                 Multicast: multicast,
                 OccupiedSlots: card.Attributes.Identity.OccupiedSlots,
                 ElementKeys: card.Attributes.Identity.ElementKeys,
-                ArmorAmount: armorAmount) { Identity = card.Attributes.Identity, CooldownMultiplier = card.CooldownMultiplier,
+                ArmorAmount: armorAmount) { UpgradeLevels = BattleCardLevels.Capture(card.Definition, card), Identity = card.Attributes.Identity, CooldownMultiplier = card.CooldownMultiplier,
                     CombatValues = new System.Collections.ObjectModel.ReadOnlyDictionary<StringName, int>(
                         new Dictionary<StringName, int>(card.Attributes.BaseCombat.SnapshotFinalValues())
                         { [GameAttributeKeys.Value] = card.Attributes.Persistent.GetFinalValue(GameAttributeKeys.Value) }),

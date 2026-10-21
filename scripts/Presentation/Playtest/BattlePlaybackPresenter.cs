@@ -94,6 +94,7 @@ public sealed class BattlePlaybackPresenter
                             : $"{Side(stealth.Side)}隐身结束"); break;
                     case CardDestroyedEvent destroyed: Add($"{Name(destroyed.CardId)}已摧毁"); break;
                     case CardRepairedEvent repaired: Add($"{Name(repaired.CardId)}已修复"); break;
+                    case CardUpgradedEvent upgraded: Add($"{Name(upgraded.CardId)}升至{upgraded.Level}级"); break;
                     case CardSummonedEvent summoned:
                         Add($"{Name(summoned.SourceCardId)}召唤{next.Cards.First(card => card.Id == summoned.SummonedCardId).SummonedCard!.Identity.DisplayName}"); break;
                     case CardTransformedEvent transformed:
@@ -185,6 +186,15 @@ public sealed class BattlePlaybackPresenter
                     GemSockets = Array.AsReadOnly(new GemSnapshot?[identity.GemSocketCount]),
                 };
             if (state is null) return card;
+            if (state.UpgradedAbilities.Count > 0)
+                card = card with
+                {
+                    Level = state.Level, Abilities = state.UpgradedAbilities, CooldownMultiplier = state.CooldownMultiplier,
+                    BaseValues = state.TransformedIdentity is not null ? card.BaseValues
+                        : new ReadOnlyDictionary<Godot.StringName, int>(card.BaseValues.Keys.Concat(state.UpgradeBaseChanges.Keys).Distinct()
+                            .ToDictionary(key => key, key => checked((card.BaseValues.TryGetValue(key, out var value) ? value : 0)
+                                + (state.UpgradeBaseChanges.TryGetValue(key, out var change) ? change : 0)))),
+                };
             var projected = card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
                 CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null,
                 IsFlying = state.IsFlying, IsBerserk = state.IsBerserk, Tags = state.QuestTags };

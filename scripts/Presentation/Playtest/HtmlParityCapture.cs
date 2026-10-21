@@ -99,20 +99,28 @@ internal static class HtmlParityCapture
                 }
                 var sourceCard = new CardItemView { Name = "AvoidanceSource", Size = new Vector2(180, 120), MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 12 };
                 shell.AddChild(sourceCard);
-                foreach (var definition in new CardDefinition[] { new JudgmentHammerCardDefinition(), new DebilisCardDefinition() })
+                foreach (var definition in new CardDefinition[] { new JudgmentHammerCardDefinition(), new DebilisCardDefinition(), new LogStaffCardDefinition() })
                 foreach (var fraction in new[] { new Vector2(.06f, .13f), new Vector2(.45f, .33f), new Vector2(.78f, .68f) })
                 {
                     var card = Sample(definition, definition.InitialLevel, 16);
                     sourceCard.Position = shell.Size * fraction; sourceCard.Render(card, new CardDisplayAdapter());
                     var sourceRect = sourceCard.GetRect(); var hover = shell.GetNode<CardDetailsView>("CardDetails");
-                    hover.SetPinned(true); hover.ShowNear(card, sourceRect, shell.Size);
+                    hover.SetPinned(false); hover.ShowNear(card, sourceRect, shell.Size);
                     await Save("avoid-" + definition.Attributes.Identity.Key.ToString().Replace('.', '-') + "-" + fraction.X);
                     var detailsRect = hover.GetGlobalRect(); var anchor = sourceCard.GetGlobalRect();
                     var related = (Control)hover.FindChild("Related", true, false);
+                    if (related.Visible && (detailsRect.End.X <= anchor.Position.X
+                            ? related.GetGlobalRect().End.X > detailsRect.Position.X
+                            : related.GetGlobalRect().Position.X < detailsRect.End.X))
+                        throw new InvalidOperationException("词条说明必须在主详情远离卡面的同侧外侧。");
+                    if (!(detailsRect.Position.X >= anchor.End.X || detailsRect.End.X <= anchor.Position.X)
+                        || related.Visible && !(related.GetGlobalRect().Position.X >= anchor.End.X || related.GetGlobalRect().End.X <= anchor.Position.X)
+                        || related.Visible && Mathf.Abs(related.GetGlobalRect().Position.Y - detailsRect.Position.Y) > 2)
+                        throw new InvalidOperationException("悬停详情与关联说明必须位于来源左右，不得上下堆叠。");
                     if (detailsRect.Intersects(anchor) || related.Visible && related.GetGlobalRect().Intersects(anchor))
                         throw new InvalidOperationException($"详情或关联框遮住来源卡牌：{definition.Attributes.Identity.Key} at {fraction}, detail={detailsRect}, related={related.GetGlobalRect()}, source={anchor}");
-                    if (!shell.GetGlobalRect().Encloses(detailsRect) || related.Visible && !shell.GetGlobalRect().Encloses(related.GetGlobalRect()))
-                        throw new InvalidOperationException("来源避让后详情越出窗口。");
+                    if (!shell.GetGlobalRect().Encloses(detailsRect))
+                        throw new InvalidOperationException("主详情越出窗口；仅允许外侧词条说明溢出。");
                     hover.Hide();
                 }
                 shell.RemoveChild(sourceCard); sourceCard.Free();

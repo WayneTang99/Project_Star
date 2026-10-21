@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -12,6 +12,7 @@ namespace Project_Star.Presentation.Playtest;
 // 卡牌关联词条、机制及引用卡牌小框，仅从只读快照生成（表现层）。
 public sealed partial class CardRelatedEffectsView : PanelContainer
 {
+    public bool ExpandContent { get; set; }
     private float _maximumHeight = 520;
     private IReadOnlyList<CardCatalogEntry> _entries = Array.Empty<CardCatalogEntry>();
     private readonly ScrollContainer _scroll = new() { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
@@ -57,17 +58,20 @@ public sealed partial class CardRelatedEffectsView : PanelContainer
         var rules = string.Join("\n", cardRules.Concat(CardQuestViewModel.From(card, null).Select(q => q.Condition + q.Reward)));
         var references = Regex.Matches(rules, "【([^】]+)】").Select(match => match.Groups[1].Value).Distinct().ToArray();
         var text = Regex.Replace(rules, "【[^】]+】", "");
-        foreach (var term in Terms.Where((term, index) => index < 13 ? cardRules.Any(rule => rule.StartsWith(term.Name, StringComparison.Ordinal)) || term.Name == "任务" && card.Quests.Count > 0 : text.Contains(term.Name, StringComparison.Ordinal))) AddBox(term.Name, term.Text, width, false);
+        foreach (var term in Terms.Where((term, index) => index < 13 ? cardRules.Any(rule => rule.StartsWith(term.Name, StringComparison.Ordinal)) || term.Name == "任务" && card.Quests.Count > 0 || term.Name == "消耗" && text.Contains("获得消耗", StringComparison.Ordinal) : text.Contains(term.Name, StringComparison.Ordinal))) AddBox(term.Name, term.Text, width, false);
         foreach (var name in references)
         {
             var entry = _entries.FirstOrDefault(entry => entry.InitialCard.DisplayName == name);
-            var sameLevel = cardRules.Any(rule => rule.Contains("【" + name + "】", StringComparison.Ordinal) && rule.Contains("同级", StringComparison.Ordinal));
+            var sameLevel = cardRules.Any(rule => rule.Contains("【" + name + "】", StringComparison.Ordinal) && rule.Contains("同级", StringComparison.Ordinal))
+                || card.Abilities.SelectMany(ability => ability.Effects).OfType<Project_Star.Domain.Combat.SummonIntoAllEmptySlotsEffectDefinition>()
+                    .Any(effect => effect.Card.Attributes.Identity.DisplayName == name);
             var target = sameLevel ? entry?.Levels.FirstOrDefault(level => level.Card.Level == card.Level)?.Card ?? entry?.InitialCard : entry?.InitialCard;
             AddBox("【" + name + "】", target is null ? "未找到此卡牌的效果。" : $"{target.Level}级 · {string.Join(" · ", target.Tags.Select(Project_Star.Domain.Definitions.TagDisplayNames.Get))}\n" + string.Join("\n", CardDisplayAdapter.Rules(target)), width, true);
         }
         Visible = _items.GetChildCount() > 0;
         CustomMinimumSize = new Vector2(width, 0); Size = new Vector2(width, Math.Min(maximumHeight, 600));
-        _maximumHeight = Math.Max(40, maximumHeight - 28);
+        _scroll.VerticalScrollMode = ExpandContent ? ScrollContainer.ScrollMode.Disabled : ScrollContainer.ScrollMode.Auto;
+        _maximumHeight = ExpandContent ? float.MaxValue : Math.Max(40, maximumHeight - 28);
         FitHeight();
         _scroll.ScrollVertical = 0;
     }

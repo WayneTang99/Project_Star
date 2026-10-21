@@ -122,9 +122,23 @@ internal static class SkillCatalogChecks
                     if (!cell.GetChild<Label>(2).Text.StartsWith(faction.GetItemText(index) + " · ")) return Fail("归属筛选");
             }
             Pick(faction, 0); var initial = catalog.GetNode<OptionButton>("Content/Filters/InitialLevel");
-            Pick(initial, initial.ItemCount - 1);
-            OpenDetail();
-            if (grid.GetChildCount() != 1 || !name.Text.Contains("至圣斩")) return Fail("初始等级筛选");
+            if (!Enumerable.Range(1, initial.ItemCount - 1).Select(initial.GetItemId)
+                .SequenceEqual(ordered.Select(entry => entry.InitialLevel).Distinct().OrderBy(value => value)))
+                return Fail("初始等级选项");
+            for (var index = 1; index < initial.ItemCount; index++)
+            {
+                Pick(initial, index);
+                var expected = ordered.Where(entry => entry.InitialLevel == initial.GetItemId(index)).ToArray();
+                if (!grid.GetChildren().OfType<VBoxContainer>().Select(cell => cell.GetChild<Label>(1).Text)
+                    .SequenceEqual(expected.Select(entry => entry.InitialSkill.DisplayName))) return Fail("初始等级筛选");
+                OpenDetail();
+                var selected = expected[0];
+                if (name.Text != $"{selected.InitialSkill.DisplayName} · {selected.FactionName}"
+                    || !Enumerable.Range(0, level.ItemCount).Select(level.GetItemId).SequenceEqual(selected.Levels.Select(skill => skill.Level)))
+                    return Fail("筛选后详情等级");
+                level.Select(level.ItemCount - 1); level.EmitSignal(OptionButton.SignalName.ItemSelected, level.Selected);
+                if (grid.GetChildCount() != expected.Length) return Fail("预览等级改变筛选结果");
+            }
             Pick(initial, 0); Search("没有这个技能");
             if (grid.GetChildCount() != 0 || catalog.GetNode<Control>("DetailOverlay").Visible) return Fail("空结果");
             catalog.Close();

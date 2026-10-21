@@ -85,7 +85,7 @@ internal static class CardFinalValueChecks
         {
             if (!definition.SupportsLevel(level)) continue;
             var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
-            Require(Values(card).All(value => int.TryParse(value, out _)), $"{card.DisplayName} {level} numeric face");
+            Require(Values(card).All(value => int.TryParse(value.Replace('−', '-'), out _)), $"{card.DisplayName} {level} numeric face");
         }
         foreach (var level in new[] { 1, 2, 3, 4 })
         {

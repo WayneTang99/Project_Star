@@ -40,6 +40,7 @@ public enum AbilityActivation
     EchoOnAlliedCardDestroyed = 28,
     EchoOnAlliedManaSpent = 29,
     EchoOnShortestCooldownEnemyCardActivated = 30,
+    EchoOnAlliedCardUpgraded = 31,
 }
 
 public enum AbilityTarget
@@ -112,8 +113,18 @@ public sealed record ApplyPrimaryEffectPercentStatusEffectDefinition(BattleStatu
 
 public enum AdjacentCardSide { Left = 0, Right = 1 }
 
+public sealed record UpgradeRandomOtherAlliedCardEffectDefinition : EffectDefinition;
+public sealed record ReduceEventCardCooldownPercentEffectDefinition(int Percent) : EffectDefinition;
+
 // 在来源指定一侧的空位召唤同级卡牌，仅存在于战斗 Runtime。
 public sealed record SummonAdjacentCardEffectDefinition(CardDefinition Card, AdjacentCardSide Side) : EffectDefinition;
+
+// 从左到右用同级模板填充己方战场所有可容纳的空位。
+public sealed record SummonIntoAllEmptySlotsEffectDefinition(CardDefinition Card) : EffectDefinition;
+
+// 按标签与尺寸筛选，提供可撤销的固定冷却缩减与发动后消耗规则。
+public sealed record ReduceAlliedTaggedCardCooldownAuraEffectDefinition(StringName RequiredTag, CardSize Size, int AmountTicks) : EffectDefinition;
+public sealed record GrantConsumeToAlliedTaggedCardsAuraEffectDefinition(StringName RequiredTag, CardSize Size) : EffectDefinition;
 
 // 在被摧毁卡牌原位置召唤，默认继承被摧毁者等级，也可使用来源卡牌等级（领域战斗层）。
 public sealed record SummonAtDestroyedCardEffectDefinition(CardDefinition Card, bool UseSourceLevel = false) : EffectDefinition;
@@ -166,6 +177,11 @@ public sealed record IncreaseSourceCardAttributeEffectDefinition(StringName Attr
 
 // 按倍率增加来源卡牌已有的本场属性，不回写对局（领域战斗层）。
 public sealed record MultiplySourceCardAttributeEffectDefinition(StringName AttributeKey, int Multiplier) : EffectDefinition;
+
+// 按己方技能实例数缩放的通用战斗效果（领域战斗层）。
+public sealed record SkillCountDamageEffectDefinition(int Multiplier) : EffectDefinition;
+public sealed record SkillCountMaxManaEffectDefinition(int Multiplier) : EffectDefinition;
+public sealed record SkillCountManaRegenAuraEffectDefinition(int Multiplier) : EffectDefinition;
 
 public sealed record DamageEffectDefinition(int Amount, bool BypassArmor = false) : EffectDefinition;
 
@@ -471,7 +487,7 @@ public sealed class AbilityDefinition
                 or AbilityActivation.EchoOnFirstAlliedCardActivated
                 ? triggerCardTag is { IsEmpty: true } || triggerCardElement is not null
                 : activation == AbilityActivation.EchoOnAlliedCardDestroyed
-                    ? triggerCardTag is not null || triggerCardElement is { IsEmpty: true }
+                    ? triggerCardTag is { IsEmpty: true } || triggerCardElement is { IsEmpty: true }
                     : triggerCardTag is not null || triggerCardElement is not null)
             throw new ArgumentException("Matching card trigger requires a nonempty tag, element or size filter.");
         if (activation == AbilityActivation.EchoOnAdjacentAlliedAttackCardActivated
@@ -486,7 +502,7 @@ public sealed class AbilityDefinition
             : triggerStateKey is not null)
             throw new ArgumentException("State entry trigger requires a known state key.", nameof(triggerStateKey));
         if (target == AbilityTarget.EventCard && activation is not AbilityActivation.EchoOnAlliedCardEnteredState
-                and not AbilityActivation.EchoOnAnyAttackCardActivated)
+                and not AbilityActivation.EchoOnAnyAttackCardActivated and not AbilityActivation.EchoOnAlliedCardUpgraded)
             throw new ArgumentException("Event card target requires a card event trigger.", nameof(target));
         if (key.IsEmpty || manaCost < 0 || cooldownTicks < 0 || effects.Count == 0)
         {
@@ -537,7 +553,7 @@ public sealed class AbilityDefinition
                 && (primary.Percent < 0 || primary.Status is not (BattleStatus.Burn or BattleStatus.Poison)
                     || activation != AbilityActivation.Active))
                 throw new ArgumentException("Primary value status requires an active ability, burn or poison, and a nonnegative percentage.", nameof(effects));
-            if (activation == AbilityActivation.PassiveOnHeroLevelUp || effect is SocketRandomSourceGemEffectDefinition)
+            if ((activation == AbilityActivation.PassiveOnHeroLevelUp && effect is not GrantRandomFactionSkillEffectDefinition) || effect is SocketRandomSourceGemEffectDefinition)
             {
                 if (activation != AbilityActivation.PassiveOnHeroLevelUp || target != AbilityTarget.SelfCard
                     || cooldownTicks != 0 || effect is not SocketRandomSourceGemEffectDefinition)
@@ -549,11 +565,22 @@ public sealed class AbilityDefinition
                     || allowsBench && effect is not GrantRandomHeroSourceLevelSkillEffectDefinition || cooldownTicks != 0
                     || effect is not GrantExperienceEffectDefinition and not GrantSourceLevelCardEffectDefinition
                         and not GrantRandomOtherHeroSourceLevelCardEffectDefinition and not GrantRandomTaggedSourceLevelCardEffectDefinition
-                        and not ReduceSetCardCooldownEffectDefinition and not GrantRandomHeroSourceLevelSkillEffectDefinition
+                        and not ReduceSetCardCooldownEffectDefinition and not GrantRandomHeroSourceLevelSkillEffectDefinition and not GrantRandomFactionSkillEffectDefinition
                 : effect is GrantExperienceEffectDefinition or GrantSourceLevelCardEffectDefinition
                     or GrantRandomOtherHeroSourceLevelCardEffectDefinition or GrantRandomTaggedSourceLevelCardEffectDefinition
-                    or ReduceSetCardCooldownEffectDefinition or GrantRandomHeroSourceLevelSkillEffectDefinition)
+                    or ReduceSetCardCooldownEffectDefinition or GrantRandomHeroSourceLevelSkillEffectDefinition or GrantRandomFactionSkillEffectDefinition)
                 throw new ArgumentException("Match rewards require a match event and an allied hero target.", nameof(effects));
+            if (effect is GrantRandomFactionSkillEffectDefinition rewardSkill
+                && (rewardSkill.FactionKey.IsEmpty || rewardSkill.Level is < 1 or > 5 || manaCost != 0
+                    || activation is not (AbilityActivation.PassiveOnBattleVictory or AbilityActivation.PassiveOnHeroLevelUp)))
+                throw new ArgumentException("Random faction skills require a victory or hero level event.", nameof(effects));
+            if (effect is SkillCountDamageEffectDefinition damageSkills && (damageSkills.Multiplier < 1
+                    || target != AbilityTarget.EnemyHero || activation != AbilityActivation.Active)
+                || effect is SkillCountMaxManaEffectDefinition manaSkills && (manaSkills.Multiplier < 1
+                    || target != AbilityTarget.AlliedHero || activation != AbilityActivation.Active)
+                || effect is SkillCountManaRegenAuraEffectDefinition regenSkills && (regenSkills.Multiplier < 1
+                    || target != AbilityTarget.AlliedHero || activation != AbilityActivation.PassiveAura || allowsBench))
+                throw new ArgumentException("Skill count effects require a positive multiplier and matching target/activation.", nameof(effects));
             if (effect is GrantRandomHeroSourceLevelSkillEffectDefinition
                 && (activation != AbilityActivation.PassiveOnRoundStart || manaCost != 0))
                 throw new ArgumentException("Random hero skills require a round start without mana cost.", nameof(effects));
@@ -651,6 +678,18 @@ public sealed class AbilityDefinition
                     || activation is not AbilityActivation.Active and not AbilityActivation.PassiveOnBattleStart
                     || target != AbilityTarget.SelfCard || allowsBench))
                 throw new ArgumentException("Adjacent summon requires a card, side and battlefield active or start self ability.", nameof(effects));
+            if (effect is SummonIntoAllEmptySlotsEffectDefinition fill
+                && (fill.Card is null || target != AbilityTarget.SelfCard || allowsBench
+                    || activation is not AbilityActivation.Active and not AbilityActivation.PassiveOnBattleStart))
+                throw new ArgumentException("Empty-slot summon requires a battlefield active or start self ability and a template.", nameof(effects));
+            if (effect is ReduceAlliedTaggedCardCooldownAuraEffectDefinition taggedReduction
+                && (taggedReduction.RequiredTag.IsEmpty || !Enum.IsDefined(taggedReduction.Size) || taggedReduction.AmountTicks < 1
+                    || activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Tagged cooldown aura requires a tag, size, positive duration and battlefield self aura.", nameof(effects));
+            if (effect is GrantConsumeToAlliedTaggedCardsAuraEffectDefinition consumeAura
+                && (consumeAura.RequiredTag.IsEmpty || !Enum.IsDefined(consumeAura.Size)
+                    || activation != AbilityActivation.PassiveAura || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Consume aura requires a tag, size and battlefield self aura.", nameof(effects));
             if (effect is SacrificeSourceAndNeighborsToSummonEffectDefinition sacrificeSummon
                 && (sacrificeSummon.Card is null || target != AbilityTarget.SelfCard || allowsBench
                     || activation is AbilityActivation.PassiveAura or AbilityActivation.PassiveWhileEnabled
@@ -702,7 +741,14 @@ public sealed class AbilityDefinition
                     || percentStatus.Status is not BattleStatus.Burn and not BattleStatus.Poison
                     || activation == AbilityActivation.PassiveAura || target != AbilityTarget.EnemyHero))
                 throw new ArgumentException("Attribute percent status requires an executed enemy hero ability, a key and a percentage from 1 to 100.", nameof(effects));
-            if (target == AbilityTarget.EventCard && effect is not ApplyStatusEffectDefinition)
+            if (effect is UpgradeRandomOtherAlliedCardEffectDefinition
+                && (activation != AbilityActivation.Active || target != AbilityTarget.SelfCard || allowsBench))
+                throw new ArgumentException("Battle upgrade requires a battlefield active self ability.", nameof(effects));
+            if (effect is ReduceEventCardCooldownPercentEffectDefinition percentReduction
+                && (activation != AbilityActivation.EchoOnAlliedCardUpgraded || target != AbilityTarget.EventCard
+                    || allowsBench || percentReduction.Percent is < 1 or > 100))
+                throw new ArgumentException("Upgrade cooldown reward requires a battlefield upgrade echo and valid percentage.", nameof(effects));
+            if (target == AbilityTarget.EventCard && effect is not ApplyStatusEffectDefinition and not ReduceEventCardCooldownPercentEffectDefinition)
                 throw new ArgumentException("Event card target currently supports status effects only.", nameof(effects));
             if ((activation == AbilityActivation.PassiveWhileEnabled) != (effect is ModifyAttributeEffectDefinition or ModifyHeroLevelScaledAttributeEffectDefinition))
                 throw new ArgumentException("Persistent abilities require attribute modifiers only.", nameof(effects));

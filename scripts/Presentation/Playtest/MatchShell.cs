@@ -403,8 +403,9 @@ public sealed partial class MatchShell : Control
 
     // 原生视图共享只读等级／宝石查询，卡面补充当前套装展示信息。
     public void SetCardPreview(CardPreviewQuery query) { _previewQuery = query; _cardPreview.SetQuery(query); }
-    public CardSnapshot DescribeCard(CardSnapshot card) => (_catalog?.Visible == true || _atlasBrowsing) ? card : _previewQuery?.Describe(card,
-        _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true ? _view.Enemy : _view?.Player) ?? card;
+    public CardSnapshot DescribeCard(CardSnapshot card) => _previewQuery?.Describe(card,
+        _catalog?.Visible == true || _atlasBrowsing ? null
+            : _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true ? _view.Enemy : _view?.Player) ?? card;
     private void ShowSkill(SkillSnapshot skill) { _details.Hide(); _secondary.ShowSkill(skill, Size); }
 
     // 技能图鉴同样只接收应用查询的冻结条目。

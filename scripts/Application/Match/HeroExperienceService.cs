@@ -23,10 +23,17 @@ public static class HeroExperienceService
                 .Where(a => a.Activation == AbilityActivation.PassiveOnHeroLevelUp
                     && (a.AllowsBench || session.Board.Battlefield.Placements.Any(p => p.CardId == card.Id)))
                 .SelectMany(a => a.Effects).OfType<SocketRandomSourceGemEffectDefinition>().ToArray())).ToArray();
+        var skillRewards = session.Definitions is { } catalog
+            ? new CardSetEvaluator().Evaluate(session, catalog.Sets).SelectMany(set => set.Threshold.Abilities)
+                .Where(ability => ability.Activation == AbilityActivation.PassiveOnHeroLevelUp)
+                .SelectMany(ability => ability.Effects).OfType<GrantRandomFactionSkillEffectDefinition>().ToArray()
+            : Array.Empty<GrantRandomFactionSkillEffectDefinition>();
         session.Player.AddExperience(amount);
         var current = session.Player.Hero?.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) ?? 0;
         if (current <= previous) return;
         var pool = session.GemDefinitions.OrderBy(gem => gem.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray();
+        for (var level = previous; level < current; level++)
+        foreach (var reward in skillRewards) MatchAbilityService.GrantRandomSkill(session, reward);
         if (pool.Length == 0) return;
         var sockets = new SocketGemService();
         var random = new SeededRandom(session.Random.State);

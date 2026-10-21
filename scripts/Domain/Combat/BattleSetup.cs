@@ -35,6 +35,7 @@ public sealed record CardBattleSetup(
     IReadOnlyList<StringName>? ElementKeys = null,
     int ArmorAmount = 0)
 {
+    public IReadOnlyDictionary<int, BattleCardLevel> UpgradeLevels { get; init; } = new Dictionary<int, BattleCardLevel>();
     public CardIdentityAttributes? Identity { get; init; }
     public int Level { get; init; } = 1;
     public IReadOnlyList<CardQuestDefinition> Quests { get; init; } = Array.Empty<CardQuestDefinition>();

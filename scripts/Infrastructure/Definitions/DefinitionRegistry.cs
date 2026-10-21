@@ -189,6 +189,7 @@ public sealed class DefinitionRegistry : IDefinitionCatalog
             foreach (var template in effect switch
                 {
                     SummonAdjacentCardEffectDefinition summon => new[] { summon.Card },
+                    SummonIntoAllEmptySlotsEffectDefinition summon => new[] { summon.Card },
                     SacrificeSourceAndNeighborsToSummonEffectDefinition summon => new[] { summon.Card },
                     SummonRandomAdjacentCardEffectDefinition summon => summon.Cards,
                     TransformSourceIntoRandomCardsEffectDefinition split => split.Replacements,

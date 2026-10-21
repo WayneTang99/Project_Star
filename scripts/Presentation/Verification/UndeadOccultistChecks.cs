@@ -16,13 +16,13 @@ using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Verification;
 
-// 亡灵禁术师非暗小型筛选、来源等级召唤与回响生命周期验证（表现层）。
+// 死灵禁术师非暗小型筛选、来源等级召唤与回响生命周期验证（表现层）。
 internal static class UndeadOccultistChecks
 {
     internal static bool SummonsAndFilters()
     {
         var definition = new UndeadOccultistCardDefinition(); var identity = definition.Attributes.Identity;
-        if (identity.DisplayName != "亡灵禁术师" || identity.FactionKey != new StringName("mona")
+        if (identity.DisplayName != "死灵禁术师" || identity.FactionKey != new StringName("mona")
             || identity.Size != CardSize.Medium || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark })
             || !definition.Tags.ToArray().ToHashSet().SetEquals(new[] { GameTags.Medium, GameTags.Undead })
             || definition.InitialLevel != 4 || definition.SupportsLevel(3) || definition.SupportsLevel(5)
@@ -88,16 +88,16 @@ internal static class UndeadOccultistChecks
         42, new BattleTick(ticks), new BattleTick(ticks + 1));
     private static BattleResult Run(CardBattleSetup[] own, CardBattleSetup[] enemy, int ticks) => new CombatSimulator().Simulate(Setup(own, enemy, ticks));
     private static bool Fail([System.Runtime.CompilerServices.CallerLineNumber] int line = 0)
-    { GD.Print($"亡灵禁术师验证失败，行{line}"); return false; }
+    { GD.Print($"死灵禁术师验证失败，行{line}"); return false; }
     internal static async Task Capture(Node owner)
     {
-        if (!SummonsAndFilters()) throw new InvalidOperationException("亡灵禁术师战斗验证失败。");
+        if (!SummonsAndFilters()) throw new InvalidOperationException("死灵禁术师战斗验证失败。");
         var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(new UndeadOccultistCardDefinition()));
         var adapter = new CardDisplayAdapter();
         using var raw = adapter.Artwork(snapshot.Illustration).GetImage();
         if (!raw.HasMipmaps() || raw.GetWidth() != raw.GetHeight())
-            throw new InvalidOperationException("亡灵禁术师原画比例或mipmap不合格。");
-        GD.Print($"亡灵禁术师原画：{raw.GetWidth()}×{raw.GetHeight()}，mipmap层数{raw.GetMipmapCount()}");
+            throw new InvalidOperationException("死灵禁术师原画比例或mipmap不合格。");
+        GD.Print($"死灵禁术师原画：{raw.GetWidth()}×{raw.GetHeight()}，mipmap层数{raw.GetMipmapCount()}");
         var viewport = new SubViewport { Size = new Vector2I(420, 460), Disable3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.Always }; owner.AddChild(viewport);
         var preview = new CardPreviewView { Size = owner.GetViewport().GetVisibleRect().Size, Theme = MatchTheme.Create() };
@@ -121,7 +121,7 @@ internal static class UndeadOccultistChecks
             using var detail = owner.GetViewport().GetTexture().GetImage();
             if (image.SavePng("res://output/undead-occultist/card-face.png") != Error.Ok
                 || detail.SavePng("res://output/undead-occultist/preview.png") != Error.Ok)
-                throw new InvalidOperationException("亡灵禁术师卡面截图失败。");
+                throw new InvalidOperationException("死灵禁术师卡面截图失败。");
         }
         finally { owner.RemoveChild(viewport); viewport.Free(); owner.RemoveChild(preview); preview.Free(); }
     }

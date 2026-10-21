@@ -16,7 +16,7 @@ namespace Project_Star.Presentation.Verification;
 // 英雄身份、初始属性及选角和头像纹理的真实控件验证（表现层）。
 internal static class HeroArtworkChecks
 {
-    internal static bool CheckVoice(Control owner)
+    internal static async Task<bool> CheckVoice(Control owner)
     {
         var registry = DefinitionRegistry.Scan(typeof(HarlaHeroDefinition).Assembly);
         var choices = new[] { "paladin", "mona" }.Select(key =>
@@ -83,7 +83,12 @@ internal static class HeroArtworkChecks
             selection.Render("空名单", []);
             return !player.Playing && submitted == 0;
         }
-        finally { owner.RemoveChild(host); host.Free(); }
+        finally
+        {
+            owner.RemoveChild(host); host.Free();
+            // Stop将播放实例的释放提交给音频混音线程；退出进程前等待混音处理。
+            await owner.ToSignal(owner.GetTree().CreateTimer(.1), SceneTreeTimer.SignalName.Timeout);
+        }
     }
 
     internal static bool CheckMotion(Control owner)

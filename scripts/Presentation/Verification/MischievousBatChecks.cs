@@ -14,7 +14,7 @@ using Project_Star.Presentation.CardFace;
 
 namespace Project_Star.Presentation.Verification;
 
-// 捣蛋鬼蝙蝠分级伤害、随机迟缓和战场目标验证（表现层验证模块）。
+// 捣蛋鬼蝙蝠分级冷却、随机迟缓和战场目标验证（表现层验证模块）。
 internal static class MischievousBatChecks
 {
     internal static bool LevelsAndTargets()
@@ -24,13 +24,14 @@ internal static class MischievousBatChecks
         if (identity.Key != new StringName("card.mischievous_bat") || identity.DisplayName != "捣蛋鬼蝙蝠"
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Small
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark }) || !definition.Tags.Contains(GameTags.Beast)
-            || definition.InitialLevel != 2 || definition.SupportsLevel(1) || definition.SupportsLevel(5)
+            || definition.InitialLevel != 1 || definition.SupportsLevel(0) || definition.SupportsLevel(5)
             || !DefinitionRegistry.Scan(typeof(MischievousBatChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
         if (texture is null || texture.GetWidth() * 2 != texture.GetHeight()) return false;
-        foreach (var level in new[] { 2, 3, 4 })
+        foreach (var level in new[] { 1, 2, 3, 4 })
         foreach (var side in new[] { SideId.Player, SideId.Opponent })
         {
+            var cooldown = (6 - level) * 10;
             var bat = Bat(level);
             var ally = Target(1);
             var first = Target(0);
@@ -39,41 +40,42 @@ internal static class MischievousBatChecks
             var dead = Target(3) with { Abilities = [Opening(new DestroyCardEffectDefinition(false))] };
             CardBattleSetup[] allies = [bat, ally];
             CardBattleSetup[] enemies = [first, second, bench, dead];
-            var setup = side == SideId.Player ? Battle(allies, enemies, 40) : Battle(enemies, allies, 40);
+            var setup = side == SideId.Player ? Battle(allies, enemies, cooldown * 2) : Battle(enemies, allies, cooldown * 2);
             var result = new CombatSimulator().Simulate(setup);
             var hits = result.Events.OfType<DamageDealtEvent>().Where(hit => hit.SourceCardId == bat.EntityId).ToArray();
-            var frame = LiveFrame(result, 20);
+            var frame = LiveFrame(result, cooldown);
             var slowed = frame.Cards.Where(card => card.Slow > 0).ToArray();
-            if (hits.Length != 2 || !hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { 20, 40 })
+            if (hits.Length != 2 || !hits.Select(hit => hit.Tick.Value).SequenceEqual(new long[] { cooldown, cooldown * 2 })
                 || hits.Any(hit => hit.RawDamage != 1 || hit.HealthDamage != 1 || hit.TargetSide == side)
                 || slowed.Length != 1 || !new[] { first.EntityId, second.EntityId }.Contains(slowed[0].Id)
-                || slowed[0].Slow != (level - 1) * 10 || !frame.Cards.Single(card => card.Id == dead.EntityId).Destroyed
+                || slowed[0].Slow != 10 || !frame.Cards.Single(card => card.Id == dead.EntityId).Destroyed
                 || frame.Cards.Single(card => card.Id == bat.EntityId).IsFlying || result.PermanentChanges.Any()
                 || !result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events)) return false;
             var offer = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition, level));
             if (!CardDisplayAdapter.FaceEffects(offer).Any(effect => effect.Kind == CardFaceEffectKind.Damage && effect.Value == "1")
-                || !CardDisplayAdapter.Details(offer).Contains("1/2/3秒迟缓")) return false;
+                || !CardDisplayAdapter.Details(offer).Contains("1秒迟缓")) return false;
         }
         return true;
     }
 
     internal static bool StackingAndEmptyTargets()
     {
-        foreach (var level in new[] { 2, 3, 4 })
+        foreach (var level in new[] { 1, 2, 3, 4 })
         {
             var bat = Bat(level) with { AttackDamage = 7, Multicast = 1 };
             var target = Target(0);
-            var ticks = (level - 1) * 10;
-            var result = new CombatSimulator().Simulate(Battle([bat], [target], 42));
+            var ticks = 10;
+            var cooldown = (6 - level) * 10;
+            var result = new CombatSimulator().Simulate(Battle([bat], [target], cooldown * 2 + 2));
             if (result.Events.OfType<DamageDealtEvent>().Count(hit => hit.SourceCardId == bat.EntityId && hit.RawDamage == 7) != 4
-                || LiveFrame(result, 22).Cards.Single(card => card.Id == target.EntityId).Slow != ticks * 2 - 2
-                || LiveFrame(result, 42).Cards.Single(card => card.Id == target.EntityId).Slow != Math.Max(0, ticks * 2 - 20) + ticks * 2 - 2)
+                || LiveFrame(result, cooldown + 2).Cards.Single(card => card.Id == target.EntityId).Slow != ticks * 2 - 2
+                || LiveFrame(result, cooldown * 2 + 2).Cards.Single(card => card.Id == target.EntityId).Slow != Math.Max(0, ticks * 2 - cooldown) + ticks * 2 - 2)
                 return false;
             var flying = target with { Abilities = [Opening(new SetSourceCardStateEffectDefinition(GameAttributeKeys.Flying, true))] };
-            var flight = new CombatSimulator().Simulate(Battle([Bat(level)], [flying], 20));
-            if (LiveFrame(flight, 20).Cards.Single(card => card.Id == flying.EntityId).Slow != ticks / 2) return false;
+            var flight = new CombatSimulator().Simulate(Battle([Bat(level)], [flying], cooldown));
+            if (LiveFrame(flight, cooldown).Cards.Single(card => card.Id == flying.EntityId).Slow != ticks / 2) return false;
         }
-        var source = Bat(2);
+        var source = Bat(4);
         foreach (var enemies in new[] { Array.Empty<CardBattleSetup>(), new[] { Target(0) with { IsOnBench = true } } })
         {
             var result = new CombatSimulator().Simulate(Battle([source], enemies, 40));

@@ -56,12 +56,12 @@ internal static class EchoDescriptionChecks
         return Check(new FlyingBroomCardDefinition(), "当己方战场卡牌进入飞行时", "该卡牌", "1秒疾速")
             && Check(new IceLotusCardDefinition(), "当己方战场卡牌获得迟缓后")
             && Check(new ShortbladeScoutCardDefinition(), "当此卡牌获得疾速后")
-            && Check(new LittleAngelCardDefinition(), "当敌方存活战场恶魔或亡灵卡牌发动后", "此卡牌", "仅本场战斗生效")
+            && Check(new LittleAngelCardDefinition(), "当敌方存活战场恶魔或亡灵卡牌发动后", "此卡牌", "治疗加成 +5")
             && Check(new ArmyPriestCardDefinition(), "当己方战场（光属性或人类）卡牌发动后", "此卡牌充能")
             && Check(new TransmissionGearCardDefinition(), "当己方左侧直接相邻的机械卡牌发动后", "右侧直接相邻的战场机械卡牌", "1秒疾速")
             && Check(new SpearmanCardDefinition(), "左侧直接相邻的人类卡牌发动后", "右侧直接相邻的人类卡牌发动后")
             && Check(new ShadowCloakCardDefinition(), "每场战斗", "首次低于最大生命的50%")
-            && Check(new HolyGriffinCardDefinition(), "回响　当己方直接相邻的人类卡牌获得疾速后，该卡牌攻击", "仅本场战斗生效")
+            && Check(new HolyGriffinCardDefinition(), "回响　当己方直接相邻的人类卡牌获得疾速后，该卡牌攻击", "+10")
             && Check(new ConquerorFortressCardDefinition(), "回响", "当敌方存活战场卡牌发动后", "所有存活战场人类卡牌");
     }
 
@@ -69,6 +69,8 @@ internal static class EchoDescriptionChecks
     {
         var card = MatchDisplayQuery.FromOffer(ShopOffer.Create(definition));
         var text = string.Join("\n", CardDisplayAdapter.Rules(card));
-        return required.All(text.Contains);
+        var missing = required.Where(value => !text.Contains(value)).ToArray();
+        if (missing.Length > 0) GD.Print($"回响检查 {card.DisplayName} 缺少 {string.Join(" / ", missing)}；实际 {text}");
+        return missing.Length == 0;
     }
 }

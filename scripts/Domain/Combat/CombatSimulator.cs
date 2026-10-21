@@ -140,6 +140,7 @@ public sealed class CombatSimulator
             var pending = runtime.Queue.Dequeue();
             if (pending.Source.Destroyed && !pending.AllowDestroyedSource) continue;
             if (pending.Source is CardBattleState queuedCard && !runtime.Cards.Contains(queuedCard)) continue;
+            if (!pending.Source.Abilities.Contains(pending.Ability)) continue;
             if (pending.Ability.Definition.Target == AbilityTarget.EventCard
                 && (pending.EventCard is null || pending.EventCard.Destroyed || pending.EventCard.IsOnBench
                     || !runtime.Cards.Contains(pending.EventCard))) continue;
@@ -213,6 +214,17 @@ public sealed class CombatSimulator
                 && pending.Source is CardBattleState questCard && questCard.Quests.Count > 0
                 && runtime.Cards.Contains(questCard))
                 BattleQuestResolver.AdvanceSourceQuests(runtime, questCard);
+            if (!pending.IsEcho && definition.Activation == AbilityActivation.Active
+                && pending.Source is CardBattleState { Destroyed: false, IsOnBench: false } consumed
+                && runtime.AbilitySources.Where(provider => !provider.Destroyed && !provider.IsOnBench && provider.Side == consumed.Side)
+                    .SelectMany(provider => provider.Abilities).Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
+                    .SelectMany(ability => ability.Definition.Effects).OfType<GrantConsumeToAlliedTaggedCardsAuraEffectDefinition>()
+                    .Any(aura => consumed.OccupiedSlots == (int)aura.Size && BattleEffectResolver.HasEffectiveTag(runtime, consumed, aura.RequiredTag)))
+            {
+                BattleEffectResolver.DestroyCard(runtime, consumed, consumed.EntityId, false, pending.SuppressEchoes);
+                BattleStatusResolver.RefreshCooldownAuras(runtime);
+                BattleStateRecorder.CaptureState(runtime);
+            }
         }
     }
 

@@ -19,6 +19,36 @@ namespace Project_Star.Presentation.Verification;
 // 真实卡牌获取入口、单一详情和正式任务投影的表现层验证。
 internal static class CardInteractionChecks
 {
+    internal static async Task HoverScrolling(Control owner)
+    {
+        var scene = Create(owner);
+        try
+        {
+            var shell = scene.GetNode<MatchShell>("MatchShell");
+            var details = shell.GetNode<CardDetailsView>("CardDetails");
+            var snapshot = MatchDisplayQuery.FromOffer(ShopOffer.Create(new LogStaffCardDefinition()));
+            var source = new CardItemView { Position = new Vector2(720, 240), Size = new Vector2(150, 140) };
+            shell.AddChild(source); source.Render(snapshot, new CardDisplayAdapter());
+            source.EmitSignal(Control.SignalName.MouseEntered);
+            for (var i = 0; i < 12; i++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
+            var content = details.GetNode<ScrollContainer>("Content");
+            var related = details.GetNode<Control>("Related");
+            if (!details.Visible || !Mathf.IsEqualApprox(details.Size.X, 440)
+                || content.VerticalScrollMode != ScrollContainer.ScrollMode.Disabled
+                || details.MouseFilter != Control.MouseFilterEnum.Ignore
+                || related.MouseFilter != Control.MouseFilterEnum.Ignore)
+                throw new InvalidOperationException("悬停详情未恢复固定宽度、完整展开或鼠标穿透。");
+            source.GrabFocus(); source.EmitSignal(Control.SignalName.MouseExited);
+            if (details.Visible) throw new InvalidOperationException("保留键盘焦点时，移出卡面未立即关闭。");
+            source.EmitSignal(Control.SignalName.MouseEntered);
+            shell.HideHoverCard(dragging: true);
+            if (details.Visible) throw new InvalidOperationException("拖拽未立即关闭详情。");
+            source.QueueFree();
+            GD.Print("悬停详情：固定宽度、完整展开、无滚动、鼠标穿透、移出卡面立即关闭通过。");
+        }
+        finally { owner.RemoveChild(scene); scene.Free(); }
+    }
+
     internal static bool HoverRestoration(Control owner)
     {
         var item = new CardItemView { Size = new Vector2(300, 360) };
@@ -125,7 +155,7 @@ internal static class CardInteractionChecks
             var sample = MatchDisplayQuery.FromOffer(ShopOffer.Create(new AscendantCardDefinition()));
             details.SetPinned(false); details.ShowNear(sample, new Rect2(100, 100, 60, 100), shell.Size);
             details.RefreshCard(sample, shell.Size);
-            if (details.GetNode<Control>("Content").MouseFilter != Control.MouseFilterEnum.Ignore
+            if (details.GetNode<Control>("Content").MouseFilter != Control.MouseFilterEnum.Stop
                 || details.GetNode<Control>("Content/CardContent/BodyScroll/Paragraphs/Quests/quest_ascendant_attack").MouseFilter != Control.MouseFilterEnum.Ignore) return false;
             details.SetPinned(true);
             if (details.GetNode<Control>("Content/CardContent/BodyScroll").MouseFilter != Control.MouseFilterEnum.Stop) return false;
@@ -252,7 +282,7 @@ internal static class CardInteractionChecks
             var saleZone = salePlacement.Zone == BoardZone.Battlefield ? "BattlefieldRow" : "BenchRow";
             item = shell.GetNode<CardItemView>($"{saleZone}/Content/Board/Card_{ownedSaleCard.Id.Value:N}");
             wealth = presenter.View.Player.Wealth; item.GrabFocus(); KeyInput(Key.Enter); await Frames();
-            var confirmSale = details.GetNode<Button>("Content/Sell");
+            var confirmSale = details.GetNode<Button>("Content/CardContent/Sell");
             if (!details.Visible || details.CurrentCardId != ownedSaleCard.Id || !confirmSale.Visible || confirmSale.Disabled
                 || presenter.View.Player.Wealth != wealth) throw new InvalidOperationException("Enter选中库存卡未打开出售确认或直接发生出售。");
             KeyInput(Key.Escape); await Frames();
@@ -293,7 +323,7 @@ internal static class CardInteractionChecks
                     await Save($"quest-{progress}");
                 }
                 shell.ApplyBoardSkin(MatchTheme.Skin); await Save("quest-refreshed"); shell.ApplyBoardSkin(MatchTheme.Skin);
-                var body = details.GetNode<ScrollContainer>("Content/CardContent/BodyScroll");
+                var body = details.GetNode<ScrollContainer>("Content");
                 body.ScrollVertical = (int)body.GetVScrollBar().MaxValue; await Frames();
                 if (body.GetVScrollBar().MaxValue > body.GetVScrollBar().Page && body.ScrollVertical <= 0)
                     throw new InvalidOperationException("任务正文无法滚动至完整奖励。");

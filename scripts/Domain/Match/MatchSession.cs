@@ -14,13 +14,14 @@ public sealed class MatchSession
     private readonly List<AppliedCardQuestModifier> _appliedCardQuestModifiers = [];
     private int _pendingBattleMaxHealthBonus;
 
-    public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10, IEnumerable<GemDefinition>? gems = null)
+    public MatchSession(ulong seed, int startingWealth = 0, int boardCapacity = BoardState.DefaultCapacity, int startingReputation = 10, IEnumerable<GemDefinition>? gems = null, IDefinitionCatalog? definitions = null)
     {
         if (startingWealth < 0 || startingReputation < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(startingWealth));
         }
 
+        Definitions = definitions;
         GemDefinitions = gems is null ? Array.Empty<GemDefinition>() : new List<GemDefinition>(gems).AsReadOnly();
         Id = Guid.NewGuid();
         Progress = new MatchProgress();
@@ -29,6 +30,8 @@ public sealed class MatchSession
         EncounterSchedule = new EncounterScheduleState();
         Random = new MatchRandomState(seed);
     }
+
+    public IDefinitionCatalog? Definitions { get; }
 
     public IReadOnlyList<GemDefinition> GemDefinitions { get; }
 

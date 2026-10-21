@@ -15,9 +15,12 @@ public sealed partial class CardDetailsView : PanelContainer
     public event Action<Guid, Project_Star.Domain.Common.EntityId, int, int>? SellRequested;
     public event Action? Closed;
     private CardRelatedEffectsView _related = null!;
-    private float RelatedWidth => _related.Visible && !_relatedBelow ? _related.Size.X + 16 : 0;
-    private bool _relatedBelow;
+    private float RelatedWidth => _related.Visible ? _related.Size.X + 16 : 0;
+    private float _relatedX;
     private CardDetailsContent _content = null!;
+    private ScrollContainer _detailScroll = null!;
+    private int _restoreScroll;
+    private int _restoreScrollFrames;
     private Button _sell = null!;
     private Label _interactionHint = null!;
     private CardSnapshot? _selling;
@@ -37,7 +40,7 @@ public sealed partial class CardDetailsView : PanelContainer
     public StringName? CurrentCardKey => _card?.Key;
     public override void _Ready()
     {
-        var column = new VBoxContainer { Name = "Content" }; AddChild(column);
+        _detailScroll = new ScrollContainer { Name = "Content", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(_detailScroll);
         var plate = new StyleBoxEmpty { ContentMarginLeft = 22, ContentMarginRight = 22, ContentMarginTop = 22, ContentMarginBottom = 22 };
         AddThemeStyleboxOverride("panel", plate);
         _related = new CardRelatedEffectsView { Name = "Related", TopLevel = true, ZAsRelative = false, ZIndex = ZIndex }; AddChild(_related);
@@ -51,10 +54,10 @@ public sealed partial class CardDetailsView : PanelContainer
         _close.AddThemeColorOverride("font_hover_color", new Color("eedfc4"));
         _close.Size = _close.GetCombinedMinimumSize();
         _close.Pressed += Close;
-        _content = new CardDetailsContent { Name = "CardContent" }; column.AddChild(_content); Hide();
+        _content = new CardDetailsContent { Name = "CardContent", ExpandContent = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; _detailScroll.AddChild(_content); Hide();
         _interactionHint = new Label { Name = "InteractionHint", Visible = false, AutowrapMode = TextServer.AutowrapMode.WordSmart, MouseFilter = MouseFilterEnum.Ignore };
-        MatchTheme.Text(_interactionHint, 13, MatchTheme.Gold); column.AddChild(_interactionHint);
-        _sell = new Button { Name = "Sell", Visible = false, ClipText = true }; column.AddChild(_sell);
+        MatchTheme.Text(_interactionHint, 13, MatchTheme.Gold); _content.AddChild(_interactionHint);
+        _sell = new Button { Name = "Sell", Visible = false, ClipText = true }; _content.AddChild(_sell);
         _sell.AddThemeFontSizeOverride("font_size", 16);
         _sell.Pressed += ConfirmSale;
     }
@@ -70,11 +73,11 @@ public sealed partial class CardDetailsView : PanelContainer
     {
         SetInteractionHint("");
         _placementVersion++;
-        _fade?.Kill(); _revealOffset = 0; _anchor = null; _relatedBelow = false;
+        _fade?.Kill(); _revealOffset = 0; _anchor = null; _relatedX = 0;
         CurrentCardId = card.Id;
         RenderContent(card, bounds, battle, false);
         Size = new Vector2(Size.X, 0);
-        _selling = null; _sell.Hide();
+        _selling = null; _sell.Hide(); _detailScroll.ScrollVertical = 0;
         _placementPosition = position + new Vector2(16 / _pixelScale, 0); Show();
         _revealOffset = 6; ClampTo(bounds);
         Modulate = new Color(1, 1, 1, 0); _fade = CreateTween();
@@ -119,6 +122,12 @@ public sealed partial class CardDetailsView : PanelContainer
 
     private void RenderContent(CardSnapshot card, Vector2 bounds, CardBattleSnapshot? battle, bool preserveExpansion)
     {
+        if (!preserveExpansion) _restoreScrollFrames = 0;
+        if (preserveExpansion && _restoreScrollFrames == 0 && _detailScroll.ScrollVertical > 0)
+        {
+            _restoreScroll = _detailScroll.ScrollVertical;
+            _restoreScrollFrames = 3;
+        }
         var resized = _bounds != bounds || !Mathf.IsEqualApprox(_pixelScale, GetViewport().GetStretchTransform().Scale.X);
         _bounds = bounds; _card = card; _battle = battle;
         _pixelScale = Mathf.Max(.01f, GetViewport().GetStretchTransform().Scale.X);
@@ -126,25 +135,27 @@ public sealed partial class CardDetailsView : PanelContainer
         LevelPresentation.Frame(this, card.Level);
         var pixels = bounds * _pixelScale;
         var width = Mathf.Max(1, Mathf.Min(pixels.X - 24, pixels.X <= 650 ? pixels.X - 24 : pixels.X < 900 ? 340 : 440));
-        _content.CustomMinimumSize = new Vector2(width - 44, 0);
-        _content.Render(card, width - 44, _relatedBelow ? Mathf.Max(40, pixels.Y * .6f - 240) : Mathf.Max(60, pixels.Y - 280), battle, preserveExpansion);
-        _related.Render(card, _relatedBelow ? width : Mathf.Min(310, Mathf.Max(210, pixels.X - width - 56)),
-            _relatedBelow ? Mathf.Max(80, pixels.Y * .35f - 40) : Mathf.Max(100, pixels.Y - 40));
+        var relatedWidth = Mathf.Min(310, Mathf.Max(210, pixels.X - width - 56));
+        _content.CustomMinimumSize = new Vector2(Mathf.Max(1, width - 44), 0);
+        _content.Render(card, Mathf.Max(1, width - 44), Mathf.Max(60, pixels.Y - 280), battle, preserveExpansion);
+        _related.ExpandContent = !_pinned;
+        _related.Render(card, relatedWidth, Mathf.Max(100, pixels.Y - 40));
         SetPinned(_pinned);
         Size = new Vector2(width, GetCombinedMinimumSize().Y);
         if (resized && _anchor is { } anchor) PlaceNearAnchor(anchor);
     }
 
     public override void _Draw() => MatchTheme.DrawSurface(this, new Rect2(Vector2.Zero, Size), "tooltip");
-    // 悬停面板透过鼠标，固定后才接收滚动与属性操作；关闭始终可点。
+    // 悬停详情只展示并穿透鼠标，固定详情保留操作入口。
     public void SetPinned(bool pinned)
     {
         _pinned = pinned;
         MouseFilter = pinned ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
-        SetInput(GetNode<VBoxContainer>("Content")); SetInput(_related);
+        _detailScroll.VerticalScrollMode = pinned ? ScrollContainer.ScrollMode.Auto : ScrollContainer.ScrollMode.Disabled;
+        SetInput(GetNode<Control>("Content")); SetInput(_related);
         void SetInput(Control control)
         {
-            control.MouseFilter = pinned && control is Button or ScrollContainer or RichTextLabel
+            control.MouseFilter = pinned && control is (Button or ScrollContainer or RichTextLabel)
                 ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
             foreach (var child in control.GetChildren()) if (child is Control next) SetInput(next);
         }
@@ -154,11 +165,21 @@ public sealed partial class CardDetailsView : PanelContainer
     public override void _Process(double delta)
     {
         if (!Visible) return;
+        var pixels = _bounds * _pixelScale;
+        var maximum = Mathf.Max(120, pixels.Y - 68);
+        _detailScroll.CustomMinimumSize = new Vector2(0, _pinned ? Mathf.Min(maximum, _content.GetCombinedMinimumSize().Y) : _content.GetCombinedMinimumSize().Y);
+        if (_restoreScrollFrames > 0)
+        {
+            _detailScroll.ScrollVertical = _restoreScroll;
+            _restoreScrollFrames--;
+        }
         var height = GetCombinedMinimumSize().Y;
         if (!Mathf.IsEqualApprox(Size.Y, height)) Size = new Vector2(Size.X, height);
         ClampTo(_bounds);
         _related.Scale = GetGlobalTransform().Scale;
-        _related.GlobalPosition = GlobalPosition + (_relatedBelow ? new Vector2(0, Size.Y + 16) : new Vector2(Size.X + 16, 0)) * _related.Scale;
+        _related.GlobalPosition = _anchor is not null
+            ? new Vector2(((Control)GetParent()).GlobalPosition.X + _relatedX, GlobalPosition.Y)
+            : GlobalPosition + new Vector2(Size.X + 16, 0) * _related.Scale;
         _related.Modulate = Modulate;
         _close.Scale = GetGlobalTransform().Scale;
         _close.GlobalPosition = GlobalPosition + new Vector2(Size.X - 9 - _close.Size.X, 7) * _close.Scale;
@@ -191,31 +212,22 @@ public sealed partial class CardDetailsView : PanelContainer
 
     private void PlaceNearAnchor(Rect2 anchor)
     {
-        if (TryPlace(GroupSize() * Scale, out var point)) { _placementPosition = point; return; }
-        if (!_relatedBelow && _card is not null)
-        {
-            _relatedBelow = true; RenderContent(_card, _bounds, _battle, true);
-            if (TryPlace(GroupSize() * Scale, out point)) _placementPosition = point;
-        }
-
-        bool TryPlace(Vector2 size, out Vector2 position)
-        {
-            var margin = 12 / _pixelScale; var gap = 16 / _pixelScale;
-            var x = Mathf.Clamp(anchor.GetCenter().X - size.X / 2, margin, Mathf.Max(margin, _bounds.X - margin - size.X));
-            var y = Mathf.Clamp(anchor.Position.Y, margin, Mathf.Max(margin, _bounds.Y - margin - size.Y));
-            var window = new Rect2(Vector2.One * margin, _bounds - Vector2.One * margin * 2);
-            foreach (var candidate in new[] { new Vector2(anchor.End.X + gap, y), new Vector2(anchor.Position.X - size.X - gap, y),
-                new Vector2(x, anchor.End.Y + gap), new Vector2(x, anchor.Position.Y - size.Y - gap) })
-            {
-                var rect = new Rect2(candidate, size);
-                if (window.Encloses(rect) && !rect.Intersects(anchor.Grow(4 / _pixelScale))) { position = candidate; return true; }
-            }
-            position = default; return false;
-        }
+        var margin = 12 / _pixelScale; var gap = 16 / _pixelScale;
+        var right = _bounds.X - margin - anchor.End.X - gap;
+        var left = anchor.Position.X - gap - margin;
+        var size = GroupSize() * Scale;
+        var relatedWidth = RelatedWidth * Scale.X;
+        float x;
+        if (right >= size.X + relatedWidth) { x = anchor.End.X + gap; _relatedX = x + size.X + gap; }
+        else if (left >= size.X + relatedWidth) { x = anchor.Position.X - size.X - gap; _relatedX = x - relatedWidth; }
+        else if (right >= left) { x = anchor.End.X + gap; _relatedX = x + size.X + gap; }
+        else { x = anchor.Position.X - size.X - gap; _relatedX = x - relatedWidth; }
+        var y = Mathf.Clamp(anchor.Position.Y, margin, Mathf.Max(margin, _bounds.Y - margin - size.Y));
+        _placementPosition = new Vector2(x, y);
     }
 
-    private Vector2 GroupSize() => new(Size.X + RelatedWidth,
-        _relatedBelow && _related.Visible ? Size.Y + 16 + _related.Size.Y : Mathf.Max(Size.Y, _related.Visible ? _related.Size.Y : 0));
+    private Vector2 GroupSize() => new(Size.X,
+        Mathf.Max(Size.Y, _related.Visible ? _related.Size.Y : 0));
 
     // CSS默认ease为cubic-bezier(.25,.1,.25,1)，先按时间反解横轴再求进度。
     private static float CssEase(float progress)

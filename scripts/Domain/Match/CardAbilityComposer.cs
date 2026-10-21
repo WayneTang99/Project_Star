@@ -11,13 +11,16 @@ public static class CardAbilityComposer
 {
     // 已解锁效果并入每个原主动能力，不新增发动或重复支付魔法。
     public static IReadOnlyList<AbilityDefinition> Compose(CardInstance card, bool includePersistent = false)
+        => Compose(card, card.Abilities, includePersistent);
+
+    public static IReadOnlyList<AbilityDefinition> Compose(CardInstance card, IReadOnlyList<AbilityDefinition> abilities, bool includePersistent = false)
     {
         var quests = card.Quests.Where(card.IsQuestUnlocked).ToArray();
         var extraEffects = quests.SelectMany(quest => quest.AdditionalActiveEffects)
             .Concat(card.GemSockets.Where(gem => gem is not null).SelectMany(gem => gem!.ActiveEffects)).ToArray();
         var cooldownDelta = card.Attributes.BaseCombat.GetFinalValue(GameAttributeKeys.CooldownTicks)
             - card.Attributes.BaseCombat.GetBaseValue(GameAttributeKeys.CooldownTicks);
-        return Array.AsReadOnly(card.Abilities.Concat(quests.SelectMany(quest => quest.Abilities))
+        return Array.AsReadOnly(abilities.Concat(quests.SelectMany(quest => quest.Abilities))
             .Where(ability => includePersistent || ability.Activation != AbilityActivation.PassiveWhileEnabled)
             .Select(ability => ability.Activation != AbilityActivation.Active ? ability : new AbilityDefinition(
                 ability.Key, ability.Activation, ability.Target, ability.ManaCost,

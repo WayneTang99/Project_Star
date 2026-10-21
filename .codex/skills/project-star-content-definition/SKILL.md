@@ -51,10 +51,12 @@ description: Query, add, update, or remove Project Star cards, skills, mentors, 
 
 ## 验证与交付
 
-只读查询无需构建或运行验证。内容变更依次运行：
+只读查询无需构建或运行验证。单张或少量内容定义变更默认只做相关验证，不例行运行全量。依次运行：
 
 1. dotnet build Project_Star.csproj
 2. git diff --check
-3. 可用的 .NET Godot 编辑器执行 --headless --path . res://Main.tscn -- --verify，实际路径与入口见 docs/quality/MANUAL_ACCEPTANCE.md。
+3. 使用可用的 .NET Godot 编辑器运行对应专项；原画变更检查实际纹理及相关卡面。修改共享战斗机制时补充受影响回归及固定战斗记录。实际路径与入口见 docs/quality/MANUAL_ACCEPTANCE.md。
+
+仅在用户明确要求，或广泛共享改动确实无法由专项覆盖时运行全量；不得每定义一张卡都运行 `--verify`。
 
 报告具体内容变更、验证结果和实际环境限制。修改共享机制时保留固定战斗记录回归；仅当玩法明确改变对应基线时才同步基线，不用更新基线掩盖失败。不要因单次查询增加数据库、编辑器或持久化报表。

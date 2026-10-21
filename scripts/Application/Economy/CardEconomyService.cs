@@ -392,7 +392,7 @@ public sealed class CardEconomyService
             .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
                 .Any(ability => ability.Effects.Any(effect => effect is
                     DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
-                    or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
+                    or SkillCountDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
                     or SourceHeroArmorDamageEffectDefinition)));
 
     private static CardInstance? FindLeftmostHealingCard(MatchSession session, EntityId excludedCardId) =>
@@ -518,7 +518,7 @@ public sealed class CardEconomyService
         var previousLevel = target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
         var value = checked(target.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Value)
             + CardValueCalculator.CalculateMergeCompensation(definition, previousLevel, plan.FinalLevel));
-        _entityFactory.ApplyCardLevel(target, definition, plan.FinalLevel);
+        CardLevelUpgradeService.Upgrade(session, target, definition, plan.FinalLevel, _entityFactory);
         target.Attributes.Persistent.SetBaseValue(GameAttributeKeys.Value, value);
         ApplyAcquisitionBonuses(session, definition, plan);
         new CardQuestService(_boardService).ProcessEvent(session,

@@ -22,6 +22,7 @@ public sealed class HeroInstance
 
 public sealed class CardInstance
 {
+    public CardDefinition? Definition { get; internal set; }
     public CardInstance(
         EntityId id,
         EntityAttributes<CardIdentityAttributes> attributes,

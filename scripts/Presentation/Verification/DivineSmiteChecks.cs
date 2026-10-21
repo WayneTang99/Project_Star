@@ -29,7 +29,14 @@ internal static class DivineSmiteChecks
             return false;
         var factory = new EntityFactory();
         var session = new CreateMatchService(factory).Create(1, 0, new PaladinHeroDefinition());
-        var service = new MentorService(catalog, new SkillAcquisitionService(factory));
+        // 正式池增多后，随机三个候选不保证包含至圣斩；用明确候选验证等级筛选和领取。
+        var mentorCatalog = DefinitionRegistry.Create(new object[]
+        {
+            new PaladinHeroDefinition(), catalog.Mentors["mentor.archbishop"], definition,
+            catalog.Skills.Values.First(skill => skill.SupportsLevel(1)
+                && skill.Attributes.Identity.FactionKey == new StringName("paladin"))
+        });
+        var service = new MentorService(mentorCatalog, new SkillAcquisitionService(factory));
         var low = service.Open(session, "mentor.archbishop").Value!;
         if (low.Offers.Any(offer => offer.SkillKey == definition.Attributes.Identity.Key)) return false;
         if (service.ChooseSkill(session, low, low.Offers[0].SkillKey).IsFailure) return false;
