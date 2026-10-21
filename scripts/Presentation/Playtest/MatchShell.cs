@@ -443,7 +443,7 @@ public sealed partial class MatchShell : Control
     {
         _details.Hide();
         var opponent = _view?.Enemy?.Cards.Any(item => item.Id == card.Id && item.Key == card.Key) == true;
-        _cardPreview.Open(_catalog.Visible || _atlasBrowsing ? card : DescribeCard(card), _catalog.Visible || _atlasBrowsing ? null : opponent ? _view?.Enemy : _view?.Player, _catalog.Visible || _atlasBrowsing ? null : opponent ? _view?.Player : _view?.Enemy);
+        _cardPreview.Open(_catalog.Visible || _atlasBrowsing ? card : DescribeCard(card), _catalog.Visible || _atlasBrowsing ? null : opponent ? _view?.Enemy : _view?.Player, _catalog.Visible || _atlasBrowsing ? null : opponent ? _view?.Player : _view?.Enemy, rect);
     }
     // 图鉴卡牌与棋盘共用右键预览入口。
     public void ShowCardPreview(CardSnapshot card, Rect2 rect) => ShowDetails(card, rect);

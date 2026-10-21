@@ -1,0 +1,26 @@
+/* 前景内容受光：复用原图片和实时文字，覆盖层不参与命中，不改变排版。 */
+.app{--content-raised:0 -1px 0 #fff4d56b,0 1px 0 #48301f,1px 2px 1px #160e0ac9;--content-engraved:0 1px 0 #fff0ca99,0 -1px 1px #25160d66}
+
+/* 卡面图像与桌面共用左上暖光，内侧遮蔽让原画嵌入卡片。 */
+.app .card-art:before,#card-preview-dialog .card-art:before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(135deg,#ffe4a51c,transparent 42%,#23150b24);box-shadow:inset 2px 2px 5px #26170d91,inset -1px -1px 1px #fff0c74d}
+.app .card-art:after,#card-preview-dialog .card-art:after{background:linear-gradient(0deg,#140d098c,transparent 34%),linear-gradient(115deg,#fff3d51a,transparent 30%);pointer-events:none}
+.app .card{box-shadow:inset 1px 1px 0 #ffe6b685,inset -1px -1px 0 #24180ec9,1px 2px 0 #5c422d,2px 4px 0 #302017,4px 8px 7px #26170b70;transition:box-shadow .16s,filter .16s}
+.app .card:hover,.app .card:focus-visible{box-shadow:inset 1px 1px 0 #fff0c6b3,inset -1px -1px 0 #24180ec9,1px 2px 0 #745333,2px 4px 0 #302017,4px 8px 7px #26170b70,0 0 0 1px var(--rarity),0 0 13px color-mix(in srgb,var(--rarity) 23%,transparent)}
+
+/* 头像图像本身有边缘遮蔽和柔和面光，不只给外框加阴影。 */
+body.layout-only .hero-panel .portrait,.app .upper-portrait,.app .layout-enemy .enemy-portrait{isolation:isolate;box-shadow:inset 3px 4px 8px #1d120cb3,inset -2px -2px 3px #ffe5b536,2px 4px 4px #1c100b70!important}
+.app .portrait:after,.app .upper-portrait:after,.app .enemy-portrait:after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(ellipse at 25% 16%,#fff0c62b,transparent 58%),radial-gradient(ellipse at 50% 42%,transparent 48%,#160c0b66 100%);box-shadow:inset 0 1px 0 #fff0c64d}
+
+/* 技能原画加局部面光和嵌入阴影；保留等级描边及现有图像辨识。 */
+.app .hero-skills .skill:before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;border-radius:inherit;background:linear-gradient(135deg,#ffe6a938,transparent 42%,#120a0847);box-shadow:inset 1px 2px 3px #1d120c99,inset -1px -1px 1px #ffe2a54d}
+.app .hero-skills .skill svg,.app .hud-emblem svg,.app .resource-symbol,.app .hero-meta svg,.app .money svg{filter:drop-shadow(0 -1px 0 #fff0c647) drop-shadow(1px 2px 1px #24140b99)}
+
+/* 卡牌与资源数值为浅象牙浮雕，石面标题和按钮文字为深色刻印。 */
+.app .card .effect,.app .card .effect .num,.app .card .value,.app .card .set-badge,.app .bar .bar-label,.app .hud-emblem b,.app .mana-regeneration{ text-shadow:var(--content-raised)}
+.app .card .effect svg,.app .card .value svg,.app .card .element svg{filter:drop-shadow(0 -1px 0 #fff2cf55) drop-shadow(1px 2px 1px #1c100cb3)}
+.app .hero-panel .hero-meta b,.app .hero-panel .economy-dock .money,.app .hero-panel .economy-dock .income,.app .hero-panel .economy-dock .income b,.app .hero-panel #bench-toggle,.app .hero-panel #bench-toggle>span,.app .topbar .journey .round,.app .topbar .journey .round strong,body.layout-only .app .stage-action .goldbtn,.app .game-menu-toggle,.app #stage .goldbtn,.app #stage .subtlebtn{text-shadow:var(--content-engraved)}
+.app .topbar .brand strong,.app .topbar .brandmark,.app .offer-name,.app .offer-price,.app .hero-panel .hero-meta svg{text-shadow:var(--content-raised)}
+.app .offer-name,.app .offer-price{color:#fff2cd}
+
+/* 按下仅改变刻印受光，不移动字形；长正文保持清晰，不叠厚重阴影。 */
+body.layout-only .app .stage-action .goldbtn:active,.app .game-menu-toggle:active,.app .hero-panel #bench-toggle:active{text-shadow:0 1px 0 #fff0c670,0 -1px 1px #1e120ba6}

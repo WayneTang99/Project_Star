@@ -32,6 +32,8 @@ public sealed partial class CardPreviewView : Control
     private Label _meta = null!;
     private Button _close = null!;
     private int _level;
+    private Rect2? _flightOrigin;
+    private float _flightTime = .42f;
     private StringName?[] _sockets = Array.Empty<StringName?>();
     public CardSnapshot? DisplayedCard { get; private set; }
 
@@ -88,8 +90,10 @@ void fragment(){ COLOR=vec4(textureLod(screen_texture,SCREEN_UV,3.5).rgb*0.55,1.
     public void SetEntries(IReadOnlyList<CardCatalogEntry> entries) => _related.SetEntries(entries);
 
     // 打开本次实例的只读预览，保留实际孔位与等级。
-    public void Open(CardSnapshot card, MatchSnapshot? context, MatchSnapshot? enemy)
+    public void Open(CardSnapshot card, MatchSnapshot? context, MatchSnapshot? enemy, Rect2? origin = null)
     {
+        _flightOrigin = origin; _flightTime = origin.HasValue ? 0 : .42f;
+        _face.Scale = Vector2.One;
         _returnFocus = GetViewport().GuiGetFocusOwner(); _source = card; _context = context; _enemy = enemy;
         _level = card.Level; _sockets = card.GemSockets.Select(gem => gem?.Key).ToArray();
         RebuildOptions(); Show(); LayoutPreview(); RenderPreview(); _close.GrabFocus();
@@ -98,7 +102,7 @@ void fragment(){ COLOR=vec4(textureLod(screen_texture,SCREEN_UV,3.5).rgb*0.55,1.
     // Escape与关闭按钮归还焦点，不发送业务取消或交易意图。
     public void Close()
     {
-        Hide(); _face.ResetTilt(); _source = null; DisplayedCard = null;
+        Hide(); _flightOrigin = null; _flightTime = .42f; _face.Scale = Vector2.One; _face.ResetTilt(); _source = null; DisplayedCard = null;
         if (_returnFocus is not null && GodotObject.IsInstanceValid(_returnFocus) && _returnFocus.IsVisibleInTree()) _returnFocus.GrabFocus();
         _returnFocus = null;
     }
@@ -162,11 +166,29 @@ void fragment(){ COLOR=vec4(textureLod(screen_texture,SCREEN_UV,3.5).rgb*0.55,1.
         var faceSize = new Vector2(cardWidth, cardHeight) * 1.35f;
         if (!_face.Size.IsEqualApprox(faceSize)) _face.Size = faceSize;
         _face.Position = (_artHost.Size - _face.Size) / 2;
+        _face.Scale = Vector2.One;
+        if (_flightOrigin is { } origin && _flightTime < .42f)
+        {
+            var progress = Mathf.Clamp(_flightTime / .42f, 0, 1);
+            var eased = 1 - Mathf.Pow(1 - progress, 4);
+            var inverse = _artHost.GetGlobalTransform().AffineInverse();
+            var startCenter = inverse * origin.GetCenter();
+            var startSize = (inverse * origin.End - inverse * origin.Position).Abs();
+            // 透视控件保留1.35倍透明边，按实际卡面尺寸对齐起点。
+            _face.Scale = (startSize * 1.35f / _face.Size).Lerp(Vector2.One, eased);
+            var center = startCenter.Lerp(_artHost.Size / 2, eased);
+            center.Y -= Mathf.Sin(progress * Mathf.Pi) * 18;
+            _face.Position = center - _face.Size * _face.Scale / 2;
+        }
+        var alpha = Mathf.Clamp((_flightTime - .18f) / .18f, 0, 1);
+        _rightScroll.GetParent<Control>().Modulate = new Color(1, 1, 1, alpha);
+        _related.Modulate = _name.Modulate = _meta.Modulate = new Color(1, 1, 1, alpha);
 
     }
     public override void _Process(double delta)
     {
         if (!Visible) return;
+        if (_flightTime < .42f) { _flightTime = Mathf.Min(.42f, _flightTime + (float)delta); LayoutArt(); }
         var height = Mathf.Min(Mathf.Max(100, Size.Y - 164), _right.GetCombinedMinimumSize().Y);
         if (!Mathf.IsEqualApprox(_rightScroll.CustomMinimumSize.Y, height)) _rightScroll.CustomMinimumSize = new Vector2(0, height);
     }

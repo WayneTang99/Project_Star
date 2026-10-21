@@ -766,7 +766,15 @@ function openCardPreview(el){
  cardPreviewDialog.querySelectorAll('[data-preview-level]').forEach(button=>button.onclick=()=>{cardPreview.level=Number(button.dataset.previewLevel);renderCardPreview()});
  cardPreviewDialog.querySelectorAll('[data-preview-gem]').forEach(select=>select.onchange=()=>{cardPreview.gems[Number(select.dataset.previewGem)]=detailGems.find(gem=>gem.name===select.value)??null;renderCardPreview()});
  document.querySelector('#preview-reset').onclick=()=>{cardPreview.level=source.level;cardPreview.gems=Array.from({length:source.sockets??1},(_,i)=>gems[i]??null);renderCardPreview()};
- renderCardPreview();cardPreviewDialog.showModal();cardPreviewDialog.querySelector('.detail-close').focus();
+ const origin=el.getBoundingClientRect();
+ renderCardPreview();cardPreviewDialog.showModal();
+ const face=cardPreviewDialog.querySelector('#card-preview-art .card'),target=face.getBoundingClientRect();
+ const dx=origin.x+origin.width/2-target.x-target.width/2,dy=origin.y+origin.height/2-target.y-target.height/2;
+ cardPreviewDialog.getAnimations({subtree:true}).forEach(animation=>animation.cancel());
+ const frames=Array.from({length:31},(_,i)=>{const t=i/30,e=1-(1-t)**4;return {offset:t,transform:`translate(${dx*(1-e)}px,${dy*(1-e)-Math.sin(t*Math.PI)*18}px) scale(${origin.width/target.width+(1-origin.width/target.width)*e},${origin.height/target.height+(1-origin.height/target.height)*e})`}});
+ face.animate(frames,{duration:420,easing:'linear'});
+ cardPreviewDialog.querySelectorAll('.card-preview-info,.preview-related,.card-preview-meta,.card-preview-visual h2').forEach(node=>node.animate([{opacity:0},{opacity:1}],{duration:180,delay:180,fill:'backwards'}));
+ cardPreviewDialog.querySelector('.detail-close').focus();
 }
 cardPreviewDialog.querySelector('.detail-close').onclick=()=>cardPreviewDialog.close();
 cardPreviewDialog.addEventListener('close',()=>{const anchor=cardPreview?.anchor;cardPreview=null;if(anchor?.isConnected)anchor.focus()});
@@ -1115,7 +1123,7 @@ body.blue #stage .gem-info>p,body.blue #stage .gem-options .gem-anvil strong,bod
 <script id="centered-match-interactions">
 // 只重排既有预览组件，上下区域各占局内画布的一半。
 const matchTable=document.createElement('div');matchTable.className='match-table';matchTable.setAttribute('aria-hidden','true');
-matchTable.innerHTML='<div class="table-plinth"></div><div class="table-rim"><div class="table-surface"><div class="table-compass">✧</div></div></div>';
+matchTable.innerHTML='<div class="table-plinth"></div><div class="table-rim"><div class="table-surface"><div class="table-compass">✧</div></div></div><div class="inn-prop nw"></div><div class="inn-prop ne"></div><div class="inn-prop sw"></div><div class="inn-prop se"></div>';
 layoutApp.prepend(matchTable);
 // 主按钮直接属于画布，与阶段内容分开命中。
 const stageAction=document.querySelector('.hero-right');stageAction.classList.add('stage-action');
@@ -1557,3 +1565,6 @@ if(location.hash==='#verification'){
  document.querySelector('#verification-start').onclick=()=>{document.querySelector("#verification-start").disabled=true;let n=0;const bar=document.querySelector('#verification-progress');const count=document.querySelector('#verification-count');bar.value=0;const timer=setInterval(()=>{bar.value=++n;count.textContent=`已完成 ${n} / 60 项 · ${Math.floor(n*100/60)}%`;if(n===60){clearInterval(timer);document.querySelector("#verification-start").disabled=false;document.querySelector('#verification-results').textContent='✗ 基础规则 · 第1批 (20项)\n    ✗ 示例检查未通过\n        InvalidOperationException: 示例异常原因\n✓ 基础规则 · 第2批 (20项)\n✓ 基础规则 · 第3批 (20项)'}},50)};
 }
 </script>
+
+<!-- 星象旅馆棋盘HTML方案：独立装饰层，不改卡牌与交互坐标。 -->
+<link rel="stylesheet" href="assets/celestial-inn-complete.css">

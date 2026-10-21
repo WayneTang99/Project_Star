@@ -1,0 +1,61 @@
+/* 完整游戏画面v4：实际内容优先，所有平面正俯视；只在外壳上保留实体厚度。 */
+body.layout-only .app{background:#2c2622!important;isolation:isolate}
+body.layout-only .app:before,body.layout-only .app:after,.match-table:before,.match-table:after,.match-table .table-plinth,.match-table .table-rim,.inn-prop{display:none}
+.match-table{inset:0;filter:none!important;background:#2c2622 url('celestial-inn-orthographic-v4.png') center 40px/1600px 950px no-repeat;pointer-events:none}
+/* 内容区：各状态复用同一桌面，卡面文字保持正向。 */
+body.layout-only #stage,body.layout-only #stage.monster-stage{top:150px;left:50%;width:1120px;height:230px;min-height:230px;max-height:230px;border:0;background:none!important;box-shadow:none!important;border-radius:0}
+body.layout-only .player-field{top:400px;left:50%;width:1120px}
+body.layout-only #battlefield,body.layout-only #monster-battlefield{width:1046px;height:230px;padding:12px;grid-template-columns:repeat(10,102px);gap:0;border:0;background:none!important;box-shadow:none!important;border-radius:0;perspective:none}
+body.layout-only #battlefield>.card,body.layout-only #monster-battlefield>.card{height:204px;width:calc(102px * var(--span));transform:none;justify-self:stretch}
+#battlefield:before,#monster-battlefield:before{display:none}
+body.layout-only #battlefield>.empty,body.layout-only #monster-battlefield>.empty{height:204px;background:none;border:1px solid #66503a1f;box-shadow:none}
+#battlefield>.empty span,#monster-battlefield>.empty span{color:#6c533420}
+/* 商店：原画、费用和购买按钮共同占位，不能在亮台面上悬浮白字。 */
+#stage .stage-side{background:none;border-right:0}
+#stage .stage-side:before{opacity:.82}
+#stage .offer-info{position:relative;isolation:isolate;padding:3px 7px;background:none;box-shadow:none}
+#stage .offer-name,#stage .offer-price{color:#33251b;text-shadow:0 1px #ffefcd8c}
+/* 顶部进度和主菜单与内容保持固定距离。 */
+body.layout-only .topbar{height:64px;border:0;background:none}
+.topbar .brandmark,.topbar .brand strong{color:#ead8b8;text-shadow:0 1px 2px #190e0b}
+.topbar .journey{height:62px;padding:10px 24px;border:0;background:none;box-shadow:none;isolation:isolate}
+.topbar .journey .round,.topbar .journey .round strong{color:#35271d;text-shadow:0 1px #fff0ca80}
+/* 头像与HUD按完整内容预留空间；所有图片保持正视，不做梯形变形。 */
+body.layout-only .hero-panel{top:750px;width:1200px;height:124px}
+.hero-panel:before,.layout-enemy:before,.upper-identity:before{content:'';position:absolute;left:calc(50% - 160px);top:11px;width:320px;height:151px;background:url('celestial-inn-mount-v2.png') center/contain no-repeat;clip-path:none;transform:none;filter:drop-shadow(1px 4px 3px #190e0977);pointer-events:none;z-index:-1}
+.layout-enemy:before,.upper-identity:before{top:-31px}
+body.layout-only .hero-panel .portrait,.layout-enemy .enemy-portrait,.upper-portrait{border:0!important;box-shadow:inset 2px 3px 5px #20130d77!important;transform:none}
+body.layout-only .hero-panel .bars .bar{left:160px;top:14px;width:244px;height:24px}
+body.layout-only .hero-panel .bars .bar.mana{left:796px;top:14px;width:244px;height:24px}
+.hero-panel .hero-meta,body.layout-only .hero-panel .hero-skills{top:50px;width:244px;height:36px;padding:4px 14px;background:none;border:0;box-shadow:none;isolation:isolate}
+.hero-panel .hero-meta{left:160px}
+body.layout-only .hero-panel .hero-skills{left:796px;gap:14px;justify-content:center}
+body.layout-only .hero-panel .economy-dock{left:16px;top:10px;width:100px;height:74px;background:none;border:0;box-shadow:none;isolation:isolate}
+.hero-panel .layout-dock{right:16px;top:10px;width:100px}
+.hero-panel #bench-toggle{position:relative;width:100px;height:74px;border:0;background:none;box-shadow:none;isolation:isolate}
+.hero-panel .hero-meta,.hero-panel .hero-meta b,.hero-panel .economy-dock .money,.hero-panel .economy-dock .income,.hero-panel .economy-dock .income b,.hero-panel #bench-toggle,.hero-panel #bench-toggle>span{color:#35271d;text-shadow:0 1px #ffefc98c}
+.hero-panel #layout-preview-tools{color:#e8d4b2!important;text-shadow:0 1px 2px #190e0b}
+/* 素材九宫格固定侧壁厚度，内容使用实时HTML，不压缩字形。 */
+.topbar .journey:before,.hero-panel .hero-meta:before,.hero-panel .hero-skills:before,.hero-panel .economy-dock:before,.hero-panel #bench-toggle:before,body.layout-only .stage-action .goldbtn:before,.game-menu-toggle:before,#stage .goldbtn:before,#stage .subtlebtn:before,#stage .offer-info:before{content:'';display:block;position:absolute;inset:-3px -3px -5px;z-index:-1;pointer-events:none;clip-path:none;background:none!important;box-shadow:none;border:1px solid transparent;border-radius:0;border-image:url('celestial-inn-raised-v3.png') 28% 16% 28% 16% fill / 10px 16px 14px 16px / 0 stretch;filter:drop-shadow(1px 4px 3px #190e0977)}
+.topbar .journey:before,.hero-panel .economy-dock:before,.hero-panel #bench-toggle:before{border-image-width:14px 20px 18px 20px}
+body.layout-only .hero-panel .bars .bar,.layout-enemy .bar{border:0;border-radius:0;background:none!important;box-shadow:none;isolation:isolate}
+.hero-panel .bars .bar:after,.layout-enemy .bar:after{content:'';position:absolute;inset:-7px -4px;z-index:-1;pointer-events:none;border:1px solid transparent;border-image:url('celestial-inn-gauge-v3.png') 26% 10% 28% 10% fill / 9px 18px 10px 18px / 0 stretch;filter:drop-shadow(1px 4px 3px #190e0977)}
+.hero-panel .bars .bar-fill,.layout-enemy .bar-fill{inset:2px auto 2px 2px;height:auto;margin:0;width:calc(var(--progress) - 4px);max-width:calc(100% - 4px);border-radius:3px;background:linear-gradient(0deg,color-mix(in srgb,var(--resource-color) 40%,#000),color-mix(in srgb,var(--resource-color) 65%,#000))!important;box-shadow:inset 0 1px 2px #10150e77}
+.app .bar .bar-label{color:#fff2cd;text-shadow:0 1px 2px #160d08}
+.app .hud-emblem b,.app .mana-regeneration{text-shadow:0 1px 2px #160d08}
+/* 技能使用实际图标与等级色，文字不叠复杂浮雕。 */
+.hero-panel .hero-skills .skill{position:relative;border-radius:4px;box-shadow:1px 3px 3px #190e0980;outline:1px solid var(--rank);outline-offset:2px}
+/* 主操作和商品操作共用前景材质，不在按下时移动内容。 */
+body.layout-only .app>.stage-action{left:1392px;top:462px;width:160px;height:56px}
+body.layout-only .stage-action .goldbtn,.game-menu-toggle,#stage .goldbtn,#stage .subtlebtn{position:relative;isolation:isolate;border:0;border-radius:0;clip-path:none;background:none!important;box-shadow:none;color:#35271d;text-shadow:0 1px #fff0ca80;padding-left:12px;padding-right:12px;transition:filter .16s}
+body.layout-only .stage-action .goldbtn:hover,.game-menu-toggle:hover,.hero-panel #bench-toggle:hover,#stage .goldbtn:hover,#stage .subtlebtn:hover{filter:brightness(1.1)}
+body.layout-only .stage-action .goldbtn:active,.game-menu-toggle:active,.hero-panel #bench-toggle:active{filter:brightness(.9)}
+body.layout-only .stage-action .goldbtn:disabled,.hero-panel #bench-toggle:disabled{filter:grayscale(.5) brightness(.7)}
+/* 备战沿用上排内容区域，己方战场与HUD保持位置。 */
+body.layout-only .bench-drawer{top:150px;width:1120px;height:230px;padding:0;background:none;border:0;box-shadow:none}
+body.layout-only .bench-drawer .board{background:none!important;border:0;box-shadow:none}
+/* 原画、徽标与读数的材质保持统一且克制，图片身份与元素／等级色不改。 */
+.app .card-art:after{background:linear-gradient(0deg,#160e0980,transparent 34%),linear-gradient(135deg,#fff0cf12,transparent 42%);box-shadow:inset 1px 2px 3px #1c100b66;pointer-events:none}
+.app .card{box-shadow:inset 1px 1px 0 #fff0c65c,1px 2px 0 #513a28,2px 4px 0 #2d1e15,3px 7px 6px #25150b66;transition:box-shadow .16s}
+.app .card:hover,.app .card:focus-visible{box-shadow:inset 1px 1px 0 #fff0c685,1px 2px 0 #513a28,2px 4px 0 #2d1e15,3px 7px 6px #25150b66,0 0 0 1px var(--rarity),0 0 12px color-mix(in srgb,var(--rarity) 22%,transparent)}
+.app .card .effect,.app .card .value,.app .card .set-badge{color:#fff2cd;text-shadow:0 1px 2px #190e0b}
