@@ -18,16 +18,17 @@ using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.Verification;
 
-// 碎骨法师摧毁筛选、逐张伤害及召唤复用位置验证（表现层验证模块）。
+// 碎骨法杖摧毁筛选、逐张伤害及召唤复用位置验证（表现层验证模块）。
 internal static class BonebreakerMageChecks
 {
     internal static bool LevelsAndSacrifice()
     {
         var definition = new BonebreakerMageCardDefinition();
         var identity = definition.Attributes.Identity;
-        if (identity.Key != new StringName("card.bonebreaker_mage") || identity.DisplayName != "碎骨法师"
+        if (identity.Key != new StringName("card.bonebreaker_mage") || identity.DisplayName != "碎骨法杖"
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Medium
-            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark }) || !definition.Tags.Contains(GameTags.Human)
+            || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark }) || definition.Tags.Contains(GameTags.Human)
+            || !definition.Tags.Contains(GameTags.Equipment)
             || definition.InitialLevel != 3 || definition.SupportsLevel(2) || definition.SupportsLevel(5)
             || !DefinitionRegistry.Scan(typeof(BonebreakerMageChecks).Assembly).Cards.ContainsKey(identity.Key)) return Fail();
         var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
@@ -164,7 +165,7 @@ internal static class BonebreakerMageChecks
     }
 
     private static bool Fail([System.Runtime.CompilerServices.CallerLineNumber] int line = 0)
-    { GD.Print($"碎骨法师检查失败，行 {line}"); return false; }
+    { GD.Print($"碎骨法杖检查失败，行 {line}"); return false; }
     private static CardBattleSetup Mage(int level)
     {
         var definition = new BonebreakerMageCardDefinition();

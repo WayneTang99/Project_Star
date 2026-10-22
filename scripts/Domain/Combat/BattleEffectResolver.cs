@@ -76,7 +76,7 @@ internal static class BattleEffectResolver
                     var start = side == AdjacentCardSide.Left
                         ? sacrificeSource.BoardStart - sacrificeSummon.Card.Attributes.Identity.OccupiedSlots
                         : sacrificeSource.BoardStart + sacrificeSource.OccupiedSlots;
-                    var summoned = SummonCard(runtime, sacrificeSource, sacrificeSummon.Card, sacrificeSource.Level, start);
+                    var summoned = SummonCard(runtime, sacrificeSource, sacrificeSummon.Card, sacrificeSource.Level, start, pending.IsEcho || pending.SuppressEchoes);
                     if (summoned is not null && sacrificeSummon.SummonedStateKey is { } stateKey)
                         SetCardState(runtime, pending, summoned, stateKey, true);
                     break;
@@ -117,20 +117,38 @@ internal static class BattleEffectResolver
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, primaryStatus.Status, extraApplied));
                 break;
             case SummonAtDestroyedCardEffectDefinition replacement:
-                if (pending.EventCard is { Destroyed: true, IsOnBench: false } destroyedCard
+                if ((pending.EventCard ?? (definition.Activation == AbilityActivation.EchoOnSourceDestroyed
+                        ? pending.Source as CardBattleState : null)) is { Destroyed: true, IsOnBench: false } destroyedCard
                     && destroyedCard.Side == pending.Source.Side)
-                    SummonCard(runtime, pending.Source, replacement.Card,
-                        replacement.UseSourceLevel && pending.Source is CardBattleState replacementSource
-                            ? replacementSource.Level : destroyedCard.Level, destroyedCard.BoardStart);
+                    for (var index = 0; index < replacement.Count; index++)
+                        SummonCard(runtime, pending.Source, replacement.Card,
+                            replacement.UseSourceLevel && pending.Source is CardBattleState replacementSource
+                                ? replacementSource.Level : destroyedCard.Level,
+                            destroyedCard.BoardStart + index * replacement.Card.Attributes.Identity.OccupiedSlots,
+                            pending.IsEcho || pending.SuppressEchoes);
+                break;
+            case SummonRandomMatchingCardEffectDefinition matchingSummon when pending.Source is CardBattleState randomSource:
+                var summonStart = Enumerable.Range(0, runtime.GetBattlefieldCapacity(randomSource.Side))
+                    .FirstOrDefault(start => start + (int)matchingSummon.Size <= runtime.GetBattlefieldCapacity(randomSource.Side)
+                        && !runtime.Cards.Any(card => card.Side == randomSource.Side && !card.IsOnBench && !card.Destroyed
+                            && card.BoardStart < start + (int)matchingSummon.Size && start < card.BoardStart + card.OccupiedSlots), -1);
+                if (summonStart < 0) break;
+                var summonPool = runtime.GetCardDefinitions(randomSource.Side).Where(card => card.SupportsLevel(randomSource.Level)
+                    && card.Attributes.Identity.Size == matchingSummon.Size && card.Attributes.Identity.ElementKeys.Contains(matchingSummon.ElementKey)
+                    && (card.Attributes.Identity.FactionKey == randomSource.Identity?.FactionKey || card.Attributes.Identity.FactionKey == GameFactions.Neutral))
+                    .OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray();
+                if (summonPool.Length > 0)
+                    SummonCard(runtime, randomSource, summonPool[runtime.NextRandomIndex(summonPool.Length)], randomSource.Level,
+                        summonStart, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case SummonAdjacentCardEffectDefinition summon:
                 if (pending.Source is not CardBattleState summoner)
                     throw new InvalidOperationException("Adjacent summon requires a card source.");
-                SummonAdjacentCard(runtime, summoner, summon);
+                SummonAdjacentCard(runtime, summoner, summon, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case SummonIntoAllEmptySlotsEffectDefinition fill when pending.Source is CardBattleState fillSource:
                 for (var start = 0; start + fill.Card.Attributes.Identity.OccupiedSlots <= runtime.GetBattlefieldCapacity(fillSource.Side); start++)
-                    SummonCard(runtime, fillSource, fill.Card, fillSource.Level, start);
+                    SummonCard(runtime, fillSource, fill.Card, fillSource.Level, start, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case SummonRandomAdjacentCardEffectDefinition randomSummon:
                 if (pending.Source is not CardBattleState randomSummoner)
@@ -139,7 +157,7 @@ internal static class BattleEffectResolver
                     randomSummoner, card, randomSummon.Side)).ToArray();
                 if (templates.Length > 0)
                     SummonAdjacentCard(runtime, randomSummoner,
-                        new SummonAdjacentCardEffectDefinition(templates[runtime.NextRandomIndex(templates.Length)], randomSummon.Side));
+                        new SummonAdjacentCardEffectDefinition(templates[runtime.NextRandomIndex(templates.Length)], randomSummon.Side), pending.IsEcho || pending.SuppressEchoes);
                 break;
             case IncreaseSourceCardAttributeEffectDefinition increase:
                 if (pending.Source is not CardBattleState attributeSource)
@@ -161,14 +179,32 @@ internal static class BattleEffectResolver
                 runtime.Events.Add(new CardAttributeChangedEvent(runtime.Tick, multipliedSource.EntityId,
                     multiplier.AttributeKey, contribution, multipliedValue));
                 break;
+            case RandomizeSourceElementEffectDefinition when pending.Source is CardBattleState elementalSource:
+                var elements = GameElements.All.Where(element => element != GameElements.General).ToArray();
+                elementalSource.ElementKeys = new HashSet<StringName> { elements[runtime.NextRandomIndex(elements.Length)] };
+                BattleStatusResolver.RefreshCooldownAuras(runtime);
+                break;
             case TransformRandomEnemyCardEffectDefinition transform:
                 TransformRandomEnemyCard(runtime, pending.Source, transform);
                 break;
             case TransformSourceIntoRandomCardsEffectDefinition split when pending.Source is CardBattleState splitSource:
-                TransformSourceIntoRandomCards(runtime, splitSource, split);
+                TransformSourceIntoRandomCards(runtime, splitSource, split, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case SkillCountMaxManaEffectDefinition manaSkills:
                 hero.MaxMana = checked(hero.MaxMana + runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * manaSkills.Multiplier);
+                break;
+            case IncreaseHeroMaxManaEffectDefinition maxMana:
+                hero.MaxMana = checked(hero.MaxMana + maxMana.Amount);
+                break;
+            case RestoreEventManaSpentEffectDefinition:
+                ApplyEffect(runtime, pending, new RestoreManaEffectDefinition(pending.EventManaSpent));
+                break;
+            case HeroManaDamageEffectDefinition manaDamage:
+                var manaHero = runtime.GetHero(pending.Source.Side);
+                var manaDamageAmount = checked(manaHero.MaxMana + manaHero.ManaRegen * manaDamage.RegenMultiplier
+                    + GetEffectiveCombatAttribute(runtime, pending.Source, GameAttributeKeys.AttackDamage));
+                if (ApplyDamage(runtime, pending.Source.EntityId, targetSide, hero, ActivationDamageAmount(pending, manaDamageAmount), false,
+                    GetDamageSourceKind(pending.Source)) && !pending.IsEcho) CombatSimulator.EnqueueDamageEchoes(runtime);
                 break;
             case SkillCountDamageEffectDefinition skillDamage:
                 var skillAmount = checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * skillDamage.Multiplier
@@ -294,8 +330,14 @@ internal static class BattleEffectResolver
                     ? GetTargetCard(runtime, pending)
                     : definition.Target == AbilityTarget.EventCard ? pending.EventCard : pending.Source;
                 if (statusTarget is null) break;
-                var appliedAmount = BattleStatusResolver.ApplyStatus(statusTarget, hero, appliedStatus);
+                var statusHero = status.TargetsSourceHero ? runtime.GetHero(pending.Source.Side) : hero;
+                var appliedAmount = BattleStatusResolver.ApplyStatus(statusTarget, statusHero, appliedStatus);
                 runtime.Events.Add(new StatusChangedEvent(runtime.Tick, status.Status, appliedAmount));
+                if (appliedAmount > 0 && status.Status == BattleStatus.ManaRegen
+                    && definition.Activation == AbilityActivation.Active && !pending.IsEcho && !pending.SuppressEchoes)
+                    foreach (var regenSource in runtime.AbilitySources.Where(source => source.Side == (status.TargetsSourceHero ? pending.Source.Side : targetSide) && !source.Destroyed && !source.IsOnBench))
+                    foreach (var regenAbility in regenSource.Abilities.Where(ability => ability.Definition.Activation == AbilityActivation.EchoOnAlliedManaRegenGained))
+                        CombatSimulator.Enqueue(runtime, regenSource, regenAbility, true);
                 if (appliedAmount > 0 && statusTarget is CardBattleState statusCard)
                 {
                     BattleStatusResolver.ApplyAdjacentStatusReactions(runtime, statusCard, status.Status);
@@ -368,10 +410,9 @@ internal static class BattleEffectResolver
                 ChargeCard(runtime, selfChargeSource, selfChargeSource, sourceCharge.AmountTicks, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case ChargeRandomOtherAlliedCardsEffectDefinition randomCharge:
-                if (pending.Source is not CardBattleState randomChargeSource)
-                    throw new InvalidOperationException("Random card charge requires a card source.");
+                var randomChargeSource = pending.Source;
                 var chargeCandidates = runtime.Cards.Where(card => card.Side == randomChargeSource.Side
-                    && card.EntityId != randomChargeSource.EntityId && !card.Destroyed && !card.IsOnBench
+                    && (!randomCharge.ExcludeSource || card.EntityId != randomChargeSource.EntityId) && !card.Destroyed && !card.IsOnBench
                     && (randomCharge.RequiredTag is null || HasEffectiveTag(runtime, card, randomCharge.RequiredTag))
                     && card.Abilities.Any(ability => ability.Definition.Activation == AbilityActivation.Active
                         && ability.RemainingCooldownUnits > 0)).ToList();
@@ -402,6 +443,17 @@ internal static class BattleEffectResolver
                 if (pending.Source is not CardBattleState destroySource)
                     throw new InvalidOperationException("Self-destruction requires a card source.");
                 DestroyCard(runtime, destroySource, pending.Source.EntityId, destroy.Permanent, pending.IsEcho || pending.SuppressEchoes);
+                break;
+            case DestroyAdjacentAlliedCardsEffectDefinition adjacentDestroy:
+                if (pending.Source is not CardBattleState adjacentDestroySource)
+                    throw new InvalidOperationException("Adjacent destruction requires a card source.");
+                var adjacentTargets = runtime.Cards.Where(card => card.Side == pending.Source.Side
+                    && !card.Destroyed && !card.IsOnBench && card.EntityId != pending.Source.EntityId
+                    && card.OccupiedSlots == (int)adjacentDestroy.Size
+                    && (card.BoardStart + card.OccupiedSlots == adjacentDestroySource.BoardStart
+                        || card.BoardStart == adjacentDestroySource.BoardStart + adjacentDestroySource.OccupiedSlots)).ToArray();
+                foreach (var target in adjacentTargets)
+                    DestroyCard(runtime, target, pending.Source.EntityId, false, pending.IsEcho || pending.SuppressEchoes);
                 break;
             case DestroyBattlefieldCardsEffectDefinition battlefieldDestroy:
                 foreach (var target in runtime.Cards.Where(card => !card.Destroyed && !card.IsOnBench
@@ -508,7 +560,7 @@ internal static class BattleEffectResolver
             { DamageMultiplier = ElementSequenceResolver.PreviewMultiplier(runtime, card, ability) };
         pending = pending with { PrimaryValue = PrimaryValue(runtime, pending) };
         var amount = BaseEffectAmount(runtime, pending, effect);
-        var usesBerserk = effect is SkillCountDamageEffectDefinition or DamageEffectDefinition or AttributeDamageEffectDefinition
+        var usesBerserk = effect is HeroManaDamageEffectDefinition or SkillCountDamageEffectDefinition or DamageEffectDefinition or AttributeDamageEffectDefinition
             or DestroyAlliedCardsAndDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
             or SourceHeroArmorDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
             or ApplyStatusEffectDefinition { Status: BattleStatus.Burn or BattleStatus.Poison }
@@ -541,6 +593,10 @@ internal static class BattleEffectResolver
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
             ApplyStatusEffectDefinition value => value.Amount + (value.Status == BattleStatus.Burn ? Value(GameAttributeKeys.BurnBonus)
                     : value.Status == BattleStatus.Poison ? Value(GameAttributeKeys.PoisonBonus) : 0),
+            HeroManaDamageEffectDefinition value => checked(own.MaxMana + own.ManaRegen * value.RegenMultiplier + Value(GameAttributeKeys.AttackDamage)),
+            IncreaseHeroMaxManaEffectDefinition value => value.Amount,
+            ManaRegenAuraEffectDefinition value => value.Amount,
+            RestoreEventManaSpentEffectDefinition => pending.EventManaSpent,
             SkillCountDamageEffectDefinition value => checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * value.Multiplier + Value(GameAttributeKeys.AttackDamage)),
             SkillCountMaxManaEffectDefinition value => checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * value.Multiplier),
             SkillCountManaRegenAuraEffectDefinition value => checked(runtime.Skills.Count(skill => skill.Side == pending.Source.Side) * value.Multiplier),
@@ -596,7 +652,7 @@ internal static class BattleEffectResolver
     private static int ActivationDamageAmount(PendingAbility pending, int amount) =>
         checked((int)(BerserkAmount(pending, amount) * pending.DamageMultiplier));
 
-    internal static bool IsDamageEffect(EffectDefinition effect) => effect is SkillCountDamageEffectDefinition or DamageEffectDefinition or AttributeDamageEffectDefinition
+    internal static bool IsDamageEffect(EffectDefinition effect) => effect is HeroManaDamageEffectDefinition or SkillCountDamageEffectDefinition or DamageEffectDefinition or AttributeDamageEffectDefinition
         or DestroyAlliedCardsAndDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
         or SourceHeroArmorDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition;
 
@@ -679,6 +735,15 @@ internal static class BattleEffectResolver
                 && effect is MultiplySourceAttributeWhileEnemyHasArmorEffectDefinition multiplier
                 && multiplier.AttributeKey == key && runtime.GetHero(Opposite(source.Side)).Armor > 0)
                 value = checked(value * multiplier.Multiplier);
+        if (source is CardBattleState { Destroyed: false, IsOnBench: false })
+            foreach (var ability in source.Abilities)
+            foreach (var effect in ability.Definition.Effects)
+                if (ability.Definition.Activation == AbilityActivation.PassiveAura
+                    && effect is MultiplySourceAttributeWhileEnemyHasTagEffectDefinition tagMultiplier
+                    && tagMultiplier.AttributeKey == key
+                    && runtime.Cards.Any(card => card.Side != source.Side && !card.Destroyed && !card.IsOnBench
+                        && HasEffectiveTag(runtime, card, tagMultiplier.RequiredTag)))
+                    value = checked(value * tagMultiplier.Multiplier);
         if (source is CardBattleState { Destroyed: false, IsOnBench: false } stateSource)
             foreach (var ability in stateSource.Abilities)
             foreach (var effect in ability.Definition.Effects)
@@ -805,7 +870,7 @@ internal static class BattleEffectResolver
 
     // 原子替换来源占格；不触发摧毁，取消旧发动队列，新卡从完整冷却开始。
     private static void TransformSourceIntoRandomCards(BattleRuntime runtime, CardBattleState source,
-        TransformSourceIntoRandomCardsEffectDefinition effect)
+        TransformSourceIntoRandomCardsEffectDefinition effect, bool suppressEchoes)
     {
         if (source.Destroyed || source.IsOnBench || !runtime.Cards.Contains(source)) return;
         var candidates = effect.Replacements.Where(card => card.SupportsLevel(source.Level))
@@ -850,6 +915,7 @@ internal static class BattleEffectResolver
             runtime.AddSummonedCard(replacement);
             runtime.Events.Add(new CardSummonedEvent(runtime.Tick, source.EntityId, replacement.EntityId, source.Side,
                 replacement.Identity!.Key, source.Level, replacement.BoardStart));
+            NotifySummoned(runtime, replacement, suppressEchoes);
         }
     }
 
@@ -865,19 +931,19 @@ internal static class BattleEffectResolver
     }
 
     private static void SummonAdjacentCard(BattleRuntime runtime, CardBattleState source,
-        SummonAdjacentCardEffectDefinition effect)
+        SummonAdjacentCardEffectDefinition effect, bool suppressEchoes)
     {
         var definition = effect.Card;
         var identity = definition.Attributes.Identity;
         var size = identity.OccupiedSlots;
         var start = effect.Side == AdjacentCardSide.Left ? source.BoardStart - size : source.BoardStart + source.OccupiedSlots;
         if (!CanSummonAdjacentCard(runtime, source, definition, effect.Side)) return;
-        SummonCard(runtime, source, definition, source.Level, start);
+        SummonCard(runtime, source, definition, source.Level, start, suppressEchoes);
     }
 
     // 校验完整占格并创建本场召唤物，卡牌与技能来源共用。
     private static CardBattleState? SummonCard(BattleRuntime runtime, IBattleAbilitySource source, CardDefinition definition,
-        int cardLevel, int start)
+        int cardLevel, int start, bool suppressEchoes = false)
     {
         var identity = definition.Attributes.Identity;
         var size = identity.OccupiedSlots;
@@ -902,7 +968,21 @@ internal static class BattleEffectResolver
         foreach (var entry in setup.CombatValues) summoned.CombatAttributes[entry.Key] = entry.Value;
         runtime.AddSummonedCard(summoned);
         runtime.Events.Add(new CardSummonedEvent(runtime.Tick, source.EntityId, id, source.Side, identity.Key, cardLevel, start));
+        NotifySummoned(runtime, summoned, suppressEchoes);
         return summoned;
+    }
+
+    // 每张实际召唤物仅发布一次回响；回响产生的召唤遵循不连锁约定。
+    private static void NotifySummoned(BattleRuntime runtime, CardBattleState summoned, bool suppressEchoes)
+    {
+        if (suppressEchoes) return;
+        foreach (var source in runtime.AbilitySources.Where(source => source.Side == summoned.Side && !source.Destroyed && !source.IsOnBench))
+        foreach (var ability in source.Abilities)
+            if (ability.Definition.Activation == AbilityActivation.EchoOnAlliedCardSummoned
+                && (ability.Definition.TriggerCardElement is not { } element || summoned.ElementKeys.Contains(element))
+                && (ability.Definition.TriggerCardTag is not { } tag || HasEffectiveTag(runtime, summoned, tag))
+                && (ability.Definition.TriggerCardSize is not { } size || summoned.OccupiedSlots == (int)size))
+                CombatSimulator.Enqueue(runtime, source, ability, true, eventCard: summoned);
     }
 
     private static void ChargeRandomOtherAlliedElementCard(

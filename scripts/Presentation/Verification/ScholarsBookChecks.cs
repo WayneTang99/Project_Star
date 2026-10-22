@@ -110,7 +110,7 @@ internal static class ScholarsBookChecks
 
     private static int Level(SkillInstance skill) => skill.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level);
     private static DefinitionRegistry Catalog(params SkillDefinition[] skills) => DefinitionRegistry.Create(
-        new object[] { new MonaHeroDefinition(), new PaladinHeroDefinition(), new ScholarsBookCardDefinition(), new SkeletonCardDefinition() }.Concat(skills));
+        new object[] { new MonaHeroDefinition(), new PaladinHeroDefinition(), new ScholarsBookCardDefinition(), new Project_Star.Content.Sets.ScholarSetDefinition(), new SkeletonCardDefinition() }.Concat(skills));
     private static MatchSession Fixture(ulong seed, int level, BoardZone zone, IDefinitionCatalog catalog)
     {
         var match = new CreateMatchService(new EntityFactory()).Create(seed, 0, new MonaHeroDefinition());

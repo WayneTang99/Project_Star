@@ -122,10 +122,12 @@ public sealed class CombatSimulator
         bool suppressEchoes = false,
         bool triggeredActivation = false,
         bool allowDestroyedSource = false,
-        HashSet<EntityId>? triggerChain = null)
+        HashSet<EntityId>? triggerChain = null,
+        int eventManaSpent = 0)
     {
         runtime.Queue.Enqueue(new PendingAbility(card, ability, echo, multicast, runtime.Tick, eventCard) { SuppressEchoes = suppressEchoes, IsTriggeredActivation = triggeredActivation,
-            AllowDestroyedSource = allowDestroyedSource, TriggerChain = triggerChain });
+            AllowDestroyedSource = allowDestroyedSource, TriggerChain = triggerChain, EventManaSpent = eventManaSpent,
+            EventElementKeys = eventCard?.ElementKeys.ToArray() ?? [] });
         runtime.Events.Add(new AbilityQueuedEvent(
             runtime.Tick,
             card.EntityId,
@@ -242,7 +244,7 @@ public sealed class CombatSimulator
                 && origin.Ability.Definition.Activation == AbilityActivation.Active
                 && origin.Ability.Definition.ManaCost > 0
                 && !origin.IsMulticast && !origin.IsTriggeredActivation)
-                Enqueue(runtime, source, ability, true);
+                Enqueue(runtime, source, ability, true, eventManaSpent: origin.Ability.Definition.ManaCost);
             if (ability.Definition.Activation == AbilityActivation.EchoOnEnemyCardActivated
                 && source.Side != origin.Source.Side
                 && origin.Source is CardBattleState { IsOnBench: false } enemyCard
@@ -298,6 +300,14 @@ public sealed class CombatSimulator
                     || ability.Definition.TriggerCardTag is { } tag && BattleEffectResolver.HasEffectiveTag(runtime, originCard, tag)
                     || ability.Definition.TriggerCardElement is { } element && originCard.ElementKeys.Contains(element)))
                 Enqueue(runtime, source, ability, true, eventCard: originCard);
+            if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedElementActivated
+                && source.Side == origin.Source.Side
+                && origin.Source is CardBattleState { IsOnBench: false } elementalCard
+                && origin.Ability.Definition.Activation == AbilityActivation.Active)
+                foreach (var firstElement in GameElements.All)
+                    if (firstElement != GameElements.General && elementalCard.ElementKeys.Contains(firstElement)
+                        && ability.TriggeredElements.Add(firstElement))
+                        Enqueue(runtime, source, ability, true, eventCard: elementalCard);
             if (ability.Definition.Activation == AbilityActivation.EchoOnFirstAlliedCardActivated
                 && !ability.Triggered
                 && source.Side == origin.Source.Side

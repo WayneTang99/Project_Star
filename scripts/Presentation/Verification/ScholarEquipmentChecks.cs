@@ -22,18 +22,27 @@ using Project_Star.Presentation.Playtest;
 
 namespace Project_Star.Presentation.Verification;
 
-// 魔导士装备的技能计数、光环、套装奖励与原画验收（表现验证层）。
-internal static class MagisterChecks
+// 学者装备的技能计数、光环、套装奖励与原画验收（表现验证层）。
+internal static class ScholarEquipmentChecks
 {
     internal static bool Combat()
     {
+        foreach (var definition in new CardDefinition[] { new MagisterBootsCardDefinition(), new MagisterCrownCardDefinition(), new MagisterScepterCardDefinition() })
+        foreach (var level in definition.Levels.Keys)
+        {
+            var card = new EntityFactory().CreateCard(definition, level);
+            Require(card.Attributes.Identity.SetKey == new StringName("set.wizard")
+                && card.Attributes.Identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark }), "dark red equipment belongs to dark wizard set");
+        }
+        Require(new WizardHatCardDefinition().Attributes.Identity.DisplayName == "魔导士之帽"
+            && new WizardRobeCardDefinition().Attributes.Identity.DisplayName == "魔导士长袍", "purple equipment names");
         foreach (var count in new[] { 0, 1, 3 })
         foreach (var reverse in new[] { false, true })
         foreach (var level in new[] { 2, 3, 4 })
         {
-            var boots = Card(new MagisterBootsCardDefinition(), level, 0);
-            var crown = Card(new MagisterCrownCardDefinition(), level, 1);
-            var cards = level == 2 ? new[] { boots, crown } : new[] { boots, crown, Card(new MagisterScepterCardDefinition(), level, 2) };
+            var mantle = Card(new ScholarMantleCardDefinition(), level, 0);
+            var spectacles = Card(new ScholarSpectaclesCardDefinition(), level, 1);
+            var cards = level == 2 ? new[] { mantle, spectacles } : new[] { mantle, spectacles, Card(new ScholarRobeCardDefinition(), level, 2) };
             var skills = Enumerable.Range(0, count).Select(_ => new SkillBattleSetup(EntityId.New(), [], new System.Collections.Generic.Dictionary<StringName, int>())).ToArray();
             var side = new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0, ManaRegen: 10), cards, skills);
             var enemy = new BattleSideSetup(new HeroBattleSetup(EntityId.New(), 10000, 0, ManaRegen: 0), []);
@@ -48,15 +57,15 @@ internal static class MagisterChecks
             Require(result.Events.SequenceEqual(new CombatSimulator().Simulate(setup).Events), "determinism");
             Require(result.PermanentAttributeBonuses.Count == 0, "battle isolation");
             var preview = new CombatSimulator().Preview(setup);
-            Require(preview.Cards.Single(c => c.Id == crown.EntityId).EffectAmounts.Single() == count * level, "aura preview");
-            var disabled = crown with { IsOnBench = true };
+            Require(preview.Cards.Single(c => c.Id == spectacles.EntityId).EffectAmounts.Single() == count * level, "aura preview");
+            var disabled = spectacles with { IsOnBench = true };
             var noAura = new CombatSimulator().Simulate(new BattleSetup(new BattleSideSetup(side.Hero, [disabled], skills), enemy, 42, new BattleTick(1)));
             Require(noAura.States[0].Player.ManaRegen == 10, "bench excluded");
             var runtime = new BattleRuntime(setup);
             BattleStatusResolver.RefreshCooldownAuras(runtime);
             var activeHero = runtime.GetHero(reverse ? SideId.Opponent : SideId.Player);
             activeHero.ManaRegen += 7;
-            runtime.Cards.Single(card => card.EntityId == crown.EntityId).Destroyed = true;
+            runtime.Cards.Single(card => card.EntityId == spectacles.EntityId).Destroyed = true;
             BattleStatusResolver.RefreshCooldownAuras(runtime);
             Require(activeHero.ManaRegen == 17, "aura removal preserves other contributions");
         }
@@ -65,7 +74,23 @@ internal static class MagisterChecks
 
     internal static bool Rewards()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MagisterSetDefinition).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(ScholarSetDefinition).Assembly);
+        Require(registry.Cards.Values.Count(card => card.Attributes.Identity.SetKey == new StringName("set.scholar")) == 4, "four scholar members");
+        Require(!registry.Sets.ContainsKey(new StringName("set.magister")), "old skill reward set migrated");
+        foreach (var members in new CardDefinition[][]
+        {
+            [new ScholarsBookCardDefinition(), new ScholarSpectaclesCardDefinition()],
+            [new ScholarsBookCardDefinition(), new ScholarMantleCardDefinition(), new ScholarSpectaclesCardDefinition()],
+        })
+        {
+            var factory = new EntityFactory();
+            var session = new CreateMatchService(factory, definitions: registry).Create(42, 100, new MonaHeroDefinition());
+            var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
+            var economy = new CardEconomyService(factory, board, registry.Cards.Values);
+            foreach (var member in members)
+                Require(economy.AcquireAndPlace(session, member, member.InitialLevel, CardAcquisitionSource.Reward).IsSuccess, "book combination equip");
+            Require(new CardSetEvaluator().Evaluate(session, registry.Sets).Count == members.Length - 1, "book counts for two and three piece thresholds");
+        }
         var seen = new System.Collections.Generic.HashSet<StringName>();
         for (ulong seed = 1; seed <= 32; seed++)
         {
@@ -73,7 +98,7 @@ internal static class MagisterChecks
             var session = new CreateMatchService(factory, definitions: registry).Create(seed, 100, new MonaHeroDefinition());
             var board = new BoardService(new BoardPlacementSolver(), registry.Sets);
             var economy = new CardEconomyService(factory, board, registry.Cards.Values);
-            foreach (var definition in new CardDefinition[] { new MagisterBootsCardDefinition(), new MagisterCrownCardDefinition(), new MagisterScepterCardDefinition() })
+            foreach (var definition in new CardDefinition[] { new ScholarMantleCardDefinition(), new ScholarSpectaclesCardDefinition(), new ScholarRobeCardDefinition() })
                 Require(economy.AcquireAndPlace(session, definition, definition.InitialLevel, CardAcquisitionSource.Reward).IsSuccess, "equip");
             Require(new CardSetEvaluator().Evaluate(session, registry.Sets).Count == 2, "cumulative thresholds");
             HeroExperienceService.Grant(session, 20);
@@ -102,8 +127,8 @@ internal static class MagisterChecks
             MatchAbilityService.GrantRandomSkill(probe, new GrantRandomFactionSkillEffectDefinition(new StringName("mona"), 3));
         Require(probe.Player.Skills.Items.Any(s => s.Attributes.Identity.FactionKey == new StringName("mona"))
             && probe.Player.Skills.Items.Any(s => s.Attributes.Identity.FactionKey == GameFactions.Neutral), "both factions at supported level");
-        var single = DefinitionRegistry.Create([new MonaHeroDefinition(), new MagisterSetDefinition(),
-            new MagisterBootsCardDefinition(), new MagisterCrownCardDefinition(), new MagisterScepterCardDefinition(), new AssaultSkillDefinition()]);
+        var single = DefinitionRegistry.Create([new MonaHeroDefinition(), new ScholarSetDefinition(),
+            new ScholarMantleCardDefinition(), new ScholarSpectaclesCardDefinition(), new ScholarRobeCardDefinition(), new AssaultSkillDefinition()]);
         var merged = new CreateMatchService(new EntityFactory(), definitions: single).Create(42, 0, new MonaHeroDefinition());
         var reward = new GrantRandomFactionSkillEffectDefinition(new StringName("mona"), 1);
         MatchAbilityService.GrantRandomSkill(merged, reward);
@@ -127,15 +152,15 @@ internal static class MagisterChecks
     }
 
     private static void Require(bool condition, string message)
-    { if (!condition) throw new InvalidOperationException("魔导士验证失败：" + message); }
+    { if (!condition) throw new InvalidOperationException("学者验证失败：" + message); }
 
     internal static async Task Capture(Control owner)
     {
         var details = new CardDetailsView { Theme = MatchTheme.Create() }; owner.AddChild(details);
-        var registry = DefinitionRegistry.Scan(typeof(MagisterSetDefinition).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(ScholarSetDefinition).Assembly);
         details.SetEntries(CardCatalogQuery.Capture(registry));
         var i = 0;
-        foreach (var definition in new CardDefinition[] { new MagisterBootsCardDefinition(), new MagisterCrownCardDefinition(), new MagisterScepterCardDefinition() })
+        foreach (var definition in new CardDefinition[] { new ScholarMantleCardDefinition(), new ScholarSpectaclesCardDefinition(), new ScholarRobeCardDefinition() })
         {
             var snapshot = new CardPreviewQuery(registry).Describe(MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)), null);
             using var art = GD.Load<Texture2D>(snapshot.Illustration.ToString()).GetImage();
@@ -145,7 +170,7 @@ internal static class MagisterChecks
             owner.AddChild(face); face.Render(snapshot, new CardDisplayAdapter());
             details.ShowCard(snapshot, new Vector2(270, 40), owner.GetViewportRect().Size);
             for (var j = 0; j < 12; j++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
-            RenderingServer.ForceDraw(); using var image = owner.GetViewport().GetTexture().GetImage(); image.SavePng($"res://output/magister/card-{i++}.png");
+            RenderingServer.ForceDraw(); using var image = owner.GetViewport().GetTexture().GetImage(); image.SavePng($"res://output/scholar-equipment/card-{i++}.png");
             face.QueueFree();
         }
         details.QueueFree();

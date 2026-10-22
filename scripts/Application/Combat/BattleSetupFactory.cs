@@ -155,6 +155,8 @@ public sealed class BattleSetupFactory
                 { Identity = hero.Attributes.Identity },
             cards.AsReadOnly(),
             skills.AsReadOnly(),
-            sets.AsReadOnly()) { BattlefieldCapacity = session.Board.Battlefield.Capacity };
+            sets.AsReadOnly()) { BattlefieldCapacity = session.Board.Battlefield.Capacity,
+                CardDefinitions = Array.AsReadOnly(session.Definitions?.Cards.Values.OrderBy(card => card.Attributes.Identity.Key.ToString(), StringComparer.Ordinal).ToArray()
+                    ?? Array.Empty<CardDefinition>()) };
     }
 }

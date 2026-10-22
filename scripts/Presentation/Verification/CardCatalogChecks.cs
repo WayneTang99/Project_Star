@@ -57,7 +57,7 @@ internal static class CardCatalogChecks
                 if (described.Set is null || described.Set.Key != raw.SetKey || described.Set.DistinctCardCount != 0
                     || described.Set.Thresholds.Count == 0) return Fail("图鉴套装说明缺失：" + raw.DisplayName);
             }
-            var scepter = MatchDisplayQuery.FromOffer(ShopOffer.Create(new Project_Star.Content.Cards.MagisterScepterCardDefinition()));
+            var scepter = MatchDisplayQuery.FromOffer(ShopOffer.Create(new Project_Star.Content.Cards.ScholarRobeCardDefinition()));
             shell.ShowHoverCard(scepter, new Rect2(40, 80, 100, 100));
             for (var frame = 0; frame < 6; frame++) await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.ProcessFrame);
             var detail = shell.GetNode<CardDetailsView>("CardDetails");

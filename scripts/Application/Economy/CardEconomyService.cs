@@ -392,7 +392,7 @@ public sealed class CardEconomyService
             .FirstOrDefault(card => card is not null && CardAbilityComposer.Compose(card)
                 .Any(ability => ability.Effects.Any(effect => effect is
                     DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition or MaxHealthPercentDamageEffectDefinition
-                    or SkillCountDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
+                    or HeroManaDamageEffectDefinition or SkillCountDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition or SourceHeroHealthScaledAttributeDamageEffectDefinition
                     or SourceHeroArmorDamageEffectDefinition)));
 
     private static CardInstance? FindLeftmostHealingCard(MatchSession session, EntityId excludedCardId) =>

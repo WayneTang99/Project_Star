@@ -6,14 +6,14 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 巫师帽莫娜卡牌内容定义（内容层）。
+// 魔导士之帽莫娜卡牌内容定义（内容层）。
 public sealed class WizardHatCardDefinition : CardDefinition
 {
     public WizardHatCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
-            new CardIdentityAttributes(new StringName("card.wizard_hat"), "巫师帽", new StringName("mona"),
+            new CardIdentityAttributes(new StringName("card.wizard_hat"), "魔导士之帽", new StringName("mona"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/wizard_hat-illustration.png"),
+                setKey: new StringName("set.mage"), illustration: new StringName("res://art/ui/card-face/artwork/wizard_hat-illustration.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "冷却5秒，魔法消耗0，恢复己方英雄20/40/80/160魔法。"),

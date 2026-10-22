@@ -56,6 +56,7 @@ public sealed record CardSetBattleSetup(EntityId EntityId, IReadOnlyList<Ability
 
 public sealed class BattleSideSetup
 {
+    public IReadOnlyList<CardDefinition> CardDefinitions { get; init; } = Array.Empty<CardDefinition>();
     public int BattlefieldCapacity { get; init; } = Project_Star.Domain.Match.BoardState.DefaultCapacity;
     public BattleSideSetup(
         HeroBattleSetup hero,

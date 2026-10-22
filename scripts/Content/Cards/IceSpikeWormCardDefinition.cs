@@ -6,14 +6,14 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 冰刺蠕虫莫娜卡牌内容定义（内容层）。
+// 冰晶蝶莫娜卡牌内容定义（内容层）。
 public sealed class IceSpikeWormCardDefinition : CardDefinition
 {
     public IceSpikeWormCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
-            new CardIdentityAttributes(new StringName("card.ice_spike_worm"), "冰刺蠕虫", new StringName("mona"),
+            new CardIdentityAttributes(new StringName("card.ice_spike_worm"), "冰晶蝶", new StringName("mona"),
                 CardSize.Small, [GameElements.Ice],
-                illustration: new StringName("res://art/ui/card-face/artwork/ice_spike_worm-illustration.png"),
+                illustration: new StringName("res://art/ui/card-face/artwork/ice_crystal_butterfly-illustration-20261022.png"),
                 descriptionEntries:
                 [
                     new(CardKeywords.Activate, "使敌方随机1张卡牌获得1秒迟缓。"),

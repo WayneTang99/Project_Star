@@ -124,10 +124,18 @@ internal static class BattleStatusResolver
         ApplyStatusToRandomAlliedCardEffectDefinition effect)
     {
         var candidates = runtime.Cards.Where(card => card.Side == pending.Source.Side && !card.Destroyed && !card.IsOnBench
+            && (!effect.ExcludeEventCardElements || card.EntityId != pending.EventCard?.EntityId
+                && !card.ElementKeys.Any(pending.EventElementKeys.Contains))
             && (effect.RequiredTag is not { } tag || BattleEffectResolver.HasEffectiveTag(runtime, card, tag))).ToArray();
         if (candidates.Length == 0) return;
-        ApplyCardStatus(runtime, pending, candidates[runtime.NextRandomIndex(candidates.Length)], effect.Status,
-            DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount));
+        for (var selected = 0; selected < Math.Min(effect.TargetCount, candidates.Length); selected++)
+        {
+            var index = selected + runtime.NextRandomIndex(candidates.Length - selected);
+            var target = candidates[index];
+            (candidates[selected], candidates[index]) = (candidates[index], candidates[selected]);
+            ApplyCardStatus(runtime, pending, target, effect.Status,
+                DurationWithSourceBonus(runtime, pending, effect.Status, effect.Amount));
+        }
     }
 
     private static void ApplyCardStatus(BattleRuntime runtime, PendingAbility pending, CardBattleState target,
@@ -192,6 +200,9 @@ internal static class BattleStatusResolver
                 .SelectMany(ability => ability.Definition.Effects)
                 .Sum(effect => effect switch
                 {
+                    ReduceAlliedCooldownPerElementAuraEffectDefinition aura => checked(aura.PercentPerElement * runtime.Cards
+                        .Where(card => card.Side == source.Side && !card.Destroyed && !card.IsOnBench)
+                        .SelectMany(card => card.ElementKeys).Distinct().Count()),
                     ReduceAlliedElementCardCooldownAuraEffectDefinition aura when source.ElementKeys.Contains(aura.ElementKey)
                         && (aura.RequiredTag is null || BattleEffectResolver.HasEffectiveTag(runtime, source, aura.RequiredTag)) => aura.Percent,
                     ReduceOtherHeroCardCooldownAuraEffectDefinition aura when source.Identity is { } identity
@@ -240,6 +251,10 @@ internal static class BattleStatusResolver
             .Where(source => source.Side == side && !source.Destroyed && !source.IsOnBench)
             .SelectMany(source => source.Abilities).Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
             .SelectMany(ability => ability.Definition.Effects).OfType<SkillCountManaRegenAuraEffectDefinition>().Sum(effect => effect.Multiplier));
+        manaRegenBonus = checked(manaRegenBonus + runtime.AbilitySources
+            .Where(source => source.Side == side && !source.Destroyed && !source.IsOnBench)
+            .SelectMany(source => source.Abilities).Where(ability => ability.Definition.Activation == AbilityActivation.PassiveAura)
+            .SelectMany(ability => ability.Definition.Effects).OfType<ManaRegenAuraEffectDefinition>().Sum(effect => effect.Amount));
         hero.ManaRegen = checked(hero.ManaRegen + manaRegenBonus - hero.SkillManaRegenAuraBonus);
         hero.SkillManaRegenAuraBonus = manaRegenBonus;
         var delta = checked(bonus - hero.MaxHealthAuraBonus);

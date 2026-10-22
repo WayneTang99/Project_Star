@@ -14,7 +14,8 @@ public sealed class ElementalCodexCardDefinition : CardDefinition
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
             new StringName("card.elemental_codex"), "元素法典", new StringName("mona"),
             CardSize.Medium, [GameElements.General],
-            illustration: new StringName("res://art/ui/card-face/artwork/elemental_codex-illustration.png"),
+            setKey: new StringName("set.elementalist"),
+            illustration: new StringName("res://art/ui/card-face/artwork/elemental_codex-illustration-navy-20261022.png"),
             descriptionEntries:
             [
                 new(CardKeywords.Activate, "消耗60魔法，对敌方英雄造成40/80/160伤害，治疗己方英雄40/80/160生命。"),

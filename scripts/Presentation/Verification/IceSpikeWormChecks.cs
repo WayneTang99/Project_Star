@@ -22,7 +22,7 @@ internal static class IceSpikeWormChecks
     {
         var definition = new IceSpikeWormCardDefinition();
         var identity = definition.Attributes.Identity;
-        if (identity.Key != new StringName("card.ice_spike_worm") || identity.DisplayName != "冰刺蠕虫"
+        if (identity.Key != new StringName("card.ice_spike_worm") || identity.DisplayName != "冰晶蝶"
             || identity.FactionKey != new StringName("mona") || identity.Size != CardSize.Small
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Ice })
             || !definition.Tags.Contains(GameTags.Insect) || definition.InitialLevel != 1 || definition.SupportsLevel(5)) return false;
@@ -102,7 +102,7 @@ internal static class IceSpikeWormChecks
             var worm = MatchDisplayQuery.FromOffer(ShopOffer.Create(new IceSpikeWormCardDefinition()));
             using var art = GD.Load<Texture2D>(worm.Illustration.ToString()).GetImage();
             if (art.GetWidth() * 2 != art.GetHeight() || !art.HasMipmaps()) throw new InvalidOperationException("原画比例或mipmap失败。");
-            GD.Print($"冰刺蠕虫原画 {art.GetWidth()}×{art.GetHeight()} mipmap={art.GetMipmapCount()}");
+            GD.Print($"冰晶蝶原画 {art.GetWidth()}×{art.GetHeight()} mipmap={art.GetMipmapCount()}");
             var face = new CardItemView { Position = new Vector2(30, 40), Size = new Vector2(200, 400) }; owner.AddChild(face);
             face.Render(worm, new CardDisplayAdapter());
             details.ShowCard(worm, new Vector2(270, 40), owner.GetViewportRect().Size);

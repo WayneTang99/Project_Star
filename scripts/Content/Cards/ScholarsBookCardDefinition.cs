@@ -11,7 +11,7 @@ public sealed class ScholarsBookCardDefinition : CardDefinition
     public ScholarsBookCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
             new StringName("card.scholars_book"), "学者之书", new StringName("mona"), CardSize.Medium, [GameElements.General],
-            illustration: new StringName("res://art/ui/card-face/artwork/scholars_book-illustration.png"),
+            setKey: new StringName("set.scholar"), illustration: new StringName("res://art/ui/card-face/artwork/scholars_book-illustration-dark-green-20261022.png"),
             descriptionEntries:
             [new(CardKeywords.RoundStart, "在战场区或备战区时，随机学习1个任意英雄的同级技能，包含当前英雄，重复获取按技能合并规则处理。")])),
             new TagSet(), initialLevel: 2,

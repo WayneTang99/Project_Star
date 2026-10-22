@@ -6,18 +6,22 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 魔导士权杖莫娜装备定义，按技能实例数量缩放（内容层）。
+// 巫师权杖莫娜装备定义，暗属性召唤流派（内容层）。
 public sealed class MagisterScepterCardDefinition : CardDefinition
 {
     public MagisterScepterCardDefinition() : base(new EntityAttributes<CardIdentityAttributes>(new CardIdentityAttributes(
-        new StringName("card.magister_scepter"), "魔导士权杖", new StringName("mona"), CardSize.Medium, [GameElements.General],
-        setKey: new StringName("set.magister"), illustration: new StringName("res://art/ui/card-face/artwork/magister_scepter-illustration-dark-red.png"),
-        descriptionEntries: [new(CardKeywords.Activate, "造成等同于己方技能数量×40/80的伤害。")]),
-        baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 50, [GameAttributeKeys.AttackDamage] = 0 })),
+        new StringName("card.magister_scepter"), "巫师权杖", new StringName("mona"), CardSize.Medium, [GameElements.Dark],
+        setKey: new StringName("set.wizard"), illustration: new StringName("res://art/ui/card-face/artwork/magister_scepter-illustration-dark-red.png"), descriptionEntries:
+        [new(CardKeywords.Activate, "对敌方英雄造成100/200伤害。"),
+         new(CardKeywords.Echo, "当己方卡牌被召唤后，此卡牌获得80/160攻击，仅本场战斗生效。")]),
+        baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int> { [GameAttributeKeys.CooldownTicks] = 50 })),
         new TagSet([GameTags.Equipment]), initialLevel: 3,
-        levels: [CreateLevel(3, 40), CreateLevel(4, 80)]) { }
+        levels: [CreateLevel(3, 100, 80), CreateLevel(4, 200, 160)]) { }
 
-    private static CardLevelDefinition CreateLevel(int level, int multiplier) => new(level, null,
-        [new AbilityDefinition(new StringName("ability.magister_scepter"), AbilityActivation.Active,
-            AbilityTarget.EnemyHero, 0, 50, [new SkillCountDamageEffectDefinition(multiplier)])]);
+    private static CardLevelDefinition CreateLevel(int level, int damage, int growth) => new(level,
+        new Dictionary<StringName, int> { [GameAttributeKeys.AttackDamage] = damage },
+        [new AbilityDefinition(new StringName("ability.attribute_attack"), AbilityActivation.Active,
+            AbilityTarget.EnemyHero, 0, 50, [new AttributeDamageEffectDefinition(GameAttributeKeys.AttackDamage)]),
+         new AbilityDefinition(new StringName("ability.gain_attack_on_allied_summon"), AbilityActivation.EchoOnAlliedCardSummoned,
+            AbilityTarget.SelfCard, 0, 0, [new IncreaseSourceCardAttributeEffectDefinition(GameAttributeKeys.AttackDamage, growth)])]);
 }

@@ -6,14 +6,14 @@ using Project_Star.Domain.Definitions;
 
 namespace Project_Star.Content.Cards;
 
-// 巫师长袍莫娜卡牌内容定义（内容层）。
+// 魔导士长袍莫娜卡牌内容定义（内容层）。
 public sealed class WizardRobeCardDefinition : CardDefinition
 {
     public WizardRobeCardDefinition()
         : base(new EntityAttributes<CardIdentityAttributes>(
-            new CardIdentityAttributes(new StringName("card.wizard_robe"), "巫师长袍", new StringName("mona"),
+            new CardIdentityAttributes(new StringName("card.wizard_robe"), "魔导士长袍", new StringName("mona"),
                 CardSize.Medium, [GameElements.General],
-                illustration: new StringName("res://art/ui/card-face/artwork/wizard_robe-illustration.png"),
+                setKey: new StringName("set.mage"), illustration: new StringName("res://art/ui/card-face/artwork/wizard_robe-illustration.png"),
                 descriptionEntries:
                 [new(CardKeywords.Activate, "冷却6秒，消耗40魔法，己方英雄获得4/8/16/32魔法再生，仅本场战斗生效。")]),
             baseCombat: new ModifiableAttributeSet(new Dictionary<StringName, int>

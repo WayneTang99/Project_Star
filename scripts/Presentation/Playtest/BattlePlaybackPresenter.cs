@@ -197,7 +197,8 @@ public sealed class BattlePlaybackPresenter
                 };
             var projected = card with { CurrentValues = state.Values, EffectAmounts = state.EffectAmounts,
                 CurrentCooldownSeconds = state.CooldownDurationUnits.Count > 0 ? state.CooldownDurationUnits.Max() / 20m : null,
-                IsFlying = state.IsFlying, IsBerserk = state.IsBerserk, Tags = state.QuestTags };
+                IsFlying = state.IsFlying, IsBerserk = state.IsBerserk, Tags = state.QuestTags,
+                ElementKeys = state.QuestElementKeys.Count > 0 ? state.QuestElementKeys : card.ElementKeys };
             return state.Quests.Count == 0 ? projected : projected with
             {
                 ElementKeys = state.QuestElementKeys, Tags = state.QuestTags, Abilities = state.QuestAbilities,

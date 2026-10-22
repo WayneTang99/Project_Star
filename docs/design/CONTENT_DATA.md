@@ -1,4 +1,4 @@
-﻿# 内容数据规范
+# 内容数据规范
 
 正式内容统一维护在 [scripts/Content/](../../scripts/Content/) 的 C# Definition 中，是运行时与编辑时的唯一数据来源。玩法以 [游戏规则](GAME_DESIGN.md) 为准，命名以 [术语表](GLOSSARY.md) 为准。
 
@@ -14,7 +14,13 @@
 
 ## 卡牌
 
-摧毁回响的`ExcludedTriggerCardElement`可排除含指定元素的目标，双属性任一项命中即排除；与尺寸及包含元素筛选共同生效。该字段须随能力快照、宝石预览和任务解锁复制。`SummonAtDestroyedCardEffectDefinition.UseSourceLevel`默认关闭，保留按被摧毁卡牌等级召唤的技能语义；开启时卡牌来源按自身等级召唤，仍只在被摧毁卡牌原位置检查空位，不覆盖存活卡牌。来源失效、备战及回响连锁限制沿用既有规则。
+`MultiplySourceAttributeWhileEnemyHasTagEffectDefinition`用于战场自身光环，按敌方存活战场的有效标签判定来源属性倍率；至少1张匹配即生效，多张不重复计数，备战与已摧毁卡牌排除。每次求值重新判断，倍率包含来源属性加成，不写回基础属性。
+
+`SummonRandomMatchingCardEffectDefinition`按元素与尺寸筛选战前冻结的目录，要求模板支持来源当前等级且归属为来源或无阵营；按key排序后等概率选取，落点为最左可用连续空位，无空位／候选不推进随机。`BattleSetupFactory`从对局目录冻结该侧候选目录，战斗不查询外部注册表。`EchoOnAlliedCardSummoned`以每张实际召唤物为事件目标，支持元素、标签与尺寸筛选；来源必须位于存活战场。所有通用召唤入口发布该回响，回响产生的召唤及由其充能发动产生的召唤不继续连锁。
+
+`ReduceAlliedElementCardCooldownAuraEffectDefinition`允许套装等非卡牌来源以AlliedHero目标提供光环；`ChargeRandomOtherAlliedCardsEffectDefinition`允许非卡牌来源，`ExcludeSource`默认开启，关闭时可选择来源自身。随机充能仅选择具有尚未归零主动冷却的存活己方战场卡牌。
+
+摧毁回响的`ExcludedTriggerCardElement`可排除含指定元素的目标，双属性任一项命中即排除；与尺寸及包含元素筛选共同生效。该字段须随能力快照、宝石预览和任务解锁复制。`SummonAtDestroyedCardEffectDefinition.UseSourceLevel`默认关闭，保留按被摧毁卡牌等级召唤的技能语义；开启时卡牌来源按自身等级召唤，仍只在被摧毁卡牌原位置检查空位，不覆盖存活卡牌。可用于`EchoOnSourceDestroyed`自身亡语；`Count`默认1，多张从原起点按模板占格向右依次放置，每张独立检查边界与存活占位。来源失效、备战及回响连锁限制沿用既有规则，自身亡语允许已摧毁来源结算。
 
 `ElementSequenceEffectDefinition`是战场元素发动联动光环，可用于卡牌、技能或套装来源。前置元素成功主动发动后刷新窗口，窗口内下一次己方指定元素发动消费该窗口；到期时刻排除，多重额外发动独立判定，魔法支付失败、开战与回响不参与。先消费旧窗口，再在发动结束后刷新前置窗口，同一双属性卡牌不能在同一次发动中开启并消费新窗口；同Tick沿用实际FIFO顺序。可要求后续能力实际包含伤害效果，按冻结倍率只放大该次发动的伤害，整数结果向下取整；也可排队施加随机敌方卡牌持续状态，排除备战和摧毁目标。没有可选敌方卡牌仍消费窗口；来源失效后不再提供联动。重复来源分别持有窗口，伤害倍率相乘、状态分别施加；不写回对局属性。冻结数值与预览读取同一倍率，预览不消费窗口。
 
@@ -95,6 +101,8 @@
 固定模板相邻召唤使用 `SummonAdjacentCardEffectDefinition`，可组合进战场自身的主动发动或战斗开始能力。执行时检查指定侧紧邻可用位置，使用来源等级创建临时卡牌；模板等级不支持、占格不足或超出边界时跳过，不覆盖存活卡牌，已摧毁卡牌的位置可复用。召唤物从自身完整冷却开始，仅本场战斗存在；周期发动的召唤描述归入发动词条。
 
 `DestroyAlliedCardsAndDamageEffectDefinition` 按尺寸和元素筛选己方存活战场卡牌，仅在本场摧毁，并为每张实际摧毁的卡牌向敌方英雄结算一次伤害。每次发动先读取来源有效伤害属性一次，再摧毁本次全部目标；备战、敌方及已摧毁卡牌不参与，无目标时不造成伤害，多重额外发动重新筛选当前目标。
+
+`DestroyAdjacentAlliedCardsEffectDefinition` 按指定尺寸筛选来源两侧直接相邻的己方存活战场卡牌，先冻结目标，再依次通过通用摧毁入口结算并触发亡语；无目标不阻止后续效果。来源亡语可选择自身或双方英雄目标；英雄治疗与伤害仍复用通用效果。`ApplyStatusEffectDefinition.TargetsSourceHero` 可让同次发动的生命／魔法再生施加给来源英雄，默认保留能力目标，用于同时向敌方施加负面状态、向己方施加再生的组合。
 
 `DestroyBattlefieldCardsEffectDefinition`按`MaximumSize`筛选双方所有尺寸不超过该值的存活战场卡牌，按战斗稳定顺序逐张摧毁，不消耗随机数；备战及已摧毁卡牌排除，仅本场有效。复用通用摧毁入口，取消目标旧队列并触发亡语；可在其后组合自身消耗，先结算全部目标再摧毁来源。
 
@@ -472,3 +480,15 @@
 `SkillCountDamageEffectDefinition`、`SkillCountMaxManaEffectDefinition`和`SkillCountManaRegenAuraEffectDefinition`按己方冻结技能实例数乘当前等级系数，分别造成伤害、累加本场最大魔法值、提供可撤销的魔法再生光环。伤害额外接受来源攻击加成与当次伤害倍率；最大魔法增加不同时恢复当前魔法。光环失效只扣除自身贡献，冻结数值供卡面与回放读取。
 
 `GrantRandomFactionSkillEffectDefinition`在胜利或英雄升级时，从指定归属和通用技能中按固定等级筛选，稳定key排序后使用对局随机状态等概率抽取；空池不消耗随机，重复获取沿用技能合并。胜利读取开战冻结阈值，英雄连续升级按升级前冻结的有效阈值逐级结算；不追溯已发生的升级。正式对局创建时传入只读Definition目录供奖励查询。
+
+
+`ApplyStatusToRandomAlliedCardEffectDefinition`支持`TargetCount`无放回选择；`ExcludeEventCardElements`排除发动者本身及任何包含其发动时元素的目标，双元素取并集，事件入队冻结元素，空池不消耗随机。`EchoOnMatchingAlliedCardActivated`未配置筛选时监听全部己方卡牌成功主动发动，包含自身与多重，沿用禁止回响连锁。
+
+`RandomizeSourceElementEffectDefinition`仅在战斗Runtime中将来源元素替换为随机非General的单元素，按规范元素顺序抽选，允许抽回当前元素；不改永久身份、标签、能力、数值或冷却进度。动态筛选、光环及回放读取实际元素，战后恢复。`EchoOnFirstAlliedElementActivated`为每个能力独立保存本场已触发非General元素，双元素各结算一次，同元素重复、正常后续与多重不重复，回响不连锁。
+
+`ReduceAlliedCooldownPerElementAuraEffectDefinition`按己方存活战场不同元素种类数（包含General）乘百分比，为己方卡牌动态提供冷却缩减；排除备战、摧毁和敌方，复用百分比光环累计、100%上限、1秒最低冷却、差值撤销及进度保持。套装是否启用仍按开战冻结阈值。
+
+
+`EchoOnAlliedManaRegenGained`只响应成功主动发动效果实际施加的正数魔法再生，每次施加触发一次，与施加量无关；多重和额外发动沿用发动事件，排除光环、开战、回响施加及被截断的回响链。按受益英雄一侧筛选存活战场来源，沿用FIFO且回响不连锁。`IncreaseHeroMaxManaEffectDefinition`只累加本场最大魔法，不恢复当前魔法；`HeroManaDamageEffectDefinition`读取己方当前最大魔法＋魔法再生×倍率并接受攻击加成与发动伤害倍率，冻结数值供卡面、宝石与回放读取。
+
+`ManaRegenAuraEffectDefinition`提供可撤销的固定魔法再生光环，与技能数量光环累计，来源失效只撤销自身贡献，不触发再生获得回响。`RestoreEventManaSpentEffectDefinition`只用于实际魔法支付回响，入队冻结该次支付量，按魔法上限恢复；不使用累计消耗或后来发动的消耗量，多重、免支付的额外发动及魔法不足均不产生支付返还。

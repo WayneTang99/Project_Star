@@ -46,6 +46,7 @@ internal sealed class BattleAbilityState
     public AbilityDefinition Definition { get; set; }
     public decimal RemainingCooldownUnits { get; set; }
     public bool Triggered { get; set; }
+    public HashSet<StringName> TriggeredElements { get; } = [];
     public long SequenceExpiresAt { get; set; } = -1;
 }
 
@@ -190,7 +191,7 @@ internal sealed class CardBattleState : IBattleAbilitySource
     // 攻击卡牌按伤害能力分类，零攻击数值不改变分类。
     public bool IsAttackCard => Abilities.Any(item => item.Definition.Effects.Any(effect => effect is
         DamageEffectDefinition or AttributeDamageEffectDefinition or DestroyAlliedCardsAndDamageEffectDefinition
-        or MaxHealthPercentDamageEffectDefinition or SkillCountDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition
+        or MaxHealthPercentDamageEffectDefinition or HeroManaDamageEffectDefinition or SkillCountDamageEffectDefinition or SourceHeroLevelScaledDamageEffectDefinition
         or SourceHeroHealthScaledAttributeDamageEffectDefinition or SourceHeroArmorDamageEffectDefinition));
 
     public int GetCombatAttribute(StringName key) => CombatAttributes.TryGetValue(key, out var value) ? value : 0;
@@ -256,6 +257,8 @@ internal sealed record PendingAbility(
     CardBattleState? EventCard = null)
 {
     public int PrimaryValue { get; init; }
+    public int EventManaSpent { get; init; }
+    public IReadOnlyList<StringName> EventElementKeys { get; init; } = Array.Empty<StringName>();
     public decimal DamageMultiplier { get; init; } = 1m;
     public IReadOnlyList<(IBattleAbilitySource Source, BattleAbilityState Ability)> SequenceFollowups { get; init; } =
         Array.Empty<(IBattleAbilitySource, BattleAbilityState)>();
@@ -294,6 +297,8 @@ internal sealed class BattleRuntime
             .Concat(setup.Player.Skills.Select(skill => new MatchRewardSource(skill.EntityId, 1, false,
                 Array.AsReadOnly(skill.Abilities.Where(ability => MatchAbilityRules.IsMatchTrigger(ability.Activation)).ToArray()))))
             .Where(source => source.Abilities.Count > 0).ToArray());
+        PlayerCardDefinitions = setup.Player.CardDefinitions;
+        OpponentCardDefinitions = setup.Opponent.CardDefinitions;
         PlayerBattlefieldCapacity = setup.Player.BattlefieldCapacity;
         OpponentBattlefieldCapacity = setup.Opponent.BattlefieldCapacity;
         EclipseTime = setup.EclipseTime;
@@ -312,6 +317,9 @@ internal sealed class BattleRuntime
     public List<PermanentCardAttributeBonus> PermanentAttributeBonuses { get; } = [];
     public List<SkillBattleState> Skills { get; } = [];
     public List<CardSetBattleState> Sets { get; } = [];
+    private IReadOnlyList<CardDefinition> PlayerCardDefinitions { get; }
+    private IReadOnlyList<CardDefinition> OpponentCardDefinitions { get; }
+    public IReadOnlyList<CardDefinition> GetCardDefinitions(SideId side) => side == SideId.Player ? PlayerCardDefinitions : OpponentCardDefinitions;
     private int PlayerBattlefieldCapacity { get; }
     private int OpponentBattlefieldCapacity { get; }
     private int SummonSequence { get; set; }

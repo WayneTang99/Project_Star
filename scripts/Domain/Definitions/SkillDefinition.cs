@@ -58,6 +58,7 @@ public abstract class SkillDefinition
                     or GrantRandomTaggedSourceLevelCardEffectDefinition
                     or IncreaseSourceCardAttributeEffectDefinition
                     or MultiplySourceCardAttributeEffectDefinition
+                    or RandomizeSourceElementEffectDefinition
                     or ApplySourceAttributePercentStatusEffectDefinition
                     or SetSourceCardStateEffectDefinition
                     or GrantSourceMulticastWhileEnemyTaggedEffectDefinition
@@ -68,7 +69,6 @@ public abstract class SkillDefinition
                     or IncreaseSourceCooldownPerBattlefieldElementCardEffectDefinition
                     or ReduceSourceCooldownPerAlliedTaggedCardEffectDefinition
                     or ChargeRandomOtherAlliedElementCardEffectDefinition
-                    or ChargeRandomOtherAlliedCardsEffectDefinition
                     or ChargeSourceCardEffectDefinition
                     or ChargeCardEffectDefinition
                     || effect is ApplyStatusEffectDefinition status
