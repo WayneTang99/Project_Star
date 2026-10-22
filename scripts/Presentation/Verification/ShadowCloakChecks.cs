@@ -22,15 +22,22 @@ internal static class ShadowCloakChecks
 {
     internal static bool LevelsAndTiming()
     {
+        var identity = new ShadowCloakCardDefinition().Attributes.Identity;
+        var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
+        return texture is not null && texture.GetWidth() == texture.GetHeight() && CombatLevelsAndTiming();
+    }
+
+    // 纯规则入口供无美术资源的服务器验证，客户端入口仍检查原画。
+    internal static bool CombatLevelsAndTiming()
+    {
         var definition = new ShadowCloakCardDefinition();
         var identity = definition.Attributes.Identity;
         var registry = DefinitionRegistry.Scan(typeof(ShadowCloakCardDefinition).Assembly);
-        var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
         if (!registry.Cards.ContainsKey(identity.Key) || identity.DisplayName != "暗影斗篷"
             || identity.FactionKey != new StringName("valos") || identity.Size != CardSize.Medium
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.Dark })
             || !definition.Tags.Contains(GameTags.Equipment) || definition.InitialLevel != 3
-            || definition.GetLevel(2) is not null || texture is null || texture.GetWidth() != texture.GetHeight()) return false;
+            || definition.GetLevel(2) is not null) return false;
         if (MatchDisplayQuery.FromOffer(ShopOffer.Create(definition)).Abilities.Single().TriggerHeroHealthPercent != 50) return false;
         foreach (var level in new[] { 3, 4 })
         {

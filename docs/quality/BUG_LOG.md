@@ -2,6 +2,12 @@
 
 | 编号 | 日期 | 位置 | 描述 | 根因 | 修复方案 | 状态 |
 |---|---|---|---|---|---|---|
+| BUG-372 | 2026-10-22 | Windows本机客户端导出 / Godot console wrapper | 本次客户端导出文件和日志已完成，console.exe包装进程仍不退出，无法取得成功退出码。 | console包装进程停留，未发现仍属于该包装进程的引擎子进程；具体包装器退出根因未确认，非玩法缺陷。 | 仅终止已核实属于本次client-validation的包装进程，直接用官方Godot.exe配合--headless重跑，有超时和输出捕获，退出0且无ERROR；CI使用Linux二进制，不依赖该包装器。 | Fixed（本机验证绕过） |
+| BUG-371 | 2026-10-22 | ServerBaseline.CheckMechanisms / 无图形资源导出 | 官方模板程序已启动，但任务、修复、隐身检查因原画不存在失败。 | 复用的三个专项把原画加载与战斗规则断言混在同一入口；服务器有意不带原画。 | 三项拆出纯规则入口，原客户端入口继续加载并验证原画后调用相同规则断言；无资源云端包16项通过，固定摘要不变。 | Fixed |
+| BUG-370 | 2026-10-22 | Project_Star.csproj / P0 隔离副本 | 在 output/ 生成隔离源码后，根项目构建出现大量重复类型及生成成员错误。 | 默认 Compile 扫描包含 output/ 内复制的 C#；Git 忽略和 .gdignore 不会限制 MSBuild。 | 显式从 Compile 移除 output/**/*.cs；保留临时副本后重新构建0警告0错误，新增发布流水线改用检出目录外的 RUNNER_TEMP。 | Fixed |
+| BUG-369 | 2026-10-22 | P0 云端 Godot headless / 系统依赖 | 启动输出 libfontconfig.so.1 缺失提示，规则诊断仍成功退出。 | 当前云镜像未安装该动态库，Godot 编辑器二进制初始化会尝试加载字体配置库。 | 云端安装 libfontconfig1 2.17.1-3ubuntu1；官方专用包与 Linux CI 导出冒烟运行均无原缺库提示。 | Fixed |
+| BUG-368 | 2026-10-22 | P0 隔离导出包 / 自定义 Linux 模板 | 使用编辑器二进制代替专用模板后，云端启动找不到 GodotSharp/Api/Debug 并崩溃。 | 编辑器与导出模板的程序集加载布局不同，导出的 data_Project_Star_linuxbsd_x86_64 不能替代编辑器要求的 API 目录；首次隔离副本也漏带 sln。 | 校验官方 mono_export_templates.tpz 的SHA512，使用 linux_release.x86_64 重新导出；新包在云端只读程序目录启动、16项机制与基线通过，另验证两帧stdin/stdout。见P0后续复验记录。 | Fixed |
+| BUG-367 | 2026-10-22 | ServerBaseline / 新增 P0 验证入口 | 初稿构建存在 Environment 名称冲突、缺少命名空间及错误等级查询 API；首次运行还因程序集 Location 为空而失败。 | 混用了 Godot/System 同名类型，未按实际领域 API 调用；Godot 从字节加载程序集时 Location 不提供磁盘路径。 | 使用 System.Environment、实际 SupportsLevel 与领域命名空间；构建标识改用模块 MVID，诊断摘要独立计算。构建0警告0错误，Windows／云端入口及包装脚本通过。 | Fixed |
 | BUG-366 | 2026-10-22 | CardDisplayAdapter / 莫娜森林卡牌文案 | 新增相邻摧毁效果的详情格式化抛出异常；蕈灵同次发动的来源英雄再生会沿用敌方能力目标描述。 | 新通用效果未加入描述映射，状态目标描述未识别新增TargetsSourceHero。 | 补充相邻尺寸摧毁描述及来源英雄状态目标映射；专项验证蕈灵己方再生文案，并运行全卡各级文案及冰火精灵回归。 | Fixed |
 | BUG-365 | 2026-10-22 | BattlePlaybackPresenter.Project / 战斗内元素投影 | 无任务卡牌的战斗有效元素改变后，回放卡面仍显示原元素。 | 元素投影只在Quests非空分支读取冻结元素。 | 全部卡牌读取战斗快照中的有效元素，空集合兼容原身份；元素腰带无任务回放与战前快照隔离专项通过。 | Fixed |
 | BUG-364 | 2026-10-22 | TwoHeadedSkeletonChecks.Capture | 新增卡牌截图中关联【骷髅】显示未找到效果。 | 捕获夹具只注入等级预览查询，遗漏关联卡牌正式目录；非正式游戏入口缺陷。 | 捕获时同时注入CardCatalogQuery目录，重新检查关联骷髅说明；不改运行时UI。 | Fixed |

@@ -23,6 +23,14 @@ internal static class SteelWrenchChecks
 {
     internal static bool LevelsAndRestart()
     {
+        var identity = new SteelWrenchCardDefinition().Attributes.Identity;
+        var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
+        return texture is not null && texture.GetWidth() * 2 == texture.GetHeight() && CombatLevelsAndRestart();
+    }
+
+    // 纯规则入口供无美术资源的服务器验证，客户端入口仍检查原画。
+    internal static bool CombatLevelsAndRestart()
+    {
         var definition = new SteelWrenchCardDefinition();
         var identity = definition.Attributes.Identity;
         if (identity.Key != new StringName("card.steel_wrench") || identity.DisplayName != "钢制扳手"
@@ -31,8 +39,6 @@ internal static class SteelWrenchChecks
             || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Equipment)
             || definition.InitialLevel != 1 || definition.SupportsLevel(0) || definition.SupportsLevel(5)
             || !DefinitionRegistry.Scan(typeof(SteelWrenchChecks).Assembly).Cards.ContainsKey(identity.Key)) return false;
-        var texture = GD.Load<Texture2D>(identity.Illustration.ToString());
-        if (texture is null || texture.GetWidth() * 2 != texture.GetHeight()) return false;
         foreach (var side in new[] { SideId.Player, SideId.Opponent })
         for (var level = 1; level <= 4; level++)
         {

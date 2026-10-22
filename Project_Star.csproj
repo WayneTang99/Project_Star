@@ -6,6 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="output/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="AGENTS.md" />
     <Content Include="docs\engineering\ARCHITECTURE.md" />
     <Content Include="docs\quality\BUG_LOG.md" />

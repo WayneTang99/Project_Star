@@ -34,4 +34,8 @@
 
 构建：`dotnet build Project_Star.csproj`。文档职责与规则入口统一见 [AGENTS.md](AGENTS.md)；当前工作见 [实施计划](docs/planning/IMPLEMENTATION_PLAN.md)，验证步骤见 [验收清单](docs/quality/MANUAL_ACCEPTANCE.md)。
 
+云端连接与换机说明见 [SERVER_ACCESS](docs/engineering/SERVER_ACCESS.md)；仓库记录地址、用户、端口和公开指纹，私钥需在每台电脑独立配置。
+
+Release 发布后自动导出 Linux 服务端与 Windows 客户端，压缩包仅上传 Release 附件，见[发布流水线](docs/engineering/RELEASE_PIPELINE.md)。当前服务端附件为 P0 诊断程序。
+
 源码在 scripts/ 五层目录；运行资源在 art/；本地日志与草稿在忽略的 output/；参考区仅供设计时人工查看，不作为项目依赖。

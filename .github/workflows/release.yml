@@ -1,0 +1,89 @@
+name: Export release packages
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-assets-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: '4.7.2'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  export-and-upload:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the released tag
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+
+      - name: Install .NET for the C# project
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '8.0.x'
+
+      # Godot 官方提供编辑器和模板文件，没有在这里使用第三方 Godot 容器。
+      - name: Install official Godot .NET editor and templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libfontconfig1 unzip zip rsync
+          tools="$RUNNER_TEMP/godot-tools"
+          mkdir -p "$tools"
+          cd "$tools"
+          editor="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip"
+          templates="Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          for file in "$editor" "$templates" SHA512-SUMS.txt; do
+            curl --fail --location --retry 3 --connect-timeout 30 "$base/$file" --output "$file"
+          done
+          for file in "$editor" "$templates"; do
+            grep -F "  $file" SHA512-SUMS.txt | sha512sum --check --strict -
+          done
+          unzip -q "$editor" -d editor
+          unzip -q "$templates" 'templates/linux_release.x86_64' \
+            'templates/windows_release_x86_64.exe' -d export-templates
+          godot="$tools/editor/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64"
+          chmod +x "$godot"
+          "$godot" --version
+          printf 'GODOT_BIN=%s\nGODOT_TEMPLATES=%s\n' \
+            "$godot" "$tools/export-templates/templates" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          sdk = ET.parse(os.path.join(os.environ['GITHUB_WORKSPACE'], 'Project_Star.csproj')).getroot().attrib['Sdk']
+          assert sdk == 'Godot.NET.Sdk/' + os.environ['GODOT_VERSION'], sdk
+          PY
+
+      - name: Export Linux server without graphical resources
+        shell: bash
+        run: bash scripts/Infrastructure/Release/ExportRelease.sh server "$GODOT_BIN" "$GODOT_TEMPLATES" "$RUNNER_TEMP/project-star-release"
+
+      - name: Export Windows client
+        shell: bash
+        run: bash scripts/Infrastructure/Release/ExportRelease.sh client "$GODOT_BIN" "$GODOT_TEMPLATES" "$RUNNER_TEMP/project-star-release"
+
+      # 只上传 Release 附件；没有 git add、commit、push 或产物分支。
+      - name: Upload both archives to the published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" \
+            "$RUNNER_TEMP/project-star-release/ProjectStar-linux-server-x86_64.tar.gz" \
+            "$RUNNER_TEMP/project-star-release/ProjectStar-windows-client-x86_64.zip" \
+            --repo "$GITHUB_REPOSITORY" --clobber

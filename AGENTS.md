@@ -29,6 +29,7 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 - **效果堆叠约定**：Apply 累加（施加必须累加到目标属性，而非覆盖赋值）；到期扣减（扣减该实例贡献的量，而非直接清零）；不清零（移除不再直接置 0，属性由衰减逻辑自然归零）。
 - **数据/视图分离**：棋盘等数据层保持纯数据，UI 通过应用用例提交 Command，并读取 Snapshot / ViewModel 刷新，不直接修改模型。
 - **确定性战斗**：数值计算一次完成、结果确定可回放，禁止依赖其他卡牌最终值。
+- **服务端程序与玩家数据分离**：程序发布目录只保存代码和运行依赖；玩家存档、数据库及其他持久业务数据使用独立目录或持久卷。构建、发布、回滚和删除旧程序不得覆盖或清空玩家数据，禁止将其存入源码、发布目录或临时输出。
 
 ### 禁区列表
 
@@ -51,6 +52,8 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | docs/design/UI_SYSTEM.md | 现行组件、页面、交互与卡面规范 | 修改界面、棋盘和卡面 |
 | docs/engineering/ARCHITECTURE.md | 分层、所有权、事务、战斗与扩展入口 | 编码与架构审查 |
 | docs/engineering/DEV_CONVENTIONS.md | Git、注释、工具和产物约定 | 提交与工具操作 |
+| docs/engineering/SERVER_ACCESS.md | 云端 SSH 参数、公开指纹、换机与接续步骤；不含私钥 | 连接云服务器、换机或部署验证 |
+| docs/engineering/RELEASE_PIPELINE.md | Release 自动构建、附件与当前服务端入口 | 发布 Linux 服务端和 Windows 客户端 |
 | docs/planning/IMPLEMENTATION_PLAN.md | 当前状态与未完成队列 | 确认下一步 |
 | docs/quality/MANUAL_ACCEPTANCE.md | 验证入口、当前证据与人工矩阵 | 验证试玩 |
 | docs/quality/BUG_LOG.md | BUG 编号、根因、修复和状态 | 发现和修复 BUG |

@@ -24,16 +24,23 @@ internal static class AscendantChecks
 {
     internal static bool LevelsAndThresholds()
     {
+        var identity = new AscendantCardDefinition().Attributes.Identity;
+        var texture = ResourceLoader.Load<Texture2D>(identity.Illustration.ToString());
+        return texture is not null && texture.GetWidth() == texture.GetHeight() && CombatLevelsAndThresholds();
+    }
+
+    // 纯规则入口供无美术资源的服务器验证，客户端入口仍检查原画。
+    internal static bool CombatLevelsAndThresholds()
+    {
         var definition = new AscendantCardDefinition();
         var identity = definition.Attributes.Identity;
-        var texture = ResourceLoader.Load<Texture2D>(identity.Illustration.ToString());
         if (!DefinitionRegistry.Scan(typeof(AscendantChecks).Assembly).Cards.ContainsKey(identity.Key)
             || identity.Key != new StringName("card.ascendant") || identity.DisplayName != "飞升者"
             || identity.FactionKey != new StringName("paladin") || identity.Size != CardSize.Medium
             || !identity.ElementKeys.SequenceEqual(new[] { GameElements.General }) || definition.InitialLevel != 1
             || definition.SupportsLevel(5) || definition.Tags.Count != 2 || !definition.Tags.Contains(GameTags.Human)
             || definition.Tags.Contains(GameTags.Spirit) || TagDisplayNames.Get(GameTags.Spirit) != "精灵"
-            || identity.DescriptionEntries.Count != 5 || texture is null || texture.GetWidth() != texture.GetHeight()) return false;
+            || identity.DescriptionEntries.Count != 5) return false;
         for (var level = 1; level <= 4; level++)
         {
             var context = new Context(level);
