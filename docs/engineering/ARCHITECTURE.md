@@ -123,7 +123,15 @@ Runtime 只修改卡牌实际支持的属性，修改效果不能凭写属性赋
 
 ### 规则与集成验证
 
-Main.tscn 保留分类/全部验证及 headless --verify。Presentation/Verification 中按领域职责划分规则检查和共享夹具，PhaseOneVerification 只组装列表和显示结果；场景集成仍在 Godot 中验证。
+独立账号宿主位于 `scripts/Infrastructure/Server/Host/`，不参与Godot工程编译／导入，不依赖Godot类型。内部玩家ID与登录凭据分离，存档引用内部ID；密码与后续Steam认证只负责取得同一身份。账号事务、会话与部署契约见[账号服务](ACCOUNT_SERVER.md)，首条规则协议已接入，剩余游戏操作继续按P3/P4推进。
+
+P2通过`ServerMatchService`复用应用用例，`ServerMatchSession`持有商店、选项事件与怪物准备／结果；`MatchSaveCodec`显式恢复实例、基础值、Modifier、固定选项／怪物和结果摘要，未接入的导师／宝石活动访问仍拒绝保存。事件以稳定访问ID、实际展示槽、完成标记、预期版本和回执防重复；探险引出怪物保留原回合，不再调用Select。怪物结算以持久战斗ID、阶段、预期版本及回执防重复，不把本地BattleResult引用集当作持久幂等键。Godot规则进程只返回候选状态，API将存档、版本和请求回执同事务提交；数据库为事实来源。现行字段与版本边界见[权威存档](MATCH_PERSISTENCE.md)。
+
+PvP参战事务固定双方输入、seed、对手来源、预期版本及持久任务，`PvpPending`阶段冻结玩家操作。后台执行器通过租约／令牌领取任务，在SQL事务外调用相同规则产生候选；提交时校验原状态与版本，并将新对局、结果、任务完成标记及开战前玩家快照同事务写入。过期执行器不能提交新租约，技术失败不判负；不修改被挑战者当前对局。匹配仅限同版本同轮，排除本人并优先未遇来源，空池明确标记测试构筑。终局按发生轮记录统计并归档，仍保留历史结果。完整输入由任务保留，但客户端完整回放协议尚未接入；契约与边界见[PvP实现](PVP_SERVER.md)。
+
+客户端由`OnlineGateway`实现HTTP／内存会话边界，`OnlineJourney`拥有只读远端快照、原请求及单调版本门控；`OnlineAdventureView`提交意图，不调用本地CreateMatchService、战斗模拟或存档解码来修改云端状态。Main大厅打开同根节点内的联网面板，既有本地Presenter与云端旅程独立。请求不确定时复用原ID，冲突只刷新；历史创建回执还受原对局／版本约束。当前面板仅展示已有服务端字段与结果摘要，完整棋盘、成长详情和回放仍待接入，见[联网客户端](ONLINE_CLIENT.md)。
+
+Main.tscn为唯一默认游戏入口，由GameMain组装大厅及现有对局流程；原Presentation/Playtest运行时已迁入Presentation/Game，测试及捕获代码归入Presentation/Verification，原Playtest.tscn删除。新局额外启动资金为0，首轮收入由正式应用用例按英雄属性结算，运行时不注入999金币。验证场景独立为Verification.tscn，保留分类／全部验证及headless --verify；批次运行脚本显式指定该场景。PhaseOneVerification只组装列表和显示结果，场景集成仍在Godot中验证。
 
 重点覆盖不可变定义与实例隔离、内容身份与快照传递、Modifier 精确堆叠/移除、经济失败原子性、棋盘推挤与回滚、遭遇随机/历史、FIFO/回响、状态周期、日蚀/寂灭、永久变化与确定性回放。架构迁移保留既有验证，并比较固定输入的结果、事件顺序和冻结状态。
 

@@ -1,0 +1,286 @@
+using System;
+using Godot;
+using System.Collections.Generic;
+
+namespace Project_Star.Presentation.Game;
+
+// 表现层集中定义默认砂石主题、金属边框与紧凑交互样式，不参与玩法状态。
+internal static class MatchTheme
+{
+    public static readonly Color Background = new("2c2622");
+    public static readonly Color Ink = new("ece0cf");
+    public static Color Gold => new("c5ad87");
+    public static Color Blue => new("cbb7a1");
+    public static Color SurfaceColor => new("4a4037");
+    public static readonly Color Muted = new("b8aa98");
+    public const int Gap = 8;
+    private static readonly Dictionary<StringName, Texture2D> Icons = new();
+    private static Texture2D? _stars;
+    private static Vector2 _backgroundSize;
+    private static readonly Dictionary<string, Godot.Font> Fonts = new();
+    private static readonly Dictionary<string, Texture2D> Panels = new();
+    private static readonly Dictionary<Vector2I, Texture2D> TooltipShadows = new();
+
+    private static BoardSkin? _skin;
+    public static BoardSkin Skin => _skin ??= GD.Load<BoardSkin>("res://art/ui/skins/bronze-sandstone.tres");
+
+    // 皮肤只替换装饰纹理；1600×900模板与所有交互布局独立于素材。
+    public static void DrawTable(Control canvas) => canvas.DrawTextureRect(Skin.TableFrame, new Rect2(Vector2.Zero, canvas.Size), false);
+
+    // 凹槽使用顶部暗边、底部反光与双层内缘表达下陷深度。
+    public static void DrawRecess(Control canvas, Rect2 rect)
+    {
+        var plate = new StyleBoxTexture { Texture = Skin.BoardTrack };
+        foreach (var side in new[] { Side.Left, Side.Top, Side.Right, Side.Bottom }) plate.SetTextureMargin(side, 13);
+        canvas.DrawStyleBox(plate, rect);
+    }
+
+    // 肖像底座来自皮肤；上方底座倒置，保持上下镜像的金属受光层次。
+    public static void DrawPortraitMount(Control canvas, Rect2 portrait, bool upper = false)
+    {
+        var mount = Skin.PortraitMount;
+        var size = mount.GetSize() * (360f / mount.GetWidth());
+        // 透明留白不等于圆孔中心；保持原画比例，按皮肤标定的圆孔位置与头像对齐。
+        var local = new Rect2(-size * Skin.PortraitMountCenter, size);
+        if (upper)
+        {
+            canvas.DrawSetTransform(portrait.GetCenter(), Mathf.Pi);
+            canvas.DrawTextureRect(mount, local, false);
+            canvas.DrawSetTransform(Vector2.Zero);
+        }
+        else canvas.DrawTextureRect(mount, new Rect2(portrait.GetCenter() + local.Position, size), false);
+    }
+
+    // 与 HTML 共用系统字体，按控件角色缓存字重与字距。
+    public static Godot.Font Font(bool serif = false, bool bold = false, int spacing = 0)
+    {
+        var key = $"{serif}/{bold}/{spacing}";
+        if (Fonts.TryGetValue(key, out var font)) return font;
+        font = new FontVariation { BaseFont = new SystemFont { FontNames = new[] { serif ? "Georgia" : "Microsoft YaHei" }, FontWeight = bold ? 700 : 400,
+            MultichannelSignedDistanceField = true, MsdfSize = 64 }, SpacingGlyph = spacing };
+        Fonts.Add(key, font); return font;
+    }
+
+    // 皮肤替换只作用于表现，不改变对局数据。
+    public static void SetSkin(BoardSkin skin) => _skin = skin;
+
+    // 从 HTML 提取的渐变和内外描边随面板实际尺寸绘制。
+    public static StyleBoxTexture Plate(string name, float margin = 4)
+    {
+        var style = new StyleBoxTexture { Texture = GD.Load<Texture2D>($"res://art/ui/html/{name}.svg"),
+            ContentMarginLeft = 8, ContentMarginRight = 8, ContentMarginTop = 5, ContentMarginBottom = 5 };
+        foreach (var side in new[] { Side.Left, Side.Top, Side.Right, Side.Bottom }) style.SetTextureMargin(side, margin);
+        return style;
+    }
+
+    // 每种文字使用明确的字体、字号、字重与字距。
+    public static void Text(Label label, int size, Color? color = null, bool serif = false, bool bold = false, int spacing = 0)
+    {
+        label.AddThemeFontOverride("font", Font(serif, bold, spacing));
+        label.AddThemeFontSizeOverride("font_size", size);
+        label.AddThemeColorOverride("font_color", color ?? Ink);
+        label.AddThemeConstantOverride("outline_size", 0);
+    }
+
+    // 复用卡面语义图标，其余界面图标使用同一套细线纹样。
+    public static Texture2D Icon(StringName key)
+    {
+        if (Icons.TryGetValue(key, out var texture)) return texture;
+        var htmlKey = key;
+        var path = ResourceLoader.Exists($"res://art/ui/html/{htmlKey}.svg") ? $"res://art/ui/html/{htmlKey}.svg"
+            : key == new StringName("health") ? "res://art/ui/card-face/icons/healing.svg"
+            : key == new StringName("mana") ? "res://art/ui/card-face/icons/mana.svg"
+            : key == new StringName("armor") ? "res://art/ui/card-face/icons/armor.svg"
+            : key == new StringName("burn") ? "res://art/ui/card-face/icons/burn.svg"
+            : key == new StringName("poison") ? "res://art/ui/card-face/icons/poison.svg"
+            : key == new StringName("coin") ? "res://art/ui/card-face/icons/value.svg"
+            : $"res://art/ui/theme/{key}.svg";
+        texture = GD.Load<Texture2D>(path); Icons.Add(key, texture); return texture;
+    }
+
+    // 数值与图标并排显示，完整语义保留在悬停提示。
+    public static HBoxContainer Stat(StringName icon, string value, string tooltip)
+    {
+        var row = new HBoxContainer { TooltipText = tooltip, MouseFilter = Control.MouseFilterEnum.Pass };
+        row.AddThemeConstantOverride("separation", 4);
+        row.AddChild(new TextureRect { Texture = Icon(icon), CustomMinimumSize = new Vector2(12, 12),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore });
+        var label = new Label { Text = value, MouseFilter = Control.MouseFilterEnum.Ignore };
+        Text(label, 11, Muted); row.AddChild(label);
+        return row;
+    }
+
+    // 双层金属边线限制在边缘，深色面板不遮挡数字和插画。
+    public static void DrawSurface(Control canvas, Rect2 rect, string kind = "surface")
+    {
+        var width = Mathf.Max(1, Mathf.RoundToInt(rect.Size.X)); var height = Mathf.Max(1, Mathf.RoundToInt(rect.Size.Y));
+        if (kind == "tooltip") canvas.DrawTextureRect(TooltipShadow(new Vector2I(width, height)), new Rect2(rect.Position + new Vector2(-48, -36), rect.Size + new Vector2(96, 96)), false);
+        else
+        {
+            var shadow = Surface(Colors.Transparent, Colors.Transparent);
+            shadow.ShadowColor = new Color(0, 0, 0, .25f); shadow.ShadowSize = 10; shadow.ShadowOffset = new Vector2(0, 8);
+            canvas.DrawStyleBox(shadow, rect);
+        }
+        var key = $"{kind}/{width}/{height}";
+        if (!Panels.TryGetValue(key, out var texture))
+        {
+            var angle = Mathf.DegToRad(kind == "tooltip" ? 130 : kind == "stage" ? 120 : kind == "hero" ? 100 : 150);
+            var direction = new Vector2(Mathf.Sin(angle), -Mathf.Cos(angle));
+            var length = Mathf.Abs(width * direction.X) + Mathf.Abs(height * direction.Y);
+            var start = rect.Size / 2 - direction * length / 2; var end = rect.Size / 2 + direction * length / 2;
+            var stops = kind == "tooltip" ? "<stop stop-color='#51483e'/><stop offset='1' stop-color='#3c332c'/>"
+                : kind == "stage" ? "<stop stop-color='#483e34'/><stop offset='.65' stop-color='#332b25'/><stop offset='1' stop-color='#514438'/>"
+                : kind == "hero" ? "<stop stop-color='#3e342b'/><stop offset='1' stop-color='#302820'/>"
+                : "<stop stop-color='#51483e'/><stop offset='1' stop-color='#3c332c'/>";
+            using var image = new Image();
+            image.LoadSvgFromString(FormattableString.Invariant($"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}'><defs><linearGradient id='g' gradientUnits='userSpaceOnUse' x1='{start.X}' y1='{start.Y}' x2='{end.X}' y2='{end.Y}'>{stops}</linearGradient></defs><rect width='100%' height='100%' fill='url(#g)'/></svg>"));
+            texture = ImageTexture.CreateFromImage(image); Panels.Add(key, texture);
+        }
+        canvas.DrawTextureRect(texture, rect, false);
+        var border = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "c0a269" : kind == "stage" ? "7f744b" : kind == "hero" ? "716444" : "968358")); border.SetCornerRadiusAll(0);
+        canvas.DrawStyleBox(border, rect);
+        var inset = Surface(Colors.Transparent, new Color(kind == "tooltip" ? "251e19" : kind == "stage" ? "27211c" : kind == "hero" ? "241e19" : "231e19")); inset.SetBorderWidthAll(3); inset.SetCornerRadiusAll(0);
+        canvas.DrawStyleBox(inset, rect.Grow(kind == "tooltip" ? -2 : -1));
+        if (kind != "hero" && kind != "tooltip") canvas.DrawRect(rect.Grow(kind == "stage" ? -8 : -5), new Color(Gold, kind == "stage" ? .15f : .22f), false, 1);
+    }
+
+    // 详情CSS的32px模糊对应16px标准差；矩形遮罩分离卷积后缓存，不逐帧计算。
+    private static Texture2D TooltipShadow(Vector2I size)
+    {
+        if (TooltipShadows.TryGetValue(size, out var texture)) return texture;
+        const int radius = 48;
+        var prefix = new double[radius * 2 + 2];
+        for (var index = 0; index <= radius * 2; index++)
+        {
+            var distance = index - radius;
+            prefix[index + 1] = prefix[index] + Math.Exp(-distance * distance / (2d * 16 * 16));
+        }
+        var horizontal = Coverage(size.X); var vertical = Coverage(size.Y);
+        var data = new byte[horizontal.Length * vertical.Length * 4];
+        for (var y = 0; y < vertical.Length; y++)
+            for (var x = 0; x < horizontal.Length; x++)
+                data[(y * horizontal.Length + x) * 4 + 3] = (byte)Math.Round(255 * (2d / 3) * horizontal[x] * vertical[y]);
+        using var image = Image.CreateFromData(horizontal.Length, vertical.Length, false, Image.Format.Rgba8, data);
+        texture = ImageTexture.CreateFromImage(image); TooltipShadows.Add(size, texture); return texture;
+
+        double[] Coverage(int length)
+        {
+            var values = new double[length + radius * 2];
+            for (var index = 0; index < values.Length; index++)
+            {
+                var position = index - radius;
+                var first = Math.Clamp(position - length + 1 + radius, 0, radius * 2 + 1);
+                var end = Math.Clamp(position + radius + 1, 0, radius * 2 + 1);
+                values[index] = (prefix[end] - prefix[first]) / prefix[^1];
+            }
+            return values;
+        }
+    }
+
+    // 背景星图作为低对比纹理，不承载交互或玩法信息。
+    public static void DrawBackground(Control canvas)
+    {
+        if (_stars is null || _backgroundSize != canvas.Size) { _backgroundSize = canvas.Size; _stars = CreateBackground(canvas.Size); }
+        canvas.DrawRect(new Rect2(Vector2.Zero, canvas.Size), Background);
+        canvas.DrawTextureRect(_stars, new Rect2(Vector2.Zero, canvas.Size), false);
+
+    }
+
+    private static Texture2D CreateBackground(Vector2 size)
+    {
+        using var image = new Image();
+        image.LoadSvgFromString($"<svg xmlns='http://www.w3.org/2000/svg' width='{size.X}' height='{size.Y}'><defs><radialGradient id='a' cx='0' cy='0' r='1' gradientTransform='translate(.5 .1) scale(.38891 .70004)'><stop stop-color='#665846' stop-opacity='.333333'/><stop offset='1' stop-color='#665846' stop-opacity='0'/></radialGradient><radialGradient id='b' cx='0' cy='0' r='1' gradientTransform='translate(0 .8) scale(.636396 .509117)'><stop stop-color='#5a4c40' stop-opacity='.466667'/><stop offset='1' stop-color='#5a4c40' stop-opacity='0'/></radialGradient><pattern id='p' width='7' height='7' patternUnits='userSpaceOnUse' patternTransform='rotate(25)'><rect width='1' height='7' fill='#d5c080' fill-opacity='.011765'/></pattern></defs><rect width='100%' height='100%' fill='url(#p)'/><rect width='100%' height='100%' fill='url(#b)'/><rect width='100%' height='100%' fill='url(#a)'/></svg>");
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    // 每个界面拥有独立Theme，卡面仍使用自身的原画和数值样式。
+    public static Theme Create()
+    {
+        var theme = new Theme { DefaultFontSize = 14, DefaultFont = Font() };
+        theme.SetFont("normal_font", "RichTextLabel", Font());
+        theme.SetFont("bold_font", "RichTextLabel", Font(bold: true));
+        theme.SetFont("italics_font", "RichTextLabel", Font());
+        theme.SetFont("bold_italics_font", "RichTextLabel", Font(bold: true));
+        foreach (var size in new[] { "normal_font_size", "bold_font_size", "italics_font_size", "bold_italics_font_size" })
+            theme.SetFontSize(size, "RichTextLabel", 18);
+        theme.SetFont("font", "TooltipLabel", Font());
+        theme.SetFontSize("font_size", "TooltipLabel", 14);
+        theme.SetColor("font_color", "Label", Ink);
+        theme.SetColor("default_color", "RichTextLabel", Ink);
+        theme.SetConstant("separation", "VBoxContainer", Gap);
+        theme.SetConstant("separation", "HBoxContainer", Gap);
+        theme.SetConstant("h_separation", "HFlowContainer", Gap);
+        theme.SetConstant("v_separation", "HFlowContainer", Gap);
+        theme.SetStylebox("panel", "PanelContainer", Plate("surface"));
+        theme.SetStylebox("panel", "TooltipPanel", Plate("tooltip"));
+        theme.SetColor("font_color", "TooltipLabel", Ink);
+        theme.SetStylebox("normal", "Button", Surface(new Color("443a32"), new Color("756847")));
+        theme.SetStylebox("hover", "Button", Surface(new Color("594d42"), Gold));
+        theme.SetStylebox("pressed", "Button", Surface(new Color("332d27"), Blue));
+        theme.SetStylebox("disabled", "Button", Surface(new Color("3a332d"), new Color("81735f")));
+        theme.SetStylebox("focus", "Button", Outline(Blue));
+        foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color" })
+            theme.SetColor(state, "Button", Ink);
+        theme.SetColor("font_disabled_color", "Button", new Color("7c8c7d"));
+        theme.SetStylebox("panel", "PopupMenu", Surface(SurfaceColor, Gold));
+        theme.SetColor("font_color", "PopupMenu", Ink);
+        theme.SetColor("font_hover_color", "PopupMenu", Ink);
+        theme.SetStylebox("normal", "LineEdit", Surface(new Color("3b332d"), new Color("756847")));
+        theme.SetStylebox("focus", "LineEdit", Surface(new Color("3b332d"), Blue));
+        theme.SetColor("font_color", "LineEdit", Ink);
+        theme.SetColor("font_placeholder_color", "LineEdit", Muted);
+        theme.SetStylebox("normal", "OptionButton", Surface(SurfaceColor, Gold));
+        theme.SetStylebox("hover", "OptionButton", Surface(new Color("594d42"), Gold));
+        theme.SetStylebox("pressed", "OptionButton", Surface(SurfaceColor, Blue));
+        theme.SetColor("font_color", "OptionButton", Ink);
+        theme.SetColor("font_hover_color", "OptionButton", Ink);
+        theme.SetColor("font_pressed_color", "OptionButton", Ink);
+        return theme;
+    }
+
+    // 通用面板边距和描边由Theme共享，浮层不再各自硬编码深色样式。
+    public static StyleBoxFlat Surface(Color fill, Color border)
+    {
+        var style = new StyleBoxFlat { BgColor = fill, BorderColor = border,
+            ContentMarginLeft = Gap, ContentMarginRight = Gap, ContentMarginTop = 5, ContentMarginBottom = 5 };
+        style.SetBorderWidthAll(1); style.SetCornerRadiusAll(3);
+        return style;
+    }
+
+    // 主要行动与交易按钮共用金色底板，禁用状态继续由快照决定。
+    public static void Accent(Button button)
+    {
+        button.AddThemeStyleboxOverride("normal", Plate("gold-button", 4));
+        var hover = Plate("gold-button", 4); hover.ModulateColor = new Color(1.2f, 1.2f, 1.2f);
+        var pressed = Plate("gold-button", 4); pressed.ModulateColor = new Color(.75f, .75f, .75f);
+        button.AddThemeStyleboxOverride("hover", hover);
+        button.AddThemeStyleboxOverride("pressed", pressed);
+        button.AddThemeFontSizeOverride("font_size", 12);
+        button.AddThemeColorOverride("font_color", new Color("fff0c4"));
+    }
+
+    // 独立主操作沿用HTML的左侧尖角、黄铜细边与深色按下反馈。
+    public static void PrimaryAction(Button button)
+    {
+        foreach (var (state, fill) in new[] { ("normal", "655640"), ("hover", "786548"), ("pressed", "423b33"), ("disabled", "373638") })
+        {
+            var key = $"primary/{state}";
+            if (!Panels.TryGetValue(key, out var texture))
+            {
+                using var image = new Image();
+                image.LoadSvgFromString($"<svg xmlns='http://www.w3.org/2000/svg' width='160' height='56'><path d='M18 1H159V55H18L1 28Z' fill='#{(fill)}' stroke='#baa174'/><path d='M19 3H157V53H19L4 28Z' fill='none' stroke='#e2c995' stroke-opacity='.18'/></svg>");
+                texture = ImageTexture.CreateFromImage(image); Panels.Add(key, texture);
+            }
+            button.AddThemeStyleboxOverride(state, new StyleBoxTexture { Texture = texture });
+        }
+        button.AddThemeFontSizeOverride("font_size", 14);
+        button.AddThemeColorOverride("font_color", new Color("fff2d3"));
+    }
+
+    // 选中和键盘焦点共享清晰的空心描边。
+    public static StyleBoxFlat Outline(Color color)
+    {
+        var style = Surface(Colors.Transparent, color); style.SetBorderWidthAll(3); return style;
+    }
+}

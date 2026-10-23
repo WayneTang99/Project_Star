@@ -11,9 +11,10 @@ config_version=5
 [application]
 
 config/name="Project_Star"
-run/main_scene="res://Playtest.tscn"
+run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://art/branding/project-star-icon.png"
+config/windows_native_icon="res://art/branding/project-star-icon.ico"
 
 [display]
 

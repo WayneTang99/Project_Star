@@ -70,6 +70,12 @@ public sealed class ModifiableAttributeSet
 
     public ModifiableAttributeSet CreateMutableCopy() => new(_baseValues);
 
+    // 存档分别读取基础值与贡献，不能用最终值替代可撤销 Modifier。
+    internal IReadOnlyDictionary<StringName, int> CaptureBaseValues() => new Dictionary<StringName, int>(_baseValues);
+
+    // 存档保留每条贡献的 ID、来源与生命周期。
+    internal IReadOnlyList<StatModifier> CaptureModifiers() => new List<StatModifier>(_modifiers.Values).AsReadOnly();
+
     public void ReplaceBaseValues(ModifiableAttributeSet source)
     {
         EnsureMutable();

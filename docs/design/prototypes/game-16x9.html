@@ -1568,3 +1568,40 @@ if(location.hash==='#verification'){
 
 <!-- 星象旅馆棋盘HTML方案：独立装饰层，不改卡牌与交互坐标。 -->
 <link rel="stylesheet" href="assets/celestial-inn-complete.css">
+
+<style id="online-adventure-style">
+#online-adventure{position:fixed;inset:24px;width:auto;height:auto;max-width:none;max-height:none;margin:0;padding:24px;background:linear-gradient(145deg,#50453a,#302923);color:#ece0cf;border:1px solid #ad967699;border-radius:8px;box-shadow:inset 0 1px #eee0cd26,inset 0 -2px #211a1699,0 12px 28px #0008;font:16px 'Microsoft YaHei',sans-serif;overflow:hidden}
+#online-adventure::backdrop{background:#211a16ed}#online-adventure header{display:flex;justify-content:space-between;align-items:center;height:44px;margin-bottom:16px}#online-adventure h2{font-size:24px;font-weight:400;margin:0;color:#c5ad87}.online-status{height:44px;display:flex;align-items:center;color:#b8aa98;overflow:hidden;margin-bottom:16px}.online-columns{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;height:calc(100% - 120px)}.online-account,.online-match{padding:20px;border:1px solid #ad967666;border-radius:6px;background:linear-gradient(145deg,#50453a,#302923);box-shadow:inset 0 1px #eee0cd26,inset 0 -2px #211a1699,0 2px 4px #0003;min-width:0;overflow:auto}.online-account{display:flex;flex-direction:column;gap:12px}#online-adventure input,#online-adventure select{font:inherit;color:#ece0cf;background:#302923;border:1px solid #ad967666;border-radius:4px;box-sizing:border-box;width:100%;min-height:42px;padding:8px 12px}.online-account label{display:grid;gap:6px;color:#b8aa98}.online-actions{display:flex;gap:12px;align-items:center}#online-adventure button{font:inherit;color:#ece0cf;background:linear-gradient(145deg,#50453a,#302923);border:1px solid #ad967699;border-radius:6px;min-height:42px;padding:10px 16px;box-shadow:inset 0 1px #eee0cd26,inset 0 -2px #211a1699,0 2px 4px #0003;transition:filter .14s,background .14s;white-space:nowrap}#online-adventure button:hover{background:linear-gradient(145deg,#615345,#493e34);border-color:#c3ae8c99;filter:brightness(1.06)}#online-adventure button:active{background:linear-gradient(145deg,#302820,#473c32);filter:brightness(.94)}#online-adventure button:focus-visible,#online-adventure input:focus-visible,#online-adventure select:focus-visible{outline:2px solid #cbb7a1;outline-offset:2px}#online-adventure button:disabled{background:linear-gradient(145deg,#3b332d,#2f2923);color:#887e72;border-color:#766b5e;filter:none}.online-account .online-gold{background:linear-gradient(145deg,#c5af8b,#9e8566);border-color:#d8c4a2;color:#172823}.online-account small{color:#b8aa98;font-size:12px;line-height:1.6}.online-summary{min-height:70px;line-height:1.8;color:#c5ad87}.online-row{display:flex;gap:16px;align-items:center;justify-content:space-between;min-height:50px;border-bottom:1px solid #ad967633;padding:8px 0}.online-row>span{overflow-wrap:anywhere}.online-match h3{font-size:18px;color:#c5ad87;font-weight:400;margin:16px 0 8px}.online-cards{color:#b8aa98;line-height:2}.online-build{display:grid;grid-template-columns:minmax(140px,1fr) 100px 64px auto auto;gap:8px;margin-top:12px}#online-adventure .online-build input{padding:8px}.online-preview{color:#b8aa98;font-size:12px;margin-top:12px}@media(max-width:800px){#online-adventure{inset:12px;padding:16px;overflow:auto}.online-columns{grid-template-columns:240px minmax(0,1fr);gap:12px}.online-build{grid-template-columns:1fr 1fr}.online-row{align-items:flex-start;flex-direction:column}.online-account,.online-match{padding:12px}}
+</style>
+<dialog id="online-adventure" aria-labelledby="online-title">
+ <header><h2 id="online-title">联网冒险</h2><button id="online-close" aria-label="返回大厅">×</button></header>
+ <div class="online-status" id="online-status" role="status" aria-live="polite">请登录或使用邀请码注册</div>
+ <div class="online-columns">
+  <section class="online-account" aria-label="账号与旅程">
+   <label>账号<input id="online-username" autocomplete="off" maxlength="32"></label>
+   <label>密码<input id="online-password" type="password" autocomplete="off" maxlength="128"></label>
+   <label>邀请码<input id="online-invitation" autocomplete="off"></label>
+   <div class="online-actions"><button id="online-login" class="online-gold">登录</button><button id="online-register">注册</button></div>
+   <button id="online-logout" disabled>退出账号</button>
+   <small>本次运行保持登录，关闭游戏后重新登录可恢复云端旅程。</small>
+   <label>本次同行<select id="online-hero"><option>帕拉帝恩</option><option>莫娜</option></select></label>
+   <button id="online-create" disabled>开始新旅程</button><button id="online-restore" disabled>恢复旅程</button>
+   <button id="online-retry" disabled>重试原操作</button>
+  </section>
+  <section class="online-match" aria-label="服务器对局">
+   <div class="online-summary" id="online-summary">尚未开始旅程</div>
+   <div id="online-operations"></div><h3>己方阵容</h3><div class="online-cards" id="online-cards">暂无卡牌</div>
+   <div class="online-build"><select aria-label="选择卡牌"><option>选择卡牌</option></select><select aria-label="目标区域"><option>战场</option><option>备战</option></select><input aria-label="起始格" type="number" min="1" max="10" value="1"><button disabled>移动</button><button disabled>出售</button></div>
+   <div class="online-preview">原型交互演示，不连接服务器。</div>
+  </section>
+ </div>
+</dialog>
+<script id="online-adventure-flow">
+(()=>{const dialog=document.querySelector('#online-adventure'),status=document.querySelector('#online-status'),summary=document.querySelector('#online-summary'),ops=document.querySelector('#online-operations');
+const entry=document.createElement('button');entry.id='lobby-online';entry.className='icon-action';entry.title='联网冒险';entry.setAttribute('aria-label','联网冒险');entry.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18 5-5 5-13 0-18Z"/></svg>';document.querySelector('.lobby-header nav').prepend(entry);
+entry.onclick=()=>{dialog.showModal();document.querySelector('#online-username').focus()};document.querySelector('#online-close').onclick=()=>dialog.close();dialog.addEventListener('close',()=>entry.focus());
+function signed(value){['login','register'].forEach(id=>document.querySelector('#online-'+id).disabled=value);['logout','create','restore'].forEach(id=>document.querySelector('#online-'+id).disabled=!value)}
+function preview(){summary.textContent='第1轮 · 第1回合　金币 5　声望 10　胜场 0 / 10';ops.innerHTML='<h3>选择遭遇</h3><div class="online-row"><span>小型商店</span><button id="online-sample-shop">前往</button></div>';document.querySelector('#online-sample-shop').onclick=()=>{ops.innerHTML='<h3>商店</h3><div class="online-row"><span>刺客匕首 · 1级 · 3金币</span><button id="online-sample-buy">购买</button></div><button id="online-sample-leave">离开商店</button>';document.querySelector('#online-sample-buy').onclick=event=>{event.target.disabled=true;event.target.textContent='已售罄';summary.textContent='第1轮 · 第2回合　金币 2　声望 10　胜场 0 / 10';document.querySelector('#online-cards').textContent='刺客匕首 · 1级 · 战场第1格'};document.querySelector('#online-sample-leave').onclick=preview}}
+['login','register'].forEach(id=>document.querySelector('#online-'+id).onclick=()=>{signed(true);document.querySelector('#online-password').value='';document.querySelector('#online-invitation').value='';status.textContent='已登录 · 原型演示';preview()});document.querySelector('#online-logout').onclick=()=>{signed(false);status.textContent='请登录或使用邀请码注册';summary.textContent='尚未开始旅程';ops.replaceChildren();document.querySelector('#online-cards').textContent='暂无卡牌'};['create','restore'].forEach(id=>document.querySelector('#online-'+id).onclick=preview);
+if(location.hash==='#online')entry.click();})();
+</script>

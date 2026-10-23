@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="BoardSkin" load_steps=8 format=3]
 
-[ext_resource type="Script" path="res://scripts/Presentation/Playtest/BoardSkin.cs" id="1"]
+[ext_resource type="Script" path="res://scripts/Presentation/Game/BoardSkin.cs" id="1"]
 [ext_resource type="Texture2D" path="res://art/ui/skins/bronze-sandstone-table.png" id="2"]
 [ext_resource type="Texture2D" path="res://art/ui/skins/sandstone-grain.png" id="3"]
 [ext_resource type="Texture2D" path="res://art/ui/skins/portrait-mount.png" id="4"]
-[ext_resource type="Shader" path="res://scripts/Presentation/Playtest/BoardSurface.gdshader" id="5"]
+[ext_resource type="Shader" path="res://scripts/Presentation/Game/BoardSurface.gdshader" id="5"]
 
 [ext_resource type="Texture2D" path="res://art/ui/skins/board-track.svg" id="6"]
 

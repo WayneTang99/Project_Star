@@ -11,7 +11,7 @@ using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -33,7 +33,7 @@ internal static class DragSaleChecks
     // 真实入口连接出售区，覆盖双棋盘、奖励、旧身份和最新金额校验。
     internal static bool Transactions(Control owner)
     {
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<Control>();
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Control>();
         owner.AddChild(scene);
         try
         {
@@ -107,7 +107,7 @@ internal static class DragSaleChecks
         var capture = OS.GetCmdlineUserArgs().Contains("--capture-drag-sale");
         if (capture) viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Always;
         owner.AddChild(viewport);
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<Control>();
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Control>();
         viewport.AddChild(scene);
         async Task Send(InputEvent input)
         {

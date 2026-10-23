@@ -27,14 +27,18 @@
 
 ## 开发入口
 
-- Playtest.tscn：默认试玩入口。
-- Main.tscn：规则分类验证，支持 headless --verify。
+- Main.tscn：唯一默认游戏入口，进入大厅及现有对局流程；新局无额外启动金币，按英雄首轮收入结算（当前默认5金币）。
+- Verification.tscn：独立规则分类验证，支持 headless --verify。
 - scripts/Presentation/CardFace/CardFaceShowcase.tscn：三尺寸卡面展示。
-- scripts/Presentation/Playtest/ComponentShowcase.tscn：组件与全卡池展示。
+- scripts/Presentation/Verification/ComponentShowcase.tscn：组件与全卡池展示。
 
 构建：`dotnet build Project_Star.csproj`。文档职责与规则入口统一见 [AGENTS.md](AGENTS.md)；当前工作见 [实施计划](docs/planning/IMPLEMENTATION_PLAN.md)，验证步骤见 [验收清单](docs/quality/MANUAL_ACCEPTANCE.md)。
 
 云端连接与换机说明见 [SERVER_ACCESS](docs/engineering/SERVER_ACCESS.md)；仓库记录地址、用户、端口和公开指纹，私钥需在每台电脑独立配置。
+
+Main大厅右上地球图标打开联网面板，已接邀请码注册、登录、对局恢复、购买、事件、怪物和PvP结果继续；开发联调通过SSH隧道访问云端回环API。使用方法与当前视图边界见[联网客户端](docs/engineering/ONLINE_CLIENT.md)，HTTPS及后续Steam登录／成就见[账号服务](docs/engineering/ACCOUNT_SERVER.md)。
+
+已实现创建／商店与构筑／选项事件／怪物战及真实快照PvP的API链。两个正常构筑账号各完成两轮并消费对方快照；持久任务、租约恢复、一次结算及终局归档已验证。客户端联网面板首条链已接入，完整棋盘展示及完整回放仍待办。支持范围见[权威存档](docs/engineering/MATCH_PERSISTENCE.md)、[PvP实现](docs/engineering/PVP_SERVER.md)与[P4证据](docs/quality/ASYNC_PVP_P4_2026_10_23.md)。
 
 Release 发布后自动导出 Linux 服务端与 Windows 客户端，压缩包仅上传 Release 附件，见[发布流水线](docs/engineering/RELEASE_PIPELINE.md)。当前服务端附件为 P0 诊断程序。
 

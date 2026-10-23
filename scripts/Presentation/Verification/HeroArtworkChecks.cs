@@ -9,7 +9,7 @@ using Project_Star.Content.Heroes;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Infrastructure.Definitions;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -141,7 +141,7 @@ internal static class HeroArtworkChecks
     {
         const string directory = "res://output/paladin-motion";
         DirAccess.MakeDirRecursiveAbsolute(directory);
-        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var root = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         owner.AddChild(root); root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         try
         {

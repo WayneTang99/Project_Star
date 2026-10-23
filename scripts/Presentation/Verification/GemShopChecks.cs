@@ -21,7 +21,7 @@ using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Encounters;
 using Project_Star.Presentation.CardFace;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -280,7 +280,7 @@ internal static class GemShopChecks
 
     private static MatchShell CreateShell(Control owner)
     {
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate();
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate();
         var shell = scene.GetNode<MatchShell>("MatchShell"); scene.RemoveChild(shell); scene.Free(); owner.AddChild(shell); return shell;
     }
     private static MatchSession Session(MatchPresenter presenter) => (MatchSession)typeof(MatchPresenter)
@@ -289,6 +289,8 @@ internal static class GemShopChecks
     private static MatchSession OpenGemRound(MatchPresenter presenter)
     {
         var session = Session(presenter);
+        // 此夹具直接跳到第8轮验证20金币镶嵌，不依赖正式新局的首轮收入。
+        session.Player.AddWealth(100);
         session.Progress.Round = 8;
         var catalog = DefinitionRegistry.Create([new GemShopEncounterDefinition()]);
         Require(new EncounterScheduler(catalog).Generate(session).IsSuccess, "第8轮宝石商店解锁");

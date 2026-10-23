@@ -8,7 +8,7 @@ using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Presentation.CardFace;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -17,7 +17,7 @@ internal static class CardCatalogChecks
 {
     internal static bool Definitions()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var entries = CardCatalogQuery.Capture(registry);
         if (entries.Count != registry.Cards.Count || entries.Select(entry => entry.InitialCard.Key).Distinct().Count() != entries.Count) return false;
         foreach (var entry in entries)
@@ -106,7 +106,7 @@ internal static class CardCatalogChecks
             search.Text = "";
             search.EmitSignal(LineEdit.SignalName.TextChanged, search.Text);
             var faction = catalog.GetNode<VBoxContainer>("Content/Body/TagSidebar/Scroll/Filters/HeroFaction/Faction");
-            var entries = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
+            var entries = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(GameMain).Assembly));
             for (var index = 1; index < faction.GetChildCount(); index++)
             {
                 faction.GetChild<Button>(index).EmitSignal(Button.SignalName.Pressed);
@@ -131,7 +131,7 @@ internal static class CardCatalogChecks
 
     private static async Task<bool> FiltersAndSorting(CardCatalogView catalog)
     {
-        var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
+        var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(GameMain).Assembly));
         var source = formal[0].InitialCard;
         var dual = new CardCatalogEntry("筛选夹具", 4, [new CardCatalogLevel(source with
         {
@@ -416,7 +416,7 @@ internal static class CardCatalogChecks
                 Click(mechanical); await Frame();
                 vehicle.GrabFocus(); KeyInput(Key.Space); await Frame(); await Frame();
                 var tagMatch = catalog.GetNode<OptionButton>("TagLayer/TagPopup/Filters/TagFilters/TagMatch");
-                var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly));
+                var formal = CardCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(GameMain).Assembly));
                 foreach (var mode in new[] { 0, 1 })
                 {
                     tagMatch.Select(mode); tagMatch.EmitSignal(OptionButton.SignalName.ItemSelected, mode);
@@ -501,9 +501,9 @@ internal static class CardCatalogChecks
         }
     }
 
-    private static MinimalPlaytest CreateRoot(Control owner)
+    private static GameMain CreateRoot(Control owner)
     {
-        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var root = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         owner.AddChild(root); root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         return root;
     }

@@ -146,7 +146,7 @@ internal static class MonaForestCardsChecks
             var snapshot = Project_Star.Application.Match.MatchDisplayQuery.FromOffer(Project_Star.Domain.Match.ShopOffer.Create(definition));
             foreach (var scale in new[] { 100, 320 })
             {
-                var face = new Project_Star.Presentation.Playtest.CardItemView { Position = new Vector2(scale == 100 ? 20 : 220, 20),
+                var face = new Project_Star.Presentation.Game.CardItemView { Position = new Vector2(scale == 100 ? 20 : 220, 20),
                     Size = new Vector2(scale, identity.Size == CardSize.Small ? scale * 2 : scale) };
                 viewport.AddChild(face); face.Render(snapshot, adapter);
             }
@@ -156,10 +156,10 @@ internal static class MonaForestCardsChecks
             using var capture = viewport.GetTexture().GetImage();
             capture.SavePng($"res://output/mona-forest/{identity.Key.ToString().Replace("card.", "")}.png");
             viewport.QueueFree();
-            var preview = new Project_Star.Presentation.Playtest.CardPreviewView
+            var preview = new Project_Star.Presentation.Game.CardPreviewView
             {
                 Size = owner.GetViewport().GetVisibleRect().Size,
-                Theme = Project_Star.Presentation.Playtest.MatchTheme.Create(),
+                Theme = Project_Star.Presentation.Game.MatchTheme.Create(),
             };
             owner.AddChild(preview);
             preview.SetQuery(new Project_Star.Application.Content.CardPreviewQuery(

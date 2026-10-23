@@ -33,6 +33,14 @@ public sealed class MatchSession
 
     public IDefinitionCatalog? Definitions { get; }
 
+    // 从已验证存档恢复稳定对局身份，不重新生成随机状态或结算收入。
+    internal MatchSession(Guid id, ulong seed, int boardCapacity, IDefinitionCatalog definitions)
+        : this(seed, boardCapacity: boardCapacity, gems: definitions.Gems.Values, definitions: definitions)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("Match ID is required.", nameof(id));
+        Id = id;
+    }
+
     public IReadOnlyList<GemDefinition> GemDefinitions { get; }
 
     public Guid Id { get; }
@@ -256,6 +264,15 @@ public sealed class EncounterScheduleState
     }
 
     internal void ClearChoices() => _currentChoices.Clear();
+
+    // 恢复已出现历史及当前候选，读取存档不会把候选重新抽取或重复记入历史。
+    internal void Restore(IEnumerable<StringName> seen, IEnumerable<EncounterChoice> choices)
+    {
+        _seenKeys.Clear();
+        _seenKeys.UnionWith(seen);
+        _currentChoices.Clear();
+        _currentChoices.AddRange(choices);
+    }
 }
 
 public sealed class MatchRandomState

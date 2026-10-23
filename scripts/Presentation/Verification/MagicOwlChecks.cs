@@ -27,7 +27,7 @@ internal static class MagicOwlChecks
         foreach (var (position, size) in new[] { (new Godot.Vector2(20, 20), new Godot.Vector2(100, 200)),
             (new Godot.Vector2(160, 20), new Godot.Vector2(200, 400)) })
         {
-            var face = new Project_Star.Presentation.Playtest.CardItemView { Position = position, Size = size };
+            var face = new Project_Star.Presentation.Game.CardItemView { Position = position, Size = size };
             viewport.AddChild(face); face.Render(snapshot, adapter);
         }
         await owner.ToSignal(owner.GetTree(), Godot.SceneTree.SignalName.ProcessFrame);

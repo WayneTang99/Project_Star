@@ -10,7 +10,7 @@ using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Random;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 using static Project_Star.Presentation.Verification.VerificationFixtures;
 
@@ -178,10 +178,10 @@ internal static class DefinitionChecks
                 || hero.CombatValues[GameAttributeKeys.MaxHealth] != 200 || hero.CombatValues[GameAttributeKeys.Armor] != 0
                 || hero.CombatValues[GameAttributeKeys.MaxMana] != 100 || hero.CombatValues[GameAttributeKeys.Mana] != 0
                 || hero.CombatValues[GameAttributeKeys.ManaRegen] != 10 || hero.CombatValues[GameAttributeKeys.HealthRegen] != 0
-                || PlaytestText.FormatHeroName(hero.DisplayName, hero.Title) != title + "·" + name) return false;
+                || GameText.FormatHeroName(hero.DisplayName, hero.Title) != title + "·" + name) return false;
         }
         return typeof(HeroIdentityAttributes).GetProperty(nameof(HeroIdentityAttributes.Title))!.SetMethod is null
-            && PlaytestText.FormatHeroName("野猪", "") == "野猪";
+            && GameText.FormatHeroName("野猪", "") == "野猪";
     }
 
     internal static bool CheckDuplicateDefinition()

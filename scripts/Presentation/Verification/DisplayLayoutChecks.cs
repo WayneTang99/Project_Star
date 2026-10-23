@@ -7,7 +7,7 @@ using Project_Star.Content.Heroes;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Encounters;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -75,7 +75,7 @@ internal static class DisplayLayoutChecks
 
     internal static bool MonsterBoard(Control owner)
     {
-        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var root = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         var shell = root.GetNode<MatchShell>("MatchShell"); root.RemoveChild(shell); root.Free();
         shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft); shell.Size = new Vector2(1600, 900); owner.AddChild(shell);
         try

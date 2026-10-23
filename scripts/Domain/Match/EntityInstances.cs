@@ -145,6 +145,13 @@ public sealed class CardInstance
     }
 
     internal void ReplaceOnSellReward(CardOnSellRewardDefinition? reward) => OnSellReward = reward;
+
+    // 恢复已经累计的永久冷却倍率，不再次执行出售触发。
+    internal void RestoreCooldownMultiplier(decimal multiplier)
+    {
+        if (multiplier is < 0m or > 1m) throw new ArgumentOutOfRangeException(nameof(multiplier));
+        CooldownMultiplier = multiplier;
+    }
 }
 
 public sealed class SkillInstance

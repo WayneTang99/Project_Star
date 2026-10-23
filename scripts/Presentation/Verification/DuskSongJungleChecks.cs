@@ -19,7 +19,7 @@ using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Encounters;
 using Project_Star.Infrastructure.Random;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -28,7 +28,7 @@ internal static class DuskSongJungleChecks
 {
     internal static bool Definitions()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var definition = (DuskSongJungleEncounterDefinition)registry.Encounters[new StringName("encounter.dusk_song_jungle")];
         if (definition is not ExplorationEncounterDefinition || definition.Attributes.Identity.DisplayName != "暮歌丛林" || definition.Level != 2
             || definition.MinimumRound != 1 || definition.MaximumRound != 99 || definition.BaseWeight != 1
@@ -41,7 +41,7 @@ internal static class DuskSongJungleChecks
             || fell.Outcomes[0].Effect is not GrantRandomTaggedCardEncounterOptionEffectDefinition { Size: CardSize.Large, UseEncounterLevel: true }
             || fell.Outcomes[1].Effect is not GrantRandomTaggedCardEncounterOptionEffectDefinition { Size: CardSize.Medium, UseEncounterLevel: true }
             || fell.Outcomes[2].Effect is not EnterRandomMonsterEncounterOptionEffectDefinition) return false;
-        var explanation = PlaytestText.FormatOption(definition.Options[1], 1, 3);
+        var explanation = GameText.FormatOption(definition.Options[1], 1, 3);
         if (!explanation.Contains("20%") || !explanation.Contains("30%") || !explanation.Contains("50%")
             || !explanation.Contains("3 级大型植物") || !explanation.Contains("3 级怪物")) return false;
         var texture = GD.Load<Texture2D>(definition.Attributes.Identity.Illustration.ToString());
@@ -108,7 +108,7 @@ internal static class DuskSongJungleChecks
             var result = resolver.Resolve(session, options, forest.Options[0].Key);
             if (result.Value?.GrantedCard?.Attributes.Persistent.GetBaseValue(GameAttributeKeys.Level) != encounterLevel) return false;
         }
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var formalResolver = new ResolveEncounterOptionService(factory, board, registry.Cards.Values, registry.Monsters.Values);
         var gatherSession = matches.Create(1, 0, new PaladinHeroDefinition());
         var gatherResult = formalResolver.Resolve(gatherSession, formalResolver.CreateOptionSet(gatherSession, forest, 4), forest.Options[0].Key);
@@ -134,7 +134,7 @@ internal static class DuskSongJungleChecks
         var noMonsterOptions = empty.CreateOptionSet(noMonster, forest); noMonster.Random.State = SeedForRoll(50);
         var noMonsterResult = empty.Resolve(noMonster, noMonsterOptions, forest.Options[1].Key);
         if (!noMonsterOptions.IsResolved || !noMonsterResult.Value!.MonsterEncounterSkipped
-            || !PlaytestText.FormatEventResult(noMonsterResult.Value).Contains("没有符合当前轮次")) return false;
+            || !GameText.FormatEventResult(noMonsterResult.Value).Contains("没有符合当前轮次")) return false;
         var emptyCards = new ResolveEncounterOptionService(factory, board, Array.Empty<CardDefinition>());
         var failed = matches.Create(4, 0, new PaladinHeroDefinition());
         var failedOptions = emptyCards.CreateOptionSet(failed, forest); failed.Random.State = SeedForRoll(0);
@@ -200,7 +200,7 @@ internal static class DuskSongJungleChecks
     // 正式遭遇定义配合内部植物/怪物夹具的两档原生窗口验证。
     internal static async Task Capture(Control owner)
     {
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<Control>();
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Control>();
         var shell = scene.GetNode<MatchShell>("MatchShell"); scene.RemoveChild(shell); scene.Free();
         owner.AddChild(shell); shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         var presenter = CreatePresenter(); presenter.ViewChanged += shell.Render;

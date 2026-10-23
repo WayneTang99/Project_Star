@@ -21,7 +21,7 @@ function Invoke-VerificationProcess([string]$Argument, [string]$LogName) {
     $start.CreateNoWindow = $true
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
-    foreach ($value in @('--headless', '--path', $projectRoot, 'res://Main.tscn', '--', $Argument)) { $start.ArgumentList.Add($value) }
+    foreach ($value in @('--headless', '--path', $projectRoot, 'res://Verification.tscn', '--', $Argument)) { $start.ArgumentList.Add($value) }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $start
     $timer = [Diagnostics.Stopwatch]::StartNew()

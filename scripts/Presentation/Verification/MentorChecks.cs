@@ -18,7 +18,7 @@ using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Encounters;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 using static Project_Star.Presentation.Verification.VerificationFixtures;
 
@@ -273,7 +273,7 @@ internal static class MentorChecks
 
     private static MatchShell CreateShell(Control owner)
     {
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         var shell = scene.GetNode<MatchShell>("MatchShell");
         scene.RemoveChild(shell); scene.Free();
         shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);

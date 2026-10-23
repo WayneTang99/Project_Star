@@ -54,6 +54,10 @@ Project_Star 项目导航。本文件为 AI 代理 / 开发者的入口文档，
 | docs/engineering/DEV_CONVENTIONS.md | Git、注释、工具和产物约定 | 提交与工具操作 |
 | docs/engineering/SERVER_ACCESS.md | 云端 SSH 参数、公开指纹、换机与接续步骤；不含私钥 | 连接云服务器、换机或部署验证 |
 | docs/engineering/RELEASE_PIPELINE.md | Release 自动构建、附件与当前服务端入口 | 发布 Linux 服务端和 Windows 客户端 |
+| docs/engineering/ACCOUNT_SERVER.md | 账号接口、会话、云端运维及后续 Steam 接入 | 注册登录、会话、部署账号服务 |
+| docs/engineering/MATCH_PERSISTENCE.md | 存档字段审计、当前命令、事务与规则版本边界 | 对局保存恢复、联网命令与规则进程 |
+| docs/engineering/PVP_SERVER.md | 真实快照匹配、持久任务、一次结算及当前HTTP契约 | PvP参战、任务恢复、跨轮与终局归档 |
+| docs/engineering/ONLINE_CLIENT.md | Main联网面板、SSH隧道、内存会话与客户端验证边界 | 客户端登录、操作、恢复及结果展示 |
 | docs/planning/IMPLEMENTATION_PLAN.md | 当前状态与未完成队列 | 确认下一步 |
 | docs/quality/MANUAL_ACCEPTANCE.md | 验证入口、当前证据与人工矩阵 | 验证试玩 |
 | docs/quality/BUG_LOG.md | BUG 编号、根因、修复和状态 | 发现和修复 BUG |

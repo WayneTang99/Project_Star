@@ -12,7 +12,7 @@ using Project_Star.Domain.Combat;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Match;
 using Project_Star.Presentation.CardFace;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -155,7 +155,7 @@ internal static class CardInteractionChecks
             var sample = MatchDisplayQuery.FromOffer(ShopOffer.Create(new AscendantCardDefinition()));
             details.SetPinned(false); details.ShowNear(sample, new Rect2(100, 100, 60, 100), shell.Size);
             details.RefreshCard(sample, shell.Size);
-            if (details.GetNode<Control>("Content").MouseFilter != Control.MouseFilterEnum.Stop
+            if (details.GetNode<Control>("Content").MouseFilter != Control.MouseFilterEnum.Ignore
                 || details.GetNode<Control>("Content/CardContent/BodyScroll/Paragraphs/Quests/quest_ascendant_attack").MouseFilter != Control.MouseFilterEnum.Ignore) return false;
             details.SetPinned(true);
             if (details.GetNode<Control>("Content/CardContent/BodyScroll").MouseFilter != Control.MouseFilterEnum.Stop) return false;
@@ -422,12 +422,12 @@ internal static class CardInteractionChecks
         bool detailsVisible() => scene.GetNode<CardDetailsView>("MatchShell/CardDetails").Visible;
     }
 
-    private static MinimalPlaytest Create(Control owner)
+    private static GameMain Create(Control owner)
     {
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         owner.AddChild(scene); scene.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); return scene;
     }
-    private static MatchPresenter Presenter(MinimalPlaytest scene) => (MatchPresenter)typeof(MinimalPlaytest)
+    private static MatchPresenter Presenter(GameMain scene) => (MatchPresenter)typeof(GameMain)
         .GetField("_presenter", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(scene)!;
     private static MatchSession Session(MatchPresenter presenter) => (MatchSession)typeof(MatchPresenter)
         .GetField("_player", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(presenter)!;

@@ -9,7 +9,7 @@ using Project_Star.Domain.Common;
 using Project_Star.Domain.Definitions;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Presentation.CardFace;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -18,7 +18,7 @@ internal static class UiPrototypeSyncChecks
 {
     internal static bool Definitions()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var catalog = CardCatalogQuery.Capture(registry);
         var query = new CardPreviewQuery(registry);
         foreach (var level in catalog.SelectMany(entry => entry.Levels))
@@ -53,7 +53,7 @@ internal static class UiPrototypeSyncChecks
 
     internal static bool Preview()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var query = new CardPreviewQuery(registry);
         var entries = CardCatalogQuery.Capture(registry);
         var boar = entries.Single(entry => entry.InitialCard.DisplayName == "野猪").Levels.Single(level => level.Card.Level == 2).Card;
@@ -75,7 +75,7 @@ internal static class UiPrototypeSyncChecks
     // 全卡等级与宝石预览必须保留护甲基值和实例加成，再由战斗层计算光环。
     internal static bool PreviewArmor()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var query = new CardPreviewQuery(registry);
         foreach (var entry in CardCatalogQuery.Capture(registry))
         foreach (var sourceLevel in entry.Levels)
@@ -115,7 +115,7 @@ internal static class UiPrototypeSyncChecks
 
     internal static bool Scene(Control owner)
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var query = new CardPreviewQuery(registry);
         var sample = CardCatalogQuery.Capture(registry).Single(entry => entry.InitialCard.DisplayName == "机关重弩").InitialCard;
         var preview = new CardPreviewView { Size = new Vector2(1600, 900) }; owner.AddChild(preview); preview.SetQuery(query);
@@ -148,7 +148,7 @@ internal static class UiPrototypeSyncChecks
     // 真实战場投影与等级预览保留冷却；100%缩减显示1秒，被动卡不显示圆徽。
     internal static bool CooldownDetails(Control owner)
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var factory = new Project_Star.Application.Factories.EntityFactory();
         var board = new Project_Star.Application.Board.BoardService(new Project_Star.Domain.Match.BoardPlacementSolver(), registry.Sets);
         var session = new Project_Star.Domain.Match.MatchSession(42, 100);
@@ -184,7 +184,7 @@ internal static class UiPrototypeSyncChecks
 
     internal static async Task Capture(Control owner)
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var previousHdr = owner.GetViewport().UseHdr2D; owner.GetViewport().UseHdr2D = false;
         var preview = new CardPreviewView { Size = owner.GetViewportRect().Size, Theme = MatchTheme.Create() }; owner.AddChild(preview);
         preview.SetQuery(new CardPreviewQuery(registry));

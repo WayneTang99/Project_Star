@@ -13,7 +13,7 @@ using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Infrastructure.Random;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -22,7 +22,7 @@ internal static class QuicksandExpanseChecks
 {
     internal static bool DefinitionsAndScheduling()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var desert = (QuicksandExpanseEncounterDefinition)registry.Encounters[new StringName("encounter.quicksand_expanse")];
         if (registry.Encounters[new StringName("encounter.dusk_song_jungle")] is not ExplorationEncounterDefinition
             || desert.Level != 2 || desert.MinimumRound != 1 || desert.MaximumRound != 99 || desert.BaseWeight != 1
@@ -35,10 +35,10 @@ internal static class QuicksandExpanseChecks
             || outcomes.Outcomes[1].Effect is not EnterRandomMonsterEncounterOptionEffectDefinition
             || outcomes.Outcomes[2].Effect is not GrantCardEncounterOptionEffectDefinition { UseEncounterLevel: true } bag
             || bag.CardKey != new StringName("card.jewelry_bag")) return false;
-        var description = PlaytestText.FormatOption(desert.Options[1], 1, 4, registry.Cards);
+        var description = GameText.FormatOption(desert.Options[1], 1, 4, registry.Cards);
         if (!description.Contains("60%") || !description.Contains("30%") || !description.Contains("10%")
             || !description.Contains("4 级本阵营中型") || !description.Contains("4 级珠宝袋")
-            || !PlaytestText.FormatOption(desert.Options[0], 1, 2).Contains("2～8")) return false;
+            || !GameText.FormatOption(desert.Options[0], 1, 2).Contains("2～8")) return false;
         if (GD.Load<Texture2D>(desert.Attributes.Identity.Illustration.ToString()) is null) return false;
         var schedulerRegistry = DefinitionRegistry.Create([desert, new SmallShopEncounterDefinition(), new JewelryBagCardDefinition()]);
         foreach (var round in new[] { 1, 2, 3, 99 })
@@ -63,7 +63,7 @@ internal static class QuicksandExpanseChecks
 
     internal static bool OutcomesAndLevels()
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var desert = new QuicksandExpanseEncounterDefinition();
         var factory = new EntityFactory(); var board = new BoardService(new BoardPlacementSolver());
         var matches = new CreateMatchService(factory);

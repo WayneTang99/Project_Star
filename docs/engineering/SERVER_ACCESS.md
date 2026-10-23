@@ -1,6 +1,6 @@
 # 云服务器访问与换机说明
 
-更新日期：2026-10-22。用于 Project_Star 异步 PvP 开发。本文记录连接参数和公开指纹，不记录密码、私钥正文、数据库凭据或令牌。
+更新日期：2026-10-23。用于 Project_Star 异步 PvP 开发。本文记录连接参数和公开指纹，不记录密码、私钥正文、数据库凭据或令牌。
 
 ## 1. 连接参数
 
@@ -77,9 +77,11 @@ ssh -o BatchMode=yes -o ConnectTimeout=10 project-star-cloud 'whoami; uname -m'
 - ~/project-star-p0/：隔离 P0 工具、SDK、源码及诊断工件。源码与官方专用模板导出已通过；不是玩家数据目录，也不是正式常驻业务服务。
 - /opt/project-star/releases/p0-20261022-174039-133/：本轮通过的只读诊断程序；报告位于 /var/log/project-star/p0/。它运行检查后退出，没有常驻PvP端口。
 - 正式目录建议：程序 /opt/project-star/releases/<version>/，玩家持久文件 /var/lib/project-star/，PostgreSQL 使用独立目录／卷，配置 /etc/project-star/，日志 /var/log/project-star/。创建与权限以执行记录为准，不因本文列出就认定已经部署。
-- 当前尚无已验收的正式账号系统、玩家存档／数据库或公开业务 API。需要以最新[P0记录](../quality/ASYNC_PVP_P0_2026_10_22.md)及后续记录核实。
+- 账号及对局后端已部署：`project-star-api.service`，仅 `127.0.0.1:5080`；当前程序入口 `/opt/project-star/api-current`，PostgreSQL 位于 `/var/lib/postgresql/18/main/`，配置 `/etc/project-star/api.env`，持久文件 `/var/lib/project-star/`。账号、权威操作及真实快照PvP已通过API验证；Main联网面板经本机SSH隧道接入，使用见[联网客户端](ONLINE_CLIENT.md)。公网HTTPS、完整棋盘与回放仍待，详见[账号运行文档](ACCOUNT_SERVER.md)和[P4记录](../quality/ASYNC_PVP_P4_2026_10_23.md)。
 
 后续位置、备份或服务名称变化在相应运行文档维护；不要将临时 P0 目录变成生产数据库目录。
+
+2026-10-23继续P4后，当前入口已更新至`/opt/project-star/releases/p4-20261023-pvp-01/`，已接商店／构筑、选项事件、怪物战与真实快照PvP；两个正常构筑账号各完成两轮并互相消费快照。同一服务管理API、后台任务执行器与Godot规则子进程，数据库结构3，存档格式4。不能回滚到仅支持结构1或2的程序；旧规则存档和任务保留，但不跨版本自动恢复／执行。最新隔离源码`/home/ubuntu/project-star-tools/pvp-source/`，最终发布暂存`pvp-publish/`，通用account-publish已同步。最新范围见[权威存档](MATCH_PERSISTENCE.md)、[PvP契约](PVP_SERVER.md)及[P4证据](../quality/ASYNC_PVP_P4_2026_10_23.md)。
 
 ## 6. 连接问题排查
 

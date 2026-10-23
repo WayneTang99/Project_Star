@@ -10,7 +10,7 @@ using Project_Star.Content.Cards;
 using Project_Star.Domain.Common;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -23,7 +23,7 @@ internal static class UnifiedUiChecks
     // 菜单打开／取消只读；整局放弃结束旧聚合，过期确认和交易不能影响新局。
     internal static bool MenuAndAbandon(Control owner)
     {
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<Control>(); owner.AddChild(scene);
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Control>(); owner.AddChild(scene);
         try
         {
             var presenter = Field<MatchPresenter>(scene, "_presenter"); presenter.SelectHero(new StringName("hero.paladin"));
@@ -96,7 +96,7 @@ internal static class UnifiedUiChecks
     {
         var viewport = new SubViewport { Size = new Vector2I(1600, 900), Disable3D = true, HandleInputLocally = true };
         owner.AddChild(viewport);
-        var scene = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<Control>(); viewport.AddChild(scene);
+        var scene = GD.Load<PackedScene>("res://Main.tscn").Instantiate<Control>(); viewport.AddChild(scene);
         try
         {
             var presenter = Field<MatchPresenter>(scene, "_presenter"); presenter.SelectHero(new StringName("hero.paladin"));

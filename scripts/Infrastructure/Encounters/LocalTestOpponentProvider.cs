@@ -49,7 +49,7 @@ public sealed class LocalTestOpponentProvider : IOpponentProvider
     public MatchSession CreateMonsterOpponent(ulong seed, MonsterDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var session = new MatchSession(seed);
+        var session = new MatchSession(seed, gems: _registry.Gems.Values, definitions: _registry);
         session.Player.SelectHero(_factory.CreateMonsterCombatant(definition));
         var board = new BoardService(new BoardPlacementSolver(), _registry.Sets);
         foreach (var entry in definition.Cards)

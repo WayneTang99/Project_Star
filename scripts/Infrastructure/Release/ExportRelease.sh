@@ -18,10 +18,12 @@ if [ -e "$source" ] || [ -e "$package" ]; then printf 'Build directories already
 mkdir -p "$source" "$package"
 rsync -a "$root/scripts/" "$source/scripts/"
 cp "$root/Project_Star.csproj" "$root/Project_Star.sln" "$root/project.godot" "$source/"
+modify_resources=false
 if [ "$target" = client ]; then
     rsync -a "$root/art/" "$source/art/"
     rsync -a "$root/audio/" "$source/audio/"
-    cp "$root/Main.tscn" "$root/Playtest.tscn" "$root/icon.svg" "$source/"
+    cp "$root/Main.tscn" "$root/Verification.tscn" "$source/"
+    modify_resources=true
     platform='Windows Desktop'
     template="$templates/windows_release_x86_64.exe"
     filter=all_resources
@@ -43,7 +45,7 @@ import pathlib, re, sys
 p = pathlib.Path(sys.argv[1])
 text = p.read_text(encoding='utf-8-sig')
 text = re.sub(r'(?m)^run/main_scene=.*$', 'run/main_scene="res://scripts/Presentation/Verification/ServerBaseline.tscn"', text)
-text = re.sub(r'(?m)^config/icon=.*\n?', '', text)
+text = re.sub(r'(?m)^config/(?:icon|windows_native_icon)=.*\n?', '', text)
 p.write_text(text, encoding='utf-8')
 PY
 fi
@@ -66,9 +68,12 @@ binary_format/architecture="x86_64"
 binary_format/embed_pck=false
 dotnet/include_scripts_content=false
 dotnet/embed_build_outputs=false
-application/modify_resources=false
+application/modify_resources=$modify_resources
 codesign/enable=false
 EOF
+if [ "$target" = client ]; then
+    printf '%s\n' 'application/icon="res://art/branding/project-star-icon.ico"' >> "$source/export_presets.cfg"
+fi
 dotnet build "$source/Project_Star.csproj" --nologo > "$output/$target-build.log" 2>&1
 run_godot() {
     local log=$1

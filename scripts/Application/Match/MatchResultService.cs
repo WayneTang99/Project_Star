@@ -74,8 +74,8 @@ public sealed class MatchResultService
         else if (battle.Outcome == BattleOutcome.OpponentVictory)
             session.Player.LoseReputation(battleRound ?? session.Progress.Round);
 
-        if (session.Progress.PvpWins >= 10) End(session, MatchStatus.Won);
-        else if (session.Player.Reputation <= 0) End(session, MatchStatus.Lost);
+        if (session.Progress.PvpWins >= 10) End(session, MatchStatus.Won, battleRound);
+        else if (session.Player.Reputation <= 0) End(session, MatchStatus.Lost, battleRound);
         return Result.Success();
     }
 
@@ -158,12 +158,12 @@ public sealed class MatchResultService
         }
     }
 
-    private static void End(MatchSession session, MatchStatus status)
+    private static void End(MatchSession session, MatchStatus status, int? completedRounds = null)
     {
         session.Status = status;
         session.Summary = new MatchSummary(
             status,
-            session.Progress.Round,
+            completedRounds ?? session.Progress.Round,
             session.Progress.PvpWins,
             session.Player.Reputation,
             session.Player.Wealth);

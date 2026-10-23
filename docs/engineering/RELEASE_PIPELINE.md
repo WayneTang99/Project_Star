@@ -20,7 +20,7 @@
 
 用户已确认本次先导出 ServerBaseline.tscn。它是 P0 诊断程序，运行检查后退出，尚非正式常驻 PvP 服务；包内 README 明确标注。正式服务端实现后，更新 ExportRelease.sh 的入口与场景导出列表，以及对应启动冒烟测试。
 
-服务端仅复制 scripts/ 与项目构建文件，不复制 art/、audio/、docs/ 或参考区；Godot 使用 dedicated_server 特性，并仅导出指定无界面场景。客户端保留现有 Playtest.tscn 入口与运行所需美术、音频和场景。
+服务端仅复制 scripts/ 与项目构建文件，不复制 art/、audio/、docs/ 或参考区；Godot 使用 dedicated_server 特性，并仅导出指定无界面场景。客户端以 Main.tscn 为唯一默认游戏入口，运行时代码位于 scripts/Presentation/Game/，原试玩入口已迁入Main；独立验证页为Verification.tscn，组件展示位于Presentation/Verification/。客户端暂存复制这两个根场景与运行所需美术、音频，发布工件不写回代码分支。
 
 服务端包导出后会在 runner 内实际运行一次，诊断报告写到程序目录之外；失败时不会上传附件。Windows 包在 Linux 上交叉导出，不在 Linux runner 上进行图形试玩。
 
@@ -32,6 +32,8 @@ Linux tar 包保留可执行权限；Windows zip 包含 exe、pck 和完整 data
 
 此流水线负责发布下载附件，不自动部署云服务器，也不执行数据库迁移。下载后的部署仍须将程序与玩家数据分开；更换程序不能覆盖存档。
 
+2026-10-23新增的.NET10账号宿主独立于Godot游戏工程，目前采用显式云端部署，尚未加入本流水线；见[账号服务](ACCOUNT_SERVER.md)。现有setup-dotnet 8仍只负责Godot项目，不把P0附件标作已包含账号API的正式服务端。
+
 ## 环境来源与维护
 
 本方案按用户确认使用 GitHub 的 Ubuntu runner 和 Godot 官方下载文件。Godot 官方 build-containers 用于编译引擎，不把第三方 godot-ci 镜像标作官方镜像。
@@ -40,9 +42,12 @@ Linux tar 包保留可执行权限；Windows zip 包含 exe、pck 和完整 data
 - 当前 C# 项目为 net8.0，使用 .NET 8 SDK。框架升级时同步更新 setup-dotnet。
 - actions/checkout 和 actions/setup-dotnet 固定到已核实的提交，升级时核对来源。
 - export_presets.cfg 在临时项目中生成，不需要提交本机导出配置。
+- 客户端图标源位于 `art/branding/project-star-icon.png`，Windows ICO 包含16、32、48、64、128、256像素尺寸；项目窗口使用该ICO，客户端导出开启 `application/modify_resources` 并显式指定同一ICO，写入EXE文件图标。服务端隔离源码移除两项图标引用，不复制美术资源。
 - 如果仓库启用不可变 Release 等限制、组织禁用写权限，附件上传可能被 GitHub 拒绝；按仓库发布策略调整，不将包改为提交到分支。
 
 ## 验证记录
+
+2026-10-23：新图标在本机官方4.7.2.NET编辑器实际导出Windows客户端后，通过Windows资源接口读取EXE的图标组及图像，16／32／48／64／128／256像素全部逐字节匹配正式ICO；PCK包含项目PNG及原生ICO。C#构建0警告0错误，发布脚本Bash语法通过。产物位于本机 `output/branding/windows-client/`；本次未触发线上Release。
 
 2026-10-22：YAML 解析、actionlint、Bash 语法及无分支写入检查通过；同一导出脚本的 Linux server 分支在云端使用官方 Linux 编辑器／模板实际构建并运行通过。Windows 客户端另用相同导出选项在本机官方编辑器验证。实际 GitHub Release 事件及附件上传尚未触发，需首次正式发布时确认。
 

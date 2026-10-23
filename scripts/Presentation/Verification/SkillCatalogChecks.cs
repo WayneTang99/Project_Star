@@ -10,7 +10,7 @@ using Project_Star.Domain.Definitions;
 using Project_Star.Domain.Match;
 using Project_Star.Infrastructure.Definitions;
 using Project_Star.Presentation.CardFace;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -19,7 +19,7 @@ internal static class SkillCatalogChecks
 {
     internal static bool ArtworkAndLevels(Control owner)
     {
-        var registry = DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly);
+        var registry = DefinitionRegistry.Scan(typeof(GameMain).Assembly);
         var entries = SkillCatalogQuery.Capture(registry); var paths = new System.Collections.Generic.HashSet<StringName>();
         if (entries.Count != registry.Skills.Count || entries.Select(entry => entry.InitialSkill.Key).Distinct().Count() != entries.Count) return false;
         var icon = new SkillItemView(); owner.AddChild(icon); var adapter = new CardDisplayAdapter();
@@ -87,7 +87,7 @@ internal static class SkillCatalogChecks
             if (!catalog.Visible || open.IsVisibleInTree() || shell.GetNode<Control>("CardCatalog").Visible
                 || shell.GetNode<Control>("ContextRow/ContextHost/HeroSelectionView").Visible) return Fail("页面互斥");
             var factionKeys = new[] { "neutral", "paladin", "mona", "robin", "harla", "valos", "jiyun" };
-            var ordered = SkillCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly))
+            var ordered = SkillCatalogQuery.Capture(DefinitionRegistry.Scan(typeof(GameMain).Assembly))
                 .OrderBy(entry => Array.IndexOf(factionKeys, entry.InitialSkill.FactionKey.ToString()))
                 .ThenBy(entry => entry.InitialLevel)
                 .ThenBy(entry => entry.InitialSkill.Key.ToString(), StringComparer.Ordinal).ToArray();
@@ -206,7 +206,7 @@ internal static class SkillCatalogChecks
                 search.Text = ""; search.EmitSignal(LineEdit.SignalName.TextChanged, ""); KeyInput(Key.Escape); await Frame();
                 if (catalog.Visible || !shell.GetNode<Button>("OpenGameMenu").HasFocus()) throw new InvalidOperationException("技能图鉴返回焦点失败。");
             }
-            shell.Render(SkillView(DefinitionRegistry.Scan(typeof(MinimalPlaytest).Assembly)));
+            shell.Render(SkillView(DefinitionRegistry.Scan(typeof(GameMain).Assembly)));
             var opener = shell.GetNode<Button>("OpenGameMenu"); opener.GrabFocus();
             shell.GetNode<HeroDetailsView>("HeroDetails").ShowSection(HeroSection.Skills, shell.Size);
             var close = shell.GetNode<Button>("HeroDetails/Content/Close");
@@ -248,9 +248,9 @@ internal static class SkillCatalogChecks
         }
     }
 
-    private static MinimalPlaytest CreateRoot(Control owner)
+    private static GameMain CreateRoot(Control owner)
     {
-        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var root = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         owner.AddChild(root); root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); return root;
     }
 

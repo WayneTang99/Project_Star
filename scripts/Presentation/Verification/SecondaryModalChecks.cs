@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Project_Star.Application.Match;
 using Project_Star.Infrastructure.Definitions;
-using Project_Star.Presentation.Playtest;
+using Project_Star.Presentation.Game;
 
 namespace Project_Star.Presentation.Verification;
 
@@ -14,11 +14,11 @@ internal static class SecondaryModalChecks
     {
         if (!SkillCatalogChecks.ArtworkAndLevels(owner) || !CardInteractionChecks.DirectAcquisition(owner))
             throw new InvalidOperationException("技能与奖励浮层回归失败。");
-        var root = GD.Load<PackedScene>("res://Playtest.tscn").Instantiate<MinimalPlaytest>();
+        var root = GD.Load<PackedScene>("res://Main.tscn").Instantiate<GameMain>();
         owner.AddChild(root); root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         try
         {
-            var presenter = (MatchPresenter)typeof(MinimalPlaytest).GetField("_presenter",
+            var presenter = (MatchPresenter)typeof(GameMain).GetField("_presenter",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(root)!;
             presenter.SelectHero(new StringName("hero.paladin"));
             var shell = root.GetNode<MatchShell>("MatchShell");

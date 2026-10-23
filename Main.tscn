@@ -1,90 +1,38 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://scripts/Presentation/PhaseOneVerification.cs" id="1_script"]
+[ext_resource type="Script" path="res://scripts/Presentation/GameMain.cs" id="1"]
+[ext_resource type="Script" path="res://scripts/Presentation/Game/MatchShell.cs" id="2"]
+[ext_resource type="Script" path="res://scripts/Presentation/Game/TopBar.cs" id="3"]
 
-[node name="PhaseOneVerification" type="Control"]
+[node name="Main" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_script")
+script = ExtResource("1")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="MatchShell" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.035, 0.047, 0.071, 1)
-mouse_filter = 2
+script = ExtResource("2")
 
-[node name="Margin" type="MarginContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 48
-theme_override_constants/margin_top = 48
-theme_override_constants/margin_right = 48
-theme_override_constants/margin_bottom = 48
-
-[node name="Panel" type="PanelContainer" parent="Margin"]
-layout_mode = 2
-
-[node name="Margin" type="MarginContainer" parent="Margin/Panel"]
-layout_mode = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 32
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 32
-
-[node name="Content" type="VBoxContainer" parent="Margin/Panel/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="Title" type="Label" parent="Margin/Panel/Margin/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "分批验证"
-
-[node name="Description" type="Label" parent="Margin/Panel/Margin/Content"]
-layout_mode = 2
-text = "按类别运行验证；全部验证用于完整检查。"
-
-[node name="Categories" type="HFlowContainer" parent="Margin/Panel/Margin/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/h_separation = 10
-theme_override_constants/v_separation = 8
-
-[node name="ProgressText" type="Label" parent="Margin/Panel/Margin/Content"]
-layout_mode = 2
-text = "等待验证 · 0%"
-
-[node name="Progress" type="ProgressBar" parent="Margin/Panel/Margin/Content"]
-custom_minimum_size = Vector2(0, 16)
-layout_mode = 2
-mouse_filter = 2
-show_percentage = false
-
-[node name="Results" type="ScrollContainer" parent="Margin/Panel/Margin/Content"]
-layout_mode = 2
-size_flags_vertical = 3
-size_flags_horizontal = 3
-
-[node name="Output" type="Label" parent="Margin/Panel/Margin/Content/Results"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.82, 0.85, 0.9, 1)
-theme_override_font_sizes/font_size = 18
-autowrap_mode = 2
-text = "选择一个分类开始验证。"
-
-[node name="Back" type="Button" parent="Margin/Panel/Margin/Content"]
-layout_mode = 2
-text = "返回试玩"
+[node name="TopBar" type="HBoxContainer" parent="MatchShell"]
+script = ExtResource("3")
+[node name="ContextRow" type="Control" parent="MatchShell"]
+[node name="Portrait" type="Control" parent="MatchShell/ContextRow"]
+[node name="ContextHost" type="Control" parent="MatchShell/ContextRow"]
+[node name="Leave" type="Control" parent="MatchShell/ContextRow"]
+[node name="BattlefieldRow" type="Control" parent="MatchShell"]
+[node name="LeftBlank" type="Control" parent="MatchShell/BattlefieldRow"]
+[node name="Content" type="Control" parent="MatchShell/BattlefieldRow"]
+[node name="RightBlank" type="Control" parent="MatchShell/BattlefieldRow"]
+[node name="BenchRow" type="Control" parent="MatchShell"]
+[node name="Hero" type="Control" parent="MatchShell/BenchRow"]
+[node name="Content" type="Control" parent="MatchShell/BenchRow"]
+[node name="Progress" type="Control" parent="MatchShell/BenchRow"]
